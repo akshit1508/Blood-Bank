@@ -57,8 +57,8 @@ A rigorous, defense-in-depth automated testing strategy is established across 10
 
 | Scenario ID | Test Scenario | Expected Outcome |
 |---|---|---|
-| `TC-REQ-01` | Public Blood Request with complete valid payload | HTTP 201 Created; returns tracking code; status is `PENDING_REVIEW`. |
-| `TC-REQ-02` | Public Blood Request with missing blood group or negative unit quantity | HTTP 400 Bad Request; validation error array returned; database unchanged. |
+| `TC-REQ-01` | Public Blood Request with complete valid payload | HTTP 201 Created; returns unique tracking code (`REQ-YYYYMMDD-XXXX`); initial status is `REQUESTED`. |
+| `TC-REQ-02` | Public Blood Request with missing required fields or invalid enum | HTTP 400 Bad Request; validation error array returned; database unchanged. |
 | `TC-DNR-01` | Voluntary Donor self-registration | HTTP 201 Created; unique donorCode assigned; status is `ELIGIBLE`. |
 | `TC-DNR-02` | Duplicate donor phone registration | Handled gracefully without creating redundant conflicting accounts. |
 | `TC-TST-01` | Blood unit testing results: all negative markers | Unit status transitions from `QUARANTINE_TESTING` to `AVAILABLE`. Usable inventory count increments. |

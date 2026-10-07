@@ -112,30 +112,31 @@ To maintain strict traceability, prevent data corruption, and avoid premature co
 
 ---
 
-### 2.6 `blood_requests`
-- **Purpose**: Record of requested blood by public patients or hospitals.
-- **Relationships**: One-to-Many with `reservations` and `blood_issues`.
-- **Known Fields**:
+### 2.6 `blood_requests` [IMPLEMENTED - PHASE 1]
+- **Purpose**: Master record of requested blood by public patients or hospitals.
+- **Relationships**: One-to-Many with `reservations` and `blood_issues` (future phases).
+- **Implemented Fields (Mongoose Schema: `apps/api/src/blood-requests/schemas/blood-request.schema.ts`)**:
   - `_id`: ObjectId
-  - `requestCode`: string (unique, public tracking reference)
-  - `patientName`: string
-  - `patientAge`: number
-  - `patientGender`: string
+  - `requestCode`: string (unique, indexed, uppercase e.g. `REQ-20261007-XXXX`)
+  - `patient`: Subdocument `{ name: string, age: number, gender: string }`
   - `bloodGroup`: string enum (`A+`, `A-`, `B+`, `B-`, `AB+`, `AB-`, `O+`, `O-`)
   - `componentType`: string enum (`WHOLE_BLOOD`, `PRBC`, `FFP`, `PLATELETS`)
-  - `unitsRequested`: number
+  - `unitsRequested`: number (min: 1)
   - `hospitalName`: string
   - `doctorName`: string
-  - `urgency`: string enum (`CRITICAL_EMERGENCY`, `URGENT`, `ROUTINE`)
-  - `contactPerson`: { name, phone, relationship }
+  - `doctorContact`: string (optional)
   - `hospitalCaseNumber`: string (optional)
+  - `priority`: string enum (`CRITICAL_EMERGENCY`, `URGENT`, `ROUTINE`)
+  - `contactPerson`: Subdocument `{ name: string, phone: string, relationship: string }`
   - `requiredDate`: Date
   - `medicalJustification`: string (optional)
-  - `status`: string enum (`PENDING_REVIEW`, `APPROVED`, `PARTIALLY_RESERVED`, `FULLY_RESERVED`, `ISSUED`, `REJECTED`, `CANCELLED`)
-  - `reviewRemarks`: string (optional)
-  - `reviewedBy`: ObjectId (ref: `users`, optional)
-  - `createdAt`, `updatedAt`: Date
-- **Requires Confirmation**: Mandatory requirement of signed physical doctor requisition upload (**REQUIRES CLIENT/BLOOD BANK CONFIRMATION**).
+  - `additionalNotes`: string (optional)
+  - `status`: string enum (`REQUESTED`, `VERIFIED`, `APPROVED`, `RESERVED`, `ISSUED`, `COMPLETED`, `REJECTED`, `CANCELLED`)
+  - `statusReason`: string (optional, audit explanation for status changes)
+  - `statusUpdatedAt`: Date
+  - `createdAt`, `updatedAt`: Date (timestamps: true)
+- **Compound Indexes**: `{ status: 1, priority: 1 }`, `{ createdAt: -1 }`, `{ requestCode: 1 }`
+- **Requires Confirmation**: Mandatory requirement of signed physical doctor requisition upload or file attachment (**REQUIRES CLIENT/BLOOD BANK CONFIRMATION**).
 
 ---
 

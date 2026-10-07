@@ -31,7 +31,13 @@
   - An `ISSUED` unit cannot be reverted to `AVAILABLE`.
   - A `REJECTED` unit cannot be transitioned to `AVAILABLE` or `RESERVED`.
   - An `EXPIRED` unit cannot be transitioned to `RESERVED` or `ISSUED`.
-- **Rule 2.4.2 (Request Progression)**: Blood requests must follow valid lifecycle states: `PENDING_REVIEW` &rarr; `APPROVED` / `REJECTED` &rarr; `PARTIALLY_RESERVED` / `FULLY_RESERVED` &rarr; `ISSUED` / `CANCELLED`. Direct jumping from `PENDING_REVIEW` to `ISSUED` without approval is forbidden.
+- **Rule 2.4.2 (Blood Request Lifecycle)**: Blood requests start strictly in `REQUESTED` status and progress through defined transitions:
+  - `REQUESTED` &rarr; `VERIFIED` | `REJECTED` | `CANCELLED`
+  - `VERIFIED` &rarr; `APPROVED` | `REJECTED` | `CANCELLED`
+  - `APPROVED` &rarr; `RESERVED` | `CANCELLED`
+  - `RESERVED` &rarr; `ISSUED` | `CANCELLED`
+  - `ISSUED` &rarr; `COMPLETED`
+  - Terminal States: `COMPLETED`, `REJECTED`, `CANCELLED` (no subsequent transitions permitted). Direct jumping from `REQUESTED` directly to `ISSUED` or `APPROVED` without verification is rejected with an HTTP 400 Bad Request.
 
 ### 2.5 Expiry & Cold Chain Rules
 - **Rule 2.5.1**: Every blood unit must have a tracked expiration date calculated from collection date and component type.

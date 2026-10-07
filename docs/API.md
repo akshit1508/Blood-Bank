@@ -57,11 +57,13 @@ The Blood Bank REST API is built in NestJS, accessible at the `/api` root prefix
 ### 2.3 Blood Requests (`/api/blood-requests`)
 | Method | Endpoint | Access | Status | Description |
 |---|---|---|---|---|
-| `POST` | `/api/blood-requests` | Public | `[PLANNED]` | Submit public blood request form; returns tracking code. |
-| `GET` | `/api/blood-requests/track/:code` | Public | `[PLANNED]` | Track request status by public tracking code. |
-| `GET` | `/api/blood-requests` | Staff | `[PLANNED]` | Admin list view with filtering (urgency, status, blood group). |
-| `GET` | `/api/blood-requests/:id` | Staff | `[PLANNED]` | Detailed request review including medical justification. |
-| `PATCH` | `/api/blood-requests/:id/status` | Staff | `[PLANNED]` | Approve, reject, or mark urgent review with audit note. |
+| `POST` | `/api/blood-requests` | Public | **[ACTIVE - PHASE 1]** | Submit public blood request form; returns unique tracking code & initial `REQUESTED` status. |
+| `GET` | `/api/blood-requests` | Staff / Admin | **[ACTIVE - PHASE 1]** | Query blood requests with optional `?status=` and `?bloodGroup=` filters. *(Security Note: Accessible to management queue. Role-based Guard enforcement pending Auth vertical slice).* |
+| `GET` | `/api/blood-requests/:id` | Staff / Admin | **[ACTIVE - PHASE 1]** | Retrieve single blood request by MongoDB `_id` or tracking code. *(Security Note: Contains clinical/patient data; strictly designated for management triage).* |
+| `PATCH` | `/api/blood-requests/:id/status` | Staff / Admin | **[ACTIVE - PHASE 1]** | Advance or terminate request lifecycle with audit reason, strictly validating state transitions. |
+
+> [!WARNING] **Security Boundary & Auth Blocker**
+> The read/mutation endpoints `GET /api/blood-requests`, `GET /api/blood-requests/:id`, and `PATCH /api/blood-requests/:id/status` are designated strictly for internal staff/admin operation because they contain sensitive patient and medical data. Currently, the admin UI consumes them directly while full authentication guards (JWT + RBAC) await implementation in the upcoming Auth slice. Do not expose request listings to anonymous public visitors.
 
 ---
 

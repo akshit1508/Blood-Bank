@@ -1,0 +1,161 @@
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model, isValidObjectId } from 'mongoose';
+import {
+  BloodRequest,
+  BloodRequestDocument,
+} from './schemas/blood-request.schema';
+import { CreateBloodRequestDto } from './dto/create-blood-request.dto';
+import { UpdateBloodRequestStatusDto } from './dto/update-blood-request-status.dto';
+import {
+  ALLOWED_STATUS_TRANSITIONS,
+  BloodRequestStatus,
+} from './blood-request.constants';
+
+@Injectable()
+export class BloodRequestService {
+  constructor(
+    @InjectModel(BloodRequest.name)
+    private readonly bloodRequestModel: Model<BloodRequestDocument>,
+  ) {}
+
+  /**
+   * Generates a unique, high-entropy human-readable request tracking code.
+   * Format: REQ-YYYYMMDD-XXXX (e.g. REQ-20261007-A9F2)
+   */
+  private generateRequestCode(): string {
+    const now = new Date();
+    const datePart = now.toISOString().slice(0, 10).replace(/-/g, '');
+    const randomPart = Math.random().toString(36).substring(2, 6).toUpperCase();
+    return `REQ-${datePart}-${randomPart}`;
+  }
+
+  /**
+   * Creates a new blood request submitted from the public or clinical intake.
+   * Enforces initial status: REQUESTED.
+   */
+  async create(createDto: CreateBloodRequestDto): Promise<BloodRequest> {
+    let requestCode = this.generateRequestCode();
+
+    // Ensure uniqueness in the rare event of random collision
+    let attempts = 0;
+    while (await this.bloodRequestModel.exists({ requestCode })) {
+      requestCode = this.generateRequestCode();
+      attempts++;
+      if (attempts > 5) {
+        requestCode = `REQ-${Date.now()}`;
+        break;
+      }
+    }
+
+    const created = new this.bloodRequestModel({
+      ...createDto,
+      requestCode,
+      requiredDate: new Date(createDto.requiredDate),
+      status: BloodRequestStatus.REQUESTED,
+      statusUpdatedAt: new Date(),
+    });
+
+    return await created.save();
+  }
+
+  /**
+   * Retrieves all blood requests, sorted by creation date descending.
+   * Can be filtered by status or bloodGroup.
+   */
+  async findAll(filters?: {
+    status?: BloodRequestStatus;
+    bloodGroup?: string;
+  }): Promise<BloodRequest[]> {
+    const query: Record<string, any> = {};
+    if (filters?.status) {
+      query.status = filters.status;
+    }
+    if (filters?.bloodGroup) {
+      query.bloodGroup = filters.bloodGroup;
+    }
+    return await this.bloodRequestModel
+      .find(query)
+      .sort({ createdAt: -1 })
+      .exec();
+  }
+
+  /**
+   * Finds a single request by MongoDB _id or public requestCode.
+   */
+  async findOne(identifier: string): Promise<BloodRequest> {
+    let request: BloodRequest | null = null;
+
+    if (isValidObjectId(identifier)) {
+      request = await this.bloodRequestModel.findById(identifier).exec();
+    }
+
+    if (!request) {
+      // Try finding by public tracking code (e.g. REQ-20261007-A9F2)
+      request = await this.bloodRequestModel
+        .findOne({ requestCode: identifier.toUpperCase() })
+        .exec();
+    }
+
+    if (!request) {
+      throw new NotFoundException(
+        `Blood request with identifier '${identifier}' was not found`,
+      );
+    }
+
+    return request;
+  }
+
+  /**
+   * Updates request status enforcing strict state machine transitions.
+   */
+  async updateStatus(
+    id: string,
+    updateStatusDto: UpdateBloodRequestStatusDto,
+  ): Promise<BloodRequest> {
+    const request = await this.findOne(id);
+    const currentStatus = request.status;
+    const targetStatus = updateStatusDto.status;
+
+    if (currentStatus === targetStatus) {
+      return request;
+    }
+
+    const allowedNextStatuses =
+      ALLOWED_STATUS_TRANSITIONS[currentStatus] || [];
+
+    if (!allowedNextStatuses.includes(targetStatus)) {
+      throw new BadRequestException(
+        `Invalid status transition from '${currentStatus}' to '${targetStatus}'. Allowed transitions are: [${allowedNextStatuses.join(
+          ', ',
+        )}]`,
+      );
+    }
+
+    const updated = await this.bloodRequestModel
+      .findByIdAndUpdate(
+        (request as any)._id,
+        {
+          $set: {
+            status: targetStatus,
+            statusReason: updateStatusDto.statusReason || '',
+            statusUpdatedAt: new Date(),
+          },
+        },
+        { new: true },
+      )
+      .exec();
+
+    if (!updated) {
+      throw new NotFoundException(
+        `Blood request with identifier '${id}' was not found during update`,
+      );
+    }
+
+    return updated;
+  }
+}

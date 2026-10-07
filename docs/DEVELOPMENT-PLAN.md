@@ -43,14 +43,14 @@ Next Vertical Slice
 
 ---
 
-### PHASE 1: Blood Request Vertical Slice
-- **Goal**: Enable public patients/hospitals to submit urgent blood requests and track their status.
-- **Backend**: `BloodRequestModule` in NestJS with DTO validation (`CreateBloodRequestDto`), `blood_requests` Mongoose schema, controller with `POST /api/blood-requests` and `GET /api/blood-requests/track/:code`.
-- **Frontend**: Public Blood Request submission form on Next.js (`/blood-request`), immediate confirmation dialog with tracking code, and tracking status page (`/track-request`).
-- **Database**: `blood_requests` collection with auto-generated tracking codes and indexes.
-- **API**: Public request intake and status retrieval.
-- **Testing**: DTO validation failure tests, successful request creation test, tracking code lookup test.
-- **Documentation**: Update `API.md` and `BUSINESS-RULES.md` with finalized field definitions.
+### PHASE 1: Blood Request Vertical Slice [COMPLETED]
+- **Goal**: Enable public patients/hospitals to submit urgent blood requests and enable staff to triage and transition request statuses.
+- **Backend**: Implemented `BloodRequestModule` in NestJS with strict DTO validation (`CreateBloodRequestDto`, `UpdateBloodRequestStatusDto`), `blood_requests` Mongoose schema with embedded patient/contact subdocuments and compound indexes, service with high-entropy tracking code generation (`REQ-YYYYMMDD-XXXX`), and controller exposing `POST /api/blood-requests`, `GET /api/blood-requests`, `GET /api/blood-requests/:id`, and `PATCH /api/blood-requests/:id/status`.
+- **Frontend**: Created Public Blood Request submission form on Next.js (`/blood-request`) with validation, required field indicators, loading state, error alert, and success receipt card displaying the unique tracking code. Created Admin Blood Request Management page (`/admin/blood-requests`) consuming the live API, with status filter, refresh, side-panel request viewer, and state machine transition executor.
+- **Database**: `blood_requests` collection with timestamps, status, priority, and unique `requestCode`.
+- **API**: Full REST API contract implemented under `/api/blood-requests`.
+- **Testing**: Complete automated unit test suites for `BloodRequestService` (creation, unique code generation, valid/invalid state transitions, query filters) and `BloodRequestDto` (class-validator constraint tests).
+- **Documentation**: Updated `DATABASE.md`, `API.md`, `BUSINESS-RULES.md`, and `DEVELOPMENT-PLAN.md`.
 
 ---
 
