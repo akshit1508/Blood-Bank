@@ -168,6 +168,9 @@ export default function AdminBloodRequestsPage() {
           <Link href="/admin/donations" style={{ backgroundColor: '#0f172a', color: '#fff', padding: '0.5rem 1rem', borderRadius: '6px', textDecoration: 'none', fontSize: '0.875rem', fontWeight: 500 }}>
             Donations Management
           </Link>
+          <Link href="/admin/testing" style={{ backgroundColor: '#0f172a', color: '#fff', padding: '0.5rem 1rem', borderRadius: '6px', textDecoration: 'none', fontSize: '0.875rem', fontWeight: 500 }}>
+            Laboratory Testing
+          </Link>
           <Link href="/blood-request" style={{ backgroundColor: '#dc2626', color: '#fff', padding: '0.5rem 1rem', borderRadius: '6px', textDecoration: 'none', fontSize: '0.875rem', fontWeight: 500 }}>
             + New Public Request
           </Link>

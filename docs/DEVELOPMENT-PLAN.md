@@ -83,25 +83,80 @@ Next Vertical Slice
 
 ---
 
-### PHASE 4: Donations Workflow (Staff / Admin)
-- **Goal**: Allow blood bank staff to log physical blood collection events.
-- **Backend**: `DonationsModule` with `RecordDonationDto`, donor validation, vital signs recording, `POST /api/donations`.
-- **Frontend**: Admin donation logging interface with donor search and vital sign capture form.
-- **Database**: `donations` collection linking to donor; auto-creation of placeholder unit in quarantine.
-- **API**: Authenticated staff donation entry endpoint.
-- **Testing**: Vital sign range validation, donor link integrity tests.
-- **Documentation**: Donation protocol guidelines.
+### PHASE 3.5: Blood Donor Eligibility & Donation Interval Validation [COMPLETED]
+- **Goal**: Implement authoritative Indian blood donation eligibility criteria on both frontend and backend.
+- **Rules Enforced**:
+  - Whole-blood age boundaries: 18–65 years (18–60 eligible, 61–65 advisory note, <18 or >65 hard rejected with HTTP 400 `DONOR_AGE_NOT_ELIGIBLE`).
+  - Whole-blood donation intervals: 90 calendar days for male, 120 calendar days for female/other based on latest `COMPLETED` whole-blood donation (`DONATION_INTERVAL_NOT_COMPLETED` with structured `lastDonationDate`, `nextEligibleDate`, and `remainingDays`).
+  - Future donation collection date rejection.
+- **Backend**: Pure functions in `eligibility.constants.ts`, enforcement in `donors.service.ts` and `donations.service.ts`.
+- **Frontend**: Real-time age feedback in `/donate-blood` registration form, interval status card in `/admin/donors` drawer, and waiting period button disabling.
+- **Testing**: 70/70 unit tests passing covering age and interval edge cases.
 
 ---
 
-### PHASE 5: Testing & Laboratory Validation
-- **Goal**: Enable laboratory staff to enter test results and enforce the Approve/Reject safety gate.
-- **Backend**: `TestingModule` with `SubmitTestResultsDto`, `POST /api/testing/:unitId`. Validates disease markers (HIV, HepB, HepC, Syphilis, Malaria) and updates unit status.
-- **Frontend**: Admin Laboratory Testing queue and result submission modal with safety confirmation prompts.
-- **Database**: `blood_tests` collection with complete audit timestamps; unit status transitions to `AVAILABLE` or `REJECTED`.
-- **API**: Lab testing queue query and testing outcome submission.
-- **Testing**: Rejection gate verification (ensure rejected unit never transitions to available), marker completeness tests.
-- **Documentation**: Laboratory screening workflow verification.
+### PHASE 4A: Blood Unit Backend Foundation [COMPLETED]
+- **Goal**: Establish the backend domain and Mongoose foundation for tracking individual physical blood units produced from completed donations.
+- **Domain Invariants**:
+  - A Blood Unit can be created ONLY from a valid `COMPLETED` donation.
+  - V1 Model: Exactly 1 donation maps to 1 blood unit, enforced by database unique index on `donationId` (`BLOOD_UNIT_ALREADY_EXISTS`, HTTP 409).
+  - Newly created Blood Unit initializes strictly with status `TESTING`.
+  - Authoritatively derives `donorId`, `bloodGroup`, and `collectionDate` from the donation and donor records.
+  - Rejects donations in status `RECORDED`, `PROCESSING`, or `CANCELLED`.
+  - Generates unique server-side `unitCode` (`UNIT-YYYYMMDD-XXXX`).
+  - No unsupported medical shelf-life assumptions are hardcoded.
+- **Backend Module**: `BloodUnitsModule` in `apps/api/src/modules/blood-units/`:
+  - `BloodUnit` Mongoose schema with indexes on `unitCode`, `donationId`, `donorId`, `bloodGroup`, `componentType`, `status`, and `collectionDate`.
+  - `BloodUnitsService` implementing `create`, `findAll` (paginated with filters), and `findOne` (by ObjectId or unitCode).
+  - `BloodUnitsController` exposing `POST /api/blood-units`, `GET /api/blood-units`, and `GET /api/blood-units/:id`.
+  - `CreateBloodUnitDto` and `QueryBloodUnitsDto` with validation rules.
+- **Testing**: 96/96 automated unit tests passing across all test suites, including comprehensive tests in `blood-units.service.spec.ts` and `blood-unit.dto.spec.ts`.
+- **Documentation**: Updated `DATABASE.md`, `API.md`, `BUSINESS-RULES.md`, and `DEVELOPMENT-PLAN.md`.
+
+---
+
+### PHASE 4B: Blood Testing Management Backend [COMPLETED]
+- **Goal**: Implement laboratory screening record tracking for blood units, individual test result updates, and enforce atomic Approve/Reject testing completion.
+- **Domain Invariants**:
+  - Exactly 1 testing record (`blood_testing`) per Blood Unit (`bloodUnitId` unique index).
+  - Initiation restricted to units in status `TESTING` (`BLOOD_UNIT_NOT_IN_TESTING`, HTTP 400).
+  - Initializes configured required screening tests (`HIV`, `HBV`, `HCV`, `SYPHILIS`, `MALARIA`, as configurable SOP baseline; final panel governed by blood bank SOP) in `PENDING` status.
+  - Finalization requires all configured tests to have conclusive non-pending results (`REQUIRED_TESTS_INCOMPLETE`, HTTP 400).
+  - If any required test has status `FAIL`: Decision = `REJECTED`, Blood Unit status atomically updates to `REJECTED`.
+  - If all required tests have status `PASS`: Decision = `APPROVED`, Blood Unit status atomically updates to `APPROVED`.
+  - Finalized records become immutable against casual tampering (`TESTING_ALREADY_COMPLETED`, HTTP 400).
+  - Software records authorized laboratory outcomes only without computing medical thresholds or clinical interpretation logic.
+  - Full traceability: `Donor` → `Donation` → `Blood Unit` → `Testing Record` → `Test Results` → `Decision`.
+- **Backend Module**: `TestingModule` in `apps/api/src/modules/testing/`:
+  - `BloodTesting` Mongoose schema with embedded `IndividualTestResult` subdocuments.
+  - `TestingService` implementing `create`, `updateTestResult`, `completeTesting`, `findAll`, `findOne`, and `findByBloodUnitId`.
+  - `TestingController` exposing `POST /api/testing`, `GET /api/testing`, `GET /api/testing/:id`, `GET /api/testing/blood-unit/:bloodUnitId`, `PATCH /api/testing/:id/tests/:testCode`, and `PATCH /api/testing/:id/complete`.
+  - DTOs: `CreateTestingDto`, `UpdateTestResultDto`, `CompleteTestingDto`, `QueryTestingDto`.
+- **Testing**: 126/126 automated unit tests passing across all 10 test suites, including comprehensive tests in `testing.service.spec.ts` and `testing.dto.spec.ts`.
+- **Documentation**: Updated `DATABASE.md`, `API.md`, `BUSINESS-RULES.md`, and `DEVELOPMENT-PLAN.md`.
+
+---
+
+### PHASE 4C: Testing Admin Frontend [COMPLETED]
+- **Goal**: Implement professional laboratory staff interface for blood screening test queue, individual outcome entry, safety gate completion, and blood unit clearance visualization.
+- **Frontend Route**: `/admin/testing` in `apps/web/src/app/admin/testing/page.tsx`.
+- **API Client**: `apps/web/src/lib/testing-api.ts` connecting to real Phase 4B endpoints:
+  - `GET /api/testing` (queue with status/decision filters and pagination)
+  - `GET /api/testing/:id` (record detail)
+  - `GET /api/testing/blood-unit/:bloodUnitId` (unit testing lookup)
+  - `POST /api/testing` (initiate testing on candidate blood unit)
+  - `PATCH /api/testing/:id/tests/:testCode` (save individual test outcome)
+  - `PATCH /api/testing/:id/complete` (finalize overall testing decision)
+  - `GET /api/blood-units?status=TESTING` (fetch units awaiting testing)
+- **Key Features & UX Invariants**:
+  - Live Testing Queue showing Testing Code, Blood Unit, Blood Group, Donor, Status, Decision, and timestamps.
+  - Interactive Traceability Drawer linking `Blood Unit` → `Donation` → `Donor` → `Lab Results`.
+  - Dynamic test results rendering (supports any SOP-configured test set returned by backend).
+  - Validation: Prevents future `testedAt` dates, blocks completion when any test is `PENDING`.
+  - Safety Confirmation: Explains Approve/Reject synchronization before finalizing.
+  - Immutability: Once `COMPLETED`, record enters read-only locked mode with outcome badges.
+  - Cross-Admin Navigation: Seamless navigation between Blood Requests, Donors, Donations, and Testing.
+- **Verification**: `npm run lint` (0 errors), `npm run typecheck` (passed), `npm run build` (14/14 static pages generated successfully), all 126 backend tests passing.
 
 ---
 

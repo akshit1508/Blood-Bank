@@ -6,6 +6,8 @@ import { AppService } from './app.service';
 import { BloodRequestModule } from './blood-requests/blood-request.module';
 import { DonorsModule } from './modules/donors/donors.module';
 import { DonationsModule } from './modules/donations/donations.module';
+import { BloodUnitsModule } from './modules/blood-units/blood-units.module';
+import { TestingModule } from './modules/testing/testing.module';
 
 @Module({
   imports: [
@@ -23,6 +25,8 @@ import { DonationsModule } from './modules/donations/donations.module';
     BloodRequestModule,
     DonorsModule,
     DonationsModule,
+    BloodUnitsModule,
+    TestingModule,
   ],
   controllers: [AppController],
   providers: [AppService],

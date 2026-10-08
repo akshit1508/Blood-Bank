@@ -80,46 +80,66 @@ To maintain strict traceability, prevent data corruption, and avoid premature co
 
 ---
 
-### 2.4 `blood_units`
-- **Purpose**: Represents an individual physical blood bag stored in cold-chain storage.
-- **Relationships**: Many-to-One with `donations`; One-to-One with `blood_tests`; One-to-One with `reservations` and `blood_issues`.
-- **Known Fields**:
+### 2.4 `blood_units` [IMPLEMENTED - PHASE 4A]
+- **Purpose**: Represents an individual physical collected blood/component unit produced from a completed donation, queued for laboratory testing before entering available inventory.
+- **Relationships**: Many-to-One / One-to-One (V1: exactly 1 Blood Unit per Donation) with `donations`; Many-to-One with `donors`; One-to-One with `blood_tests` (future Phase 4B); One-to-One with `reservations` and `blood_issues` (future phases).
+- **Implemented Fields (Mongoose Schema: `apps/api/src/modules/blood-units/schemas/blood-unit.schema.ts`)**:
   - `_id`: ObjectId
-  - `unitNumber`: string (unique, barcoded/scannable identifier)
-  - `donationId`: ObjectId (ref: `donations`, indexed)
-  - `bloodGroup`: string enum (`A+`, `A-`, `B+`, `B-`, `AB+`, `AB-`, `O+`, `O-`)
-  - `componentType`: string enum (`WHOLE_BLOOD`, `PRBC`, `FFP`, `PLATELETS`, `CRYOPRECIPITATE`)
-  - `volumeMl`: number
-  - `collectionDate`: Date
-  - `expiryDate`: Date (indexed)
-  - `storageLocation`: { refrigeratorId, shelfId, rackId }
-  - `status`: string enum (`QUARANTINE_TESTING`, `AVAILABLE`, `RESERVED`, `ISSUED`, `EXPIRED`, `DISCARDED`)
-  - `createdAt`, `updatedAt`: Date
-- **Requires Confirmation**: Component separation method and shelf-life determination formula per component (**REQUIRES CLIENT/BLOOD BANK CONFIRMATION**).
+  - `unitCode`: string (unique, indexed, uppercase e.g. `UNIT-20261008-XXXX`)
+  - `donationId`: ObjectId (ref: `Donation`, required, unique: true, indexed)
+  - `donorId`: ObjectId (ref: `Donor`, required, indexed, authoritatively derived from donation)
+  - `bloodGroup`: string enum (`A+`, `A-`, `B+`, `B-`, `AB+`, `AB-`, `O+`, `O-`, indexed, authoritatively derived from donor)
+  - `componentType`: string enum (`WHOLE_BLOOD`, `PRBC`, `FFP`, `PLATELETS`, indexed, default: `WHOLE_BLOOD`)
+  - `collectionDate`: Date (required, indexed, derived from donation)
+  - `expiryDate`: Date (optional, indexed)
+  - `volume`: number (optional, minimum: 1, in mL)
+  - `status`: string enum (`TESTING`, default: `TESTING`, indexed)
+  - `storageLocation`: string (optional, trimmed)
+  - `notes`: string (optional, trimmed)
+  - `createdAt`, `updatedAt`: Date (timestamps: true)
+- **Indexes**: `{ unitCode: 1 }` (unique), `{ donationId: 1 }` (unique), `{ donorId: 1 }`, `{ bloodGroup: 1 }`, `{ componentType: 1 }`, `{ status: 1, bloodGroup: 1 }`, `{ collectionDate: -1 }`, `{ createdAt: -1 }`
+- **Domain Invariants**:
+  - A Blood Unit can only be created from a donation in status `COMPLETED`.
+  - Duplicate blood unit creation for the same donation is prevented at both application and database level via the unique index on `donationId`.
+  - Every blood unit starts in status `TESTING` and cannot enter inventory until tested and approved.
+  - No arbitrary medical expiration dates are hardcoded; expiry date is tracked when clinically determined.
 
 ---
 
-### 2.5 `blood_tests`
-- **Purpose**: Laboratory screening records validating blood safety prior to inventory availability.
-- **Relationships**: One-to-One with `blood_units`.
-- **Known Fields**:
+### 2.5 `blood_testing` [IMPLEMENTED - PHASE 4B]
+- **Purpose**: Laboratory screening records validating blood safety markers on a physical blood unit before it can be approved or rejected.
+- **Relationships**: One-to-One with `blood_units` (unique index on `bloodUnitId`); Many-to-One with `donations`; Many-to-One with `donors`.
+- **Implemented Fields (Mongoose Schema: `apps/api/src/modules/testing/schemas/blood-testing.schema.ts`)**:
   - `_id`: ObjectId
-  - `unitId`: ObjectId (ref: `blood_units`, unique index)
-  - `testedBy`: ObjectId (ref: `users`)
-  - `testedAt`: Date
-  - `aboConfirmed`: string
-  - `rhConfirmed`: string
-  - `screeningResults`: {
-      hiv: string enum (`NEGATIVE`, `POSITIVE`, `INDETERMINATE`),
-      hepB: string enum (`NEGATIVE`, `POSITIVE`, `INDETERMINATE`),
-      hepC: string enum (`NEGATIVE`, `POSITIVE`, `INDETERMINATE`),
-      syphilis: string enum (`NEGATIVE`, `POSITIVE`, `INDETERMINATE`),
-      malaria: string enum (`NEGATIVE`, `POSITIVE`, `INDETERMINATE`)
-    }
-  - `overallOutcome`: string enum (`APPROVED`, `REJECTED`)
+  - `testingCode`: string (unique, indexed, uppercase e.g. `TEST-20261008-XXXX`)
+  - `bloodUnitId`: ObjectId (ref: `BloodUnit`, required, unique: true, indexed)
+  - `donationId`: ObjectId (ref: `Donation`, required, indexed)
+  - `donorId`: ObjectId (ref: `Donor`, required, indexed)
+  - `testResults`: Array of Subdocuments `IndividualTestResult`:
+    - `testCode`: string enum (`HIV`, `HBV`, `HCV`, `SYPHILIS`, `MALARIA`)
+    - `testName`: string
+    - `result`: string (optional, e.g. `NON_REACTIVE`, `NEGATIVE`, `REACTIVE`)
+    - `status`: string enum (`PENDING`, `PASS`, `FAIL`, default: `PENDING`)
+    - `testedAt`: Date (optional)
+    - `remarks`: string (optional)
+  - `status`: string enum (`IN_PROGRESS`, `COMPLETED`, default: `IN_PROGRESS`, indexed)
+  - `decision`: string enum (`PENDING`, `APPROVED`, `REJECTED`, default: `PENDING`, indexed)
+  - `startedAt`: Date (required, default: `Date.now`)
+  - `completedAt`: Date (optional)
+  - `performedBy`: string (optional)
+  - `rejectionReason`: string (optional)
   - `remarks`: string (optional)
-  - `createdAt`, `updatedAt`: Date
-- **Requires Confirmation**: Additional mandatory regional screening markers (e.g., HTLV, Chagas, NAT testing) (**REQUIRES CLIENT/BLOOD BANK CONFIRMATION**).
+  - `createdAt`, `updatedAt`: Date (timestamps: true)
+- **Indexes**: `{ testingCode: 1 }` (unique), `{ bloodUnitId: 1 }` (unique), `{ donationId: 1 }`, `{ donorId: 1 }`, `{ status: 1, decision: 1 }`, `{ createdAt: -1 }`
+- **Domain Invariants**:
+  - Exactly 1 testing record per Blood Unit.
+  - Initialized with configured required screening tests (`HIV`, `HBV`, `HCV`, `SYPHILIS`, `MALARIA`) in `PENDING` status.
+  - Final required screening tests are governed by the blood bank's approved SOP and applicable statutory requirements (**REQUIRES CLIENT/BLOOD BANK CONFIRMATION**). The panel is centrally maintained and configurable.
+  - The software/database records authorized laboratory outcomes (`PASS`, `FAIL`, `PENDING`) only, without computing or storing clinical cutoffs, thresholds, or clinical interpretation logic.
+  - Finalization requires all configured required tests to have conclusive results (`status !== PENDING`).
+  - If any test has status `FAIL`: overall decision is `REJECTED`, synchronizing the Blood Unit status to `REJECTED`.
+  - If all tests have status `PASS`: overall decision is `APPROVED`, synchronizing the Blood Unit status to `APPROVED`.
+  - Finalized (`COMPLETED`) testing records cannot be casually modified or reverted.
 
 ---
 

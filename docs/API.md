@@ -101,12 +101,22 @@ The Blood Bank REST API is built in NestJS, accessible at the `/api` root prefix
 
 ---
 
-### 2.7 Blood Units & Inventory Lifecycle (`/api/blood-units`, `/api/inventory`)
+### 2.7 Blood Units (`/api/blood-units`)
 | Method | Endpoint | Access | Status | Description |
 |---|---|---|---|---|
-| `POST` | `/api/blood-units` | Staff | `[PLANNED]` | Register barcode and component attributes for collected unit. |
-| `GET` | `/api/blood-units/:unitNumber` | Staff | `[PLANNED]` | Lookup unit details by barcode. |
-| `GET` | `/api/inventory` | Staff | `[PLANNED]` | Full inventory grid across all states (Quarantine, Available, Reserved). |
+| `POST` | `/api/blood-units` | Staff / Lab | **[ACTIVE - PHASE 4A]** | Creates an individual physical Blood Unit from a valid `COMPLETED` donation. Enforces 1 donation → 1 unit uniqueness (`BLOOD_UNIT_ALREADY_EXISTS`), sets status to `TESTING`, authoritatively derives `donorId`, `bloodGroup`, and `collectionDate`. |
+| `GET` | `/api/blood-units` | Staff / Lab | **[ACTIVE - PHASE 4A]** | Internal query of blood units with pagination and filters (`?status=`, `?bloodGroup=`, `?componentType=`, `?donorId=`, `?donationId=`, `?page=`, `?limit=`). Returns populated donor and donation metadata. |
+| `GET` | `/api/blood-units/:id` | Staff / Lab | **[ACTIVE - PHASE 4A]** | Retrieve single blood unit by MongoDB `_id` or `unitCode` with populated donor and donation details. |
+
+> [!WARNING] **Security Boundary & Auth Blocker**
+> The endpoints `/api/blood-units` are designated strictly for internal blood bank staff and laboratory technicians. Anonymous public access is blocked. Role-based Guard enforcement (JWT + RBAC) will be applied in the upcoming Auth vertical slice.
+
+---
+
+### 2.7.1 Inventory Lifecycle (`/api/inventory`)
+| Method | Endpoint | Access | Status | Description |
+|---|---|---|---|---|
+| `GET` | `/api/inventory` | Staff | `[PLANNED]` | Full inventory grid across all states (Available, Reserved). |
 | `GET` | `/api/inventory/expiring` | Staff | `[PLANNED]` | Units nearing expiry within configurable warning days. |
 
 ---
@@ -114,9 +124,18 @@ The Blood Bank REST API is built in NestJS, accessible at the `/api` root prefix
 ### 2.8 Testing & Laboratory Screening (`/api/testing`)
 | Method | Endpoint | Access | Status | Description |
 |---|---|---|---|---|
-| `GET` | `/api/testing/pending` | Staff (Lab) | `[PLANNED]` | Queue of blood units awaiting laboratory testing. |
-| `POST` | `/api/testing/:unitId` | Staff (Lab) | `[PLANNED]` | Submit serology/virology markers; executes Approve/Reject transition. |
-| `GET` | `/api/testing/:unitId` | Staff (Lab) | `[PLANNED]` | Detailed lab test report for a unit. |
+| `POST` | `/api/testing` | Staff (Lab) | **[ACTIVE - PHASE 4B]** | Initiate a laboratory Testing Record for a Blood Unit in `TESTING` status. Initializes configured screening test panel (`HIV`, `HBV`, `HCV`, `SYPHILIS`, `MALARIA`, as configured in centralized project SOP baseline) to `PENDING`. Enforces 1:1 mapping with `bloodUnitId`. |
+| `GET` | `/api/testing` | Staff (Lab) | **[ACTIVE - PHASE 4B]** | Query testing records with pagination and filters (`?status=` (`IN_PROGRESS` \| `COMPLETED`), `?decision=` (`PENDING` \| `APPROVED` \| `REJECTED`), `?bloodUnitId=`, `?donationId=`, `?donorId=`, `?page=`, `?limit=`). |
+| `GET` | `/api/testing/blood-unit/:bloodUnitId` | Staff (Lab) | **[ACTIVE - PHASE 4B]** | Retrieve testing record and outcomes for a specific physical Blood Unit. |
+| `GET` | `/api/testing/:id` | Staff (Lab) | **[ACTIVE - PHASE 4B]** | Retrieve single testing record by MongoDB `_id` or `testingCode` with populated unit, donation, and donor summary. |
+| `PATCH` | `/api/testing/:id/tests/:testCode` | Staff (Lab) | **[ACTIVE - PHASE 4B]** | Update individual screening test outcome (`status`: `PASS` \| `FAIL` \| `PENDING`, `result`, `remarks`, `testedAt`). Locked against editing once record is `COMPLETED`. |
+| `PATCH` | `/api/testing/:id/complete` | Staff (Lab) | **[ACTIVE - PHASE 4B]** | Finalize testing workflow. Verifies all required tests are conclusive. If all PASS &rarr; decision is `APPROVED` and Blood Unit status becomes `APPROVED`. If any FAIL &rarr; decision is `REJECTED` and Blood Unit status becomes `REJECTED`. Finalized record becomes immutable. |
+
+> [!NOTE] **Screening Test Panel Configuration**
+> The required screening test panel is maintained in a centralized configuration. Final required tests are governed by the blood bank's approved Standard Operating Procedure (SOP) and applicable statutory requirements (**REQUIRES CLIENT/BLOOD BANK CONFIRMATION**). The API records authorized laboratory outcomes only and does not compute medical thresholds or clinical interpretations.
+
+> [!WARNING] **Security Boundary & Auth Blocker**
+> The endpoints under `/api/testing` are strictly clinical laboratory operations. Anonymous public access is blocked. Role-based Guard enforcement (JWT + RBAC) will be applied in the Auth vertical slice.
 
 ---
 

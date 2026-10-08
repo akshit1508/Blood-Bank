@@ -37,10 +37,25 @@
 - **Rule 2.1.9 (Future Donation Date Guardrail)**:
   - Donation collection date cannot be in the future (allowing up to 120 seconds clock skew tolerance). Future donation timestamps return HTTP 400 Bad Request.
 
-### 2.2 Blood Unit Processing & Testing Gate
-- **Rule 2.2.1**: Every completed donation creates or directly associates with one or more physical blood unit records.
-- **Rule 2.2.2 (The Testing Gate)**: Upon initial collection, all blood units are assigned status `QUARANTINE_TESTING`. A blood unit **must never** become available inventory until mandatory laboratory testing has been completed and marked `APPROVED`.
-- **Rule 2.2.3 (Rejection Protocol)**: Any blood unit marked `REJECTED` during testing must **never** enter available inventory under any circumstances. It must transition immediately to biohazard disposal/quarantine and be permanently locked against reservation or dispensing.
+### 2.2 Blood Unit Processing & Testing Gate [IMPLEMENTED - PHASE 4A & 4B]
+- **Rule 2.2.1 (Blood Unit Creation Prerequisite)**: A physical Blood Unit can ONLY be created from a valid, existing `COMPLETED` donation. Attempting to create a blood unit from donations in status `RECORDED`, `PROCESSING`, or `CANCELLED` is strictly rejected (`DONATION_NOT_COMPLETED`, HTTP 400).
+- **Rule 2.2.2 (1 Donation → 1 Blood Unit Mapping & Invariant)**: In the current V1 business model, exactly one blood unit maps to one completed donation. Duplicate creation attempts for the same donation are prevented at both service logic and database levels via a unique index on `donationId`, returning HTTP 409 (`BLOOD_UNIT_ALREADY_EXISTS`).
+- **Rule 2.2.3 (Testing Gate Lifecycle & 1:1 Record Invariant - Phase 4B)**:
+  - Every newly created Blood Unit initializes strictly with status `TESTING`.
+  - Exactly one testing record (`blood_testing`) is associated per Blood Unit, enforced by a unique index on `bloodUnitId` (`TESTING_RECORD_ALREADY_EXISTS`, HTTP 409).
+  - The testing record initializes with lifecycle status `IN_PROGRESS` and decision `PENDING`, populating the configured required screening tests (`HIV`, `HBV`, `HCV`, `SYPHILIS`, `MALARIA`) in `PENDING` state.
+  - The screening test panel is centrally maintained as a configurable project baseline. Final mandatory screening test definitions are governed by the blood bank's approved Standard Operating Procedure (SOP) and applicable statutory requirements (**REQUIRES CLIENT/BLOOD BANK CONFIRMATION**).
+  - The software records authorized laboratory outcomes (`PASS`, `FAIL`, `PENDING`) only. It does NOT compute, invent, or infer medical thresholds, cutoffs, reference ranges, or clinical interpretation logic.
+  - Lifecycle states for Phase 4B testing records are strictly `IN_PROGRESS` and `COMPLETED`. (No unverified or arbitrary cancellation workflow is exposed).
+  - Completion requires all configured required tests to have conclusive results (`PASS` or `FAIL`); completing with any test in `PENDING` is rejected with HTTP 400 (`REQUIRED_TESTS_INCOMPLETE`).
+- **Rule 2.2.4 (Testing Decision & Blood Unit Status Synchronization - Phase 4B)**:
+  - If any required test has status `FAIL`: The testing decision becomes `REJECTED`, and the Blood Unit atomically transitions to status `REJECTED`.
+  - If all required tests have status `PASS`: The testing decision becomes `APPROVED`, and the Blood Unit atomically transitions to status `APPROVED`.
+  - Manual status tampering on Blood Units is disallowed; `TESTING` → `APPROVED` / `REJECTED` is governed strictly through the testing completion workflow.
+  - `APPROVED` status signifies laboratory safety clearance only; it does NOT mean available in public stock, reserved, or issued.
+  - Once finalized (`COMPLETED`), testing records and test results become immutable against arbitrary modification (`TESTING_ALREADY_COMPLETED`, HTTP 400).
+- **Rule 2.2.5 (Full Traceability Chain)**: Complete traceability is preserved across the lifecycle: `Donor` → `Donation` → `Blood Unit` → `Testing Record` → `Individual Test Results` → `Final Decision`.
+- **Rule 2.2.6 (Rejection Protocol)**: Any blood unit marked `REJECTED` during testing must **never** enter available inventory under any circumstances. It must transition immediately to biohazard disposal/quarantine and be permanently locked against reservation or dispensing.
 
 ### 2.3 Inventory Allocation & Reservation Integrity
 - **Rule 2.3.1 (Anti-Double Allocation)**: A blood unit in status `RESERVED` belongs exclusively to its assigned approved request. It cannot be allocated, reserved, or issued to any other request simultaneously.

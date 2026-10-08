@@ -16,6 +16,7 @@ import {
   fetchDonations,
   createDonation,
 } from '@/lib/donation-api';
+import { BloodUnit, fetchBloodUnits } from '@/lib/blood-unit-api';
 import {
   calculateCompletedAge,
   evaluateDonationInterval,
@@ -85,6 +86,7 @@ export default function AdminDonorsPage() {
 
   // Donation history state for selected donor
   const [donationHistory, setDonationHistory] = useState<Donation[]>([]);
+  const [donorBloodUnits, setDonorBloodUnits] = useState<Record<string, BloodUnit>>({});
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState<string | null>(null);
 
@@ -156,8 +158,27 @@ export default function AdminDonorsPage() {
     setHistoryLoading(true);
     setHistoryError(null);
     try {
-      const res = await fetchDonations({ donorId, limit: 50 });
+      const [res, unitsRes] = await Promise.all([
+        fetchDonations({ donorId, limit: 50 }),
+        fetchBloodUnits({ donorId }).catch(() => ({
+          items: [] as BloodUnit[],
+          total: 0,
+          page: 1,
+          totalPages: 0,
+        })),
+      ]);
       setDonationHistory(res.items);
+      const unitMap: Record<string, BloodUnit> = {};
+      for (const u of unitsRes.items) {
+        const dId =
+          typeof u.donationId === 'object' && u.donationId !== null
+            ? (u.donationId as any)._id
+            : (u.donationId as string);
+        if (dId) {
+          unitMap[dId] = u;
+        }
+      }
+      setDonorBloodUnits(unitMap);
     } catch (err: any) {
       setHistoryError(err.message || 'Failed to load donation history');
     } finally {
@@ -170,6 +191,7 @@ export default function AdminDonorsPage() {
       loadDonationHistory(selectedDonor._id);
     } else {
       setDonationHistory([]);
+      setDonorBloodUnits({});
     }
   }, [selectedDonor?._id, loadDonationHistory]);
 
@@ -327,6 +349,20 @@ export default function AdminDonorsPage() {
             }}
           >
             Global Donations
+          </Link>
+          <Link
+            href="/admin/testing"
+            style={{
+              backgroundColor: '#f1f5f9',
+              color: '#334155',
+              padding: '0.5rem 1rem',
+              borderRadius: '6px',
+              textDecoration: 'none',
+              fontSize: '0.875rem',
+              fontWeight: 500,
+            }}
+          >
+            Laboratory Testing
           </Link>
           <Link
             href="/donate-blood"
@@ -1143,42 +1179,103 @@ export default function AdminDonorsPage() {
                   </div>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '220px', overflowY: 'auto' }}>
-                    {donationHistory.map((item) => (
-                      <div
-                        key={item._id}
-                        style={{
-                          backgroundColor: '#f8fafc',
-                          border: '1px solid #e2e8f0',
-                          borderRadius: '4px',
-                          padding: '0.5rem 0.65rem',
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
-                          fontSize: '0.8rem',
-                        }}
-                      >
-                        <div>
-                          <strong style={{ color: '#0f172a', display: 'block' }}>
-                            {item.donationCode}
-                          </strong>
-                          <span style={{ color: '#64748b', fontSize: '0.75rem' }}>
-                            {new Date(item.donationDate).toLocaleDateString()} &bull; {item.donationType} ({item.quantity} unit)
-                          </span>
-                        </div>
-                        <span
+                    {donationHistory.map((item) => {
+                      const unit = donorBloodUnits[item._id];
+                      return (
+                        <div
+                          key={item._id}
                           style={{
-                            padding: '0.15rem 0.45rem',
-                            borderRadius: '9999px',
-                            fontSize: '0.7rem',
-                            fontWeight: 600,
-                            backgroundColor: DONATION_STATUS_STYLES[item.status]?.bg || '#f1f5f9',
-                            color: DONATION_STATUS_STYLES[item.status]?.text || '#64748b',
+                            backgroundColor: '#f8fafc',
+                            border: '1px solid #e2e8f0',
+                            borderRadius: '4px',
+                            padding: '0.5rem 0.65rem',
+                            fontSize: '0.8rem',
                           }}
                         >
-                          {item.status}
-                        </span>
-                      </div>
-                    ))}
+                          <div
+                            style={{
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'center',
+                            }}
+                          >
+                            <div>
+                              <strong style={{ color: '#0f172a', display: 'block' }}>
+                                {item.donationCode}
+                              </strong>
+                              <span style={{ color: '#64748b', fontSize: '0.75rem' }}>
+                                {new Date(item.donationDate).toLocaleDateString()} &bull; {item.donationType} ({item.quantity} unit)
+                              </span>
+                            </div>
+                            <span
+                              style={{
+                                padding: '0.15rem 0.45rem',
+                                borderRadius: '9999px',
+                                fontSize: '0.7rem',
+                                fontWeight: 600,
+                                backgroundColor: DONATION_STATUS_STYLES[item.status]?.bg || '#f1f5f9',
+                                color: DONATION_STATUS_STYLES[item.status]?.text || '#64748b',
+                              }}
+                            >
+                              {item.status}
+                            </span>
+                          </div>
+
+                          {item.status === DonationStatus.COMPLETED && (
+                            <div
+                              style={{
+                                marginTop: '0.4rem',
+                                paddingTop: '0.4rem',
+                                borderTop: '1px dashed #cbd5e1',
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                fontSize: '0.72rem',
+                              }}
+                            >
+                              {unit ? (
+                                <span style={{ color: '#0369a1', fontWeight: 500 }}>
+                                  🩸 Unit: <strong>{unit.unitCode}</strong> ({unit.status})
+                                </span>
+                              ) : (
+                                <span style={{ color: '#b45309', fontWeight: 500 }}>
+                                  ⚠️ Blood Unit: Not Created
+                                </span>
+                              )}
+                              {unit ? (
+                                <Link
+                                  href={`/admin/testing?bloodUnitId=${unit._id}`}
+                                  style={{
+                                    color: '#2563eb',
+                                    fontWeight: 600,
+                                    textDecoration: 'none',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '0.2rem',
+                                  }}
+                                >
+                                  View Testing &rarr;
+                                </Link>
+                              ) : (
+                                <Link
+                                  href={`/admin/donations?search=${encodeURIComponent(item.donationCode)}`}
+                                  style={{
+                                    color: '#dc2626',
+                                    fontWeight: 600,
+                                    textDecoration: 'none',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '0.2rem',
+                                  }}
+                                >
+                                  + Create Unit &rarr;
+                                </Link>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>

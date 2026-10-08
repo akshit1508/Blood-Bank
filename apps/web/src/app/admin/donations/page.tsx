@@ -12,6 +12,13 @@ import {
   updateDonationStatus,
 } from '@/lib/donation-api';
 import { Donor, DonorStatus, BloodGroup, fetchDonors } from '@/lib/donor-api';
+import {
+  BloodUnit,
+  BloodUnitComponent,
+  BloodUnitStatus,
+  createBloodUnit,
+  fetchBloodUnitByDonationId,
+} from '@/lib/blood-unit-api';
 
 const BLOOD_GROUPS = [
   BloodGroup.A_POSITIVE,
@@ -99,6 +106,81 @@ export default function AdminDonationsPage() {
   );
   const [quantity, setQuantity] = useState<number>(1);
   const [notes, setNotes] = useState('');
+
+  // Downstream Blood Unit state
+  const [associatedBloodUnit, setAssociatedBloodUnit] =
+    useState<BloodUnit | null>(null);
+  const [bloodUnitLoading, setBloodUnitLoading] = useState(false);
+  const [showCreateUnitModal, setShowCreateUnitModal] = useState(false);
+  const [createUnitComponent, setCreateUnitComponent] =
+    useState<BloodUnitComponent>(BloodUnitComponent.WHOLE_BLOOD);
+  const [createUnitVolume, setCreateUnitVolume] = useState<number>(450);
+  const [createUnitStorageLocation, setCreateUnitStorageLocation] =
+    useState<string>('');
+  const [createUnitNotes, setCreateUnitNotes] = useState<string>('');
+  const [createUnitExpiry, setCreateUnitExpiry] = useState<string>('');
+  const [createUnitSubmitting, setCreateUnitSubmitting] = useState(false);
+  const [createUnitError, setCreateUnitError] = useState<string | null>(null);
+  const [createUnitSuccess, setCreateUnitSuccess] = useState<string | null>(
+    null,
+  );
+
+  // Load associated Blood Unit for a completed donation
+  const loadBloodUnitForDonation = useCallback(async (donationId: string) => {
+    setBloodUnitLoading(true);
+    setCreateUnitError(null);
+    try {
+      const unit = await fetchBloodUnitByDonationId(donationId);
+      setAssociatedBloodUnit(unit);
+    } catch {
+      setAssociatedBloodUnit(null);
+    } finally {
+      setBloodUnitLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (
+      selectedDonation &&
+      selectedDonation.status === DonationStatus.COMPLETED
+    ) {
+      loadBloodUnitForDonation(selectedDonation._id);
+    } else {
+      setAssociatedBloodUnit(null);
+    }
+  }, [selectedDonation, loadBloodUnitForDonation]);
+
+  const handleCreateBloodUnitSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedDonation) return;
+
+    setCreateUnitSubmitting(true);
+    setCreateUnitError(null);
+    setCreateUnitSuccess(null);
+
+    try {
+      const createdUnit = await createBloodUnit({
+        donationId: selectedDonation._id,
+        componentType: createUnitComponent,
+        volume: Number(createUnitVolume) || 450,
+        storageLocation: createUnitStorageLocation.trim() || undefined,
+        expiryDate: createUnitExpiry
+          ? new Date(createUnitExpiry).toISOString()
+          : undefined,
+        notes: createUnitNotes.trim() || undefined,
+      });
+
+      setAssociatedBloodUnit(createdUnit);
+      setCreateUnitSuccess(
+        `Blood Unit ${createdUnit.unitCode} created successfully and queued for testing.`,
+      );
+      setShowCreateUnitModal(false);
+    } catch (err: any) {
+      setCreateUnitError(err.message || 'Failed to create blood unit');
+    } finally {
+      setCreateUnitSubmitting(false);
+    }
+  };
 
   // Load donations with functional state updates to avoid infinite loops
   const loadDonations = useCallback(async () => {
@@ -318,6 +400,20 @@ export default function AdminDonationsPage() {
             }}
           >
             Donors
+          </Link>
+          <Link
+            href="/admin/testing"
+            style={{
+              backgroundColor: '#f1f5f9',
+              color: '#334155',
+              padding: '0.5rem 1rem',
+              borderRadius: '6px',
+              textDecoration: 'none',
+              fontSize: '0.875rem',
+              fontWeight: 500,
+            }}
+          >
+            Laboratory Testing
           </Link>
           <button
             onClick={() => {
@@ -1024,19 +1120,162 @@ export default function AdminDonationsPage() {
               ) : (
                 <div
                   style={{
-                    padding: '0.5rem',
+                    padding: '0.75rem',
                     background: '#f8fafc',
-                    borderRadius: '4px',
-                    fontSize: '0.8rem',
+                    borderRadius: '6px',
+                    fontSize: '0.825rem',
                     color: '#64748b',
-                    textAlign: 'center',
+                    border: '1px solid #e2e8f0',
                   }}
                 >
-                  This donation is in terminal state ({selectedDonation.status}).
+                  <div style={{ textAlign: 'center', marginBottom: selectedDonation.status === DonationStatus.COMPLETED ? '0.75rem' : 0 }}>
+                    This donation is in terminal state ({selectedDonation.status}).
+                  </div>
+
                   {selectedDonation.status === DonationStatus.COMPLETED && (
-                    <span style={{ display: 'block', marginTop: '0.25rem', color: '#15803d' }}>
-                      Blood collection complete. Ready for unit creation in Phase 4.
-                    </span>
+                    <div
+                      style={{
+                        borderTop: '1px solid #e2e8f0',
+                        paddingTop: '0.75rem',
+                      }}
+                    >
+                      <span
+                        style={{
+                          fontSize: '0.75rem',
+                          fontWeight: 700,
+                          textTransform: 'uppercase',
+                          color: '#475569',
+                          display: 'block',
+                          marginBottom: '0.4rem',
+                        }}
+                      >
+                        Downstream Traceability:
+                      </span>
+
+                      {bloodUnitLoading ? (
+                        <div style={{ textAlign: 'center', padding: '0.5rem', color: '#64748b', fontSize: '0.8rem' }}>
+                          Checking associated Blood Unit...
+                        </div>
+                      ) : associatedBloodUnit ? (
+                        <div
+                          style={{
+                            backgroundColor: '#ffffff',
+                            border: '1px solid #cbd5e1',
+                            borderRadius: '6px',
+                            padding: '0.65rem 0.75rem',
+                          }}
+                        >
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
+                            <strong style={{ color: '#0f172a', fontSize: '0.85rem' }}>
+                              {associatedBloodUnit.unitCode}
+                            </strong>
+                            <span
+                              style={{
+                                padding: '0.15rem 0.45rem',
+                                borderRadius: '9999px',
+                                fontSize: '0.7rem',
+                                fontWeight: 700,
+                                backgroundColor:
+                                  associatedBloodUnit.status === BloodUnitStatus.APPROVED
+                                    ? '#dcfce7'
+                                    : associatedBloodUnit.status === BloodUnitStatus.REJECTED
+                                      ? '#fee2e2'
+                                      : '#fef3c7',
+                                color:
+                                  associatedBloodUnit.status === BloodUnitStatus.APPROVED
+                                    ? '#166534'
+                                    : associatedBloodUnit.status === BloodUnitStatus.REJECTED
+                                      ? '#991b1b'
+                                      : '#92400e',
+                                border:
+                                  associatedBloodUnit.status === BloodUnitStatus.APPROVED
+                                    ? '1px solid #bbf7d0'
+                                    : associatedBloodUnit.status === BloodUnitStatus.REJECTED
+                                      ? '1px solid #fca5a5'
+                                      : '1px solid #fde68a',
+                              }}
+                            >
+                              {associatedBloodUnit.status}
+                            </span>
+                          </div>
+
+                          <div style={{ fontSize: '0.75rem', color: '#64748b', lineHeight: 1.4, marginBottom: '0.5rem' }}>
+                            <div>Group: <strong style={{ color: '#dc2626' }}>{associatedBloodUnit.bloodGroup}</strong> &bull; {associatedBloodUnit.componentType}</div>
+                            <div>Volume: {associatedBloodUnit.volume || 450} ml &bull; Storage: {associatedBloodUnit.storageLocation || 'Unassigned'}</div>
+                          </div>
+
+                          <Link
+                            href={`/admin/testing?bloodUnitId=${associatedBloodUnit._id}`}
+                            style={{
+                              display: 'block',
+                              textAlign: 'center',
+                              backgroundColor: '#0f172a',
+                              color: '#ffffff',
+                              textDecoration: 'none',
+                              padding: '0.4rem 0.65rem',
+                              borderRadius: '4px',
+                              fontSize: '0.75rem',
+                              fontWeight: 600,
+                            }}
+                          >
+                            {associatedBloodUnit.status === BloodUnitStatus.TESTING
+                              ? 'Open Laboratory Testing →'
+                              : 'View Testing Outcome →'}
+                          </Link>
+                        </div>
+                      ) : (
+                        <div
+                          style={{
+                            backgroundColor: '#fffbeb',
+                            border: '1px solid #fde68a',
+                            borderRadius: '6px',
+                            padding: '0.65rem',
+                            textAlign: 'center',
+                          }}
+                        >
+                          <div style={{ color: '#92400e', fontSize: '0.775rem', marginBottom: '0.5rem' }}>
+                            Blood Unit not yet generated for this completed donation.
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setCreateUnitError(null);
+                              setCreateUnitSuccess(null);
+                              setShowCreateUnitModal(true);
+                            }}
+                            style={{
+                              width: '100%',
+                              backgroundColor: '#dc2626',
+                              color: '#ffffff',
+                              border: 'none',
+                              padding: '0.45rem',
+                              borderRadius: '4px',
+                              fontSize: '0.775rem',
+                              fontWeight: 600,
+                              cursor: 'pointer',
+                            }}
+                          >
+                            + Create Blood Unit from Donation
+                          </button>
+                        </div>
+                      )}
+
+                      {createUnitSuccess && (
+                        <div
+                          style={{
+                            marginTop: '0.5rem',
+                            padding: '0.4rem 0.6rem',
+                            backgroundColor: '#f0fdf4',
+                            border: '1px solid #bbf7d0',
+                            borderRadius: '4px',
+                            color: '#166534',
+                            fontSize: '0.75rem',
+                          }}
+                        >
+                          {createUnitSuccess}
+                        </div>
+                      )}
+                    </div>
                   )}
                 </div>
               )}
@@ -1516,6 +1755,280 @@ export default function AdminDonationsPage() {
                   }}
                 >
                   {recordLoading ? 'Recording...' : 'Confirm & Record Donation'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Create Blood Unit Modal */}
+      {showCreateUnitModal && selectedDonation && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(15, 23, 42, 0.65)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 60,
+            padding: '1rem',
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: '#ffffff',
+              borderRadius: '8px',
+              maxWidth: '540px',
+              width: '100%',
+              padding: '1.5rem',
+              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)',
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                borderBottom: '1px solid #e2e8f0',
+                paddingBottom: '0.75rem',
+                marginBottom: '1rem',
+              }}
+            >
+              <div>
+                <h3 style={{ margin: 0, fontSize: '1.15rem', color: '#0f172a' }}>
+                  Create Blood Unit
+                </h3>
+                <span style={{ fontSize: '0.8rem', color: '#64748b' }}>
+                  Generate physical blood unit from completed donation
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowCreateUnitModal(false)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  fontSize: '1.25rem',
+                  cursor: 'pointer',
+                  color: '#64748b',
+                }}
+              >
+                &times;
+              </button>
+            </div>
+
+            {createUnitError && (
+              <div
+                style={{
+                  backgroundColor: '#fef2f2',
+                  border: '1px solid #fecaca',
+                  color: '#991b1b',
+                  padding: '0.65rem 0.85rem',
+                  borderRadius: '6px',
+                  marginBottom: '1rem',
+                  fontSize: '0.85rem',
+                }}
+              >
+                {createUnitError}
+              </div>
+            )}
+
+            {/* Authoritative Donation Info Box */}
+            <div
+              style={{
+                backgroundColor: '#f8fafc',
+                border: '1px solid #e2e8f0',
+                borderRadius: '6px',
+                padding: '0.75rem',
+                marginBottom: '1rem',
+                fontSize: '0.825rem',
+                display: 'grid',
+                gridTemplateColumns: '1fr 1fr',
+                gap: '0.5rem',
+              }}
+            >
+              <div>
+                <span style={{ color: '#64748b', display: 'block' }}>Donation:</span>
+                <strong style={{ color: '#0f172a' }}>{selectedDonation.donationCode}</strong>
+              </div>
+              <div>
+                <span style={{ color: '#64748b', display: 'block' }}>Donor:</span>
+                <strong style={{ color: '#0f172a' }}>{selectedDonation.donorId?.fullName}</strong>
+              </div>
+              <div>
+                <span style={{ color: '#64748b', display: 'block' }}>Blood Group:</span>
+                <span style={{ backgroundColor: '#fee2e2', color: '#dc2626', fontWeight: 700, padding: '0.1rem 0.35rem', borderRadius: '4px' }}>
+                  {selectedDonation.donorId?.bloodGroup}
+                </span>
+              </div>
+              <div>
+                <span style={{ color: '#64748b', display: 'block' }}>Collection Date:</span>
+                <span style={{ color: '#0f172a' }}>
+                  {new Date(selectedDonation.donationDate).toLocaleDateString()}
+                </span>
+              </div>
+            </div>
+
+            <form onSubmit={handleCreateBloodUnitSubmit}>
+              <div style={{ marginBottom: '1rem' }}>
+                <label
+                  style={{
+                    display: 'block',
+                    fontSize: '0.825rem',
+                    fontWeight: 600,
+                    color: '#334155',
+                    marginBottom: '0.35rem',
+                  }}
+                >
+                  Component Type:
+                </label>
+                <select
+                  value={createUnitComponent}
+                  onChange={(e) => setCreateUnitComponent(e.target.value as BloodUnitComponent)}
+                  style={{
+                    width: '100%',
+                    padding: '0.45rem 0.75rem',
+                    border: '1px solid #cbd5e1',
+                    borderRadius: '6px',
+                    fontSize: '0.85rem',
+                    backgroundColor: '#ffffff',
+                  }}
+                >
+                  <option value={BloodUnitComponent.WHOLE_BLOOD}>WHOLE_BLOOD</option>
+                  <option value={BloodUnitComponent.PACKED_RED_CELLS}>PACKED_RED_CELLS</option>
+                  <option value={BloodUnitComponent.FRESH_FROZEN_PLASMA}>FRESH_FROZEN_PLASMA</option>
+                  <option value={BloodUnitComponent.PLATELETS}>PLATELETS</option>
+                  <option value={BloodUnitComponent.CRYOPRECIPITATE}>CRYOPRECIPITATE</option>
+                </select>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1rem' }}>
+                <div>
+                  <label
+                    style={{
+                      display: 'block',
+                      fontSize: '0.825rem',
+                      fontWeight: 600,
+                      color: '#334155',
+                      marginBottom: '0.35rem',
+                    }}
+                  >
+                    Volume (ml):
+                  </label>
+                  <input
+                    type="number"
+                    min="50"
+                    max="1000"
+                    value={createUnitVolume}
+                    onChange={(e) => setCreateUnitVolume(Number(e.target.value))}
+                    style={{
+                      width: '100%',
+                      padding: '0.45rem 0.75rem',
+                      border: '1px solid #cbd5e1',
+                      borderRadius: '6px',
+                      fontSize: '0.85rem',
+                      boxSizing: 'border-box',
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <label
+                    style={{
+                      display: 'block',
+                      fontSize: '0.825rem',
+                      fontWeight: 600,
+                      color: '#334155',
+                      marginBottom: '0.35rem',
+                    }}
+                  >
+                    Storage Location:
+                  </label>
+                  <input
+                    type="text"
+                    value={createUnitStorageLocation}
+                    onChange={(e) => setCreateUnitStorageLocation(e.target.value)}
+                    placeholder="e.g. Shelf A-1"
+                    style={{
+                      width: '100%',
+                      padding: '0.45rem 0.75rem',
+                      border: '1px solid #cbd5e1',
+                      borderRadius: '6px',
+                      fontSize: '0.85rem',
+                      boxSizing: 'border-box',
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ marginBottom: '1.25rem' }}>
+                <label
+                  style={{
+                    display: 'block',
+                    fontSize: '0.825rem',
+                    fontWeight: 600,
+                    color: '#334155',
+                    marginBottom: '0.35rem',
+                  }}
+                >
+                  Unit Notes (optional):
+                </label>
+                <input
+                  type="text"
+                  value={createUnitNotes}
+                  onChange={(e) => setCreateUnitNotes(e.target.value)}
+                  placeholder="e.g. Standard collection, bag inspected"
+                  style={{
+                    width: '100%',
+                    padding: '0.45rem 0.75rem',
+                    border: '1px solid #cbd5e1',
+                    borderRadius: '6px',
+                    fontSize: '0.85rem',
+                    boxSizing: 'border-box',
+                  }}
+                />
+              </div>
+
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'flex-end',
+                  gap: '0.75rem',
+                  borderTop: '1px solid #e2e8f0',
+                  paddingTop: '1rem',
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={() => setShowCreateUnitModal(false)}
+                  style={{
+                    padding: '0.5rem 1rem',
+                    borderRadius: '6px',
+                    border: '1px solid #cbd5e1',
+                    background: '#ffffff',
+                    fontSize: '0.875rem',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={createUnitSubmitting}
+                  style={{
+                    padding: '0.5rem 1.25rem',
+                    borderRadius: '6px',
+                    border: 'none',
+                    background: '#dc2626',
+                    color: '#ffffff',
+                    fontWeight: 600,
+                    fontSize: '0.875rem',
+                    cursor: createUnitSubmitting ? 'not-allowed' : 'pointer',
+                  }}
+                >
+                  {createUnitSubmitting ? 'Creating Unit...' : 'Create Blood Unit & Queue for Testing'}
                 </button>
               </div>
             </form>
