@@ -121,7 +121,7 @@ export default function PublicFooter() {
           &copy; {currentYear} {appName}. All rights reserved. Single Facility Platform.
         </div>
         <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
-          Secure Blood Product Traceability &bull; Phase 1 Verified
+          Secure Blood Product Traceability &bull; Verified System
         </div>
       </div>
     </footer>

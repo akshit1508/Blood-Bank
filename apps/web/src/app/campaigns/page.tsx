@@ -78,7 +78,7 @@ export default function CampaignsPage() {
               fontSize: '0.9rem',
             }}
           >
-            Past campaign metrics and collection summaries will be recorded and published in Phase 8.
+            Past campaign metrics and collection summaries will be published shortly.
           </div>
         </section>
       </div>

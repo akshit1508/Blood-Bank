@@ -17,6 +17,12 @@ import {
   fetchUnitsAwaitingTesting,
   getFriendlyErrorMessage,
 } from '@/lib/testing-api';
+import {
+  InventoryItem,
+  fetchInventoryByBloodUnitId,
+  createInventoryFromBloodUnit,
+  getFriendlyInventoryErrorMessage,
+} from '@/lib/inventory-api';
 
 const STATUS_BADGES: Record<
   TestingStatus,
@@ -141,6 +147,59 @@ export default function AdminTestingPage() {
   const [completeRejectionReason, setCompleteRejectionReason] = useState('');
   const [completeSubmitting, setCompleteSubmitting] = useState(false);
   const [completeError, setCompleteError] = useState<string | null>(null);
+
+  // Operational Inventory state for selected unit
+  const [inventoryRecord, setInventoryRecord] = useState<InventoryItem | null>(null);
+  const [inventoryChecking, setInventoryChecking] = useState(false);
+  const [inventoryAdding, setInventoryAdding] = useState(false);
+  const [inventoryActionFeedback, setInventoryActionFeedback] = useState<{
+    type: 'success' | 'error';
+    message: string;
+  } | null>(null);
+
+  // Check inventory status when selectedTesting changes
+  useEffect(() => {
+    const unitId = selectedTesting?.bloodUnitId?._id;
+    if (
+      unitId &&
+      selectedTesting?.decision === TestingDecision.APPROVED &&
+      selectedTesting?.bloodUnitId?.status === 'APPROVED'
+    ) {
+      setInventoryChecking(true);
+      setInventoryActionFeedback(null);
+      fetchInventoryByBloodUnitId(unitId)
+        .then((inv) => setInventoryRecord(inv))
+        .catch(() => setInventoryRecord(null))
+        .finally(() => setInventoryChecking(false));
+    } else {
+      setInventoryRecord(null);
+      setInventoryChecking(false);
+      setInventoryActionFeedback(null);
+    }
+  }, [selectedTesting]);
+
+  const handleAddToInventory = async () => {
+    const unitId = selectedTesting?.bloodUnitId?._id;
+    if (!unitId) return;
+
+    setInventoryAdding(true);
+    setInventoryActionFeedback(null);
+    try {
+      const created = await createInventoryFromBloodUnit(unitId);
+      setInventoryRecord(created);
+      setInventoryActionFeedback({
+        type: 'success',
+        message: `Blood Unit ${selectedTesting.bloodUnitId?.unitCode} successfully added to available inventory.`,
+      });
+    } catch (err: any) {
+      setInventoryActionFeedback({
+        type: 'error',
+        message: getFriendlyInventoryErrorMessage(err),
+      });
+    } finally {
+      setInventoryAdding(false);
+    }
+  };
 
   // Load testing queue
   const loadTestingQueue = useCallback(async () => {
@@ -473,9 +532,9 @@ export default function AdminTestingPage() {
   return (
     <div
       style={{
-        maxWidth: '1360px',
-        margin: '2rem auto',
-        padding: '0 1rem',
+        maxWidth: '100%',
+        margin: '0 auto',
+        padding: '0',
         fontFamily: 'system-ui, -apple-system, sans-serif',
       }}
     >
@@ -493,24 +552,9 @@ export default function AdminTestingPage() {
         }}
       >
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <h1 style={{ margin: 0, fontSize: '1.75rem', color: '#0f172a' }}>
-              Laboratory Blood Testing
-            </h1>
-            <span
-              style={{
-                backgroundColor: '#fee2e2',
-                color: '#b91c1c',
-                fontSize: '0.75rem',
-                fontWeight: 600,
-                padding: '0.2rem 0.5rem',
-                borderRadius: '9999px',
-                border: '1px solid #fca5a5',
-              }}
-            >
-              Phase 4B/4C &bull; Laboratory Safety Gate
-            </span>
-          </div>
+          <h1 style={{ margin: 0, fontSize: '1.75rem', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.02em' }}>
+            Laboratory Blood Testing
+          </h1>
           <p
             style={{
               margin: '0.25rem 0 0 0',
@@ -523,48 +567,24 @@ export default function AdminTestingPage() {
         </div>
 
         <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
-          <Link
-            href="/admin/blood-requests"
+          <button
+            onClick={() => loadTestingQueue()}
             style={{
-              backgroundColor: '#f1f5f9',
+              backgroundColor: '#ffffff',
+              border: '1px solid #cbd5e1',
               color: '#334155',
               padding: '0.5rem 1rem',
               borderRadius: '6px',
-              textDecoration: 'none',
               fontSize: '0.875rem',
               fontWeight: 500,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.35rem',
             }}
           >
-            Blood Requests
-          </Link>
-          <Link
-            href="/admin/donors"
-            style={{
-              backgroundColor: '#f1f5f9',
-              color: '#334155',
-              padding: '0.5rem 1rem',
-              borderRadius: '6px',
-              textDecoration: 'none',
-              fontSize: '0.875rem',
-              fontWeight: 500,
-            }}
-          >
-            Donors
-          </Link>
-          <Link
-            href="/admin/donations"
-            style={{
-              backgroundColor: '#f1f5f9',
-              color: '#334155',
-              padding: '0.5rem 1rem',
-              borderRadius: '6px',
-              textDecoration: 'none',
-              fontSize: '0.875rem',
-              fontWeight: 500,
-            }}
-          >
-            Donations
-          </Link>
+            ↻ Refresh Queue
+          </button>
           <button
             onClick={() => handleOpenStartModal()}
             style={{
@@ -579,24 +599,11 @@ export default function AdminTestingPage() {
               display: 'flex',
               alignItems: 'center',
               gap: '0.35rem',
+              boxShadow: '0 1px 2px rgba(220, 38, 38, 0.2)',
             }}
           >
             + Start Testing
           </button>
-          <Link
-            href="/"
-            style={{
-              backgroundColor: '#ffffff',
-              border: '1px solid #cbd5e1',
-              color: '#334155',
-              padding: '0.5rem 1rem',
-              borderRadius: '6px',
-              textDecoration: 'none',
-              fontSize: '0.875rem',
-            }}
-          >
-            Public Site
-          </Link>
         </div>
       </div>
 
@@ -1292,6 +1299,140 @@ export default function AdminTestingPage() {
                         </span>
                       </div>
                     </div>
+                  </div>
+
+                  {/* Card: Operational Inventory */}
+                  <div
+                    style={{
+                      backgroundColor: '#f8fafc',
+                      border: '1px solid #e2e8f0',
+                      borderRadius: '6px',
+                      padding: '0.75rem',
+                      fontSize: '0.8rem',
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
+                      <strong style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.04em', color: '#64748b' }}>
+                        📦 Operational Inventory
+                      </strong>
+                      {inventoryRecord ? (
+                        <span
+                          style={{
+                            fontSize: '0.7rem',
+                            fontWeight: 700,
+                            padding: '0.1rem 0.45rem',
+                            borderRadius: '9999px',
+                            backgroundColor: '#dcfce7',
+                            color: '#166534',
+                          }}
+                        >
+                          AVAILABLE
+                        </span>
+                      ) : selectedTesting.decision === TestingDecision.APPROVED &&
+                        selectedTesting.bloodUnitId?.status === 'APPROVED' ? (
+                        <span
+                          style={{
+                            fontSize: '0.7rem',
+                            fontWeight: 700,
+                            padding: '0.1rem 0.45rem',
+                            borderRadius: '9999px',
+                            backgroundColor: '#fef3c7',
+                            color: '#92400e',
+                          }}
+                        >
+                          ELIGIBLE &bull; NOT IN INVENTORY
+                        </span>
+                      ) : (
+                        <span
+                          style={{
+                            fontSize: '0.7rem',
+                            fontWeight: 600,
+                            padding: '0.1rem 0.45rem',
+                            borderRadius: '9999px',
+                            backgroundColor: '#f1f5f9',
+                            color: '#64748b',
+                          }}
+                        >
+                          NOT ELIGIBLE
+                        </span>
+                      )}
+                    </div>
+
+                    {inventoryChecking ? (
+                      <div style={{ color: '#64748b', fontSize: '0.75rem' }}>Checking inventory record...</div>
+                    ) : inventoryRecord ? (
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div>
+                          <span style={{ color: '#166534', fontWeight: 600, display: 'block' }}>
+                            ✓ Active in Available Inventory
+                          </span>
+                          <span style={{ color: '#64748b', fontSize: '0.72rem' }}>
+                            Added: {new Date(inventoryRecord.createdAt).toLocaleString()}
+                          </span>
+                        </div>
+                        <Link
+                          href={`/admin/inventory?search=${encodeURIComponent(selectedTesting.bloodUnitId?.unitCode || '')}`}
+                          style={{
+                            fontSize: '0.75rem',
+                            backgroundColor: '#16a34a',
+                            color: '#ffffff',
+                            padding: '0.3rem 0.65rem',
+                            borderRadius: '4px',
+                            textDecoration: 'none',
+                            fontWeight: 600,
+                          }}
+                        >
+                          View Inventory &rarr;
+                        </Link>
+                      </div>
+                    ) : selectedTesting.decision === TestingDecision.APPROVED &&
+                      selectedTesting.bloodUnitId?.status === 'APPROVED' ? (
+                      <div>
+                        <p style={{ margin: '0 0 0.5rem 0', color: '#475569', fontSize: '0.75rem', lineHeight: 1.4 }}>
+                          This unit has completed laboratory safety screening and is approved. Add it to available inventory to permit future operational release.
+                        </p>
+                        {inventoryActionFeedback && (
+                          <div
+                            style={{
+                              marginBottom: '0.5rem',
+                              padding: '0.4rem 0.6rem',
+                              borderRadius: '4px',
+                              fontSize: '0.75rem',
+                              backgroundColor:
+                                inventoryActionFeedback.type === 'success' ? '#f0fdf4' : '#fef2f2',
+                              color:
+                                inventoryActionFeedback.type === 'success' ? '#166534' : '#991b1b',
+                              border:
+                                inventoryActionFeedback.type === 'success'
+                                  ? '1px solid #bbf7d0'
+                                  : '1px solid #fecaca',
+                            }}
+                          >
+                            {inventoryActionFeedback.message}
+                          </div>
+                        )}
+                        <button
+                          onClick={handleAddToInventory}
+                          disabled={inventoryAdding}
+                          style={{
+                            backgroundColor: '#16a34a',
+                            color: '#ffffff',
+                            border: 'none',
+                            padding: '0.4rem 0.85rem',
+                            borderRadius: '4px',
+                            fontWeight: 600,
+                            fontSize: '0.75rem',
+                            cursor: inventoryAdding ? 'not-allowed' : 'pointer',
+                          }}
+                        >
+                          {inventoryAdding ? 'Adding to Inventory...' : '+ Add to Inventory'}
+                        </button>
+                      </div>
+                    ) : (
+                      <div style={{ color: '#64748b', fontSize: '0.75rem' }}>
+                        Unit is not approved for inventory. Only units with confirmed laboratory approval may enter inventory.
+                      </div>
+                    )}
                   </div>
 
                   {/* Card B: Source Donation */}

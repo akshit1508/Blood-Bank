@@ -272,9 +272,9 @@ export default function AdminDonorsPage() {
   return (
     <div
       style={{
-        maxWidth: '1280px',
-        margin: '2rem auto',
-        padding: '0 1rem',
+        maxWidth: '100%',
+        margin: '0',
+        padding: '0',
         fontFamily: 'system-ui, -apple-system, sans-serif',
       }}
     >
@@ -285,16 +285,19 @@ export default function AdminDonorsPage() {
           justifyContent: 'space-between',
           alignItems: 'center',
           marginBottom: '1.5rem',
-          borderBottom: '1px solid #e2e8f0',
-          paddingBottom: '1rem',
+          backgroundColor: '#ffffff',
+          padding: '1.25rem 1.5rem',
+          borderRadius: '10px',
+          border: '1px solid #e2e8f0',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
           flexWrap: 'wrap',
           gap: '1rem',
         }}
       >
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <h1 style={{ margin: 0, fontSize: '1.75rem', color: '#0f172a' }}>
-              Donors Management
+            <h1 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 700, color: '#0f172a' }}>
+              Donor Management
             </h1>
             <span
               style={{
@@ -303,18 +306,18 @@ export default function AdminDonorsPage() {
                 fontSize: '0.75rem',
                 fontWeight: 600,
                 padding: '0.2rem 0.5rem',
-                borderRadius: '9999px',
+                borderRadius: '6px',
                 border: '1px solid #cbd5e1',
               }}
             >
-              Donor-Centric Workflow
+              Donor-Centric Roster
             </span>
           </div>
           <p
             style={{
               margin: '0.25rem 0 0 0',
               color: '#64748b',
-              fontSize: '0.9rem',
+              fontSize: '0.85rem',
             }}
           >
             Review donor registrations, approve active donors, and record physical blood donations.
@@ -322,48 +325,25 @@ export default function AdminDonorsPage() {
         </div>
 
         <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
-          <Link
-            href="/admin/blood-requests"
+          <button
+            onClick={loadDonors}
+            disabled={loading}
             style={{
-              backgroundColor: '#f1f5f9',
+              backgroundColor: '#ffffff',
+              border: '1px solid #cbd5e1',
               color: '#334155',
-              padding: '0.5rem 1rem',
+              padding: '0.5rem 0.85rem',
               borderRadius: '6px',
-              textDecoration: 'none',
-              fontSize: '0.875rem',
-              fontWeight: 500,
+              fontSize: '0.825rem',
+              fontWeight: 600,
+              cursor: loading ? 'not-allowed' : 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.35rem',
             }}
           >
-            Blood Requests
-          </Link>
-          <Link
-            href="/admin/donations"
-            style={{
-              backgroundColor: '#f1f5f9',
-              color: '#334155',
-              padding: '0.5rem 1rem',
-              borderRadius: '6px',
-              textDecoration: 'none',
-              fontSize: '0.875rem',
-              fontWeight: 500,
-            }}
-          >
-            Global Donations
-          </Link>
-          <Link
-            href="/admin/testing"
-            style={{
-              backgroundColor: '#f1f5f9',
-              color: '#334155',
-              padding: '0.5rem 1rem',
-              borderRadius: '6px',
-              textDecoration: 'none',
-              fontSize: '0.875rem',
-              fontWeight: 500,
-            }}
-          >
-            Laboratory Testing
-          </Link>
+            ↻ Refresh Roster
+          </button>
           <Link
             href="/donate-blood"
             target="_blank"
@@ -373,25 +353,15 @@ export default function AdminDonorsPage() {
               padding: '0.5rem 1rem',
               borderRadius: '6px',
               textDecoration: 'none',
-              fontSize: '0.875rem',
+              fontSize: '0.825rem',
               fontWeight: 600,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.35rem',
+              boxShadow: '0 1px 2px rgba(220, 38, 38, 0.2)',
             }}
           >
-            + Register Donor
-          </Link>
-          <Link
-            href="/"
-            style={{
-              backgroundColor: '#ffffff',
-              border: '1px solid #cbd5e1',
-              color: '#334155',
-              padding: '0.5rem 1rem',
-              borderRadius: '6px',
-              textDecoration: 'none',
-              fontSize: '0.875rem',
-            }}
-          >
-            Public Site
+            + Register New Donor
           </Link>
         </div>
       </div>

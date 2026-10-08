@@ -322,9 +322,9 @@ export default function AdminDonationsPage() {
   return (
     <div
       style={{
-        maxWidth: '1240px',
-        margin: '2rem auto',
-        padding: '0 1rem',
+        maxWidth: '100%',
+        margin: '0 auto',
+        padding: '0',
         fontFamily: 'system-ui, -apple-system, sans-serif',
       }}
     >
@@ -342,24 +342,9 @@ export default function AdminDonationsPage() {
         }}
       >
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <h1 style={{ margin: 0, fontSize: '1.75rem', color: '#0f172a' }}>
-              Donations Management
-            </h1>
-            <span
-              style={{
-                backgroundColor: '#fee2e2',
-                color: '#b91c1c',
-                fontSize: '0.75rem',
-                fontWeight: 600,
-                padding: '0.2rem 0.5rem',
-                borderRadius: '9999px',
-                border: '1px solid #fca5a5',
-              }}
-            >
-              Phase 3
-            </span>
-          </div>
+          <h1 style={{ margin: 0, fontSize: '1.75rem', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.02em' }}>
+            Donations Management
+          </h1>
           <p
             style={{
               margin: '0.25rem 0 0 0',
@@ -373,48 +358,26 @@ export default function AdminDonationsPage() {
         </div>
 
         <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
-          <Link
-            href="/admin/blood-requests"
+          <button
+            onClick={() => {
+              loadDonations();
+            }}
             style={{
-              backgroundColor: '#f1f5f9',
+              backgroundColor: '#ffffff',
+              border: '1px solid #cbd5e1',
               color: '#334155',
               padding: '0.5rem 1rem',
               borderRadius: '6px',
-              textDecoration: 'none',
               fontSize: '0.875rem',
               fontWeight: 500,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.35rem',
             }}
           >
-            Blood Requests
-          </Link>
-          <Link
-            href="/admin/donors"
-            style={{
-              backgroundColor: '#f1f5f9',
-              color: '#334155',
-              padding: '0.5rem 1rem',
-              borderRadius: '6px',
-              textDecoration: 'none',
-              fontSize: '0.875rem',
-              fontWeight: 500,
-            }}
-          >
-            Donors
-          </Link>
-          <Link
-            href="/admin/testing"
-            style={{
-              backgroundColor: '#f1f5f9',
-              color: '#334155',
-              padding: '0.5rem 1rem',
-              borderRadius: '6px',
-              textDecoration: 'none',
-              fontSize: '0.875rem',
-              fontWeight: 500,
-            }}
-          >
-            Laboratory Testing
-          </Link>
+            ↻ Refresh List
+          </button>
           <button
             onClick={() => {
               setShowRecordModal(true);
@@ -432,24 +395,11 @@ export default function AdminDonationsPage() {
               display: 'flex',
               alignItems: 'center',
               gap: '0.35rem',
+              boxShadow: '0 1px 2px rgba(220, 38, 38, 0.2)',
             }}
           >
-            + Record Donation
+            + Record Physical Donation
           </button>
-          <Link
-            href="/"
-            style={{
-              backgroundColor: '#ffffff',
-              border: '1px solid #cbd5e1',
-              color: '#334155',
-              padding: '0.5rem 1rem',
-              borderRadius: '6px',
-              textDecoration: 'none',
-              fontSize: '0.875rem',
-            }}
-          >
-            Public Site
-          </Link>
         </div>
       </div>
 
@@ -1204,24 +1154,61 @@ export default function AdminDonationsPage() {
                             <div>Volume: {associatedBloodUnit.volume || 450} ml &bull; Storage: {associatedBloodUnit.storageLocation || 'Unassigned'}</div>
                           </div>
 
-                          <Link
-                            href={`/admin/testing?bloodUnitId=${associatedBloodUnit._id}`}
-                            style={{
-                              display: 'block',
-                              textAlign: 'center',
-                              backgroundColor: '#0f172a',
-                              color: '#ffffff',
-                              textDecoration: 'none',
-                              padding: '0.4rem 0.65rem',
-                              borderRadius: '4px',
-                              fontSize: '0.75rem',
-                              fontWeight: 600,
-                            }}
-                          >
-                            {associatedBloodUnit.status === BloodUnitStatus.TESTING
-                              ? 'Open Laboratory Testing →'
-                              : 'View Testing Outcome →'}
-                          </Link>
+                          {associatedBloodUnit.status === BloodUnitStatus.APPROVED ? (
+                            <div style={{ display: 'flex', gap: '0.4rem' }}>
+                              <Link
+                                href={`/admin/testing?bloodUnitId=${associatedBloodUnit._id}`}
+                                style={{
+                                  flex: 1,
+                                  textAlign: 'center',
+                                  backgroundColor: '#0f172a',
+                                  color: '#ffffff',
+                                  textDecoration: 'none',
+                                  padding: '0.4rem 0.5rem',
+                                  borderRadius: '4px',
+                                  fontSize: '0.725rem',
+                                  fontWeight: 600,
+                                }}
+                              >
+                                View Testing &rarr;
+                              </Link>
+                              <Link
+                                href={`/admin/inventory?search=${encodeURIComponent(associatedBloodUnit.unitCode)}`}
+                                style={{
+                                  flex: 1,
+                                  textAlign: 'center',
+                                  backgroundColor: '#16a34a',
+                                  color: '#ffffff',
+                                  textDecoration: 'none',
+                                  padding: '0.4rem 0.5rem',
+                                  borderRadius: '4px',
+                                  fontSize: '0.725rem',
+                                  fontWeight: 600,
+                                }}
+                              >
+                                View Inventory &rarr;
+                              </Link>
+                            </div>
+                          ) : (
+                            <Link
+                              href={`/admin/testing?bloodUnitId=${associatedBloodUnit._id}`}
+                              style={{
+                                display: 'block',
+                                textAlign: 'center',
+                                backgroundColor: '#0f172a',
+                                color: '#ffffff',
+                                textDecoration: 'none',
+                                padding: '0.4rem 0.65rem',
+                                borderRadius: '4px',
+                                fontSize: '0.75rem',
+                                fontWeight: 600,
+                              }}
+                            >
+                              {associatedBloodUnit.status === BloodUnitStatus.TESTING
+                                ? 'Open Laboratory Testing →'
+                                : 'View Testing Outcome →'}
+                            </Link>
+                          )}
                         </div>
                       ) : (
                         <div
