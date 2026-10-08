@@ -69,7 +69,7 @@ export default function ContactPage() {
                   }}
                 >
                   <span>&#9742;</span>
-                  <span>Hotline: +1 (555) 019-BLOOD</span>
+                  <span>Emergency Hotline: Contact details to be configured</span>
                 </div>
               </div>
             </div>
@@ -97,10 +97,8 @@ export default function ContactPage() {
               📍 Facility Address
             </strong>
             <p style={{ color: '#475569', fontSize: '0.875rem', lineHeight: 1.5, margin: 0 }}>
-              {appName} Centre<br />
-              100 Healthcare Boulevard, Suite 101<br />
-              Central Medical District<br />
-              <em>(Physical facility visitor hours: 08:00 - 20:00 Daily)</em>
+              Physical facility address to be configured.<br />
+              <em>(Single physical blood bank centre)</em>
             </p>
           </div>
 
@@ -116,9 +114,7 @@ export default function ContactPage() {
               ✉️ General Inquiries
             </strong>
             <p style={{ color: '#475569', fontSize: '0.875rem', lineHeight: 1.5, margin: 0 }}>
-              Email: info@bloodbank-centre.local<br />
-              Administrative Office: +1 (555) 019-2000<br />
-              Laboratory Desk: +1 (555) 019-2001
+              Centre telephone, email, and administrative contacts to be configured by the blood bank administrator.
             </p>
           </div>
         </div>

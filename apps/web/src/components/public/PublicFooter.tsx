@@ -100,7 +100,7 @@ export default function PublicFooter() {
             For life-critical emergencies, submit an urgent blood request immediately or contact the on-duty blood bank medical officer.
           </p>
           <div style={{ color: '#b91c1c', fontWeight: 600 }}>
-            Helpline: +1 (555) 019-BLOOD
+            Emergency Contact: Contact details to be configured
           </div>
         </div>
       </div>

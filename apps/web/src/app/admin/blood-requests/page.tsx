@@ -69,20 +69,20 @@ export default function AdminBloodRequestsPage() {
         status: filterStatus || undefined,
       });
       setRequests(data);
-      if (selectedRequest) {
-        const refreshed = data.find((r) => r._id === selectedRequest._id);
-        if (refreshed) setSelectedRequest(refreshed);
-      }
+      setSelectedRequest((prev) => {
+        if (!prev) return null;
+        return data.find((r) => r._id === prev._id) || null;
+      });
     } catch (err: any) {
       setErrorMessage(err.message || 'Failed to fetch blood requests');
     } finally {
       setLoading(false);
     }
-  }, [filterStatus, selectedRequest]);
+  }, [filterStatus]);
 
   useEffect(() => {
     loadRequests();
-  }, [filterStatus, loadRequests]);
+  }, [loadRequests]);
 
   const handleOpenDetails = (request: BloodRequest) => {
     setSelectedRequest(request);
@@ -161,7 +161,13 @@ export default function AdminBloodRequestsPage() {
             Phase 1 Vertical Slice &bull; Real-time intake queue and lifecycle processing
           </p>
         </div>
-        <div style={{ display: 'flex', gap: '0.75rem' }}>
+        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+          <Link href="/admin/donors" style={{ backgroundColor: '#0f172a', color: '#fff', padding: '0.5rem 1rem', borderRadius: '6px', textDecoration: 'none', fontSize: '0.875rem', fontWeight: 500 }}>
+            Donors Management
+          </Link>
+          <Link href="/admin/donations" style={{ backgroundColor: '#0f172a', color: '#fff', padding: '0.5rem 1rem', borderRadius: '6px', textDecoration: 'none', fontSize: '0.875rem', fontWeight: 500 }}>
+            Donations Management
+          </Link>
           <Link href="/blood-request" style={{ backgroundColor: '#dc2626', color: '#fff', padding: '0.5rem 1rem', borderRadius: '6px', textDecoration: 'none', fontSize: '0.875rem', fontWeight: 500 }}>
             + New Public Request
           </Link>

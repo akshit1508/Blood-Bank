@@ -54,25 +54,32 @@ Next Vertical Slice
 
 ---
 
-### PHASE 2: Donor Registration Vertical Slice
-- **Goal**: Allow public voluntary donors to register in the blood bank database.
-- **Backend**: `DonorModule` with `CreateDonorDto`, phone normalization, `donors` schema, duplicate phone detection, `POST /api/donors/register`.
-- **Frontend**: Public donor registration form (`/donate`) with eligibility checklist and confirmation receipt.
-- **Database**: `donors` collection with unique donor codes and status `ELIGIBLE`.
-- **API**: Public registration endpoint with input sanitization.
-- **Testing**: Duplicate donor handling test, validation rules test.
-- **Documentation**: Donor lifecycle rules updated.
+### PHASE 2: Donor Registration Vertical Slice [COMPLETED]
+- **Goal**: Enable public voluntary donors to register with the blood bank and enable staff to view and manage registered donors.
+- **Backend**: Implemented `DonorsModule` in NestJS with `CreateDonorDto` and `UpdateDonorStatusDto`, `donors` Mongoose schema with unique `donorCode` (`DON-YYYYMMDD-XXXX`), phone uniqueness validation, and controller exposing `POST /api/donors`, `GET /api/donors`, `GET /api/donors/:id`, and `PATCH /api/donors/:id/status`.
+- **Frontend**: Public donor registration form (`/donate-blood`) with clean validation and confirmation card. Admin Donors Management portal (`/admin/donors`) with search, blood group/status filters, drawer details, and status toggle (`ACTIVE`/`INACTIVE`).
+- **Database**: `donors` collection with compound and unique indexes (`donorCode`, `phone`, `bloodGroup`, `status`).
+- **API**: Full REST API contract under `/api/donors`.
+- **Testing**: Automated unit tests for `DonorsService` and `CreateDonorDto`/`UpdateDonorStatusDto`.
+- **Documentation**: Updated `DATABASE.md`, `API.md`, `BUSINESS-RULES.md`, and `DEVELOPMENT-PLAN.md`.
 
 ---
 
-### PHASE 3: Public Blood Availability
-- **Goal**: Provide transparent, real-time public insight into current blood inventory.
-- **Backend**: `AvailabilityModule` aggregating approved, unreserved, non-expired blood units grouped by blood group (`GET /api/availability`).
-- **Frontend**: Public Blood Availability dashboard page (`/availability`) with visual cards per blood group (A+, B+, etc.) and status indicators.
-- **Database**: Optimized aggregation queries over `blood_units`.
-- **API**: Cache-friendly public availability summary endpoint.
-- **Testing**: Aggregation accuracy test; verify zero inclusion of quarantine or expired units.
-- **Documentation**: Update public availability data policy.
+### PHASE 3: Blood Donation Management Vertical Slice [COMPLETED & REFINED]
+- **Goal**: Enable blood bank clinical staff to record physical blood collection events from registered donors and track intake lifecycle (`RECORDED` &rarr; `PROCESSING` &rarr; `COMPLETED` / `CANCELLED`).
+- **Refinement (Donor Approval &rarr; Record Donation Workflow)**:
+  - Upgraded donor registration status lifecycle to `PENDING_REVIEW` &rarr; `ACTIVE` / `INACTIVE`.
+  - Public registration defaults to `PENDING_REVIEW` with clear staff review submission notice.
+  - Staff reviews donor in `/admin/donors`, executes administrative approval (`ACTIVE`).
+  - Active donor profile features integrated `[+ Record Donation]` action with **donor preselected and locked**, eliminating redundant searches.
+  - Donor profile displays live, non-duplicated `Donation History` for that donor.
+  - Global `/admin/donations` remains available for global intake monitoring and transitions.
+- **Backend**: Implemented `DonationsModule` in NestJS with `CreateDonationDto` and `UpdateDonationStatusDto`, `donations` Mongoose schema referencing `Donor`, server-generated tracking codes (`DONATION-YYYYMMDD-XXXX`), strict state machine enforcement (`ALLOWED_DONATION_STATUS_TRANSITIONS`), donor `ACTIVE` status validation on creation, and controller exposing `POST /api/donations`, `GET /api/donations` (paginated with `donorId`, search & filters), `GET /api/donations/:id`, and `PATCH /api/donations/:id/status`.
+- **Frontend**: Refined `/admin/donors` with 5-section profile drawer (Personal, Contact, Registration Status, Administrative Review, Donation History) and preselected Record Donation modal. Maintained global `/admin/donations` view.
+- **Database**: `donations` collection with indexes (`donationCode`, `donorId`, `status`, `donationDate`, `createdAt`).
+- **API**: Full REST API contracts under `/api/donors` and `/api/donations`.
+- **Testing**: Automated unit tests for `DonorsService` (including `PENDING_REVIEW` default and administrative transitions), `DonationsService` (including `PENDING_REVIEW`/`INACTIVE` donor rejection, `donorId` filtering), and DTO specs.
+- **Documentation**: Updated `DATABASE.md`, `API.md`, `BUSINESS-RULES.md`, and `DEVELOPMENT-PLAN.md`.
 
 ---
 

@@ -27,45 +27,56 @@ To maintain strict traceability, prevent data corruption, and avoid premature co
 
 ---
 
-### 2.2 `donors`
-- **Purpose**: Master registry of individuals who have volunteered or donated blood.
-- **Relationships**: One-to-Many with `donations`.
-- **Known Fields**:
+### 2.2 `donors` [IMPLEMENTED - PHASE 2]
+- **Purpose**: Master registry of individuals who have volunteered and registered with the blood bank as potential blood donors. (Note: A Donor record represents personal identity/interest; it does NOT constitute a blood donation event).
+- **Relationships**: One-to-Many with `donations` (future Phase 4).
+- **Implemented Fields (Mongoose Schema: `apps/api/src/modules/donors/schemas/donor.schema.ts`)**:
   - `_id`: ObjectId
-  - `donorCode`: string (unique, human-readable registration code)
-  - `fullName`: string
-  - `dateOfBirth`: Date
+  - `donorCode`: string (unique, indexed, uppercase e.g. `DON-20261007-XXXX`)
+  - `fullName`: string (required, trimmed)
+  - `dateOfBirth`: Date (optional)
   - `gender`: string enum (`MALE`, `FEMALE`, `OTHER`)
-  - `bloodGroup`: string enum (`A+`, `A-`, `B+`, `B-`, `AB+`, `AB-`, `O+`, `O-`, `UNKNOWN`)
-  - `phone`: string (indexed)
-  - `email`: string (optional)
-  - `address`: { street, city, state, postalCode }
-  - `status`: string enum (`ELIGIBLE`, `DEFERRED_TEMPORARY`, `DEFERRED_PERMANENT`)
-  - `deferralUntil`: Date (optional)
-  - `deferralReason`: string (optional)
-  - `lastDonationDate`: Date (optional)
-  - `createdAt`, `updatedAt`: Date
-- **Requires Confirmation**: National identification / passport number storage regulations (**REQUIRES CLIENT/BLOOD BANK CONFIRMATION**).
+  - `bloodGroup`: string enum (`A+`, `A-`, `B+`, `B-`, `AB+`, `AB-`, `O+`, `O-`, indexed)
+  - `phone`: string (required, trimmed, indexed, uniqueness-checked on registration)
+  - `email`: string (optional, lowercase, trimmed)
+  - `address`: string (optional)
+  - `city`: string (optional)
+  - `emergencyContact`: Subdocument `{ name?: string, phone?: string }`
+  - `status`: string enum (`PENDING_REVIEW`, `ACTIVE`, `INACTIVE`, default: `PENDING_REVIEW`, indexed)
+  - `createdAt`, `updatedAt`: Date (timestamps: true)
+- **Indexes**: `{ createdAt: -1 }`, `{ donorCode: 1 }` (unique), `{ phone: 1 }`, `{ bloodGroup: 1 }`, `{ status: 1 }`
+- **Duplicate Handling Policy**: Phone number is checked during registration to prevent accidental duplicate registrations for the same contact number.
+- **Eligibility Validation Policy (Phase 3.5)**: `dateOfBirth` is validated to enforce whole-blood donor age between 18 and 65 years. Completed age is computed dynamically using exact day/month comparison (`calculateCompletedAge`) and is intentionally NOT stored as a stale persistent field.
+- **Allowed Administrative Status Transitions**:
+  - `PENDING_REVIEW` &rarr; `ACTIVE`, `INACTIVE`
+  - `ACTIVE` &rarr; `INACTIVE`
+  - `INACTIVE` &rarr; `ACTIVE`
+  - *(Regression from ACTIVE/INACTIVE back to PENDING_REVIEW is disallowed).*
+- **Requires Confirmation**: Formal medical deferral categorization (`DEFERRED_TEMPORARY`, `DEFERRED_PERMANENT`) and national identity document storage policies (**REQUIRES CLIENT/BLOOD BANK CONFIRMATION**).
 
 ---
 
-### 2.3 `donations`
-- **Purpose**: Record of a single physical donation event.
-- **Relationships**: Many-to-One with `donors`; One-to-One or One-to-Many with `blood_units`.
-- **Known Fields**:
+### 2.3 `donations` [IMPLEMENTED - PHASE 3 / 3.5]
+- **Purpose**: Record of a single physical donation event performed by an existing registered donor. (Note: A Donation is an intake collection event; it is NOT the donor entity, and blood units are generated downstream in Phase 4).
+- **Relationships**: Many-to-One with `donors`; One-to-Many with `blood_units` (future Phase 4).
+- **Implemented Fields (Mongoose Schema: `apps/api/src/modules/donations/schemas/donation.schema.ts`)**:
   - `_id`: ObjectId
-  - `donationCode`: string (unique)
-  - `donorId`: ObjectId (ref: `donors`, indexed)
-  - `donationDate`: Date
-  - `donationType`: string enum (`WHOLE_BLOOD`, `APHERESIS_PLATELETS`, `APHERESIS_PLASMA`)
-  - `vitals`: { bloodPressure, hemoglobin, pulse, weight, temperature }
-  - `collectedVolumeMl`: number
-  - `campaignId`: ObjectId (ref: `campaigns`, optional)
-  - `phlebotomistUserId`: ObjectId (ref: `users`, optional)
-  - `adverseReactions`: string (optional)
-  - `status`: string enum (`COMPLETED`, `INCOMPLETE`, `DISCARDED`)
-  - `createdAt`, `updatedAt`: Date
-- **Requires Confirmation**: Minimum hemoglobin thresholds and vital parameter acceptance boundaries (**REQUIRES CLIENT/BLOOD BANK CONFIRMATION**).
+  - `donationCode`: string (unique, uppercase e.g. `DONATION-20261007-XXXX`)
+  - `donorId`: ObjectId (ref: `Donor`, required, indexed)
+  - `donationDate`: Date (required)
+  - `donationType`: string enum (`WHOLE_BLOOD`, default: `WHOLE_BLOOD`)
+  - `quantity`: number (required, minimum: 1, units)
+  - `status`: string enum (`RECORDED`, `PROCESSING`, `COMPLETED`, `CANCELLED`, default: `RECORDED`, indexed)
+  - `notes`: string (optional, trimmed)
+  - `createdAt`, `updatedAt`: Date (timestamps: true)
+- **Indexes**: `{ createdAt: -1 }`, `{ donationCode: 1 }` (unique), `{ donorId: 1 }`, `{ status: 1 }`, `{ donationDate: 1 }`
+- **Interval Validation Policy (Phase 3.5)**: On recording a whole-blood donation, the system queries the latest `COMPLETED` whole-blood donation for `donorId` and verifies the required interval (90 calendar days for Male, 120 calendar days for Female/Other) using normalized UTC calendar dates. Interval status, remaining days, and next eligible date are derived dynamically and never stored as stale precomputed fields.
+- **Allowed Status Transitions**:
+  - `RECORDED` &rarr; `PROCESSING`, `CANCELLED`
+  - `PROCESSING` &rarr; `COMPLETED`, `CANCELLED`
+  - `COMPLETED` &rarr; terminal
+  - `CANCELLED` &rarr; terminal
+- **Requires Confirmation**: Clinical vitals tracking (hemoglobin, blood pressure, temperature, pulse), phlebotomist staff assignment, and multi-component apheresis support (**REQUIRES CLIENT/BLOOD BANK CONFIRMATION**).
 
 ---
 

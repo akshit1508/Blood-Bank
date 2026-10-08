@@ -12,9 +12,30 @@
 ## 2. Core Operational & Inventory Rules
 
 ### 2.1 Donor & Donation Separation
-- **Rule 2.1.1**: Donor registration and physical donation are separate concepts. Registering as a donor records individual identity and eligibility; it does not constitute a blood collection.
+- **Rule 2.1.1**: Donor registration and physical donation are separate concepts. Registering as a donor records individual identity and interest; it does not constitute a blood collection or guarantee clinical eligibility.
 - **Rule 2.1.2**: A registered donor can have multiple historical donation events.
 - **Rule 2.1.3**: Every donation event must link directly to an existing donor record.
+- **Rule 2.1.4 (Donor Registration Lifecycle)**: Newly registered donors start strictly in status `PENDING_REVIEW` pending staff review. Staff review may administratively approve the registration (`PENDING_REVIEW` &rarr; `ACTIVE`) or mark it inactive (`PENDING_REVIEW` &rarr; `INACTIVE`). Active donors may be deactivated (`ACTIVE` &rarr; `INACTIVE`) and reactivated (`INACTIVE` &rarr; `ACTIVE`). Transitions back to `PENDING_REVIEW` are prohibited.
+- **Rule 2.1.5 (Duplicate Registration Safeguard)**: Donor registration enforces a duplicate check on the contact phone number to prevent unintended redundant donor records. Duplicate attempts return a 409 Conflict prompting the user to contact the facility.
+- **Rule 2.1.6 (Donation Recording Prerequisite)**: Physical blood donation recording is strictly restricted to donors in `ACTIVE` status. Attempting to record a donation for a donor in `PENDING_REVIEW` is rejected (donor requires staff review first); attempting to record for an `INACTIVE` donor is rejected. Administrative `ACTIVE` status is purely operational and does not replace in-person SOP clinical eligibility screening.
+- **Rule 2.1.7 (Donor Age Eligibility — Whole Blood)**:
+  - Minimum age: 18 completed years.
+  - Maximum age: 65 completed years.
+  - Exact completed age is computed from date of birth using precise month/day boundary comparison (`calculateCompletedAge`).
+  - Age bracket 18–60: Standard eligible registration.
+  - Age bracket 61–65: Permitted to register with advisory notice ("Additional screening required: Donor registration can be submitted, but final donation eligibility will be determined during blood-bank screening.").
+  - Age < 18 or > 65: Hard-blocked on registration form and authoritatively rejected by backend API (`DONOR_AGE_NOT_ELIGIBLE`, HTTP 400). Zero database records or donor codes are created.
+- **Rule 2.1.8 (Whole-Blood Donation Interval Guardrail)**:
+  - Authoritative Indian criteria whole-blood intervals:
+    - Male donors: 90 calendar days minimum.
+    - Female donors: 120 calendar days minimum.
+    - Other/unspecified: 120 calendar days minimum.
+  - Evaluated against the donor's latest `COMPLETED` whole-blood donation (`status === COMPLETED` and `donationType === WHOLE_BLOOD`). Non-completed events (`RECORDED`, `PROCESSING`, `CANCELLED`) do NOT trigger interval blocking.
+  - Calendar day calculation uses normalized UTC date difference (`Date.UTC(y, m, d)`), allowing day 90 / 120 donation collection regardless of exact phlebotomy timestamp.
+  - Donations attempted before the required interval are rejected with HTTP 400 (`DONATION_INTERVAL_NOT_COMPLETED`) containing `lastDonationDate`, `nextEligibleDate`, and `remainingDays`.
+  - Admin donor profile displays active interval status (`ELIGIBLE`, `WAITING PERIOD`, or `NO PREVIOUS DONATION`) and disables donation recording during the waiting period.
+- **Rule 2.1.9 (Future Donation Date Guardrail)**:
+  - Donation collection date cannot be in the future (allowing up to 120 seconds clock skew tolerance). Future donation timestamps return HTTP 400 Bad Request.
 
 ### 2.2 Blood Unit Processing & Testing Gate
 - **Rule 2.2.1**: Every completed donation creates or directly associates with one or more physical blood unit records.
@@ -38,6 +59,11 @@
   - `RESERVED` &rarr; `ISSUED` | `CANCELLED`
   - `ISSUED` &rarr; `COMPLETED`
   - Terminal States: `COMPLETED`, `REJECTED`, `CANCELLED` (no subsequent transitions permitted). Direct jumping from `REQUESTED` directly to `ISSUED` or `APPROVED` without verification is rejected with an HTTP 400 Bad Request.
+- **Rule 2.4.3 (Donation Lifecycle)**: Donations are recorded events by registered donors and start strictly in status `RECORDED`:
+  - `RECORDED` &rarr; `PROCESSING` | `CANCELLED`
+  - `PROCESSING` &rarr; `COMPLETED` | `CANCELLED`
+  - Terminal States: `COMPLETED`, `CANCELLED` (no subsequent transitions permitted). Illegal jumps (e.g., `COMPLETED` &rarr; `RECORDED`, `CANCELLED` &rarr; `COMPLETED`) are rejected with an HTTP 400 Bad Request.
+  - Boundary: Transitioning to `COMPLETED` signifies that the physical phlebotomy collection has ended successfully. Creation of traceable blood units and laboratory quarantine occurs in subsequent Phase 4.
 
 ### 2.5 Expiry & Cold Chain Rules
 - **Rule 2.5.1**: Every blood unit must have a tracked expiration date calculated from collection date and component type.

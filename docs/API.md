@@ -70,10 +70,13 @@ The Blood Bank REST API is built in NestJS, accessible at the `/api` root prefix
 ### 2.4 Donors (`/api/donors`)
 | Method | Endpoint | Access | Status | Description |
 |---|---|---|---|---|
-| `POST` | `/api/donors/register` | Public | `[PLANNED]` | Self-registration of voluntary donor. |
-| `GET` | `/api/donors` | Staff | `[PLANNED]` | Admin query of donors (by phone, blood group, eligibility). |
-| `GET` | `/api/donors/:id` | Staff | `[PLANNED]` | Detailed donor profile, vitals, and past donation log. |
-| `PATCH` | `/api/donors/:id/deferral` | Staff | `[PLANNED]` | Set temporary or permanent medical deferral. |
+| `POST` | `/api/donors` | Public | **[ACTIVE - PHASE 3.5]** | Voluntary donor self-registration. Validates payload, checks duplicate phone, enforces age eligibility (18–65 years; rejects < 18 or > 65 with HTTP 400 `DONOR_AGE_NOT_ELIGIBLE`), generates `donorCode`, initializes status to `PENDING_REVIEW`. Returns receipt with review confirmation message. |
+| `GET` | `/api/donors` | Staff / Admin | **[ACTIVE - PHASE 2/3 REFINED]** | Search and filter registered donors (`?search=`, `?bloodGroup=`, `?status=PENDING_REVIEW|ACTIVE|INACTIVE`). *(Security Note: Internal management only; Auth guards pending).* |
+| `GET` | `/api/donors/:id` | Staff / Admin | **[ACTIVE - PHASE 2/3 REFINED]** | Retrieve single donor profile by MongoDB `_id` or `donorCode`. *(Security Note: Contains personal contact data; Internal management only).* |
+| `PATCH` | `/api/donors/:id/status` | Staff / Admin | **[ACTIVE - PHASE 2/3 REFINED]** | Update donor status enforcing valid administrative transitions (`PENDING_REVIEW` &rarr; `ACTIVE`/`INACTIVE`, `ACTIVE` &rarr; `INACTIVE`, `INACTIVE` &rarr; `ACTIVE`). |
+
+> [!WARNING] **Security Boundary & Auth Blocker**
+> The endpoints `GET /api/donors`, `GET /api/donors/:id`, and `PATCH /api/donors/:id/status` return personal contact and identification details of registered donors. They are strictly designated for internal staff use and must not be exposed to anonymous public users. Full JWT role guards are pending the dedicated Auth vertical slice.
 
 ---
 
@@ -88,9 +91,13 @@ The Blood Bank REST API is built in NestJS, accessible at the `/api` root prefix
 ### 2.6 Donations (`/api/donations`)
 | Method | Endpoint | Access | Status | Description |
 |---|---|---|---|---|
-| `POST` | `/api/donations` | Staff | `[PLANNED]` | Record physical donation event, screening vitals, and bag volume. |
-| `GET` | `/api/donations` | Staff | `[PLANNED]` | Filter donation logs by date range, donor, or campaign. |
-| `GET` | `/api/donations/:id` | Staff | `[PLANNED]` | Retrieve donation record and associated blood units. |
+| `POST` | `/api/donations` | Staff / Admin | **[ACTIVE - PHASE 3.5]** | Record physical donation event. Validates that referenced donor exists AND has `status: ACTIVE`. Validates collection date is not in future. For whole-blood donations, validates required interval from last completed donation (90 days for Male, 120 days for Female/Other); rejects with HTTP 400 `DONATION_INTERVAL_NOT_COMPLETED` containing `lastDonationDate`, `nextEligibleDate`, and `remainingDays`. Generates `donationCode`, initializes status to `RECORDED`. |
+| `GET` | `/api/donations` | Staff / Admin | **[ACTIVE - PHASE 3 REFINED]** | Query paginated donations with filters (`?donorId=`, `?search=`, `?status=`, `?bloodGroup=`, `?donationType=`, `?page=`, `?limit=`). Used for both global management and donor profile donation history. |
+| `GET` | `/api/donations/:id` | Staff / Admin | **[ACTIVE - PHASE 3]** | Retrieve single donation record by MongoDB `_id` or `donationCode` with populated donor details. |
+| `PATCH` | `/api/donations/:id/status` | Staff / Admin | **[ACTIVE - PHASE 3]** | Transition donation status enforcing strict state machine (`RECORDED` &rarr; `PROCESSING` &rarr; `COMPLETED`, or `CANCELLED`). |
+
+> [!WARNING] **Security Boundary & Auth Blocker**
+> The entire `/api/donations` route is strictly an internal clinical/management operation. There is no anonymous public access. Donation collection events and donor links must not be exposed publicly. Full JWT + RBAC guard enforcement is planned for the upcoming Auth vertical slice.
 
 ---
 

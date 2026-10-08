@@ -132,7 +132,7 @@ export default function PublicNavbar({ onToggleSidebar, isSidebarOpen }: PublicN
           className="emergency-badge"
         >
           <span style={{ fontSize: '0.9rem' }}>&#9742;</span>
-          <span>Emergency Helpline: +1 (555) 019-BLOOD</span>
+          <span>Emergency Helpline: Contact details to be configured</span>
         </div>
 
         <Link

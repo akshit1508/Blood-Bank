@@ -1,131 +1,641 @@
-import React from 'react';
+'use client';
+
+import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
 import PublicLayout from '@/components/public/PublicLayout';
 import PublicPageHeader from '@/components/public/PublicPageHeader';
+import {
+  BloodGroup,
+  Gender,
+  registerDonor,
+} from '@/lib/donor-api';
+import {
+  calculateCompletedAge,
+  MIN_WHOLE_BLOOD_DONOR_AGE,
+  MAX_WHOLE_BLOOD_DONOR_AGE,
+  SENIOR_FIRST_TIME_SCREENING_AGE,
+} from '@/lib/eligibility';
 
 export default function DonateBloodPage() {
+  const [formData, setFormData] = useState({
+    fullName: '',
+    dateOfBirth: '',
+    gender: Gender.MALE,
+    bloodGroup: BloodGroup.A_POSITIVE,
+    phone: '',
+    email: '',
+    address: '',
+    city: '',
+    emergencyContactName: '',
+    emergencyContactPhone: '',
+    consent: false,
+  });
+
+  const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [registeredDonorCode, setRegisteredDonorCode] = useState<string | null>(null);
+
+  // Exact completed age calculation immediately upon entering DOB
+  const calculatedAge = useMemo(() => {
+    if (!formData.dateOfBirth) return null;
+    const birthDate = new Date(formData.dateOfBirth);
+    if (isNaN(birthDate.getTime())) return null;
+    return calculateCompletedAge(birthDate);
+  }, [formData.dateOfBirth]);
+
+  const isAgeInvalid =
+    calculatedAge !== null &&
+    (calculatedAge < MIN_WHOLE_BLOOD_DONOR_AGE ||
+      calculatedAge > MAX_WHOLE_BLOOD_DONOR_AGE);
+
+  const handleChange = (
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+    >,
+  ) => {
+    const { name, value, type } = e.target;
+    if (type === 'checkbox') {
+      const checked = (e.target as HTMLInputElement).checked;
+      setFormData((prev) => ({ ...prev, [name]: checked }));
+    } else {
+      setFormData((prev) => ({ ...prev, [name]: value }));
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMessage(null);
+
+    // Guardrail: Immediately prevent ineligible age from submitting or reaching backend
+    if (isAgeInvalid) {
+      if (calculatedAge! < MIN_WHOLE_BLOOD_DONOR_AGE) {
+        setErrorMessage(
+          'Sorry, you must be at least 18 years old to register as a blood donor.',
+        );
+      } else {
+        setErrorMessage(
+          'Based on the blood donation eligibility criteria, donors above 65 years cannot register for whole-blood donation.',
+        );
+      }
+      return;
+    }
+
+    if (!formData.consent) {
+      setErrorMessage('Please acknowledge the donor registration consent to proceed.');
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const response = await registerDonor({
+        fullName: formData.fullName.trim(),
+        dateOfBirth: formData.dateOfBirth ? formData.dateOfBirth : undefined,
+        gender: formData.gender,
+        bloodGroup: formData.bloodGroup,
+        phone: formData.phone.trim(),
+        email: formData.email.trim() || undefined,
+        address: formData.address.trim() || undefined,
+        city: formData.city.trim() || undefined,
+        emergencyContact:
+          formData.emergencyContactName.trim() || formData.emergencyContactPhone.trim()
+            ? {
+                name: formData.emergencyContactName.trim() || undefined,
+                phone: formData.emergencyContactPhone.trim() || undefined,
+              }
+            : undefined,
+      });
+
+      setRegisteredDonorCode(response.donorCode);
+    } catch (err: any) {
+      setErrorMessage(err.message || 'An unexpected error occurred during donor registration.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <PublicLayout>
-      <div style={{ maxWidth: '900px', margin: '0 auto' }}>
+      <div style={{ maxWidth: '840px', margin: '0 auto' }}>
         <PublicPageHeader
           title="Donate Blood"
-          subtitle="Join our community of voluntary blood donors and help save lives across our local hospitals."
+          subtitle="Register with our blood bank as a potential blood donor."
           breadcrumbs={[
             { label: 'Dashboard', href: '/' },
             { label: 'Donate Blood' },
           ]}
         />
 
-        {/* Why Donate Section */}
+        {/* High-level Information Section */}
         <section
           style={{
             backgroundColor: '#ffffff',
             border: '1px solid #e2e8f0',
             borderRadius: '10px',
-            padding: '2rem',
+            padding: '1.5rem',
             marginBottom: '2rem',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
+            boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
+            lineHeight: 1.6,
+            fontSize: '0.925rem',
+            color: '#334155',
           }}
         >
-          <h2 style={{ fontSize: '1.25rem', fontWeight: 700, margin: '0 0 1rem 0', color: '#0f172a' }}>
-            Why Donate Blood?
-          </h2>
-          <p style={{ color: '#475569', lineHeight: 1.6, margin: '0 0 1.25rem 0' }}>
-            Every two seconds, someone in our region requires blood due to surgery, trauma, obstetrics complications, or chronic medical conditions. Because blood products cannot be manufactured artificially, our single facility relies entirely on the altruism of voluntary community donors.
-          </p>
-
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-              gap: '1rem',
-            }}
-          >
-            <div style={{ backgroundColor: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px', padding: '1rem' }}>
-              <strong style={{ color: '#991b1b', display: 'block', marginBottom: '0.25rem' }}>
-                Save Up to Three Lives
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
+            <span style={{ fontSize: '1.5rem', color: '#dc2626', lineHeight: 1 }}>❤️</span>
+            <div>
+              <strong style={{ color: '#0f172a', display: 'block', marginBottom: '0.25rem' }}>
+                Voluntary Blood Donor Registration
               </strong>
-              <span style={{ fontSize: '0.85rem', color: '#7f1d1d', lineHeight: 1.4 }}>
-                One standard whole blood donation can be separated into red cells, plasma, and platelets to help multiple patients.
-              </span>
-            </div>
-
-            <div style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px', padding: '1rem' }}>
-              <strong style={{ color: '#166534', display: 'block', marginBottom: '0.25rem' }}>
-                Safe & Regulated
-              </strong>
-              <span style={{ fontSize: '0.85rem', color: '#14532d', lineHeight: 1.4 }}>
-                All collection equipment is sterile, single-use, and handled by trained phlebotomists adhering to stringent clinical standards.
-              </span>
+              <p style={{ margin: '0 0 0.5rem 0' }}>
+                Voluntary blood donation helps maintain an adequate and reliable blood supply for hospital emergency rooms, oncology clinics, and trauma surgeries across our community.
+              </p>
+              <p style={{ margin: 0, color: '#64748b', fontSize: '0.85rem' }}>
+                <em>Note: Registering here records your interest as a voluntary donor. Actual donor eligibility screening (vitals check and hemoglobin assessment) is conducted in person according to blood bank standard operating procedures prior to every physical collection.</em>
+              </p>
             </div>
           </div>
         </section>
 
-        {/* What Happens After Registration */}
-        <section
-          style={{
-            backgroundColor: '#ffffff',
-            border: '1px solid #e2e8f0',
-            borderRadius: '10px',
-            padding: '2rem',
-            marginBottom: '2rem',
-          }}
-        >
-          <h2 style={{ fontSize: '1.25rem', fontWeight: 700, margin: '0 0 1rem 0', color: '#0f172a' }}>
-            What Happens After Registration?
-          </h2>
-
-          <ol style={{ paddingLeft: '1.25rem', margin: 0, color: '#334155', lineHeight: 1.7, fontSize: '0.95rem' }}>
-            <li>
-              <strong>Medical Screening & Vitals:</strong> A medical officer checks your pulse, blood pressure, temperature, and hemoglobin level to ensure donation is safe for you.
-            </li>
-            <li>
-              <strong>Physical Collection:</strong> A standard 350ml or 450ml donation takes approximately 8-10 minutes under sterile supervision.
-            </li>
-            <li>
-              <strong>Laboratory Testing:</strong> Every unit is rigorously screened for mandatory infectious disease markers and ABO/Rh blood grouping before entering active inventory.
-            </li>
-            <li>
-              <strong>Clinical Issuance:</strong> Approved units are cross-matched and issued to patients in urgent need.
-            </li>
-          </ol>
-        </section>
-
-        {/* Registration CTA / Placeholder */}
-        <section
-          style={{
-            backgroundColor: '#f8fafc',
-            border: '1px dashed #cbd5e1',
-            borderRadius: '10px',
-            padding: '2.5rem',
-            textAlign: 'center',
-          }}
-        >
-          <span style={{ fontSize: '2rem', display: 'block', marginBottom: '0.5rem' }}>❤️</span>
-          <h2 style={{ fontSize: '1.35rem', fontWeight: 700, margin: '0 0 0.5rem 0', color: '#0f172a' }}>
-            Register as a Voluntary Donor
-          </h2>
-          <p style={{ color: '#64748b', maxWidth: '520px', margin: '0 auto 1.5rem auto', fontSize: '0.9rem', lineHeight: 1.5 }}>
-            Online donor self-registration and appointment booking are scheduled for integration in Phase 2. Visit our centre in person or check back soon to register online.
-          </p>
-
-          <button
-            type="button"
-            disabled
+        {/* Success Confirmation State */}
+        {registeredDonorCode ? (
+          <div
             style={{
-              backgroundColor: '#e2e8f0',
-              color: '#64748b',
-              border: '1px solid #cbd5e1',
-              padding: '0.75rem 1.75rem',
-              borderRadius: '6px',
-              fontWeight: 600,
-              fontSize: '0.95rem',
-              cursor: 'not-allowed',
+              backgroundColor: '#f0fdf4',
+              border: '1px solid #86efac',
+              borderRadius: '10px',
+              padding: '2.5rem 2rem',
+              textAlign: 'center',
             }}
           >
-            Online Registration (Available in Phase 2)
-          </button>
-        </section>
+            <div style={{ fontSize: '2.75rem', marginBottom: '0.5rem', color: '#16a34a' }}>✓</div>
+            <h2 style={{ margin: '0 0 0.5rem 0', color: '#15803d', fontSize: '1.5rem' }}>
+              Donor Registration Submitted
+            </h2>
+            <p style={{ color: '#166534', margin: '0.5rem 0 1.5rem 0', fontSize: '0.95rem' }}>
+              Your donor registration has been submitted successfully. Our blood bank staff will review your registration.
+            </p>
+
+            <div
+              style={{
+                backgroundColor: '#ffffff',
+                border: '1px dashed #4ade80',
+                borderRadius: '8px',
+                padding: '1.25rem 2rem',
+                display: 'inline-block',
+                minWidth: '320px',
+                marginBottom: '1.75rem',
+              }}
+            >
+              <span style={{ fontSize: '0.8rem', color: '#64748b', display: 'block', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                Your Donor Registration ID
+              </span>
+              <strong style={{ fontSize: '1.6rem', color: '#0f172a', letterSpacing: '0.08em' }}>
+                {registeredDonorCode}
+              </strong>
+            </div>
+
+            <p style={{ color: '#334155', maxWidth: '520px', margin: '0 auto 2rem auto', fontSize: '0.9rem', lineHeight: 1.5 }}>
+              Our staff may contact you regarding donor screening and future donation opportunities at our centre or upcoming mobile drives.
+            </p>
+
+            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+              <Link
+                href="/"
+                style={{
+                  backgroundColor: '#0f172a',
+                  color: '#ffffff',
+                  padding: '0.7rem 1.4rem',
+                  borderRadius: '6px',
+                  textDecoration: 'none',
+                  fontWeight: 600,
+                  fontSize: '0.9rem',
+                }}
+              >
+                Back to Dashboard
+              </Link>
+              <button
+                onClick={() => {
+                  setRegisteredDonorCode(null);
+                  setFormData({
+                    fullName: '',
+                    dateOfBirth: '',
+                    gender: Gender.MALE,
+                    bloodGroup: BloodGroup.A_POSITIVE,
+                    phone: '',
+                    email: '',
+                    address: '',
+                    city: '',
+                    emergencyContactName: '',
+                    emergencyContactPhone: '',
+                    consent: false,
+                  });
+                }}
+                style={{
+                  backgroundColor: '#ffffff',
+                  color: '#0f172a',
+                  border: '1px solid #cbd5e1',
+                  padding: '0.7rem 1.4rem',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontWeight: 600,
+                  fontSize: '0.9rem',
+                }}
+              >
+                Register Another Donor
+              </button>
+            </div>
+          </div>
+        ) : (
+          /* Registration Form */
+          <div
+            style={{
+              backgroundColor: '#ffffff',
+              border: '1px solid #e2e8f0',
+              borderRadius: '10px',
+              padding: '2rem',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
+            }}
+          >
+            {errorMessage && (
+              <div
+                style={{
+                  backgroundColor: '#fef2f2',
+                  border: '1px solid #fca5a5',
+                  color: '#991b1b',
+                  padding: '0.85rem 1rem',
+                  borderRadius: '6px',
+                  marginBottom: '1.5rem',
+                  fontSize: '0.9rem',
+                }}
+              >
+                <strong>Registration Error: </strong> {errorMessage}
+              </div>
+            )}
+
+            <form onSubmit={handleSubmit}>
+              {/* SECTION 1 — Personal Information */}
+              <div style={{ marginBottom: '2rem' }}>
+                <h3
+                  style={{
+                    fontSize: '1.05rem',
+                    fontWeight: 700,
+                    color: '#0f172a',
+                    borderBottom: '1px solid #f1f5f9',
+                    paddingBottom: '0.5rem',
+                    marginBottom: '1rem',
+                  }}
+                >
+                  1. Personal Information
+                </h3>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
+                  <div style={{ gridColumn: 'span 2' }}>
+                    <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.35rem' }}>
+                      Full Name <span style={{ color: '#dc2626' }}>*</span>
+                    </label>
+                    <input
+                      type="text"
+                      name="fullName"
+                      required
+                      value={formData.fullName}
+                      onChange={handleChange}
+                      placeholder="e.g. Michael Robert Vance"
+                      style={{
+                        width: '100%',
+                        height: '40px',
+                        padding: '0 0.75rem',
+                        border: '1px solid #cbd5e1',
+                        borderRadius: '6px',
+                        fontSize: '0.9rem',
+                        boxSizing: 'border-box',
+                      }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.35rem' }}>
+                      Date of Birth
+                    </label>
+                    <input
+                      type="date"
+                      name="dateOfBirth"
+                      value={formData.dateOfBirth}
+                      onChange={handleChange}
+                      style={{
+                        width: '100%',
+                        height: '40px',
+                        padding: '0 0.75rem',
+                        border: isAgeInvalid
+                          ? '1px solid #ef4444'
+                          : '1px solid #cbd5e1',
+                        borderRadius: '6px',
+                        fontSize: '0.9rem',
+                        boxSizing: 'border-box',
+                      }}
+                    />
+                    {calculatedAge !== null && (
+                      <div style={{ marginTop: '0.4rem', fontSize: '0.8rem' }}>
+                        {calculatedAge < MIN_WHOLE_BLOOD_DONOR_AGE ? (
+                          <div style={{ color: '#dc2626', fontWeight: 600 }}>
+                            ⚠️ Sorry, you must be at least 18 years old to register as a blood donor. (Current age: {calculatedAge} years)
+                          </div>
+                        ) : calculatedAge > MAX_WHOLE_BLOOD_DONOR_AGE ? (
+                          <div style={{ color: '#dc2626', fontWeight: 600 }}>
+                            ⚠️ Based on the blood donation eligibility criteria, donors above 65 years cannot register for whole-blood donation. (Current age: {calculatedAge} years)
+                          </div>
+                        ) : calculatedAge > SENIOR_FIRST_TIME_SCREENING_AGE ? (
+                          <div
+                            style={{
+                              color: '#92400e',
+                              backgroundColor: '#fef3c7',
+                              padding: '0.4rem 0.6rem',
+                              borderRadius: '4px',
+                              border: '1px solid #fde68a',
+                              lineHeight: 1.4,
+                            }}
+                          >
+                            ℹ️ <strong>Age: {calculatedAge} years.</strong> Additional screening required: Donor registration can be submitted, but final donation eligibility will be determined during blood-bank screening.
+                          </div>
+                        ) : (
+                          <div style={{ color: '#15803d', fontWeight: 500 }}>
+                            ✓ Age: {calculatedAge} years (Eligible age for donor registration)
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.35rem' }}>
+                      Gender <span style={{ color: '#dc2626' }}>*</span>
+                    </label>
+                    <select
+                      name="gender"
+                      value={formData.gender}
+                      onChange={handleChange}
+                      style={{
+                        width: '100%',
+                        height: '40px',
+                        padding: '0 0.75rem',
+                        border: '1px solid #cbd5e1',
+                        borderRadius: '6px',
+                        fontSize: '0.9rem',
+                        boxSizing: 'border-box',
+                        backgroundColor: '#ffffff',
+                      }}
+                    >
+                      <option value={Gender.MALE}>Male</option>
+                      <option value={Gender.FEMALE}>Female</option>
+                      <option value={Gender.OTHER}>Other</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.35rem' }}>
+                      Blood Group <span style={{ color: '#dc2626' }}>*</span>
+                    </label>
+                    <select
+                      name="bloodGroup"
+                      value={formData.bloodGroup}
+                      onChange={handleChange}
+                      style={{
+                        width: '100%',
+                        height: '40px',
+                        padding: '0 0.75rem',
+                        border: '1px solid #cbd5e1',
+                        borderRadius: '6px',
+                        fontSize: '0.9rem',
+                        fontWeight: 700,
+                        color: '#dc2626',
+                        boxSizing: 'border-box',
+                        backgroundColor: '#ffffff',
+                      }}
+                    >
+                      {Object.values(BloodGroup).map((bg) => (
+                        <option key={bg} value={bg}>{bg}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* SECTION 2 — Contact Information */}
+              <div style={{ marginBottom: '2rem' }}>
+                <h3
+                  style={{
+                    fontSize: '1.05rem',
+                    fontWeight: 700,
+                    color: '#0f172a',
+                    borderBottom: '1px solid #f1f5f9',
+                    paddingBottom: '0.5rem',
+                    marginBottom: '1rem',
+                  }}
+                >
+                  2. Contact Information
+                </h3>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem', marginBottom: '1rem' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.35rem' }}>
+                      Phone Number <span style={{ color: '#dc2626' }}>*</span>
+                    </label>
+                    <input
+                      type="tel"
+                      name="phone"
+                      required
+                      value={formData.phone}
+                      onChange={handleChange}
+                      placeholder="e.g. +1 555-0199"
+                      style={{
+                        width: '100%',
+                        height: '40px',
+                        padding: '0 0.75rem',
+                        border: '1px solid #cbd5e1',
+                        borderRadius: '6px',
+                        fontSize: '0.9rem',
+                        boxSizing: 'border-box',
+                      }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.35rem' }}>
+                      Email Address (Optional)
+                    </label>
+                    <input
+                      type="email"
+                      name="email"
+                      value={formData.email}
+                      onChange={handleChange}
+                      placeholder="e.g. michael@example.com"
+                      style={{
+                        width: '100%',
+                        height: '40px',
+                        padding: '0 0.75rem',
+                        border: '1px solid #cbd5e1',
+                        borderRadius: '6px',
+                        fontSize: '0.9rem',
+                        boxSizing: 'border-box',
+                      }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.35rem' }}>
+                      City
+                    </label>
+                    <input
+                      type="text"
+                      name="city"
+                      value={formData.city}
+                      onChange={handleChange}
+                      placeholder="e.g. Metro City"
+                      style={{
+                        width: '100%',
+                        height: '40px',
+                        padding: '0 0.75rem',
+                        border: '1px solid #cbd5e1',
+                        borderRadius: '6px',
+                        fontSize: '0.9rem',
+                        boxSizing: 'border-box',
+                      }}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.35rem' }}>
+                    Residential Address
+                  </label>
+                  <input
+                    type="text"
+                    name="address"
+                    value={formData.address}
+                    onChange={handleChange}
+                    placeholder="Street name, apartment, postal area"
+                    style={{
+                      width: '100%',
+                      height: '40px',
+                      padding: '0 0.75rem',
+                      border: '1px solid #cbd5e1',
+                      borderRadius: '6px',
+                      fontSize: '0.9rem',
+                      boxSizing: 'border-box',
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* SECTION 3 — Emergency Contact */}
+              <div style={{ marginBottom: '2rem' }}>
+                <h3
+                  style={{
+                    fontSize: '1.05rem',
+                    fontWeight: 700,
+                    color: '#0f172a',
+                    borderBottom: '1px solid #f1f5f9',
+                    paddingBottom: '0.5rem',
+                    marginBottom: '1rem',
+                  }}
+                >
+                  3. Emergency Contact (Optional)
+                </h3>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.35rem' }}>
+                      Emergency Contact Name
+                    </label>
+                    <input
+                      type="text"
+                      name="emergencyContactName"
+                      value={formData.emergencyContactName}
+                      onChange={handleChange}
+                      placeholder="e.g. Sarah Vance"
+                      style={{
+                        width: '100%',
+                        height: '40px',
+                        padding: '0 0.75rem',
+                        border: '1px solid #cbd5e1',
+                        borderRadius: '6px',
+                        fontSize: '0.9rem',
+                        boxSizing: 'border-box',
+                      }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.35rem' }}>
+                      Emergency Contact Phone
+                    </label>
+                    <input
+                      type="tel"
+                      name="emergencyContactPhone"
+                      value={formData.emergencyContactPhone}
+                      onChange={handleChange}
+                      placeholder="e.g. +1 555-0188"
+                      style={{
+                        width: '100%',
+                        height: '40px',
+                        padding: '0 0.75rem',
+                        border: '1px solid #cbd5e1',
+                        borderRadius: '6px',
+                        fontSize: '0.9rem',
+                        boxSizing: 'border-box',
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Consent and Acknowledgement */}
+              <div
+                style={{
+                  backgroundColor: '#f8fafc',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '6px',
+                  padding: '1rem',
+                  marginBottom: '1.5rem',
+                }}
+              >
+                <label style={{ display: 'flex', alignItems: 'flex-start', gap: '0.65rem', cursor: 'pointer', fontSize: '0.875rem', color: '#334155', lineHeight: 1.5 }}>
+                  <input
+                    type="checkbox"
+                    name="consent"
+                    checked={formData.consent}
+                    onChange={handleChange}
+                    style={{ marginTop: '0.2rem', cursor: 'pointer' }}
+                  />
+                  <span>
+                    I confirm that the information provided is accurate and acknowledge that: <em>&ldquo;The information provided will be used by the blood bank for donor registration and related communication.&rdquo;</em>
+                  </span>
+                </label>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid #f1f5f9', paddingTop: '1.25rem' }}>
+                <button
+                  type="submit"
+                  disabled={loading || isAgeInvalid}
+                  style={{
+                    backgroundColor: (loading || isAgeInvalid) ? '#94a3b8' : '#dc2626',
+                    color: '#ffffff',
+                    border: 'none',
+                    padding: '0.75rem 2rem',
+                    borderRadius: '6px',
+                    fontSize: '0.95rem',
+                    fontWeight: 600,
+                    cursor: (loading || isAgeInvalid) ? 'not-allowed' : 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                  }}
+                >
+                  {loading ? 'Registering Donor...' : 'Register as Donor'}
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
       </div>
     </PublicLayout>
   );
