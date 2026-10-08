@@ -172,3 +172,15 @@ The Blood Bank REST API is built in NestJS, accessible at the `/api` root prefix
 | `GET` | `/api/dashboard/stats` | Staff | `[PLANNED]` | Aggregated operational KPI metrics for admin overview. |
 | `GET` | `/api/audit-logs` | Admin | `[PLANNED]` | Immutable audit log trail with actor and entity filters. |
 | `GET` | `/api/reports/monthly` | Staff | `[PLANNED]` | Monthly collection, discard, and issuance statistics. |
+
+---
+
+### 2.13 External Blood Acquisition / Bulk Blood Receipts (`/api/blood-acquisitions`) — Phase 6D
+| Method | Endpoint | Access | Status | Description |
+|---|---|---|---|---|
+| `POST` | `/api/blood-acquisitions` | Staff / Admin | `[IMPLEMENTED]` | Register external bulk blood receipt, generate individual Blood Units, and route pre-cleared units directly to Inventory. |
+| `GET` | `/api/blood-acquisitions` | Staff / Admin | `[IMPLEMENTED]` | Paginated list of external receipts with live unit breakdown counts. |
+| `GET` | `/api/blood-acquisitions/:id` | Staff / Admin | `[IMPLEMENTED]` | Retrieve receipt detail with unit status statistics. |
+| `GET` | `/api/blood-acquisitions/:id/units` | Staff / Admin | `[IMPLEMENTED]` | Retrieve all individual Blood Units generated from the receipt with testing/inventory status. |
+| `GET` | `/api/blood-acquisitions/summary` | Staff / Admin | `[IMPLEMENTED]` | High-level KPI summary stats (total receipts, total units, direct to inventory, pending testing). |
+

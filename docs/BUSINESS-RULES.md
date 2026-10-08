@@ -84,6 +84,14 @@
 - **Rule 2.5.1**: Every blood unit must have a tracked expiration date calculated from collection date and component type.
 - **Rule 2.5.2**: Expired units must be automatically excluded from public availability metrics and blocked from being reserved or issued for patient transfusion.
 
+### 2.6 External Blood Acquisition Rules (Phase 6D)
+- **Rule 2.6.1 (No Fake Donors/Donations)**: External blood received from another hospital, blood bank, or health agency MUST NOT generate fake Donor or Donation records.
+- **Rule 2.6.2 (Unit Individuality)**: Bulk receipts (e.g. 20 units of A+ PRBC) MUST generate 20 individually traceable physical `BloodUnit` documents with unique `unitCode` identifiers (`UNIT-YYYYMMDD-XXXX`).
+- **Rule 2.6.3 (Dual Workflow Routing)**:
+  - If `testingRequired = false`, the source is treated as authorized/pre-cleared; units are created in `APPROVED` status and immediately enter Inventory as `AVAILABLE`. No redundant testing records are generated.
+  - If `testingRequired = true`, units are created in `TESTING` status and enter the standard laboratory screening panel gate. They cannot enter Inventory until testing is `COMPLETED` and `APPROVED`.
+- **Rule 2.6.4 (Full Traceability)**: Every external blood unit stores `sourceType: EXTERNAL_RECEIPT` and references `externalReceiptId`. Once available in Inventory, external units participate seamlessly in request matching, reservation, and blood issue without distinction.
+
 ---
 
 ## 3. Medical Safety & Clinical Boundaries

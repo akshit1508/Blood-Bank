@@ -219,16 +219,46 @@ To maintain strict traceability, prevent data corruption, and avoid premature co
 
 ---
 
+### 2.11 `blood_acquisitions` — External Blood Receipts (Phase 6D)
+- **Purpose**: Represents an external acquisition event of bulk blood from an authorized external source (another blood bank, hospital, blood organization, or government centre).
+- **Known Fields**:
+  - `_id`: ObjectId
+  - `receiptCode`: string (unique, uppercase, indexed, format: `EXT-YYYYMMDD-XXXX`)
+  - `sourceType`: string enum (`BLOOD_BANK`, `HOSPITAL`, `BLOOD_ORGANIZATION`, `GOVERNMENT_BLOOD_CENTRE`, `OTHER`)
+  - `sourceName`: string (required)
+  - `referenceNumber`: string (optional external reference / consignment number)
+  - `receivedDate`: Date (required, cannot be in future)
+  - `notes`: string (optional)
+  - `status`: string enum (`PROCESSING`, `COMPLETED`)
+  - `totalUnitsGenerated`: number (>= 1)
+  - `items`: Array of embedded subdocuments:
+    - `bloodGroup`: string enum (`A+`, `A-`, `B+`, `B-`, `AB+`, `AB-`, `O+`, `O-`)
+    - `componentType`: string enum (`WHOLE_BLOOD`, `PRBC`, `FFP`, `PLATELETS`)
+    - `quantity`: number (>= 1)
+    - `testingRequired`: boolean
+    - `volumePerUnit`: number (optional)
+    - `expiryDate`: Date (optional)
+    - `storageLocation`: string (optional)
+    - `itemNotes`: string (optional)
+  - `createdAt`, `updatedAt`: Date
+- **Relationship**: Generates 1..N `blood_units` records (`sourceType: EXTERNAL_RECEIPT`, `externalReceiptId: ObjectId`).
+
+---
+
 ## 3. High-Level Entity Relationships
 
 ```
-[ Donors ] (1) ─────────── (N) [ Donations ] (1) ─────────── (1..N) [ Blood Units ]
-                                                                           │
-                                                                           ├─ (1:1) [ Blood Tests ]
-                                                                           │
-                                                                           ├─ (1:1) [ Reservations ] ── (N:1) ── [ Blood Requests ]
-                                                                           │                                           ▲
-                                                                           └─ (1:1) [ Blood Issues ] ──────────────────┘
+[ Donors ] (1) ─────────── (N) [ Donations ] (1) ─────────── (1) [ Blood Units ]
+                                                                       ▲
+[ External Sources ] ───── (1) [ Blood Acquisitions ] ────── (N) ──────┤
+                                                                       │
+                                                                       ├─ (1:1) [ Blood Tests ] (if testing required)
+                                                                       │
+                                                                       ├─ (1:1) [ Inventory ] (AVAILABLE)
+                                                                       │             │
+                                                                       │             ├─ (1:1) [ Reservations ] ── (N:1) ── [ Blood Requests ]
+                                                                       │             │                                           ▲
+                                                                       │             └─ (1:1) [ Blood Issues ] ──────────────────┘
 ```
 
 > **Schema Implementation Standard**: Each schema will be introduced alongside its validation DTO and NestJS module in strict vertical slices as outlined in `DEVELOPMENT-PLAN.md`.

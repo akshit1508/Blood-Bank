@@ -3,6 +3,7 @@ import { getModelToken } from '@nestjs/mongoose';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { BloodRequestService } from './blood-request.service';
 import { BloodRequest } from './schemas/blood-request.schema';
+import { InventoryService } from '../modules/inventory/inventory.service';
 import {
   BloodComponent,
   BloodGroup,
@@ -13,6 +14,7 @@ import {
 describe('BloodRequestService', () => {
   let service: BloodRequestService;
   let mockModel: any;
+  let mockInventoryService: any;
 
   const sampleCreateDto = {
     patient: { name: 'Alice Smith', age: 29, gender: 'FEMALE' },
@@ -46,6 +48,9 @@ describe('BloodRequestService', () => {
     MockModel.findByIdAndUpdate = jest.fn();
 
     mockModel = MockModel;
+    mockInventoryService = {
+      findMatches: jest.fn().mockResolvedValue([]),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -53,6 +58,10 @@ describe('BloodRequestService', () => {
         {
           provide: getModelToken(BloodRequest.name),
           useValue: mockModel,
+        },
+        {
+          provide: InventoryService,
+          useValue: mockInventoryService,
         },
       ],
     }).compile();
@@ -215,6 +224,127 @@ describe('BloodRequestService', () => {
       await expect(service.findOne('REQ-NOT-EXIST')).rejects.toThrow(
         NotFoundException,
       );
+    });
+  });
+
+  describe('getMatches (Phase 6A Matching)', () => {
+    const mockRequest = {
+      _id: '507f1f77bcf86cd799439011',
+      requestCode: 'REQ-20261008-ABCD',
+      bloodGroup: BloodGroup.A_POSITIVE,
+      componentType: BloodComponent.WHOLE_BLOOD,
+      unitsRequested: 2,
+      status: BloodRequestStatus.REQUESTED,
+    };
+
+    it('returns matching units and canFulfill=true when available >= requested', async () => {
+      mockModel.findById = jest.fn().mockReturnValue({
+        exec: jest.fn().mockResolvedValue(mockRequest),
+      });
+
+      const mockMatches = [
+        {
+          inventoryId: 'inv-1',
+          bloodUnitId: 'unit-1',
+          unitCode: 'UNIT-001',
+          bloodGroup: 'A+',
+          componentType: 'WHOLE_BLOOD',
+          expiryDate: '2026-11-01T00:00:00.000Z',
+          storageLocation: 'Shelf 1',
+          status: 'AVAILABLE',
+        },
+        {
+          inventoryId: 'inv-2',
+          bloodUnitId: 'unit-2',
+          unitCode: 'UNIT-002',
+          bloodGroup: 'A+',
+          componentType: 'WHOLE_BLOOD',
+          expiryDate: '2026-11-05T00:00:00.000Z',
+          storageLocation: 'Shelf 2',
+          status: 'AVAILABLE',
+        },
+      ];
+
+      mockInventoryService.findMatches.mockResolvedValue(mockMatches);
+
+      const result = await service.getMatches('507f1f77bcf86cd799439011');
+
+      expect(mockInventoryService.findMatches).toHaveBeenCalledWith(
+        BloodGroup.A_POSITIVE,
+        BloodComponent.WHOLE_BLOOD,
+      );
+      expect(result.request.requestCode).toBe('REQ-20261008-ABCD');
+      expect(result.availableUnits).toBe(2);
+      expect(result.unitsRequested).toBe(2);
+      expect(result.canFulfill).toBe(true);
+      expect(result.matchingUnits).toHaveLength(2);
+    });
+
+    it('returns canFulfill=false when available < requested', async () => {
+      mockModel.findById = jest.fn().mockReturnValue({
+        exec: jest.fn().mockResolvedValue(mockRequest),
+      });
+
+      const mockMatches = [
+        {
+          inventoryId: 'inv-1',
+          bloodUnitId: 'unit-1',
+          unitCode: 'UNIT-001',
+          bloodGroup: 'A+',
+          componentType: 'WHOLE_BLOOD',
+          expiryDate: '2026-11-01T00:00:00.000Z',
+          storageLocation: 'Shelf 1',
+          status: 'AVAILABLE',
+        },
+      ];
+
+      mockInventoryService.findMatches.mockResolvedValue(mockMatches);
+
+      const result = await service.getMatches('507f1f77bcf86cd799439011');
+
+      expect(result.availableUnits).toBe(1);
+      expect(result.unitsRequested).toBe(2);
+      expect(result.canFulfill).toBe(false);
+      expect(result.matchingUnits).toHaveLength(1);
+    });
+
+    it('returns empty list and canFulfill=false when zero matching units found', async () => {
+      mockModel.findById = jest.fn().mockReturnValue({
+        exec: jest.fn().mockResolvedValue(mockRequest),
+      });
+
+      mockInventoryService.findMatches.mockResolvedValue([]);
+
+      const result = await service.getMatches('507f1f77bcf86cd799439011');
+
+      expect(result.availableUnits).toBe(0);
+      expect(result.unitsRequested).toBe(2);
+      expect(result.canFulfill).toBe(false);
+      expect(result.matchingUnits).toEqual([]);
+    });
+
+    it('throws NotFoundException if request does not exist', async () => {
+      mockModel.findById = jest.fn().mockReturnValue({
+        exec: jest.fn().mockResolvedValue(null),
+      });
+      mockModel.findOne = jest.fn().mockReturnValue({
+        exec: jest.fn().mockResolvedValue(null),
+      });
+
+      await expect(service.getMatches('REQ-NON-EXISTENT')).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    it('does not mutate request status or call status updates (read-only)', async () => {
+      mockModel.findById = jest.fn().mockReturnValue({
+        exec: jest.fn().mockResolvedValue(mockRequest),
+      });
+      mockInventoryService.findMatches.mockResolvedValue([]);
+
+      await service.getMatches('507f1f77bcf86cd799439011');
+
+      expect(mockModel.findByIdAndUpdate).not.toHaveBeenCalled();
     });
   });
 });

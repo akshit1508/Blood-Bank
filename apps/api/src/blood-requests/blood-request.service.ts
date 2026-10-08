@@ -15,12 +15,14 @@ import {
   ALLOWED_STATUS_TRANSITIONS,
   BloodRequestStatus,
 } from './blood-request.constants';
+import { InventoryService } from '../modules/inventory/inventory.service';
 
 @Injectable()
 export class BloodRequestService {
   constructor(
     @InjectModel(BloodRequest.name)
     private readonly bloodRequestModel: Model<BloodRequestDocument>,
+    private readonly inventoryService: InventoryService,
   ) {}
 
   /**
@@ -157,5 +159,44 @@ export class BloodRequestService {
     }
 
     return updated;
+  }
+
+  /**
+   * Retrieves matching available inventory units for a specific blood request (Phase 6A).
+   *
+   * Boundaries & Requirements:
+   * 1. Exact match on bloodGroup and componentType.
+   * 2. Read-only operation: does NOT reserve, issue, or allocate units.
+   * 3. Does NOT alter request status or inventory status.
+   * 4. Excludes expired, discarded, testing, rejected, or non-approved units.
+   * 5. Sorts matching units by earliest expiry date (FEFO).
+   * 6. Computes availableUnits, unitsRequested, and canFulfill flag.
+   */
+  async getMatches(id: string) {
+    const request = await this.findOne(id);
+
+    const matchingUnits = await this.inventoryService.findMatches(
+      request.bloodGroup,
+      request.componentType,
+    );
+
+    const availableUnits = matchingUnits.length;
+    const unitsRequested = request.unitsRequested;
+    const canFulfill = availableUnits >= unitsRequested;
+
+    return {
+      request: {
+        id: (request as any)._id ? (request as any)._id.toString() : id,
+        requestCode: request.requestCode,
+        bloodGroup: request.bloodGroup,
+        componentType: request.componentType,
+        unitsRequested: request.unitsRequested,
+        status: request.status,
+      },
+      matchingUnits,
+      availableUnits,
+      unitsRequested,
+      canFulfill,
+    };
   }
 }

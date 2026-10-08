@@ -1,0 +1,9 @@
+export enum InventoryStatus {
+  AVAILABLE = 'AVAILABLE',
+  RESERVED = 'RESERVED',
+  ISSUED = 'ISSUED',
+  EXPIRED = 'EXPIRED',
+  DISCARDED = 'DISCARDED',
+}
+
+export const EXPIRING_SOON_WINDOW_DAYS = 7;

@@ -13,10 +13,17 @@ import { BloodRequestService } from './blood-request.service';
 import { CreateBloodRequestDto } from './dto/create-blood-request.dto';
 import { UpdateBloodRequestStatusDto } from './dto/update-blood-request-status.dto';
 import { BloodRequestStatus } from './blood-request.constants';
+import { ReservationsService } from '../modules/reservations/reservations.service';
+import { CreateReservationDto } from '../modules/reservations/dto/create-reservation.dto';
+import { BloodIssuesService } from '../modules/blood-issues/blood-issues.service';
 
 @Controller('blood-requests')
 export class BloodRequestController {
-  constructor(private readonly bloodRequestService: BloodRequestService) {}
+  constructor(
+    private readonly bloodRequestService: BloodRequestService,
+    private readonly reservationsService: ReservationsService,
+    private readonly bloodIssuesService: BloodIssuesService,
+  ) {}
 
   /**
    * Public or staff submission of a new blood request.
@@ -49,6 +56,66 @@ export class BloodRequestController {
     return {
       statusCode: HttpStatus.OK,
       data: requests,
+    };
+  }
+
+  /**
+   * Retrieves matching available inventory units for a blood request (Phase 6A).
+   * GET /api/blood-requests/:id/matches
+   */
+  @Get(':id/matches')
+  async getMatches(@Param('id') id: string) {
+    const result = await this.bloodRequestService.getMatches(id);
+    return {
+      statusCode: HttpStatus.OK,
+      data: result,
+    };
+  }
+
+  /**
+   * Reserves specified AVAILABLE inventory units for an APPROVED blood request.
+   * POST /api/blood-requests/:id/reservations
+   */
+  @Post(':id/reservations')
+  @HttpCode(HttpStatus.CREATED)
+  async createReservation(
+    @Param('id') id: string,
+    @Body() createDto: CreateReservationDto,
+  ) {
+    const result = await this.reservationsService.createReservation(
+      id,
+      createDto,
+    );
+    return {
+      statusCode: HttpStatus.CREATED,
+      message: 'Blood units reserved successfully',
+      data: result,
+    };
+  }
+
+  /**
+   * Retrieves active and historical reservations for a blood request.
+   * GET /api/blood-requests/:id/reservations
+   */
+  @Get(':id/reservations')
+  async getReservations(@Param('id') id: string) {
+    const result = await this.reservationsService.findByBloodRequestId(id);
+    return {
+      statusCode: HttpStatus.OK,
+      data: result,
+    };
+  }
+
+  /**
+   * Retrieves all blood issue records for a blood request (Phase 6C).
+   * GET /api/blood-requests/:id/issues
+   */
+  @Get(':id/issues')
+  async getIssues(@Param('id') id: string) {
+    const result = await this.bloodIssuesService.findByRequestId(id);
+    return {
+      statusCode: HttpStatus.OK,
+      data: result,
     };
   }
 

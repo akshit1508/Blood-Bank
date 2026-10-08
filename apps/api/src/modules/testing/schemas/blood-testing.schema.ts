@@ -53,21 +53,32 @@ export class BloodTesting {
   })
   bloodUnitId: Types.ObjectId;
 
+  /**
+   * Reference to the Donation associated with this blood unit.
+   * Only set when the blood unit originates from an internal donor donation.
+   * NOT set for externally acquired blood units.
+   */
   @Prop({
     type: Types.ObjectId,
     ref: 'Donation',
-    required: true,
-    index: true,
+    required: false,
+    sparse: true,
   })
-  donationId: Types.ObjectId;
+  donationId?: Types.ObjectId;
 
+  /**
+   * Reference to the Donor associated with this blood unit.
+   * Only set when the blood unit originates from an internal donor donation.
+   * NOT set for externally acquired blood units.
+   */
   @Prop({
     type: Types.ObjectId,
     ref: 'Donor',
-    required: true,
+    required: false,
     index: true,
+    sparse: true,
   })
-  donorId: Types.ObjectId;
+  donorId?: Types.ObjectId;
 
   @Prop({ type: [IndividualTestResultSchema], default: [] })
   testResults: IndividualTestResult[];
@@ -111,3 +122,5 @@ export const BloodTestingSchema = SchemaFactory.createForClass(BloodTesting);
 
 BloodTestingSchema.index({ createdAt: -1 });
 BloodTestingSchema.index({ status: 1, decision: 1 });
+// Sparse unique index for donationId (only when present)
+BloodTestingSchema.index({ donationId: 1 }, { sparse: true });

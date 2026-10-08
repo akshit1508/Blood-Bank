@@ -50,6 +50,7 @@ export const ALLOWED_STATUS_TRANSITIONS: Record<BloodRequestStatus, BloodRequest
     BloodRequestStatus.CANCELLED,
   ],
   [BloodRequestStatus.RESERVED]: [
+    BloodRequestStatus.APPROVED,
     BloodRequestStatus.ISSUED,
     BloodRequestStatus.CANCELLED,
   ],

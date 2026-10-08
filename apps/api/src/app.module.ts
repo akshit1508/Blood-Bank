@@ -8,6 +8,10 @@ import { DonorsModule } from './modules/donors/donors.module';
 import { DonationsModule } from './modules/donations/donations.module';
 import { BloodUnitsModule } from './modules/blood-units/blood-units.module';
 import { TestingModule } from './modules/testing/testing.module';
+import { InventoryModule } from './modules/inventory/inventory.module';
+import { ReservationsModule } from './modules/reservations/reservations.module';
+import { BloodIssuesModule } from './modules/blood-issues/blood-issues.module';
+import { BloodAcquisitionsModule } from './modules/blood-acquisitions/blood-acquisitions.module';
 
 @Module({
   imports: [
@@ -27,6 +31,10 @@ import { TestingModule } from './modules/testing/testing.module';
     DonationsModule,
     BloodUnitsModule,
     TestingModule,
+    InventoryModule,
+    ReservationsModule,
+    BloodIssuesModule,
+    BloodAcquisitionsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

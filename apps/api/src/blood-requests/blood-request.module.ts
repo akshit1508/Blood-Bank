@@ -6,12 +6,18 @@ import {
   BloodRequest,
   BloodRequestSchema,
 } from './schemas/blood-request.schema';
+import { InventoryModule } from '../modules/inventory/inventory.module';
+import { ReservationsModule } from '../modules/reservations/reservations.module';
+import { BloodIssuesModule } from '../modules/blood-issues/blood-issues.module';
 
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: BloodRequest.name, schema: BloodRequestSchema },
     ]),
+    InventoryModule,
+    ReservationsModule,
+    BloodIssuesModule,
   ],
   controllers: [BloodRequestController],
   providers: [BloodRequestService],
