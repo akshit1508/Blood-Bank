@@ -6,10 +6,9 @@ export enum BloodUnitStatus {
 
 export enum BloodUnitComponent {
   WHOLE_BLOOD = 'WHOLE_BLOOD',
-  PACKED_RED_CELLS = 'PACKED_RED_CELLS',
-  FRESH_FROZEN_PLASMA = 'FRESH_FROZEN_PLASMA',
+  PRBC = 'PRBC',
+  FFP = 'FFP',
   PLATELETS = 'PLATELETS',
-  CRYOPRECIPITATE = 'CRYOPRECIPITATE',
 }
 
 export interface BloodUnitDonorSummary {

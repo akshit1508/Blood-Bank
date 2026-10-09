@@ -17,7 +17,21 @@ import {
   BloodIssueData,
   issueReservedBlood,
   fetchBloodIssuesByRequest,
+  completeBloodRequest,
+  buildBloodRequestWhatsAppUrl,
 } from '@/lib/blood-request-api';
+
+const WhatsAppIcon = ({ size = 15 }: { size?: number }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="currentColor"
+    style={{ display: 'inline-block', verticalAlign: 'middle', flexShrink: 0 }}
+  >
+    <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z" />
+  </svg>
+);
 
 const STATUS_OPTIONS = [
   BloodRequestStatus.REQUESTED,
@@ -30,7 +44,9 @@ const STATUS_OPTIONS = [
   BloodRequestStatus.CANCELLED,
 ];
 
-// Valid state transitions mapped on the frontend matching backend rules
+// Valid state transitions for the manual lifecycle form.
+// Operational milestones (RESERVED, ISSUED, COMPLETED) can ONLY be reached through
+// their explicit domain actions ("Reserve Units", "Issue Blood", "Complete Request").
 const ALLOWED_NEXT_STATUSES: Record<BloodRequestStatus, BloodRequestStatus[]> = {
   [BloodRequestStatus.REQUESTED]: [
     BloodRequestStatus.VERIFIED,
@@ -43,17 +59,13 @@ const ALLOWED_NEXT_STATUSES: Record<BloodRequestStatus, BloodRequestStatus[]> = 
     BloodRequestStatus.CANCELLED,
   ],
   [BloodRequestStatus.APPROVED]: [
-    BloodRequestStatus.RESERVED,
     BloodRequestStatus.CANCELLED,
+    BloodRequestStatus.REJECTED,
   ],
   [BloodRequestStatus.RESERVED]: [
-    BloodRequestStatus.APPROVED,
-    BloodRequestStatus.ISSUED,
     BloodRequestStatus.CANCELLED,
   ],
-  [BloodRequestStatus.ISSUED]: [
-    BloodRequestStatus.COMPLETED,
-  ],
+  [BloodRequestStatus.ISSUED]: [], // Must use explicit "Complete Request" action
   [BloodRequestStatus.COMPLETED]: [],
   [BloodRequestStatus.REJECTED]: [],
   [BloodRequestStatus.CANCELLED]: [],
@@ -95,6 +107,13 @@ export default function AdminBloodRequestsPage() {
   const [cancelReason, setCancelReason] = useState('');
   const [isCancelling, setIsCancelling] = useState(false);
   const [cancelError, setCancelError] = useState<string | null>(null);
+
+  // Completion state (Task 96317)
+  const [completeModalOpen, setCompleteModalOpen] = useState(false);
+  const [completionNotes, setCompletionNotes] = useState('');
+  const [isCompleting, setIsCompleting] = useState(false);
+  const [completeError, setCompleteError] = useState<string | null>(null);
+  const [completeSuccess, setCompleteSuccess] = useState<string | null>(null);
 
   // Status update state in drawer/modal
   const [newStatus, setNewStatus] = useState<BloodRequestStatus | ''>('');
@@ -174,12 +193,16 @@ export default function AdminBloodRequestsPage() {
       setReserveSuccess(null);
       setIssueError(null);
       setIssueSuccess(null);
+      setCompleteError(null);
+      setCompleteSuccess(null);
     } else {
       setMatchData(null);
       setMatchError(null);
       setReservations([]);
       setBloodIssues([]);
       setSelectedUnitIds([]);
+      setCompleteError(null);
+      setCompleteSuccess(null);
     }
   }, [selectedRequest, loadMatches, loadReservations, loadIssues]);
 
@@ -286,6 +309,43 @@ export default function AdminBloodRequestsPage() {
       setIssueError(err.message || 'Failed to issue blood units');
     } finally {
       setIsIssuing(false);
+    }
+  };
+
+  const handleOpenCompleteModal = () => {
+    setCompletionNotes('');
+    setCompleteError(null);
+    setCompleteModalOpen(true);
+  };
+
+  const handleExecuteComplete = async () => {
+    if (!selectedRequest) return;
+    setIsCompleting(true);
+    setCompleteError(null);
+
+    try {
+      const updated = await completeBloodRequest(
+        selectedRequest._id,
+        completionNotes.trim() || undefined,
+      );
+      setCompleteModalOpen(false);
+      setCompletionNotes('');
+      setCompleteSuccess(
+        `Blood request ${selectedRequest.requestCode} has been successfully completed and reconciled!`,
+      );
+      // Update local state
+      setRequests((prev) =>
+        prev.map((r) => (r._id === updated._id ? updated : r)),
+      );
+      setSelectedRequest(updated);
+      await loadRequests();
+      await loadMatches(selectedRequest._id);
+      await loadReservations(selectedRequest._id);
+      await loadIssues(selectedRequest._id);
+    } catch (err: any) {
+      setCompleteError(err.message || 'Failed to complete blood request');
+    } finally {
+      setIsCompleting(false);
     }
   };
 
@@ -513,21 +573,59 @@ export default function AdminBloodRequestsPage() {
                       {new Date(req.createdAt).toLocaleDateString()}
                     </td>
                     <td style={{ padding: '0.75rem 1rem', textAlign: 'right' }}>
-                      <button
-                        onClick={() => handleOpenDetails(req)}
-                        style={{
-                          background: selectedRequest?._id === req._id ? '#15803d' : '#2563eb',
-                          color: '#ffffff',
-                          border: 'none',
-                          padding: '0.35rem 0.75rem',
-                          borderRadius: '4px',
-                          cursor: 'pointer',
-                          fontSize: '0.75rem',
-                          fontWeight: 500,
-                        }}
-                      >
-                        {selectedRequest?._id === req._id ? 'Viewing' : 'View'}
-                      </button>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.45rem' }}>
+                        <a
+                          href={buildBloodRequestWhatsAppUrl({
+                            recipientPhone: req.contactPerson.phone,
+                            recipientName: req.contactPerson.name,
+                            recipientRole: req.contactPerson.relationship || 'Relative',
+                            request: {
+                              requestCode: req.requestCode,
+                              patientName: req.patient.name,
+                              bloodGroup: req.bloodGroup,
+                              componentType: req.componentType,
+                              unitsRequested: req.unitsRequested,
+                              hospitalName: req.hospitalName,
+                              status: req.status,
+                              statusReason: req.statusReason,
+                            },
+                            type: req.status === BloodRequestStatus.REJECTED ? 'REJECTION' : 'CONFIRMATION',
+                          })}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          title={`WhatsApp Relative (${req.contactPerson.name}: ${req.contactPerson.phone})`}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            backgroundColor: '#25D366',
+                            color: '#ffffff',
+                            borderRadius: '50%',
+                            width: '24px',
+                            height: '24px',
+                            textDecoration: 'none',
+                            boxShadow: '0 1px 2px rgba(0,0,0,0.15)',
+                            flexShrink: 0,
+                          }}
+                        >
+                          <WhatsAppIcon size={13} />
+                        </a>
+                        <button
+                          onClick={() => handleOpenDetails(req)}
+                          style={{
+                            background: selectedRequest?._id === req._id ? '#15803d' : '#2563eb',
+                            color: '#ffffff',
+                            border: 'none',
+                            padding: '0.35rem 0.75rem',
+                            borderRadius: '4px',
+                            cursor: 'pointer',
+                            fontSize: '0.75rem',
+                            fontWeight: 500,
+                          }}
+                        >
+                          {selectedRequest?._id === req._id ? 'Viewing' : 'View'}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -566,6 +664,9 @@ export default function AdminBloodRequestsPage() {
               </div>
               <hr style={{ border: 'none', borderTop: '1px solid #f1f5f9', margin: '0.75rem 0' }} />
               <div><strong>Patient:</strong> {selectedRequest.patient.name} ({selectedRequest.patient.age}y, {selectedRequest.patient.gender})</div>
+              {selectedRequest.patient.phone && (
+                <div><strong>Patient Phone:</strong> {selectedRequest.patient.phone}</div>
+              )}
               <div><strong>Blood Product:</strong> {selectedRequest.bloodGroup} &bull; {selectedRequest.componentType} &bull; {selectedRequest.unitsRequested} Unit(s)</div>
               <div><strong>Hospital:</strong> {selectedRequest.hospitalName} {selectedRequest.hospitalCaseNumber ? `(#${selectedRequest.hospitalCaseNumber})` : ''}</div>
               <div><strong>Attending Doctor:</strong> {selectedRequest.doctorName} {selectedRequest.doctorContact ? `(${selectedRequest.doctorContact})` : ''}</div>
@@ -590,7 +691,293 @@ export default function AdminBloodRequestsPage() {
               )}
             </div>
 
-            {/* Matching Inventory Section (Phase 6A) */}
+            {/* WhatsApp Notification Hub (Direct Click-to-Chat) */}
+            <div
+              style={{
+                border: '1px solid #cbd5e1',
+                borderRadius: '8px',
+                backgroundColor: '#ffffff',
+                padding: '0.85rem',
+                marginBottom: '1.25rem',
+                boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.4rem' }}>
+                <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <WhatsAppIcon size={16} /> WhatsApp Notification Hub
+                </span>
+                <span style={{ fontSize: '0.7rem', color: '#15803d', backgroundColor: '#dcfce7', padding: '0.15rem 0.45rem', borderRadius: '4px', fontWeight: 600 }}>
+                  wa.me Direct
+                </span>
+              </div>
+
+              <p style={{ margin: '0 0 0.65rem 0', fontSize: '0.75rem', color: '#475569', lineHeight: 1.4 }}>
+                Instant Click-to-Chat notification for both the relative and the patient:
+              </p>
+
+              {/* Contact Recipient Cards */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '0.75rem', fontSize: '0.78rem', background: '#f8fafc', padding: '0.65rem', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
+                {/* 1. Relative */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div>
+                    <strong style={{ color: '#0f172a' }}>Relative ({selectedRequest.contactPerson.relationship}):</strong>{' '}
+                    <span>{selectedRequest.contactPerson.name}</span>
+                    <div style={{ color: '#64748b', fontSize: '0.72rem' }}>{selectedRequest.contactPerson.phone}</div>
+                  </div>
+                  <div style={{ display: 'flex', gap: '0.35rem' }}>
+                    <a
+                      href={buildBloodRequestWhatsAppUrl({
+                        recipientPhone: selectedRequest.contactPerson.phone,
+                        recipientName: selectedRequest.contactPerson.name,
+                        recipientRole: selectedRequest.contactPerson.relationship || 'Relative',
+                        request: {
+                          requestCode: selectedRequest.requestCode,
+                          patientName: selectedRequest.patient.name,
+                          bloodGroup: selectedRequest.bloodGroup,
+                          componentType: selectedRequest.componentType,
+                          unitsRequested: selectedRequest.unitsRequested,
+                          hospitalName: selectedRequest.hospitalName,
+                          status: selectedRequest.status,
+                          statusReason: selectedRequest.statusReason,
+                        },
+                        type: selectedRequest.status === BloodRequestStatus.REJECTED ? 'REJECTION' : 'CONFIRMATION',
+                      })}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      title={`Send WhatsApp message to ${selectedRequest.contactPerson.name}`}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.3rem',
+                        backgroundColor: selectedRequest.status === BloodRequestStatus.REJECTED ? '#dc2626' : '#25D366',
+                        color: '#ffffff',
+                        padding: '0.35rem 0.65rem',
+                        borderRadius: '4px',
+                        fontSize: '0.72rem',
+                        fontWeight: 600,
+                        textDecoration: 'none',
+                        boxShadow: '0 1px 2px rgba(0,0,0,0.08)',
+                      }}
+                    >
+                      <WhatsAppIcon size={13} />
+                      {selectedRequest.status === BloodRequestStatus.REJECTED ? 'Send Rejection' : 'Send Confirmation'}
+                    </a>
+                  </div>
+                </div>
+
+                {/* 2. Patient */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px dashed #cbd5e1', paddingTop: '0.5rem' }}>
+                  <div>
+                    <strong style={{ color: '#0f172a' }}>Patient:</strong>{' '}
+                    <span>{selectedRequest.patient.name}</span>
+                    <div style={{ color: selectedRequest.patient.phone ? '#64748b' : '#94a3b8', fontSize: '0.72rem' }}>
+                      {selectedRequest.patient.phone || 'No phone registered'}
+                    </div>
+                  </div>
+                  {selectedRequest.patient.phone ? (
+                    <a
+                      href={buildBloodRequestWhatsAppUrl({
+                        recipientPhone: selectedRequest.patient.phone,
+                        recipientName: selectedRequest.patient.name,
+                        recipientRole: 'Patient',
+                        request: {
+                          requestCode: selectedRequest.requestCode,
+                          patientName: selectedRequest.patient.name,
+                          bloodGroup: selectedRequest.bloodGroup,
+                          componentType: selectedRequest.componentType,
+                          unitsRequested: selectedRequest.unitsRequested,
+                          hospitalName: selectedRequest.hospitalName,
+                          status: selectedRequest.status,
+                          statusReason: selectedRequest.statusReason,
+                        },
+                        type: selectedRequest.status === BloodRequestStatus.REJECTED ? 'REJECTION' : 'CONFIRMATION',
+                      })}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      title={`Send WhatsApp message to ${selectedRequest.patient.name}`}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.3rem',
+                        backgroundColor: selectedRequest.status === BloodRequestStatus.REJECTED ? '#b91c1c' : '#128C7E',
+                        color: '#ffffff',
+                        padding: '0.35rem 0.65rem',
+                        borderRadius: '4px',
+                        fontSize: '0.72rem',
+                        fontWeight: 600,
+                        textDecoration: 'none',
+                        boxShadow: '0 1px 2px rgba(0,0,0,0.08)',
+                      }}
+                    >
+                      <WhatsAppIcon size={13} />
+                      {selectedRequest.status === BloodRequestStatus.REJECTED ? 'Send Rejection' : 'Send Confirmation'}
+                    </a>
+                  ) : (
+                    <span style={{ fontSize: '0.7rem', color: '#94a3b8', fontStyle: 'italic' }}>
+                      (No direct phone)
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Dedicated 1-Click Message Links */}
+              <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: '0.5rem' }}>
+                <span style={{ fontSize: '0.7rem', color: '#64748b', display: 'block', marginBottom: '0.35rem' }}>
+                  Alternative custom notifications:
+                </span>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
+                  <a
+                    href={buildBloodRequestWhatsAppUrl({
+                      recipientPhone: selectedRequest.contactPerson.phone,
+                      recipientName: selectedRequest.contactPerson.name,
+                      recipientRole: selectedRequest.contactPerson.relationship || 'Relative',
+                      request: {
+                        requestCode: selectedRequest.requestCode,
+                        patientName: selectedRequest.patient.name,
+                        bloodGroup: selectedRequest.bloodGroup,
+                        componentType: selectedRequest.componentType,
+                        unitsRequested: selectedRequest.unitsRequested,
+                        hospitalName: selectedRequest.hospitalName,
+                        status: selectedRequest.status,
+                        statusReason: selectedRequest.statusReason,
+                      },
+                      type: 'CONFIRMATION',
+                    })}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.25rem',
+                      backgroundColor: '#f0fdf4',
+                      border: '1px solid #86efac',
+                      color: '#15803d',
+                      padding: '0.25rem 0.5rem',
+                      borderRadius: '4px',
+                      fontSize: '0.7rem',
+                      fontWeight: 600,
+                      textDecoration: 'none',
+                    }}
+                  >
+                    <WhatsAppIcon size={12} /> Confirm to Relative
+                  </a>
+
+                  <a
+                    href={buildBloodRequestWhatsAppUrl({
+                      recipientPhone: selectedRequest.contactPerson.phone,
+                      recipientName: selectedRequest.contactPerson.name,
+                      recipientRole: selectedRequest.contactPerson.relationship || 'Relative',
+                      request: {
+                        requestCode: selectedRequest.requestCode,
+                        patientName: selectedRequest.patient.name,
+                        bloodGroup: selectedRequest.bloodGroup,
+                        componentType: selectedRequest.componentType,
+                        unitsRequested: selectedRequest.unitsRequested,
+                        hospitalName: selectedRequest.hospitalName,
+                        status: 'REJECTED',
+                        statusReason: selectedRequest.statusReason || 'Requested units currently unavailable',
+                      },
+                      type: 'REJECTION',
+                    })}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.25rem',
+                      backgroundColor: '#fef2f2',
+                      border: '1px solid #fca5a5',
+                      color: '#b91c1c',
+                      padding: '0.25rem 0.5rem',
+                      borderRadius: '4px',
+                      fontSize: '0.7rem',
+                      fontWeight: 600,
+                      textDecoration: 'none',
+                    }}
+                  >
+                    <WhatsAppIcon size={12} /> Reject to Relative
+                  </a>
+
+                  {selectedRequest.patient.phone && (
+                    <>
+                      <a
+                        href={buildBloodRequestWhatsAppUrl({
+                          recipientPhone: selectedRequest.patient.phone,
+                          recipientName: selectedRequest.patient.name,
+                          recipientRole: 'Patient',
+                          request: {
+                            requestCode: selectedRequest.requestCode,
+                            patientName: selectedRequest.patient.name,
+                            bloodGroup: selectedRequest.bloodGroup,
+                            componentType: selectedRequest.componentType,
+                            unitsRequested: selectedRequest.unitsRequested,
+                            hospitalName: selectedRequest.hospitalName,
+                            status: selectedRequest.status,
+                            statusReason: selectedRequest.statusReason,
+                          },
+                          type: 'CONFIRMATION',
+                        })}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.25rem',
+                          backgroundColor: '#f0fdf4',
+                          border: '1px solid #86efac',
+                          color: '#15803d',
+                          padding: '0.25rem 0.5rem',
+                          borderRadius: '4px',
+                          fontSize: '0.7rem',
+                          fontWeight: 600,
+                          textDecoration: 'none',
+                        }}
+                      >
+                        <WhatsAppIcon size={12} /> Confirm to Patient
+                      </a>
+
+                      <a
+                        href={buildBloodRequestWhatsAppUrl({
+                          recipientPhone: selectedRequest.patient.phone,
+                          recipientName: selectedRequest.patient.name,
+                          recipientRole: 'Patient',
+                          request: {
+                            requestCode: selectedRequest.requestCode,
+                            patientName: selectedRequest.patient.name,
+                            bloodGroup: selectedRequest.bloodGroup,
+                            componentType: selectedRequest.componentType,
+                            unitsRequested: selectedRequest.unitsRequested,
+                            hospitalName: selectedRequest.hospitalName,
+                            status: 'REJECTED',
+                            statusReason: selectedRequest.statusReason || 'Requested units currently unavailable',
+                          },
+                          type: 'REJECTION',
+                        })}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.25rem',
+                          backgroundColor: '#fef2f2',
+                          border: '1px solid #fca5a5',
+                          color: '#b91c1c',
+                          padding: '0.25rem 0.5rem',
+                          borderRadius: '4px',
+                          fontSize: '0.7rem',
+                          fontWeight: 600,
+                          textDecoration: 'none',
+                        }}
+                      >
+                        <WhatsAppIcon size={12} /> Reject to Patient
+                      </a>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Matching Inventory Section (Phase 6A & Task 96317 Status-Aware Logic) */}
             <div
               style={{
                 borderTop: '1px solid #e2e8f0',
@@ -621,43 +1008,98 @@ export default function AdminBloodRequestsPage() {
                     Available stock matching {selectedRequest.bloodGroup} &bull; {selectedRequest.componentType}
                   </span>
                 </div>
-                {matchData && !matchLoading && (
-                  <span
-                    style={{
-                      padding: '0.2rem 0.55rem',
-                      borderRadius: '4px',
-                      fontSize: '0.75rem',
-                      fontWeight: 700,
-                      ...(matchData.canFulfill
-                        ? { background: '#dcfce7', color: '#15803d', border: '1px solid #86efac' }
+                {selectedRequest.status !== BloodRequestStatus.ISSUED &&
+                  selectedRequest.status !== BloodRequestStatus.COMPLETED &&
+                  matchData &&
+                  !matchLoading && (
+                    <span
+                      style={{
+                        padding: '0.2rem 0.55rem',
+                        borderRadius: '4px',
+                        fontSize: '0.75rem',
+                        fontWeight: 700,
+                        ...(matchData.canFulfill
+                          ? { background: '#dcfce7', color: '#15803d', border: '1px solid #86efac' }
+                          : matchData.availableUnits > 0
+                          ? { background: '#fef3c7', color: '#b45309', border: '1px solid #fde68a' }
+                          : { background: '#fee2e2', color: '#b91c1c', border: '1px solid #fca5a5' }),
+                      }}
+                    >
+                      {matchData.canFulfill
+                        ? 'CAN FULFILL'
                         : matchData.availableUnits > 0
-                        ? { background: '#fef3c7', color: '#b45309', border: '1px solid #fde68a' }
-                        : { background: '#fee2e2', color: '#b91c1c', border: '1px solid #fca5a5' }),
-                    }}
-                  >
-                    {matchData.canFulfill
-                      ? 'CAN FULFILL'
-                      : matchData.availableUnits > 0
-                      ? 'PARTIALLY AVAILABLE'
-                      : 'NO MATCHING UNITS'}
-                  </span>
-                )}
+                        ? 'PARTIALLY AVAILABLE'
+                        : 'NO MATCHING UNITS'}
+                    </span>
+                  )}
               </div>
 
-              {matchLoading && (
+              {/* Status Notice for REQUESTED / VERIFIED */}
+              {(selectedRequest.status === BloodRequestStatus.REQUESTED ||
+                selectedRequest.status === BloodRequestStatus.VERIFIED) && (
                 <div
                   style={{
                     background: '#f8fafc',
-                    padding: '0.75rem',
+                    border: '1px solid #cbd5e1',
                     borderRadius: '6px',
+                    padding: '0.75rem',
                     fontSize: '0.8rem',
-                    color: '#64748b',
-                    textAlign: 'center',
+                    color: '#475569',
                   }}
                 >
-                  Checking matching inventory units...
+                  Request is currently <strong>{selectedRequest.status}</strong>. It must be advanced to{' '}
+                  <strong>APPROVED</strong> by staff before physical inventory units can be reserved.
                 </div>
               )}
+
+              {/* Status Notice for ISSUED / COMPLETED (Replaces reservation UI) */}
+              {(selectedRequest.status === BloodRequestStatus.ISSUED ||
+                selectedRequest.status === BloodRequestStatus.COMPLETED) && (
+                <div
+                  style={{
+                    background: selectedRequest.status === BloodRequestStatus.COMPLETED ? '#f0fdf4' : '#fff7ed',
+                    border: `1px solid ${selectedRequest.status === BloodRequestStatus.COMPLETED ? '#bbf7d0' : '#fed7aa'}`,
+                    borderRadius: '6px',
+                    padding: '0.75rem',
+                    fontSize: '0.825rem',
+                    color: selectedRequest.status === BloodRequestStatus.COMPLETED ? '#166534' : '#9a3412',
+                  }}
+                >
+                  <div style={{ fontWeight: 600, marginBottom: '0.25rem' }}>
+                    {selectedRequest.status === BloodRequestStatus.COMPLETED
+                      ? '✓ Request Fulfillment Completed'
+                      : '⚡ Blood Units Officially Issued'}
+                  </div>
+                  <div style={{ fontSize: '0.775rem', opacity: 0.9 }}>
+                    {selectedRequest.status === BloodRequestStatus.COMPLETED
+                      ? 'All required blood units have been issued, reconciled, and audited. Inventory has been permanently updated.'
+                      : 'Physical blood units have been officially dispatched from inventory. Check the Official Blood Issue Records section below.'}
+                  </div>
+                </div>
+              )}
+
+              {/* Show matching inventory table ONLY when eligible for reservation (APPROVED or RESERVED with remaining needed) */}
+              {selectedRequest.status !== BloodRequestStatus.REQUESTED &&
+                selectedRequest.status !== BloodRequestStatus.VERIFIED &&
+                selectedRequest.status !== BloodRequestStatus.ISSUED &&
+                selectedRequest.status !== BloodRequestStatus.COMPLETED &&
+                selectedRequest.status !== BloodRequestStatus.REJECTED &&
+                selectedRequest.status !== BloodRequestStatus.CANCELLED && (
+                <>
+                  {matchLoading && (
+                    <div
+                      style={{
+                        background: '#f8fafc',
+                        padding: '0.75rem',
+                        borderRadius: '6px',
+                        fontSize: '0.8rem',
+                        color: '#64748b',
+                        textAlign: 'center',
+                      }}
+                    >
+                      Checking matching inventory units...
+                    </div>
+                  )}
 
               {matchError && (
                 <div
@@ -970,6 +1412,8 @@ export default function AdminBloodRequestsPage() {
                   </div>
                 </div>
               )}
+                </>
+              )}
             </div>
 
             {/* Active Reservations Section (Phase 6B) */}
@@ -1198,7 +1642,80 @@ export default function AdminBloodRequestsPage() {
                       </div>
                     </div>
                   ))}
+
+                  {/* Completion Action Button when ISSUED */}
+                  {selectedRequest.status === BloodRequestStatus.ISSUED && (
+                    <div
+                      style={{
+                        marginTop: '0.75rem',
+                        padding: '0.75rem',
+                        background: '#ecfdf5',
+                        border: '1px solid #a7f3d0',
+                        borderRadius: '6px',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                      }}
+                    >
+                      <div>
+                        <strong style={{ fontSize: '0.85rem', color: '#065f46', display: 'block' }}>
+                          Ready for Final Reconciliation
+                        </strong>
+                        <span style={{ fontSize: '0.75rem', color: '#047857' }}>
+                          Physical blood issue is complete. Verify all required units before finalizing.
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleOpenCompleteModal}
+                        style={{
+                          background: '#059669',
+                          color: '#ffffff',
+                          border: 'none',
+                          padding: '0.45rem 0.9rem',
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                          fontSize: '0.8rem',
+                          fontWeight: 600,
+                        }}
+                      >
+                        Complete Request Fulfillment
+                      </button>
+                    </div>
+                  )}
                 </div>
+              </div>
+            )}
+
+            {completeSuccess && (
+              <div
+                style={{
+                  background: '#f0fdf4',
+                  border: '1px solid #86efac',
+                  color: '#15803d',
+                  padding: '0.6rem 0.75rem',
+                  borderRadius: '6px',
+                  fontSize: '0.8rem',
+                  marginBottom: '1rem',
+                }}
+              >
+                {completeSuccess}
+              </div>
+            )}
+
+            {completeError && (
+              <div
+                style={{
+                  background: '#fef2f2',
+                  border: '1px solid #fca5a5',
+                  color: '#991b1b',
+                  padding: '0.6rem 0.75rem',
+                  borderRadius: '6px',
+                  fontSize: '0.8rem',
+                  marginBottom: '1rem',
+                }}
+              >
+                {completeError}
               </div>
             )}
 
@@ -1671,6 +2188,133 @@ export default function AdminBloodRequestsPage() {
                   }}
                 >
                   {isIssuing ? 'Issuing Blood...' : 'Confirm & Issue Blood'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Completion Confirmation Modal (Task 96317) */}
+        {completeModalOpen && selectedRequest && (
+          <div
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: 'rgba(15, 23, 42, 0.6)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 1000,
+              padding: '1rem',
+            }}
+          >
+            <div
+              style={{
+                background: '#ffffff',
+                borderRadius: '8px',
+                padding: '1.5rem',
+                maxWidth: '480px',
+                width: '100%',
+                boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)',
+              }}
+            >
+              <h3 style={{ margin: '0 0 0.75rem 0', fontSize: '1.1rem', color: '#047857' }}>
+                Complete Blood Request Fulfillment
+              </h3>
+              <p style={{ fontSize: '0.875rem', color: '#475569', marginBottom: '1rem' }}>
+                Finalize and officially complete blood request <strong>{selectedRequest.requestCode}</strong>.
+                This confirms that all issued units have been received and reconciled.
+              </p>
+
+              <div
+                style={{
+                  background: '#f8fafc',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '6px',
+                  padding: '0.75rem',
+                  fontSize: '0.8rem',
+                  marginBottom: '1rem',
+                }}
+              >
+                <div><strong>Patient:</strong> {selectedRequest.patient.name}</div>
+                <div><strong>Blood Product:</strong> {selectedRequest.bloodGroup} &bull; {selectedRequest.componentType}</div>
+                <div><strong>Requested Quantity:</strong> {selectedRequest.unitsRequested} unit(s)</div>
+                <div><strong>Official Issues Found:</strong> {bloodIssues.length} issue record(s)</div>
+              </div>
+
+              <div style={{ marginBottom: '1.25rem' }}>
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 500, marginBottom: '0.35rem' }}>
+                  Completion Remarks (Optional audit note):
+                </label>
+                <input
+                  type="text"
+                  value={completionNotes}
+                  onChange={(e) => setCompletionNotes(e.target.value)}
+                  placeholder="e.g. Transfusion completed safely; verified by attending physician"
+                  style={{
+                    width: '100%',
+                    padding: '0.45rem',
+                    borderRadius: '4px',
+                    border: '1px solid #cbd5e1',
+                    fontSize: '0.85rem',
+                    boxSizing: 'border-box',
+                  }}
+                />
+              </div>
+
+              {completeError && (
+                <div
+                  style={{
+                    background: '#fef2f2',
+                    border: '1px solid #fca5a5',
+                    color: '#991b1b',
+                    padding: '0.5rem',
+                    borderRadius: '4px',
+                    fontSize: '0.8rem',
+                    marginBottom: '1rem',
+                  }}
+                >
+                  {completeError}
+                </div>
+              )}
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
+                <button
+                  type="button"
+                  disabled={isCompleting}
+                  onClick={() => setCompleteModalOpen(false)}
+                  style={{
+                    background: '#f1f5f9',
+                    border: '1px solid #cbd5e1',
+                    color: '#475569',
+                    padding: '0.5rem 1rem',
+                    borderRadius: '4px',
+                    cursor: isCompleting ? 'not-allowed' : 'pointer',
+                    fontSize: '0.85rem',
+                    fontWeight: 500,
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={isCompleting}
+                  onClick={handleExecuteComplete}
+                  style={{
+                    background: isCompleting ? '#a7f3d0' : '#059669',
+                    border: 'none',
+                    color: '#ffffff',
+                    padding: '0.5rem 1.25rem',
+                    borderRadius: '4px',
+                    cursor: isCompleting ? 'not-allowed' : 'pointer',
+                    fontSize: '0.85rem',
+                    fontWeight: 600,
+                  }}
+                >
+                  {isCompleting ? 'Completing...' : 'Confirm Completion'}
                 </button>
               </div>
             </div>

@@ -73,12 +73,17 @@ describe('DonorsService', () => {
   });
 
   describe('1b. age eligibility validation (Phase 3.5)', () => {
-    const today = new Date();
     const getDateOfBirthForAge = (ageYears: number, daysOffset: number = 0) => {
-      const d = new Date(today);
-      d.setFullYear(d.getFullYear() - ageYears);
-      d.setDate(d.getDate() + daysOffset);
-      return d.toISOString().slice(0, 10);
+      const ref = new Date();
+      const d = new Date(
+        ref.getFullYear() - ageYears,
+        ref.getMonth(),
+        ref.getDate() + daysOffset,
+      );
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${y}-${m}-${day}`;
     };
 
     it('rejects donor under 18 years old with DONOR_AGE_NOT_ELIGIBLE', async () => {
@@ -408,4 +413,66 @@ describe('DonorsService', () => {
       expect(mockModel.findByIdAndUpdate).not.toHaveBeenCalled();
     });
   });
+
+  describe('5. Phase 6E: Donor Approval Workflow', () => {
+    it('public registration creates donor as PENDING_REVIEW', async () => {
+      mockModel.findOne = jest.fn().mockReturnValue({
+        exec: jest.fn().mockResolvedValue(null),
+      });
+
+      const result = await service.create(sampleCreateDto);
+
+      expect(result.success).toBe(true);
+      expect(result.donorCode).toBeDefined();
+    });
+
+    it('approving a PENDING_REVIEW donor changes status to ACTIVE', async () => {
+      const mockPendingDonor = {
+        _id: '507f1f77bcf86cd799439011',
+        donorCode: 'DON-20261007-TEST',
+        fullName: 'John Miller',
+        phone: '+919876543210',
+        status: DonorStatus.PENDING_REVIEW,
+      };
+
+      mockModel.findById = jest.fn().mockReturnValue({
+        exec: jest.fn().mockResolvedValue(mockPendingDonor),
+      });
+      mockModel.findByIdAndUpdate = jest.fn().mockReturnValue({
+        exec: jest.fn().mockResolvedValue({
+          ...mockPendingDonor,
+          status: DonorStatus.ACTIVE,
+        }),
+      });
+
+      const updated = await service.updateStatus('507f1f77bcf86cd799439011', {
+        status: DonorStatus.ACTIVE,
+      });
+
+      expect(updated.status).toBe(DonorStatus.ACTIVE);
+      expect(mockModel.findByIdAndUpdate).toHaveBeenCalled();
+    });
+
+    it('approving an already ACTIVE donor is idempotent and returns current record', async () => {
+      const mockActiveDonor = {
+        _id: '507f1f77bcf86cd799439011',
+        donorCode: 'DON-20261007-TEST',
+        fullName: 'John Miller',
+        phone: '+919876543210',
+        status: DonorStatus.ACTIVE,
+      };
+
+      mockModel.findById = jest.fn().mockReturnValue({
+        exec: jest.fn().mockResolvedValue(mockActiveDonor),
+      });
+
+      const result = await service.updateStatus('507f1f77bcf86cd799439011', {
+        status: DonorStatus.ACTIVE,
+      });
+
+      expect(result.status).toBe(DonorStatus.ACTIVE);
+      expect(mockModel.findByIdAndUpdate).not.toHaveBeenCalled();
+    });
+  });
 });
+

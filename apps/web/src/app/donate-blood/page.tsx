@@ -149,6 +149,9 @@ export default function DonateBloodPage() {
               <p style={{ margin: '0 0 0.5rem 0' }}>
                 Voluntary blood donation helps maintain an adequate and reliable blood supply for hospital emergency rooms, oncology clinics, and trauma surgeries across our community.
               </p>
+              <p style={{ margin: '0 0 0.5rem 0', color: '#1e40af', fontSize: '0.85rem', backgroundColor: '#eff6ff', padding: '0.5rem 0.75rem', borderRadius: '4px', border: '1px solid #bfdbfe' }}>
+                ℹ️ <strong>Review &amp; Verification:</strong> After submitting your registration, our team will review your details. You will be notified when your donor registration is verified. You may receive a WhatsApp notification after your registration is reviewed.
+              </p>
               <p style={{ margin: 0, color: '#64748b', fontSize: '0.85rem' }}>
                 <em>Note: Registering here records your interest as a voluntary donor. Actual donor eligibility screening (vitals check and hemoglobin assessment) is conducted in person according to blood bank standard operating procedures prior to every physical collection.</em>
               </p>
@@ -172,7 +175,7 @@ export default function DonateBloodPage() {
               Donor Registration Submitted
             </h2>
             <p style={{ color: '#166534', margin: '0.5rem 0 1.5rem 0', fontSize: '0.95rem' }}>
-              Your donor registration has been submitted successfully. Our blood bank staff will review your registration.
+              After submitting your registration, our team will review your details. You will be notified when your donor registration is verified. You may receive a WhatsApp notification after your registration is reviewed.
             </p>
 
             <div

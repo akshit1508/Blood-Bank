@@ -11,9 +11,12 @@ import {
   RequestPriority,
 } from './blood-request.constants';
 
+import { BloodIssue } from '../modules/blood-issues/schemas/blood-issue.schema';
+
 describe('BloodRequestService', () => {
   let service: BloodRequestService;
   let mockModel: any;
+  let mockBloodIssueModel: any;
   let mockInventoryService: any;
 
   const sampleCreateDto = {
@@ -48,6 +51,11 @@ describe('BloodRequestService', () => {
     MockModel.findByIdAndUpdate = jest.fn();
 
     mockModel = MockModel;
+    mockBloodIssueModel = {
+      find: jest.fn().mockReturnValue({
+        exec: jest.fn().mockResolvedValue([]),
+      }),
+    };
     mockInventoryService = {
       findMatches: jest.fn().mockResolvedValue([]),
     };
@@ -58,6 +66,10 @@ describe('BloodRequestService', () => {
         {
           provide: getModelToken(BloodRequest.name),
           useValue: mockModel,
+        },
+        {
+          provide: getModelToken(BloodIssue.name),
+          useValue: mockBloodIssueModel,
         },
         {
           provide: InventoryService,
@@ -156,6 +168,60 @@ describe('BloodRequestService', () => {
       ).rejects.toThrow(BadRequestException);
     });
 
+    it('rejects direct generic status transition to RESERVED (requires physical unit reservation)', async () => {
+      const mockExisting = {
+        _id: '507f1f77bcf86cd799439011',
+        requestCode: 'REQ-20261007-TEST',
+        status: BloodRequestStatus.APPROVED,
+      };
+
+      mockModel.findById = jest.fn().mockReturnValue({
+        exec: jest.fn().mockResolvedValue(mockExisting),
+      });
+
+      await expect(
+        service.updateStatus('507f1f77bcf86cd799439011', {
+          status: BloodRequestStatus.RESERVED,
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('rejects direct generic status transition to ISSUED (requires blood issue operation)', async () => {
+      const mockExisting = {
+        _id: '507f1f77bcf86cd799439011',
+        requestCode: 'REQ-20261007-TEST',
+        status: BloodRequestStatus.RESERVED,
+      };
+
+      mockModel.findById = jest.fn().mockReturnValue({
+        exec: jest.fn().mockResolvedValue(mockExisting),
+      });
+
+      await expect(
+        service.updateStatus('507f1f77bcf86cd799439011', {
+          status: BloodRequestStatus.ISSUED,
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('rejects direct generic status transition to COMPLETED (requires completeRequest validation)', async () => {
+      const mockExisting = {
+        _id: '507f1f77bcf86cd799439011',
+        requestCode: 'REQ-20261007-TEST',
+        status: BloodRequestStatus.ISSUED,
+      };
+
+      mockModel.findById = jest.fn().mockReturnValue({
+        exec: jest.fn().mockResolvedValue(mockExisting),
+      });
+
+      await expect(
+        service.updateStatus('507f1f77bcf86cd799439011', {
+          status: BloodRequestStatus.COMPLETED,
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
     it('rejects any transition from a terminal state like REJECTED', async () => {
       const mockExisting = {
         _id: '507f1f77bcf86cd799439011',
@@ -171,6 +237,116 @@ describe('BloodRequestService', () => {
         service.updateStatus('507f1f77bcf86cd799439011', {
           status: BloodRequestStatus.APPROVED,
         }),
+      ).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('completeRequest (Task 96317 Dedicated Completion)', () => {
+    it('successfully completes request when valid completed blood issues exist with sufficient quantity', async () => {
+      const mockExisting = {
+        _id: '507f1f77bcf86cd799439011',
+        requestCode: 'REQ-20261007-TEST',
+        status: BloodRequestStatus.ISSUED,
+        unitsRequested: 1,
+      };
+
+      const mockCompletedIssues = [
+        {
+          _id: '607f1f77bcf86cd799439022',
+          issueCode: 'ISS-20261007-TEST',
+          status: 'COMPLETED',
+          issuedUnits: [{ unitCode: 'UNIT-001', bloodGroup: 'A+', componentType: 'PRBC' }],
+        },
+      ];
+
+      mockModel.findById = jest.fn().mockReturnValue({
+        exec: jest.fn().mockResolvedValue(mockExisting),
+      });
+
+      mockBloodIssueModel.find = jest.fn().mockReturnValue({
+        exec: jest.fn().mockResolvedValue(mockCompletedIssues),
+      });
+
+      mockModel.findByIdAndUpdate = jest.fn().mockReturnValue({
+        exec: jest.fn().mockResolvedValue({
+          ...mockExisting,
+          status: BloodRequestStatus.COMPLETED,
+          statusReason: 'Fulfillment completed. Attending doctor verified.',
+        }),
+      });
+
+      const result = await service.completeRequest('507f1f77bcf86cd799439011', {
+        notes: 'Attending doctor verified.',
+      });
+
+      expect(result.status).toBe(BloodRequestStatus.COMPLETED);
+    });
+
+    it('rejects completion if request is not in ISSUED status', async () => {
+      const mockExisting = {
+        _id: '507f1f77bcf86cd799439011',
+        requestCode: 'REQ-20261007-TEST',
+        status: BloodRequestStatus.APPROVED,
+        unitsRequested: 1,
+      };
+
+      mockModel.findById = jest.fn().mockReturnValue({
+        exec: jest.fn().mockResolvedValue(mockExisting),
+      });
+
+      await expect(
+        service.completeRequest('507f1f77bcf86cd799439011'),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('rejects completion if no completed blood issue records exist', async () => {
+      const mockExisting = {
+        _id: '507f1f77bcf86cd799439011',
+        requestCode: 'REQ-20261007-TEST',
+        status: BloodRequestStatus.ISSUED,
+        unitsRequested: 1,
+      };
+
+      mockModel.findById = jest.fn().mockReturnValue({
+        exec: jest.fn().mockResolvedValue(mockExisting),
+      });
+
+      mockBloodIssueModel.find = jest.fn().mockReturnValue({
+        exec: jest.fn().mockResolvedValue([]),
+      });
+
+      await expect(
+        service.completeRequest('507f1f77bcf86cd799439011'),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('rejects completion if issued units count is less than requested units', async () => {
+      const mockExisting = {
+        _id: '507f1f77bcf86cd799439011',
+        requestCode: 'REQ-20261007-TEST',
+        status: BloodRequestStatus.ISSUED,
+        unitsRequested: 2,
+      };
+
+      const mockCompletedIssues = [
+        {
+          _id: '607f1f77bcf86cd799439022',
+          issueCode: 'ISS-20261007-TEST',
+          status: 'COMPLETED',
+          issuedUnits: [{ unitCode: 'UNIT-001' }],
+        },
+      ];
+
+      mockModel.findById = jest.fn().mockReturnValue({
+        exec: jest.fn().mockResolvedValue(mockExisting),
+      });
+
+      mockBloodIssueModel.find = jest.fn().mockReturnValue({
+        exec: jest.fn().mockResolvedValue(mockCompletedIssues),
+      });
+
+      await expect(
+        service.completeRequest('507f1f77bcf86cd799439011'),
       ).rejects.toThrow(BadRequestException);
     });
   });

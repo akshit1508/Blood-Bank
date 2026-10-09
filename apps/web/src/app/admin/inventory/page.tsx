@@ -29,10 +29,9 @@ const BLOOD_GROUPS = [
 
 const COMPONENT_TYPES = [
   BloodUnitComponent.WHOLE_BLOOD,
-  BloodUnitComponent.PACKED_RED_CELLS,
-  BloodUnitComponent.FRESH_FROZEN_PLASMA,
+  BloodUnitComponent.PRBC,
+  BloodUnitComponent.FFP,
   BloodUnitComponent.PLATELETS,
-  BloodUnitComponent.CRYOPRECIPITATE,
 ];
 
 export default function AdminInventoryPage() {

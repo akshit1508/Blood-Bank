@@ -823,6 +823,27 @@ describe('InventoryService (Phase 5A & 5B)', () => {
         status: InventoryStatus.AVAILABLE,
       });
     });
+
+    it('safely skips inventory items with missing or orphaned bloodUnitId references', async () => {
+      const mockItems = [
+        {
+          _id: new Types.ObjectId(),
+          status: InventoryStatus.AVAILABLE,
+          bloodUnitId: null,
+        },
+      ];
+
+      mockInventoryModel.find.mockReturnValue({
+        populate: jest.fn().mockReturnValue({
+          lean: jest.fn().mockReturnValue({
+            exec: jest.fn().mockResolvedValue(mockItems),
+          }),
+        }),
+      });
+
+      const matches = await service.findMatches('O+', 'WHOLE_BLOOD');
+      expect(matches).toHaveLength(0);
+    });
   });
 
   describe('TEST 5 & 25: Public availability excludes RESERVED inventory', () => {

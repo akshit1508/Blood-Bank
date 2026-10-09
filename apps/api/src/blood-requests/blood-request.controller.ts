@@ -12,6 +12,7 @@ import {
 import { BloodRequestService } from './blood-request.service';
 import { CreateBloodRequestDto } from './dto/create-blood-request.dto';
 import { UpdateBloodRequestStatusDto } from './dto/update-blood-request-status.dto';
+import { CompleteBloodRequestDto } from './dto/complete-blood-request.dto';
 import { BloodRequestStatus } from './blood-request.constants';
 import { ReservationsService } from '../modules/reservations/reservations.service';
 import { CreateReservationDto } from '../modules/reservations/dto/create-reservation.dto';
@@ -149,6 +150,27 @@ export class BloodRequestController {
       statusCode: HttpStatus.OK,
       message: `Blood request status updated to ${updated.status}`,
       data: updated,
+    };
+  }
+
+  /**
+   * Completes an issued blood request after verifying underlying blood issues.
+   * POST /api/blood-requests/:id/complete
+   */
+  @Post(':id/complete')
+  @HttpCode(HttpStatus.OK)
+  async complete(
+    @Param('id') id: string,
+    @Body() completeDto: CompleteBloodRequestDto,
+  ) {
+    const completed = await this.bloodRequestService.completeRequest(
+      id,
+      completeDto,
+    );
+    return {
+      statusCode: HttpStatus.OK,
+      message: 'Blood request completed successfully',
+      data: completed,
     };
   }
 }

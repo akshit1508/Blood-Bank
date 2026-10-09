@@ -19,6 +19,7 @@ import {
   createBloodUnit,
   fetchBloodUnitByDonationId,
 } from '@/lib/blood-unit-api';
+import { evaluateDonationInterval } from '@/lib/eligibility';
 
 const BLOOD_GROUPS = [
   BloodGroup.A_POSITIVE,
@@ -95,6 +96,18 @@ export default function AdminDonationsPage() {
   const [searchDonorsLoading, setSearchDonorsLoading] = useState(false);
   const [selectedDonorForDonation, setSelectedDonorForDonation] =
     useState<Donor | null>(null);
+
+  // Active Donors Section state (Task ID 62481)
+  const [activeDonors, setActiveDonors] = useState<Donor[]>([]);
+  const [activeDonorsLoading, setActiveDonorsLoading] = useState(true);
+  const [activeDonorsError, setActiveDonorsError] = useState<string | null>(null);
+  const [donorSearchTerm, setDonorSearchTerm] = useState('');
+  const [donorPage, setDonorPage] = useState(1);
+  const [donorPageSize] = useState(5);
+  // Map of donorId -> lastCompletedDonationDate string | null
+  const [donorLastDonationMap, setDonorLastDonationMap] = useState<
+    Record<string, string | null>
+  >({});
 
   // Record donation form inputs
   const [donationDate, setDonationDate] = useState(() => {
@@ -221,6 +234,64 @@ export default function AdminDonationsPage() {
     loadDonations();
   }, [loadDonations]);
 
+  // Load Active Donors automatically (Task ID 62481)
+  const loadActiveDonors = useCallback(async () => {
+    setActiveDonorsLoading(true);
+    setActiveDonorsError(null);
+    try {
+      // Fetch only ACTIVE donors from backend
+      const data = await fetchDonors({
+        status: DonorStatus.ACTIVE,
+      });
+      setActiveDonors(data);
+
+      // Concurrently fetch last completed donation for each active donor to evaluate interval
+      const donationPromises = data.map(async (donor) => {
+        try {
+          const res = await fetchDonations({
+            donorId: donor._id,
+            status: DonationStatus.COMPLETED,
+            donationType: DonationType.WHOLE_BLOOD,
+            limit: 1,
+          });
+          const lastDate =
+            res.items && res.items.length > 0
+              ? res.items[0].donationDate
+              : null;
+          return { donorId: donor._id, lastDate };
+        } catch {
+          return { donorId: donor._id, lastDate: null };
+        }
+      });
+
+      const results = await Promise.all(donationPromises);
+      const map: Record<string, string | null> = {};
+      for (const r of results) {
+        map[r.donorId] = r.lastDate;
+      }
+      setDonorLastDonationMap(map);
+    } catch (err: any) {
+      setActiveDonorsError(err.message || 'Failed to load active donors');
+    } finally {
+      setActiveDonorsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadActiveDonors();
+  }, [loadActiveDonors]);
+
+  // Preselect active donor and open Record Donation modal
+  const handleSelectDonorForDonation = (donor: Donor) => {
+    setSelectedDonorForDonation(donor);
+    setRecordError(null);
+    setRecordErrorDetails(null);
+    setNotes('');
+    setQuantity(1);
+    setDonationDate(new Date().toISOString().slice(0, 16));
+    setShowRecordModal(true);
+  };
+
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setPage(1);
@@ -306,8 +377,8 @@ export default function AdminDonationsPage() {
       setQuantity(1);
       setRecordErrorDetails(null);
 
-      // Refresh list & select newly recorded donation
-      await loadDonations();
+      // Refresh donations list and active donors
+      await Promise.all([loadDonations(), loadActiveDonors()]);
       setSelectedDonation(created);
     } catch (err: any) {
       setRecordError(err.message || 'Failed to record donation');
@@ -352,8 +423,7 @@ export default function AdminDonationsPage() {
               fontSize: '0.9rem',
             }}
           >
-            Record physical blood donation events & manage intake lifecycle.
-            Internal staff portal.
+            Select an active donor to record a donation, or view donation intake lifecycle history.
           </p>
         </div>
 
@@ -361,6 +431,7 @@ export default function AdminDonationsPage() {
           <button
             onClick={() => {
               loadDonations();
+              loadActiveDonors();
             }}
             style={{
               backgroundColor: '#ffffff',
@@ -376,10 +447,11 @@ export default function AdminDonationsPage() {
               gap: '0.35rem',
             }}
           >
-            ↻ Refresh List
+            ↻ Refresh All
           </button>
           <button
             onClick={() => {
+              setSelectedDonorForDonation(null);
               setShowRecordModal(true);
               setRecordError(null);
             }}
@@ -401,6 +473,385 @@ export default function AdminDonationsPage() {
             + Record Physical Donation
           </button>
         </div>
+      </div>
+
+      {/* Active Donors Section (Task ID 62481) */}
+      <div
+        style={{
+          backgroundColor: '#ffffff',
+          border: '1px solid #e2e8f0',
+          borderRadius: '8px',
+          padding: '1.25rem',
+          marginBottom: '1.75rem',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+        }}
+      >
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: '1rem',
+            flexWrap: 'wrap',
+            gap: '0.75rem',
+          }}
+        >
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <h2
+                style={{
+                  margin: 0,
+                  fontSize: '1.15rem',
+                  fontWeight: 700,
+                  color: '#0f172a',
+                }}
+              >
+                Active Donors Available for Donation
+              </h2>
+              <span
+                style={{
+                  backgroundColor: '#dcfce7',
+                  color: '#15803d',
+                  fontSize: '0.75rem',
+                  fontWeight: 700,
+                  padding: '0.15rem 0.55rem',
+                  borderRadius: '9999px',
+                  border: '1px solid #bbf7d0',
+                }}
+              >
+                {activeDonors.length} Active
+              </span>
+            </div>
+            <p
+              style={{
+                margin: '0.2rem 0 0 0',
+                fontSize: '0.85rem',
+                color: '#64748b',
+              }}
+            >
+              Approved donors automatically appear here. Click <strong>Record Donation</strong> to start an intake immediately.
+            </p>
+          </div>
+
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            <input
+              type="text"
+              value={donorSearchTerm}
+              onChange={(e) => {
+                setDonorSearchTerm(e.target.value);
+                setDonorPage(1);
+              }}
+              placeholder="Filter active donors by name, code, blood group..."
+              style={{
+                padding: '0.45rem 0.75rem',
+                border: '1px solid #cbd5e1',
+                borderRadius: '6px',
+                fontSize: '0.85rem',
+                width: '280px',
+              }}
+            />
+            <button
+              onClick={() => loadActiveDonors()}
+              style={{
+                backgroundColor: '#f8fafc',
+                border: '1px solid #cbd5e1',
+                padding: '0.45rem 0.75rem',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontSize: '0.85rem',
+                color: '#475569',
+              }}
+              title="Refresh active donors list"
+            >
+              ↻
+            </button>
+          </div>
+        </div>
+
+        {activeDonorsError && (
+          <div
+            style={{
+              background: '#fef2f2',
+              border: '1px solid #fca5a5',
+              color: '#991b1b',
+              padding: '0.65rem 0.9rem',
+              borderRadius: '6px',
+              marginBottom: '1rem',
+              fontSize: '0.85rem',
+            }}
+          >
+            {activeDonorsError}
+          </div>
+        )}
+
+        {activeDonorsLoading ? (
+          <div
+            style={{
+              padding: '2rem',
+              textAlign: 'center',
+              color: '#64748b',
+              fontSize: '0.875rem',
+            }}
+          >
+            Loading active donors from database...
+          </div>
+        ) : (() => {
+          const filtered = activeDonors.filter((d) => {
+            if (!donorSearchTerm.trim()) return true;
+            const term = donorSearchTerm.toLowerCase();
+            return (
+              d.fullName.toLowerCase().includes(term) ||
+              d.donorCode.toLowerCase().includes(term) ||
+              d.bloodGroup.toLowerCase().includes(term) ||
+              (d.phone && d.phone.toLowerCase().includes(term))
+            );
+          });
+
+          if (filtered.length === 0) {
+            return (
+              <div
+                style={{
+                  padding: '2rem',
+                  textAlign: 'center',
+                  color: '#64748b',
+                  fontSize: '0.875rem',
+                  backgroundColor: '#f8fafc',
+                  borderRadius: '6px',
+                  border: '1px dashed #cbd5e1',
+                }}
+              >
+                {activeDonors.length === 0
+                  ? 'No approved active donors found in the system. Donors approved from Pending Review will automatically appear here.'
+                  : `No active donors match "${donorSearchTerm}".`}
+              </div>
+            );
+          }
+
+          const totalDonorPages = Math.ceil(filtered.length / donorPageSize);
+          const paginatedDonors = filtered.slice(
+            (donorPage - 1) * donorPageSize,
+            donorPage * donorPageSize,
+          );
+
+          return (
+            <div style={{ border: '1px solid #e2e8f0', borderRadius: '6px', overflow: 'hidden' }}>
+              <table
+                style={{
+                  width: '100%',
+                  borderCollapse: 'collapse',
+                  textAlign: 'left',
+                  fontSize: '0.85rem',
+                }}
+              >
+                <thead>
+                  <tr
+                    style={{
+                      background: '#f8fafc',
+                      borderBottom: '1px solid #e2e8f0',
+                      color: '#475569',
+                    }}
+                  >
+                    <th style={{ padding: '0.65rem 0.9rem' }}>Donor Name</th>
+                    <th style={{ padding: '0.65rem 0.9rem' }}>Donor Code</th>
+                    <th style={{ padding: '0.65rem 0.9rem' }}>Blood Group</th>
+                    <th style={{ padding: '0.65rem 0.9rem' }}>Donor Status</th>
+                    <th style={{ padding: '0.65rem 0.9rem' }}>Last Completed Donation</th>
+                    <th style={{ padding: '0.65rem 0.9rem' }}>Donation Eligibility</th>
+                    <th style={{ padding: '0.65rem 0.9rem', textAlign: 'right' }}>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {paginatedDonors.map((donor) => {
+                    const lastDate = donorLastDonationMap[donor._id];
+                    const eligibility = evaluateDonationInterval(lastDate, donor.gender);
+
+                    return (
+                      <tr
+                        key={donor._id}
+                        style={{
+                          borderBottom: '1px solid #f1f5f9',
+                          backgroundColor: '#ffffff',
+                        }}
+                      >
+                        <td style={{ padding: '0.65rem 0.9rem', fontWeight: 600, color: '#0f172a' }}>
+                          <div>{donor.fullName}</div>
+                          <div style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 400 }}>
+                            {donor.gender} &bull; {donor.phone || 'No phone'}
+                          </div>
+                        </td>
+                        <td style={{ padding: '0.65rem 0.9rem', fontFamily: 'monospace', color: '#334155' }}>
+                          {donor.donorCode}
+                        </td>
+                        <td style={{ padding: '0.65rem 0.9rem' }}>
+                          <span
+                            style={{
+                              display: 'inline-block',
+                              padding: '0.15rem 0.45rem',
+                              borderRadius: '4px',
+                              fontWeight: 700,
+                              fontSize: '0.8rem',
+                              backgroundColor: '#fee2e2',
+                              color: '#991b1b',
+                            }}
+                          >
+                            {donor.bloodGroup}
+                          </span>
+                        </td>
+                        <td style={{ padding: '0.65rem 0.9rem' }}>
+                          <span
+                            style={{
+                              display: 'inline-block',
+                              padding: '0.15rem 0.5rem',
+                              borderRadius: '9999px',
+                              fontSize: '0.75rem',
+                              fontWeight: 600,
+                              backgroundColor: '#dcfce7',
+                              color: '#15803d',
+                              border: '1px solid #bbf7d0',
+                            }}
+                          >
+                            ACTIVE
+                          </span>
+                        </td>
+                        <td style={{ padding: '0.65rem 0.9rem', color: '#334155' }}>
+                          {lastDate ? (
+                            <div>
+                              <div>{new Date(lastDate).toLocaleDateString()}</div>
+                              <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
+                                {new Date(lastDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              </div>
+                            </div>
+                          ) : (
+                            <span style={{ color: '#059669', fontWeight: 500 }}>
+                              None / First-time
+                            </span>
+                          )}
+                        </td>
+                        <td style={{ padding: '0.65rem 0.9rem' }}>
+                          {eligibility.isEligible ? (
+                            <span
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '0.3rem',
+                                padding: '0.2rem 0.55rem',
+                                borderRadius: '9999px',
+                                fontSize: '0.75rem',
+                                fontWeight: 600,
+                                backgroundColor: '#ecfdf5',
+                                color: '#047857',
+                                border: '1px solid #a7f3d0',
+                              }}
+                            >
+                              ✓ Eligible
+                            </span>
+                          ) : (
+                            <div>
+                              <span
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '0.3rem',
+                                  padding: '0.2rem 0.55rem',
+                                  borderRadius: '9999px',
+                                  fontSize: '0.75rem',
+                                  fontWeight: 600,
+                                  backgroundColor: '#fffbeb',
+                                  color: '#b45309',
+                                  border: '1px solid #fde68a',
+                                }}
+                              >
+                                ⏳ Ineligible ({eligibility.remainingDays}d left)
+                              </span>
+                              {eligibility.nextEligibleDate && (
+                                <div style={{ fontSize: '0.7rem', color: '#78350f', marginTop: '0.15rem' }}>
+                                  Eligible: {new Date(eligibility.nextEligibleDate).toLocaleDateString()}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </td>
+                        <td style={{ padding: '0.65rem 0.9rem', textAlign: 'right' }}>
+                          <button
+                            type="button"
+                            onClick={() => handleSelectDonorForDonation(donor)}
+                            style={{
+                              backgroundColor: '#dc2626',
+                              color: '#ffffff',
+                              border: 'none',
+                              padding: '0.35rem 0.75rem',
+                              borderRadius: '4px',
+                              fontSize: '0.8rem',
+                              fontWeight: 600,
+                              cursor: 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '0.25rem',
+                            }}
+                          >
+                            + Record Donation
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+
+              {/* Active Donors Pagination */}
+              {totalDonorPages > 1 && (
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    padding: '0.5rem 0.9rem',
+                    borderTop: '1px solid #e2e8f0',
+                    background: '#f8fafc',
+                    fontSize: '0.8rem',
+                    color: '#64748b',
+                  }}
+                >
+                  <span>
+                    Showing {paginatedDonors.length} of {filtered.length} active donors (Page {donorPage} of {totalDonorPages})
+                  </span>
+                  <div style={{ display: 'flex', gap: '0.4rem' }}>
+                    <button
+                      disabled={donorPage <= 1}
+                      onClick={() => setDonorPage((p) => Math.max(1, p - 1))}
+                      style={{
+                        padding: '0.25rem 0.6rem',
+                        borderRadius: '4px',
+                        border: '1px solid #cbd5e1',
+                        background: '#ffffff',
+                        cursor: donorPage <= 1 ? 'not-allowed' : 'pointer',
+                        opacity: donorPage <= 1 ? 0.5 : 1,
+                        fontSize: '0.75rem',
+                      }}
+                    >
+                      &larr; Prev
+                    </button>
+                    <button
+                      disabled={donorPage >= totalDonorPages}
+                      onClick={() => setDonorPage((p) => Math.min(totalDonorPages, p + 1))}
+                      style={{
+                        padding: '0.25rem 0.6rem',
+                        borderRadius: '4px',
+                        border: '1px solid #cbd5e1',
+                        background: '#ffffff',
+                        cursor: donorPage >= totalDonorPages ? 'not-allowed' : 'pointer',
+                        opacity: donorPage >= totalPages ? 0.5 : 1,
+                        fontSize: '0.75rem',
+                      }}
+                    >
+                      Next &rarr;
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })()}
       </div>
 
       {/* Filter and Search Bar */}
@@ -1884,10 +2335,9 @@ export default function AdminDonationsPage() {
                   }}
                 >
                   <option value={BloodUnitComponent.WHOLE_BLOOD}>WHOLE_BLOOD</option>
-                  <option value={BloodUnitComponent.PACKED_RED_CELLS}>PACKED_RED_CELLS</option>
-                  <option value={BloodUnitComponent.FRESH_FROZEN_PLASMA}>FRESH_FROZEN_PLASMA</option>
+                  <option value={BloodUnitComponent.PRBC}>PRBC</option>
+                  <option value={BloodUnitComponent.FFP}>FFP</option>
                   <option value={BloodUnitComponent.PLATELETS}>PLATELETS</option>
-                  <option value={BloodUnitComponent.CRYOPRECIPITATE}>CRYOPRECIPITATE</option>
                 </select>
               </div>
 

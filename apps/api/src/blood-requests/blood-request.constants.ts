@@ -33,7 +33,14 @@ export enum BloodRequestStatus {
   CANCELLED = 'CANCELLED',
 }
 
-// Allowed state transitions map
+// Operational milestones that must NOT be reached via generic PATCH /status endpoint
+export const OPERATIONAL_MILESTONE_STATUSES: BloodRequestStatus[] = [
+  BloodRequestStatus.RESERVED,
+  BloodRequestStatus.ISSUED,
+  BloodRequestStatus.COMPLETED,
+];
+
+// Allowed state transitions map for generic PATCH /status endpoint
 export const ALLOWED_STATUS_TRANSITIONS: Record<BloodRequestStatus, BloodRequestStatus[]> = {
   [BloodRequestStatus.REQUESTED]: [
     BloodRequestStatus.VERIFIED,
@@ -46,17 +53,13 @@ export const ALLOWED_STATUS_TRANSITIONS: Record<BloodRequestStatus, BloodRequest
     BloodRequestStatus.CANCELLED,
   ],
   [BloodRequestStatus.APPROVED]: [
-    BloodRequestStatus.RESERVED,
     BloodRequestStatus.CANCELLED,
+    BloodRequestStatus.REJECTED,
   ],
   [BloodRequestStatus.RESERVED]: [
-    BloodRequestStatus.APPROVED,
-    BloodRequestStatus.ISSUED,
     BloodRequestStatus.CANCELLED,
   ],
-  [BloodRequestStatus.ISSUED]: [
-    BloodRequestStatus.COMPLETED,
-  ],
+  [BloodRequestStatus.ISSUED]: [], // Cannot change status via generic PATCH; must use POST /complete
   [BloodRequestStatus.COMPLETED]: [], // Terminal state
   [BloodRequestStatus.REJECTED]: [],  // Terminal state
   [BloodRequestStatus.CANCELLED]: [], // Terminal state

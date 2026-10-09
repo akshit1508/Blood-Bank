@@ -37,6 +37,7 @@ export interface PatientDetails {
   name: string;
   age: number;
   gender: string;
+  phone?: string;
 }
 
 export interface ContactPerson {
@@ -173,6 +174,30 @@ export async function updateBloodRequestStatus(
     const errorMsg = Array.isArray(body.message)
       ? body.message.join(', ')
       : body.message || 'Failed to update request status';
+    throw new Error(errorMsg);
+  }
+
+  return body.data;
+}
+
+export async function completeBloodRequest(
+  id: string,
+  notes?: string,
+): Promise<BloodRequest> {
+  const res = await fetch(`${API_BASE_URL}/blood-requests/${id}/complete`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+    },
+    body: JSON.stringify({ notes }),
+  });
+
+  const body = await res.json();
+  if (!res.ok) {
+    const errorMsg = Array.isArray(body.message)
+      ? body.message.join(', ')
+      : body.message || 'Failed to complete blood request';
     throw new Error(errorMsg);
   }
 
@@ -402,5 +427,108 @@ export async function fetchBloodIssuesByRequest(
   }
 
   return body.data || [];
+}
+
+/**
+ * Normalizes phone numbers for WhatsApp wa.me links.
+ * Prefixes 10-digit Indian numbers with 91.
+ */
+export function formatWhatsAppPhone(phone: string): string {
+  const digitsOnly = phone.replace(/\D/g, '');
+  return digitsOnly.length === 10 ? `91${digitsOnly}` : digitsOnly;
+}
+
+export type BloodRequestNotificationType =
+  | 'SUBMISSION'
+  | 'CONFIRMATION'
+  | 'REJECTION';
+
+export interface BuildBloodRequestWhatsAppUrlParams {
+  recipientPhone: string;
+  recipientName: string;
+  recipientRole?: 'RELATIVE' | 'PATIENT' | string;
+  request: {
+    requestCode: string;
+    patientName: string;
+    bloodGroup: string;
+    componentType: string;
+    unitsRequested: number;
+    hospitalName: string;
+    status?: string;
+    statusReason?: string;
+  };
+  type: BloodRequestNotificationType;
+}
+
+/**
+ * Builds a direct wa.me WhatsApp Click-to-Chat URL for blood request notifications
+ * (Submission receipt, Approval/Confirmation, or Rejection) without any .env credentials.
+ */
+export function buildBloodRequestWhatsAppUrl({
+  recipientPhone,
+  recipientName,
+  recipientRole,
+  request,
+  type,
+}: BuildBloodRequestWhatsAppUrlParams): string {
+  const formattedPhone = formatWhatsAppPhone(recipientPhone);
+  const roleLabel = recipientRole ? ` (${recipientRole})` : '';
+
+  let message = '';
+
+  if (type === 'CONFIRMATION') {
+    message = `🩸 *Blood Bank — Blood Request Confirmed*
+
+Dear ${recipientName}${roleLabel},
+
+We are pleased to inform you that the blood request for *${request.patientName}* has been verified and APPROVED by our blood bank.
+
+📋 *Request Code*: ${request.requestCode}
+🩸 *Blood Group*: ${request.bloodGroup} (${request.componentType})
+📦 *Units*: ${request.unitsRequested}
+🏥 *Hospital*: ${request.hospitalName}
+✅ *Status*: ${request.status || 'APPROVED'}
+${request.statusReason ? `📝 *Notes*: ${request.statusReason}\n` : ''}
+Please coordinate with our blood bank desk or your hospital administration for collection and issue formalities.
+
+Thank you,
+— Blood Bank Team`;
+  } else if (type === 'REJECTION') {
+    message = `🩸 *Blood Bank — Blood Request Update*
+
+Dear ${recipientName}${roleLabel},
+
+Regarding the blood request for *${request.patientName}* (Request Code: *${request.requestCode}*):
+
+❌ *Status*: REJECTED
+🩸 *Blood Group*: ${request.bloodGroup} (${request.componentType})
+📦 *Units*: ${request.unitsRequested}
+🏥 *Hospital*: ${request.hospitalName}
+⚠️ *Reason*: ${request.statusReason || 'Requested units currently unavailable or requirements not met'}
+
+If you need urgent assistance or replacement donor guidance, please contact our emergency blood bank helpline immediately.
+
+— Blood Bank Team`;
+  } else {
+    // SUBMISSION
+    message = `🩸 *Blood Bank — Blood Request Received*
+
+Dear ${recipientName}${roleLabel},
+
+Your blood request has been successfully registered with our blood bank.
+
+📋 *Request Code*: ${request.requestCode}
+👤 *Patient*: ${request.patientName}
+🩸 *Blood Group*: ${request.bloodGroup} (${request.componentType})
+📦 *Units Requested*: ${request.unitsRequested}
+🏥 *Hospital*: ${request.hospitalName}
+⏱️ *Status*: REQUESTED (Under Review)
+
+Our staff is currently reviewing the request and checking available blood inventory. We will update you shortly.
+
+— Blood Bank Team`;
+  }
+
+  return `https://wa.me/${formattedPhone}?text=${encodeURIComponent(message)}`;
 }
 

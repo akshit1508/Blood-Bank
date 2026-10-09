@@ -34,7 +34,13 @@ export function calculateCompletedAge(
   dob: Date | string,
   referenceDate: Date = new Date(),
 ): number {
-  const birthDate = typeof dob === 'string' ? new Date(dob) : dob;
+  let birthDate: Date;
+  if (typeof dob === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dob)) {
+    const [y, m, d] = dob.split('-').map(Number);
+    birthDate = new Date(y, m - 1, d);
+  } else {
+    birthDate = typeof dob === 'string' ? new Date(dob) : dob;
+  }
   let age = referenceDate.getFullYear() - birthDate.getFullYear();
   const monthDiff = referenceDate.getMonth() - birthDate.getMonth();
   if (

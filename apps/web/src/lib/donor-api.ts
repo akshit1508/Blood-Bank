@@ -172,3 +172,32 @@ export async function updateDonorStatus(
 
   return body.data;
 }
+
+
+/**
+ * Builds a direct wa.me WhatsApp Click-to-Chat URL pre-filled with the canonical
+ * donor verification message for instant dispatch via WhatsApp Web or mobile app.
+ */
+export function buildDonorWhatsAppUrl(phone: string, fullName: string): string {
+  const digitsOnly = phone.replace(/\D/g, '');
+  const formattedPhone =
+    digitsOnly.length === 10 ? `91${digitsOnly}` : digitsOnly;
+
+  const message = `🩸 *Blood Donor Registration Verified*
+
+Dear ${fullName},
+
+We are happy to inform you that your donor registration has been successfully verified by our blood bank.
+
+You are now registered as an active blood donor with us.
+
+You may visit the blood bank for blood donation when you are eligible, subject to the required donation interval and final screening by our staff.
+
+Your willingness to donate blood can help save lives.
+
+Thank you for your support and for being willing to contribute to the community. ❤️
+
+— Blood Bank Team`;
+
+  return `https://wa.me/${formattedPhone}?text=${encodeURIComponent(message)}`;
+}

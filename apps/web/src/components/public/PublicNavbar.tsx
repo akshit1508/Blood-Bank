@@ -136,7 +136,7 @@ export default function PublicNavbar({ onToggleSidebar, isSidebarOpen }: PublicN
         </div>
 
         <Link
-          href="/admin/blood-requests"
+          href="/admin"
           style={{
             fontSize: '0.825rem',
             color: '#0f172a',

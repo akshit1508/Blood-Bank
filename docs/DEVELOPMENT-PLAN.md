@@ -171,6 +171,23 @@ Next Vertical Slice
 
 ---
 
+### PHASE 6E: Donor Approval Workflow & WhatsApp Notification [COMPLETED]
+- **Goal**: Implement authoritative administrative donor approval workflow with Direct WhatsApp Click-to-Chat notification (`wa.me`).
+- **Backend**:
+  - Enforced `DONOR_APPROVED` event on `PENDING_REVIEW` &rarr; `ACTIVE` transition in `DonorsService`.
+  - Clean status transitions with state machine validation: `PENDING_REVIEW` &rarr; `ACTIVE` / `INACTIVE`, `ACTIVE` &rarr; `INACTIVE`, `INACTIVE` &rarr; `ACTIVE`.
+  - Public registration initializes donor status strictly as `PENDING_REVIEW`.
+- **Frontend**:
+  - Updated `/admin/donors` to clearly display `PENDING REVIEW`, `ACTIVE`, `INACTIVE` status badges and filters.
+  - Added dedicated approval action card `[Approve Donor]` and `[Mark Inactive]`.
+  - Integrated Direct WhatsApp Click-to-Chat (`wa.me`) via dedicated WhatsApp icon in the donors table and **[Open in WhatsApp & Send Message]** action in Section 4.
+  - Zero `.env` credentials required — launches WhatsApp Web or mobile app directly with pre-filled canonical safe verification message.
+  - Public registration page `/donate-blood` updated with review notice and submission confirmation.
+- **Testing**: Comprehensive unit tests in `donors.service.spec.ts` covering status transitions, boundary age validations, and registration workflows.
+
+
+---
+
 ### PHASE 7: Blood Request Allocation & Issuing
 - **Goal**: Staff review of blood requests, reserving compatible units, and issuing blood products with vouchers.
 - **Backend**: `ReservationsModule` and `BloodIssueModule` implementing atomic unit reservation, conflict prevention, and final issuance.

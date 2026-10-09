@@ -137,3 +137,40 @@ The operational lifecycle of the blood bank centre follows a rigorous sequential
 ```
 
 > **Implementation Note**: This end-to-end workflow represents the complete operational pipeline of the blood bank. In accordance with vertical slice architecture, it will be constructed iteratively phase-by-phase with complete integration tests at every transition boundary.
+
+---
+
+## 5. Donor Notification & WhatsApp Architecture (Phase 6E)
+
+```
+┌─────────────────┐       ┌─────────────────┐       ┌───────────────────┐
+│ Admin Dashboard │ ───►  │ Next.js Client  │ ───►  │ NestJS Controller │
+│   (Approve UI)  │       │  (donor-api.ts) │       │ (donors.controller)│
+└────────┬────────┘       └─────────────────┘       └─────────┬─────────┘
+         │                                                    │
+         │ Direct Click-to-Chat (wa.me)                       │ Status Update
+         ▼                                                    ▼
+┌──────────────────┐                                ┌───────────────────┐
+│  WhatsApp Web /  │                                │   DonorsService   │
+│   Mobile App     │                                │  (status: ACTIVE) │
+└────────┬─────────┘                                └───────────────────┘
+         │
+         ▼
+┌──────────────────┐
+│   Donor Phone    │
+│  (Verification)  │
+└──────────────────┘
+```
+
+### Architectural Principles:
+1. **Direct Click-to-Chat Pattern (`wa.me`)**:
+   - Verification notifications use the direct WhatsApp Click-to-Chat standard (`https://wa.me/{phone}?text={encodedMessage}`).
+   - Requires zero third-party API credentials, tokens, or phone number IDs in `.env`.
+   - Admin staff can review and approve a donor (`PENDING_REVIEW` &rarr; `ACTIVE`) and instantly launch WhatsApp Web or mobile app with a pre-filled, canonical verification message.
+2. **Decoupled Persistence**:
+   - The database status change `PENDING_REVIEW` &rarr; `ACTIVE` is the primary authoritative source of truth.
+   - WhatsApp message dispatch occurs directly via client redirection to WhatsApp with pre-filled content, completely eliminating external API timeout hazards or server-side failure coupling.
+3. **Canonical Safe Content**:
+   - Standardized safe verification message informing the donor of their approved status without exposing sensitive medical or internal system data.
+
+

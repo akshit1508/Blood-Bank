@@ -31,6 +31,9 @@ export class PatientDetails {
 
   @Prop({ required: true, trim: true })
   gender: string;
+
+  @Prop({ trim: true })
+  phone?: string;
 }
 
 @Schema({

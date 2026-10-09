@@ -6,6 +6,10 @@ import {
   BloodRequest,
   BloodRequestSchema,
 } from './schemas/blood-request.schema';
+import {
+  BloodIssue,
+  BloodIssueSchema,
+} from '../modules/blood-issues/schemas/blood-issue.schema';
 import { InventoryModule } from '../modules/inventory/inventory.module';
 import { ReservationsModule } from '../modules/reservations/reservations.module';
 import { BloodIssuesModule } from '../modules/blood-issues/blood-issues.module';
@@ -14,6 +18,7 @@ import { BloodIssuesModule } from '../modules/blood-issues/blood-issues.module';
   imports: [
     MongooseModule.forFeature([
       { name: BloodRequest.name, schema: BloodRequestSchema },
+      { name: BloodIssue.name, schema: BloodIssueSchema },
     ]),
     InventoryModule,
     ReservationsModule,

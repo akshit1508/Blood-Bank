@@ -36,6 +36,12 @@
   - Admin donor profile displays active interval status (`ELIGIBLE`, `WAITING PERIOD`, or `NO PREVIOUS DONATION`) and disables donation recording during the waiting period.
 - **Rule 2.1.9 (Future Donation Date Guardrail)**:
   - Donation collection date cannot be in the future (allowing up to 120 seconds clock skew tolerance). Future donation timestamps return HTTP 400 Bad Request.
+- **Rule 2.1.10 (Donor Approval & WhatsApp Verification Notification — Phase 6E)**:
+  - Transition from `PENDING_REVIEW` &rarr; `ACTIVE` represents the authoritative administrative `DONOR_APPROVED` event.
+  - Database persistence is the sole source of truth; approval status changes commit cleanly in the database without secondary third-party API dependencies.
+  - **Direct WhatsApp Click-to-Chat (`wa.me`)**: Administrative staff can click the WhatsApp icon or the *[Open in WhatsApp & Send Message]* action to immediately launch WhatsApp Web or mobile app with the verified message pre-filled. No third-party API credentials or `.env` secrets are required.
+  - **Safe Messaging Constraint**: The notification must **never** state *"You can donate blood at any time."* Instead, it explicitly states: *"You may visit the blood bank for blood donation when you are eligible, subject to the required donation interval and final screening by our staff."*
+  - Public messages must never expose sensitive medical details, internal database IDs, or test records.
 
 ### 2.2 Blood Unit Processing & Testing Gate [IMPLEMENTED - PHASE 4A & 4B]
 - **Rule 2.2.1 (Blood Unit Creation Prerequisite)**: A physical Blood Unit can ONLY be created from a valid, existing `COMPLETED` donation. Attempting to create a blood unit from donations in status `RECORDED`, `PROCESSING`, or `CANCELLED` is strictly rejected (`DONATION_NOT_COMPLETED`, HTTP 400).

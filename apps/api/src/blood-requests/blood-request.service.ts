@@ -9,10 +9,17 @@ import {
   BloodRequest,
   BloodRequestDocument,
 } from './schemas/blood-request.schema';
+import {
+  BloodIssue,
+  BloodIssueDocument,
+} from '../modules/blood-issues/schemas/blood-issue.schema';
+import { BloodIssueStatus } from '../modules/blood-issues/constants/blood-issue.constants';
 import { CreateBloodRequestDto } from './dto/create-blood-request.dto';
 import { UpdateBloodRequestStatusDto } from './dto/update-blood-request-status.dto';
+import { CompleteBloodRequestDto } from './dto/complete-blood-request.dto';
 import {
   ALLOWED_STATUS_TRANSITIONS,
+  OPERATIONAL_MILESTONE_STATUSES,
   BloodRequestStatus,
 } from './blood-request.constants';
 import { InventoryService } from '../modules/inventory/inventory.service';
@@ -22,6 +29,8 @@ export class BloodRequestService {
   constructor(
     @InjectModel(BloodRequest.name)
     private readonly bloodRequestModel: Model<BloodRequestDocument>,
+    @InjectModel(BloodIssue.name)
+    private readonly bloodIssueModel: Model<BloodIssueDocument>,
     private readonly inventoryService: InventoryService,
   ) {}
 
@@ -114,6 +123,13 @@ export class BloodRequestService {
 
   /**
    * Updates request status enforcing strict state machine transitions.
+   *
+   * Security & Integrity Invariants (Task 96317):
+   * Operational milestone statuses (RESERVED, ISSUED, COMPLETED) can NEVER be set
+   * arbitrarily through this generic status update endpoint.
+   * - RESERVED: only reached by reserving physical units (POST /blood-requests/:id/reservations)
+   * - ISSUED: only reached by issuing reserved blood (POST /reservations/:id/issue)
+   * - COMPLETED: only reached by validating issue records (POST /blood-requests/:id/complete)
    */
   async updateStatus(
     id: string,
@@ -125,6 +141,31 @@ export class BloodRequestService {
 
     if (currentStatus === targetStatus) {
       return request;
+    }
+
+    // Invariant: Reject operational milestones from generic status transitions
+    if (OPERATIONAL_MILESTONE_STATUSES.includes(targetStatus)) {
+      if (targetStatus === BloodRequestStatus.RESERVED) {
+        throw new BadRequestException({
+          message:
+            "Status 'RESERVED' cannot be set directly. Blood units must be explicitly reserved through the reservation operation.",
+          code: 'OPERATION_REQUIRES_UNIT_RESERVATION',
+        });
+      }
+      if (targetStatus === BloodRequestStatus.ISSUED) {
+        throw new BadRequestException({
+          message:
+            "Status 'ISSUED' cannot be set directly. Blood must be officially issued against an active reservation.",
+          code: 'OPERATION_REQUIRES_BLOOD_ISSUE',
+        });
+      }
+      if (targetStatus === BloodRequestStatus.COMPLETED) {
+        throw new BadRequestException({
+          message:
+            "Status 'COMPLETED' cannot be set directly. The request must be completed through the validated completion operation.",
+          code: 'OPERATION_REQUIRES_VALIDATED_COMPLETION',
+        });
+      }
     }
 
     const allowedNextStatuses =
@@ -155,6 +196,90 @@ export class BloodRequestService {
     if (!updated) {
       throw new NotFoundException(
         `Blood request with identifier '${id}' was not found during update`,
+      );
+    }
+
+    return updated;
+  }
+
+  /**
+   * Completes an issued blood request following full issue reconciliation.
+   *
+   * Medical & Invariant Validations (Task 96317):
+   * 1. Blood request must exist and currently be in ISSUED status.
+   * 2. At least one completed BloodIssue record must exist for this request.
+   * 3. Total issued physical units across completed issues must meet the requested quantity.
+   * 4. Request transitions ISSUED -> COMPLETED atomically with audit timestamp and remarks.
+   * 5. Idempotent: cannot be completed multiple times, and does not deduct inventory a second time.
+   */
+  async completeRequest(
+    id: string,
+    completeDto?: CompleteBloodRequestDto,
+  ): Promise<BloodRequest> {
+    const request = await this.findOne(id);
+
+    if (request.status === BloodRequestStatus.COMPLETED) {
+      throw new BadRequestException({
+        message: `Blood request '${request.requestCode}' is already COMPLETED.`,
+        code: 'REQUEST_ALREADY_COMPLETED',
+      });
+    }
+
+    if (request.status !== BloodRequestStatus.ISSUED) {
+      throw new BadRequestException({
+        message: `Blood request '${request.requestCode}' must be in ISSUED status to be completed. Current status is '${request.status}'.`,
+        code: 'REQUEST_NOT_IN_ISSUED_STATUS',
+      });
+    }
+
+    // Verify valid, completed BloodIssue records exist for this request
+    const bloodIssues = await this.bloodIssueModel
+      .find({
+        bloodRequestId: (request as any)._id,
+        status: BloodIssueStatus.COMPLETED,
+      })
+      .exec();
+
+    if (!bloodIssues || bloodIssues.length === 0) {
+      throw new BadRequestException({
+        message: `Cannot complete request '${request.requestCode}': No official blood issue records exist for this request.`,
+        code: 'NO_COMPLETED_BLOOD_ISSUES_FOUND',
+      });
+    }
+
+    const totalIssuedUnitsCount = bloodIssues.reduce(
+      (sum, issue) => sum + (issue.issuedUnits?.length || 0),
+      0,
+    );
+
+    if (totalIssuedUnitsCount < request.unitsRequested) {
+      throw new BadRequestException({
+        message: `Cannot complete request '${request.requestCode}': Issued units count (${totalIssuedUnitsCount}) does not meet the requested quantity (${request.unitsRequested}).`,
+        code: 'ISSUED_QUANTITY_INSUFFICIENT',
+      });
+    }
+
+    const completionReason = completeDto?.notes?.trim()
+      ? `Fulfillment completed. ${completeDto.notes.trim()}`
+      : `Fulfillment completed successfully (${totalIssuedUnitsCount} unit(s) verified issued).`;
+
+    const updated = await this.bloodRequestModel
+      .findByIdAndUpdate(
+        (request as any)._id,
+        {
+          $set: {
+            status: BloodRequestStatus.COMPLETED,
+            statusReason: completionReason,
+            statusUpdatedAt: new Date(),
+          },
+        },
+        { new: true },
+      )
+      .exec();
+
+    if (!updated) {
+      throw new NotFoundException(
+        `Blood request with identifier '${id}' was not found during completion`,
       );
     }
 

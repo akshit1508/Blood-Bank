@@ -246,7 +246,7 @@ export default function AdminNavbar({
           {/* User Details */}
           <div style={{ display: 'flex', flexDirection: 'column' }} className="admin-profile-details">
             <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#0f172a', lineHeight: 1.2 }}>
-              Dr. A. Sharma
+              Dr. 
             </span>
             <span style={{ fontSize: '0.725rem', color: '#64748b', lineHeight: 1.2 }}>
               Chief Lab Admin

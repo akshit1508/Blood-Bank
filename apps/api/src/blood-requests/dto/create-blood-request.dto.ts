@@ -27,6 +27,10 @@ export class PatientDetailsDto {
   @IsString()
   @IsNotEmpty()
   gender: string;
+
+  @IsString()
+  @IsOptional()
+  phone?: string;
 }
 
 export class ContactPersonDto {
