@@ -28,6 +28,18 @@ interface PublicSidebarProps {
 export default function PublicSidebar({ isOpen, onClose }: PublicSidebarProps) {
   const pathname = usePathname();
 
+  // Close sidebar on Escape key when drawer is open
+  React.useEffect(() => {
+    if (!isOpen || !onClose) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
   return (
     <>
       {/* Mobile Backdrop overlay */}
@@ -36,14 +48,14 @@ export default function PublicSidebar({ isOpen, onClose }: PublicSidebarProps) {
           onClick={onClose}
           style={{
             position: 'fixed',
-            top: '64px',
+            top: 0,
             left: 0,
             right: 0,
             bottom: 0,
             backgroundColor: 'rgba(15, 23, 42, 0.45)',
-            zIndex: 35,
+            zIndex: 45,
           }}
-          className="mobile-backdrop"
+          className="public-sidebar-backdrop"
         />
       )}
 

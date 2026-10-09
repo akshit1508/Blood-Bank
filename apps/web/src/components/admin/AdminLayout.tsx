@@ -103,6 +103,45 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
               border-color: #cbd5e1 !important;
             }
 
+            /* Responsive split layouts across admin screens */
+            @media (max-width: 1024px) {
+              .admin-split-grid {
+                grid-template-columns: 1fr !important;
+              }
+              .admin-detail-panel {
+                width: 100% !important;
+                max-width: 100% !important;
+              }
+            }
+
+            /* Responsive tables container */
+            .admin-table-scroll {
+              width: 100%;
+              overflow-x: auto;
+              -webkit-overflow-scrolling: touch;
+            }
+
+            /* Responsive modal dialogs & drawers */
+            @media (max-width: 768px) {
+              .admin-modal-card {
+                width: 95vw !important;
+                max-width: 95vw !important;
+                margin: 0.5rem !important;
+                max-height: 92vh !important;
+              }
+              .admin-drawer-sheet {
+                width: 100vw !important;
+                max-width: 100vw !important;
+              }
+              .admin-filter-bar {
+                flex-direction: column !important;
+                align-items: stretch !important;
+              }
+              .admin-filter-bar > * {
+                width: 100% !important;
+              }
+            }
+
             @media (max-width: 992px) {
               .admin-mobile-toggle {
                 display: inline-flex !important;
@@ -125,7 +164,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                 display: none !important;
               }
               .admin-main-container {
-                padding: 1rem !important;
+                padding: 1rem 0.75rem !important;
               }
             }
 
@@ -135,6 +174,14 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
               }
               .admin-dashboard-two-col {
                 grid-template-columns: 1fr !important;
+              }
+              .admin-header-actions {
+                flex-direction: column !important;
+                align-items: stretch !important;
+              }
+              .admin-header-actions > * {
+                width: 100% !important;
+                justify-content: center !important;
               }
             }
           `,

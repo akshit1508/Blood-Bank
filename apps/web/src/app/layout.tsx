@@ -38,20 +38,64 @@ export default function RootLayout({
             }
           }
 
-          @media (max-width: 768px) {
+          @media (max-width: 992px) {
             .public-sidebar {
               position: fixed !important;
               top: 64px !important;
               bottom: 0 !important;
               left: 0 !important;
               transform: translateX(-100%);
-              box-shadow: 4px 0 12px rgba(0,0,0,0.1);
+              box-shadow: 8px 0 24px rgba(0,0,0,0.15) !important;
             }
             .public-sidebar.sidebar-open {
               transform: translateX(0) !important;
             }
             .public-main-content {
+              padding: 1rem 0.75rem !important;
+            }
+            .public-hero-card {
+              padding: 1.5rem 1rem !important;
+            }
+            .public-hero-title {
+              font-size: 1.65rem !important;
+              line-height: 1.25 !important;
+            }
+            .public-hero-desc {
+              font-size: 0.95rem !important;
+            }
+            .public-cta-group {
+              flex-direction: column !important;
+              width: 100% !important;
+            }
+            .public-cta-group > a, .public-cta-group > button {
+              width: 100% !important;
+              text-align: center !important;
+              justify-content: center !important;
+              box-sizing: border-box !important;
+            }
+            .public-cards-grid {
+              grid-template-columns: 1fr !important;
+            }
+            .public-header-actions {
+              width: 100% !important;
+              margin-top: 0.5rem !important;
+            }
+            .public-header-actions > * {
+              width: 100% !important;
+              justify-content: center !important;
+              text-align: center !important;
+            }
+            .public-form-card {
               padding: 1.25rem 1rem !important;
+            }
+          }
+
+          @media (max-width: 480px) {
+            .public-hero-title {
+              font-size: 1.4rem !important;
+            }
+            .public-brand-subtitle {
+              display: none !important;
             }
           }
         `}} />

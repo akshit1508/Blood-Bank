@@ -499,7 +499,7 @@ export default function AdminBloodRequestsPage() {
       )}
 
       {/* Main Content Area */}
-      <div style={{ display: 'grid', gridTemplateColumns: selectedRequest ? '1fr 420px' : '1fr', gap: '1.5rem', alignItems: 'start' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: selectedRequest ? '1fr 420px' : '1fr', gap: '1.5rem', alignItems: 'start' }} className="admin-split-grid">
         {/* Table View */}
         <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '8px', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
           {loading ? (
@@ -516,7 +516,8 @@ export default function AdminBloodRequestsPage() {
               </div>
             </div>
           ) : (
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
+            <div className="admin-table-scroll">
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
               <thead>
                 <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', color: '#475569' }}>
                   <th style={{ padding: '0.75rem 1rem' }}>Request ID</th>
@@ -631,6 +632,7 @@ export default function AdminBloodRequestsPage() {
                 ))}
               </tbody>
             </table>
+            </div>
           )}
         </div>
 

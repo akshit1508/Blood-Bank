@@ -509,6 +509,7 @@ export default function AdminDonorsPage() {
           gap: '1.5rem',
           alignItems: 'start',
         }}
+        className="admin-split-grid"
       >
         {/* Donors Table */}
         <div
@@ -537,7 +538,8 @@ export default function AdminDonorsPage() {
               </div>
             </div>
           ) : (
-            <table
+            <div className="admin-table-scroll">
+              <table
               style={{
                 width: '100%',
                 borderCollapse: 'collapse',
@@ -704,6 +706,7 @@ export default function AdminDonorsPage() {
                 })}
               </tbody>
             </table>
+            </div>
           )}
         </div>
 

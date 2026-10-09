@@ -46,7 +46,7 @@ export default function PublicDashboardPage() {
     <PublicLayout>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '3rem' }}>
         {/* SECTION A — HERO */}
-        <section
+        {/* <section
           style={{
             backgroundColor: '#ffffff',
             border: '1px solid #e2e8f0',
@@ -56,6 +56,7 @@ export default function PublicDashboardPage() {
             position: 'relative',
             overflow: 'hidden',
           }}
+          className="public-hero-card"
         >
           <div style={{ maxWidth: '680px' }}>
             <span
@@ -82,6 +83,7 @@ export default function PublicDashboardPage() {
                 lineHeight: 1.2,
                 margin: '0 0 1rem 0',
               }}
+              className="public-hero-title"
             >
               Reliable Blood Support When It Matters Most
             </h1>
@@ -92,11 +94,12 @@ export default function PublicDashboardPage() {
                 lineHeight: 1.6,
                 margin: '0 0 1.75rem 0',
               }}
+              className="public-hero-desc"
             >
               Access blood availability information, request blood, register as a donor, and learn about our blood bank services.
             </p>
 
-            <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }} className="public-cta-group">
               <Link
                 href="/blood-request"
                 style={{
@@ -133,7 +136,7 @@ export default function PublicDashboardPage() {
               </Link>
             </div>
           </div>
-        </section>
+        </section> */}
 
         {/* SECTION B — BLOOD AVAILABILITY SUMMARY */}
         <section>
@@ -298,7 +301,14 @@ export default function PublicDashboardPage() {
         </section>
 
         {/* SECTIONS D & E: 2-Column Action Banners */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.5rem' }}>
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+            gap: '1.5rem',
+          }}
+          className="public-cards-grid"
+        >
           {/* SECTION D — EMERGENCY BLOOD REQUEST */}
           <div
             style={{

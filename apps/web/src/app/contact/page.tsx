@@ -142,7 +142,7 @@ export default function ContactPage() {
               alert('Inquiry received. A blood bank coordinator will review your message.');
             }}
           >
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem', marginBottom: '1rem' }}>
               <div>
                 <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.35rem' }}>
                   Your Name *
@@ -204,7 +204,7 @@ export default function ContactPage() {
               />
             </div>
 
-            <div style={{ textAlign: 'right' }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }} className="public-cta-group">
               <button
                 type="submit"
                 style={{

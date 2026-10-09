@@ -24,20 +24,25 @@ import {
 } from '@/lib/blood-request-api';
 import { fetchTestingRecords, BloodTesting } from '@/lib/testing-api';
 
+export type DateFilterPreset = 'all' | 'today' | '7days' | '15days' | '30days' | 'custom';
+
 export default function AdminDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Real backend metrics
-  const [summary, setSummary] = useState<InventorySummary | null>(null);
-  const [totalDonors, setTotalDonors] = useState<number>(0);
-  const [totalDonations, setTotalDonations] = useState<number>(0);
-  const [requests, setRequests] = useState<BloodRequest[]>([]);
-  const [pendingTestingCount, setPendingTestingCount] = useState<number>(0);
-  const [reservedCount, setReservedCount] = useState<number>(0);
-  const [issuedCount, setIssuedCount] = useState<number>(0);
+  // Date Filter State
+  const [dateFilter, setDateFilter] = useState<DateFilterPreset>('all');
+  const [customStartDate, setCustomStartDate] = useState<string>('');
+  const [customEndDate, setCustomEndDate] = useState<string>('');
+
+  // Real backend metrics (Raw dataset from server)
+  const [rawSummary, setRawSummary] = useState<InventorySummary | null>(null);
+  const [rawDonors, setRawDonors] = useState<Donor[]>([]);
+  const [rawDonations, setRawDonations] = useState<any[]>([]);
+  const [rawRequests, setRawRequests] = useState<BloodRequest[]>([]);
+  const [rawTestingRecords, setRawTestingRecords] = useState<BloodTesting[]>([]);
+  const [rawInventoryItems, setRawInventoryItems] = useState<InventoryItem[]>([]);
   const [expiringUnits, setExpiringUnits] = useState<InventoryItem[]>([]);
-  const [recentInventoryActivity, setRecentInventoryActivity] = useState<InventoryItem[]>([]);
 
   const loadDashboardData = useCallback(async () => {
     setLoading(true);
@@ -51,35 +56,24 @@ export default function AdminDashboardPage() {
         requestsRes,
         testingRes,
         expiringRes,
-        reservedRes,
-        issuedRes,
         allInvRes,
       ] = await Promise.all([
         fetchInventorySummary().catch(() => null),
         fetchDonors().catch(() => []),
-        fetchDonations().catch(() => ({ total: 0, items: [] } as any)),
+        fetchDonations({ limit: 1000 }).catch(() => ({ total: 0, items: [] } as any)),
         fetchBloodRequests().catch(() => []),
-        fetchTestingRecords().catch(() => ({ total: 0, items: [] } as any)),
+        fetchTestingRecords({ limit: 1000 }).catch(() => ({ total: 0, items: [] } as any)),
         fetchInventory({ expiringSoon: true }).catch(() => ({ items: [] } as any)),
-        fetchInventory({ status: 'RESERVED' }).catch(() => ({ total: 0, items: [] } as any)),
-        fetchInventory({ status: 'ISSUED' }).catch(() => ({ total: 0, items: [] } as any)),
-        fetchInventory({ limit: 8 }).catch(() => ({ items: [] } as any)),
+        fetchInventory({ limit: 1000 }).catch(() => ({ items: [] } as any)),
       ]);
 
-      setSummary(summaryRes);
-      setTotalDonors(Array.isArray(donorsRes) ? donorsRes.length : 0);
-      setTotalDonations(donationsRes?.total ?? (donationsRes?.items?.length || 0));
-      setRequests(Array.isArray(requestsRes) ? requestsRes : []);
-
-      const pendingTests = (testingRes?.items || []).filter(
-        (t: BloodTesting) => t.status === 'IN_PROGRESS',
-      ).length;
-      setPendingTestingCount(pendingTests);
-
-      setReservedCount(reservedRes?.total ?? (reservedRes?.items?.length || 0));
-      setIssuedCount(issuedRes?.total ?? (issuedRes?.items?.length || 0));
+      setRawSummary(summaryRes);
+      setRawDonors(Array.isArray(donorsRes) ? donorsRes : []);
+      setRawDonations(donationsRes?.items || []);
+      setRawRequests(Array.isArray(requestsRes) ? requestsRes : []);
+      setRawTestingRecords(testingRes?.items || []);
       setExpiringUnits(expiringRes?.items || []);
-      setRecentInventoryActivity(allInvRes?.items || []);
+      setRawInventoryItems(allInvRes?.items || []);
     } catch (err: any) {
       setError(
         err?.message || 'Failed to aggregate real operational dashboard metrics from server.',
@@ -93,8 +87,82 @@ export default function AdminDashboardPage() {
     loadDashboardData();
   }, [loadDashboardData]);
 
-  // Derived calculations from real requests
-  const activeRequestsCount = requests.filter((r) =>
+  // Compute active date boundaries [startMs, endMs]
+  const dateRangeBounds = React.useMemo(() => {
+    const now = new Date();
+    if (dateFilter === 'all') return null;
+
+    if (dateFilter === 'today') {
+      const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+      const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+      return { start: start.getTime(), end: end.getTime() };
+    }
+
+    if (dateFilter === '7days') {
+      const start = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      start.setHours(0, 0, 0, 0);
+      return { start: start.getTime(), end: now.getTime() };
+    }
+
+    if (dateFilter === '15days') {
+      const start = new Date(now.getTime() - 15 * 24 * 60 * 60 * 1000);
+      start.setHours(0, 0, 0, 0);
+      return { start: start.getTime(), end: now.getTime() };
+    }
+
+    if (dateFilter === '30days') {
+      const start = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      start.setHours(0, 0, 0, 0);
+      return { start: start.getTime(), end: now.getTime() };
+    }
+
+    if (dateFilter === 'custom') {
+      const startMs = customStartDate
+        ? new Date(`${customStartDate}T00:00:00`).getTime()
+        : 0;
+      const endMs = customEndDate
+        ? new Date(`${customEndDate}T23:59:59.999`).getTime()
+        : Number.MAX_SAFE_INTEGER;
+      return { start: startMs, end: endMs };
+    }
+
+    return null;
+  }, [dateFilter, customStartDate, customEndDate]);
+
+  // Generic date filter predicate
+  const isDateInRange = useCallback(
+    (dateStr?: string | null) => {
+      if (!dateRangeBounds) return true;
+      if (!dateStr) return false;
+      const t = new Date(dateStr).getTime();
+      return !isNaN(t) && t >= dateRangeBounds.start && t <= dateRangeBounds.end;
+    },
+    [dateRangeBounds],
+  );
+
+  // Filtered operational datasets according to selected date span
+  const filteredDonations = React.useMemo(() => {
+    return rawDonations.filter((d) => isDateInRange(d.donationDate || d.createdAt));
+  }, [rawDonations, isDateInRange]);
+
+  const filteredDonors = React.useMemo(() => {
+    return rawDonors.filter((d) => isDateInRange(d.createdAt));
+  }, [rawDonors, isDateInRange]);
+
+  const filteredRequests = React.useMemo(() => {
+    return rawRequests.filter((r) => isDateInRange(r.createdAt));
+  }, [rawRequests, isDateInRange]);
+
+  const filteredTestingRecords = React.useMemo(() => {
+    return rawTestingRecords.filter((t) => isDateInRange(t.startedAt || t.createdAt));
+  }, [rawTestingRecords, isDateInRange]);
+
+  const filteredInventoryItems = React.useMemo(() => {
+    return rawInventoryItems.filter((i) => isDateInRange(i.createdAt || i.updatedAt));
+  }, [rawInventoryItems, isDateInRange]);
+
+  // Derived metric calculations from filtered operational datasets
+  const activeRequestsCount = filteredRequests.filter((r) =>
     [
       BloodRequestStatus.REQUESTED,
       BloodRequestStatus.VERIFIED,
@@ -103,19 +171,72 @@ export default function AdminDashboardPage() {
     ].includes(r.status),
   ).length;
 
-  const requestStatusCounts = requests.reduce((acc, r) => {
+  const requestStatusCounts = filteredRequests.reduce((acc, r) => {
     acc[r.status] = (acc[r.status] || 0) + 1;
     return acc;
   }, {} as Record<string, number>);
 
-  const recentRequests = requests.slice(0, 5);
+  const recentRequests = filteredRequests.slice(0, 5);
 
-  const currentDateDisplay = new Date().toLocaleDateString('en-US', {
-    weekday: 'long',
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  });
+  const pendingTestingCount = filteredTestingRecords.filter(
+    (t: BloodTesting) => t.status === 'IN_PROGRESS',
+  ).length;
+
+  const reservedCount = dateRangeBounds
+    ? filteredInventoryItems.filter((i) => i.status === 'RESERVED').length
+    : rawInventoryItems.filter((i) => i.status === 'RESERVED').length;
+
+  const issuedCount = dateRangeBounds
+    ? filteredInventoryItems.filter((i) => i.status === 'ISSUED').length
+    : rawInventoryItems.filter((i) => i.status === 'ISSUED').length;
+
+  const totalDonationsCount = filteredDonations.length;
+  const totalDonorsCount = filteredDonors.length;
+
+  // Dynamic inventory summary metrics (filtered vs lifetime stock)
+  const availableInventoryCount = dateRangeBounds
+    ? filteredInventoryItems.filter((i) => i.status === 'AVAILABLE').length
+    : (rawSummary?.totalAvailable ?? rawInventoryItems.filter((i) => i.status === 'AVAILABLE').length);
+
+  const inventoryByBloodGroup = React.useMemo(() => {
+    if (!dateRangeBounds) {
+      return rawSummary?.byBloodGroup || {};
+    }
+    const counts: Record<string, number> = {
+      'A+': 0, 'A-': 0, 'B+': 0, 'B-': 0, 'AB+': 0, 'AB-': 0, 'O+': 0, 'O-': 0,
+    };
+    filteredInventoryItems
+      .filter((i) => i.status === 'AVAILABLE')
+      .forEach((i) => {
+        const bg = i.bloodUnit?.bloodGroup;
+        if (bg && counts[bg] !== undefined) {
+          counts[bg] = (counts[bg] || 0) + 1;
+        }
+      });
+    return counts;
+  }, [dateRangeBounds, rawSummary, filteredInventoryItems]);
+
+  const recentInventoryActivity = filteredInventoryItems.slice(0, 8);
+
+  const dateSpanLabel = React.useMemo(() => {
+    switch (dateFilter) {
+      case 'today':
+        return 'Today';
+      case '7days':
+        return 'Last 7 Days';
+      case '15days':
+        return 'Last 15 Days';
+      case '30days':
+        return 'Last 30 Days';
+      case 'custom':
+        if (customStartDate && customEndDate) return `${customStartDate} to ${customEndDate}`;
+        if (customStartDate) return `Since ${customStartDate}`;
+        if (customEndDate) return `Until ${customEndDate}`;
+        return 'Custom Date Range';
+      default:
+        return 'All Time';
+    }
+  }, [dateFilter, customStartDate, customEndDate]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
@@ -166,31 +287,7 @@ export default function AdminDashboardPage() {
           </p>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-          {/* Date Indicator */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.45rem',
-              backgroundColor: '#f8fafc',
-              border: '1px solid #e2e8f0',
-              padding: '0.45rem 0.85rem',
-              borderRadius: '6px',
-              fontSize: '0.8rem',
-              color: '#475569',
-              fontWeight: 500,
-            }}
-          >
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-              <line x1="16" y1="2" x2="16" y2="6" />
-              <line x1="8" y1="2" x2="8" y2="6" />
-              <line x1="3" y1="10" x2="21" y2="10" />
-            </svg>
-            <span>{currentDateDisplay}</span>
-          </div>
-
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }} className="admin-header-actions">
           {/* Refresh Action */}
           <button
             onClick={loadDashboardData}
@@ -201,13 +298,14 @@ export default function AdminDashboardPage() {
               gap: '0.45rem',
               backgroundColor: '#ffffff',
               border: '1px solid #cbd5e1',
-              padding: '0.45rem 0.85rem',
-              borderRadius: '6px',
-              fontSize: '0.8rem',
+              padding: '0.5rem 0.95rem',
+              borderRadius: '8px',
+              fontSize: '0.825rem',
               fontWeight: 600,
               color: '#334155',
               cursor: loading ? 'not-allowed' : 'pointer',
-              transition: 'background 0.15s ease',
+              transition: 'all 0.15s ease',
+              boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
             }}
             title="Refresh operational data"
           >
@@ -232,15 +330,16 @@ export default function AdminDashboardPage() {
             style={{
               display: 'inline-flex',
               alignItems: 'center',
-              gap: '0.4rem',
+              gap: '0.45rem',
               backgroundColor: '#dc2626',
               color: '#ffffff',
-              padding: '0.45rem 0.95rem',
-              borderRadius: '6px',
+              padding: '0.5rem 1rem',
+              borderRadius: '8px',
               fontSize: '0.825rem',
               fontWeight: 600,
               textDecoration: 'none',
-              boxShadow: '0 1px 2px rgba(220, 38, 38, 0.2)',
+              boxShadow: '0 1px 3px rgba(220, 38, 38, 0.25)',
+              transition: 'background 0.15s ease',
             }}
           >
             <span>Process Requests</span>
@@ -250,6 +349,188 @@ export default function AdminDashboardPage() {
             </svg>
           </Link>
         </div>
+      </div>
+
+      {/* 1.1 Dedicated Filter Toolbar */}
+      <div
+        style={{
+          backgroundColor: '#ffffff',
+          borderRadius: '12px',
+          border: '1px solid #e2e8f0',
+          padding: '0.875rem 1.25rem',
+          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.03)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '0.75rem',
+        }}
+      >
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '0.875rem',
+          }}
+        >
+          {/* Left: Timeframe Label & Filter Tabs */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', color: '#475569' }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                <line x1="16" y1="2" x2="16" y2="6" />
+                <line x1="8" y1="2" x2="8" y2="6" />
+                <line x1="3" y1="10" x2="21" y2="10" />
+              </svg>
+              <span style={{ fontSize: '0.825rem', fontWeight: 600, color: '#1e293b' }}>
+                Time Period:
+              </span>
+            </div>
+
+            {/* Segmented Control / Tabs */}
+            <div
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                backgroundColor: '#f1f5f9',
+                borderRadius: '8px',
+                padding: '3px',
+                border: '1px solid #e2e8f0',
+                gap: '2px',
+                flexWrap: 'wrap',
+              }}
+            >
+              {[
+                { id: 'all', label: 'All Time' },
+                { id: 'today', label: 'Today' },
+                { id: '7days', label: 'Last 7 Days' },
+                { id: '15days', label: 'Last 15 Days' },
+                { id: '30days', label: 'Last 30 Days' },
+                { id: 'custom', label: 'Custom Range' },
+              ].map((preset) => {
+                const active = dateFilter === preset.id;
+                return (
+                  <button
+                    key={preset.id}
+                    onClick={() => setDateFilter(preset.id as DateFilterPreset)}
+                    style={{
+                      border: 'none',
+                      backgroundColor: active ? '#ffffff' : 'transparent',
+                      color: active ? '#dc2626' : '#64748b',
+                      fontWeight: active ? 700 : 500,
+                      fontSize: '0.8rem',
+                      padding: '0.35rem 0.75rem',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease',
+                      boxShadow: active ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+                    }}
+                  >
+                    {preset.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Right: Active Span Badge */}
+          <div
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.4rem',
+              backgroundColor: '#f8fafc',
+              border: '1px solid #e2e8f0',
+              padding: '0.35rem 0.75rem',
+              borderRadius: '6px',
+              fontSize: '0.775rem',
+              color: '#475569',
+            }}
+          >
+            <span style={{ color: '#94a3b8' }}>Filtering:</span>
+            <span style={{ fontWeight: 700, color: '#0f172a' }}>{dateSpanLabel}</span>
+          </div>
+        </div>
+
+        {/* Custom Range Expansion Bar */}
+        {dateFilter === 'custom' && (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '1rem',
+              paddingTop: '0.75rem',
+              borderTop: '1px dashed #e2e8f0',
+              flexWrap: 'wrap',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#475569' }}>
+                From Date:
+              </label>
+              <input
+                type="date"
+                value={customStartDate}
+                onChange={(e) => setCustomStartDate(e.target.value)}
+                style={{
+                  padding: '0.35rem 0.6rem',
+                  fontSize: '0.825rem',
+                  color: '#0f172a',
+                  backgroundColor: '#ffffff',
+                  border: '1px solid #cbd5e1',
+                  borderRadius: '6px',
+                  outline: 'none',
+                }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#475569' }}>
+                To Date:
+              </label>
+              <input
+                type="date"
+                value={customEndDate}
+                onChange={(e) => setCustomEndDate(e.target.value)}
+                style={{
+                  padding: '0.35rem 0.6rem',
+                  fontSize: '0.825rem',
+                  color: '#0f172a',
+                  backgroundColor: '#ffffff',
+                  border: '1px solid #cbd5e1',
+                  borderRadius: '6px',
+                  outline: 'none',
+                }}
+              />
+            </div>
+
+            {(customStartDate || customEndDate) && (
+              <button
+                onClick={() => {
+                  setCustomStartDate('');
+                  setCustomEndDate('');
+                }}
+                style={{
+                  border: '1px solid #fecaca',
+                  backgroundColor: '#fef2f2',
+                  color: '#dc2626',
+                  fontSize: '0.775rem',
+                  fontWeight: 600,
+                  padding: '0.35rem 0.65rem',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  transition: 'background 0.15s ease',
+                }}
+              >
+                Reset Dates
+              </button>
+            )}
+
+            <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontStyle: 'italic' }}>
+              Select start and end dates to filter operations within that span.
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Error Banner with Retry */}
@@ -300,8 +581,8 @@ export default function AdminDashboardPage() {
       >
         <StatCard
           title="Available Inventory"
-          value={summary?.totalAvailable ?? 0}
-          subtitle="Cleared & ready for reservation"
+          value={availableInventoryCount}
+          subtitle={`Cleared & ready (${dateSpanLabel})`}
           accentColor="#dc2626"
           badge="Ready"
           badgeType="success"
@@ -319,7 +600,7 @@ export default function AdminDashboardPage() {
         <StatCard
           title="Reserved Units"
           value={reservedCount}
-          subtitle="Committed to approved requests"
+          subtitle={`Committed units (${dateSpanLabel})`}
           accentColor="#2563eb"
           badge="Allocated"
           badgeType="info"
@@ -336,7 +617,7 @@ export default function AdminDashboardPage() {
         <StatCard
           title="Issued Units"
           value={issuedCount}
-          subtitle="Officially dispatched from blood bank"
+          subtitle={`Dispatched units (${dateSpanLabel})`}
           accentColor="#ea580c"
           badge="Completed"
           badgeType="warning"
@@ -352,11 +633,11 @@ export default function AdminDashboardPage() {
 
         <StatCard
           title="Expiring Soon"
-          value={summary?.expiringSoon ?? 0}
+          value={rawSummary?.expiringSoon ?? 0}
           subtitle="Shelf-life expires within 7 days"
-          accentColor={summary?.expiringSoon ? '#dc2626' : '#64748b'}
-          badge={summary?.expiringSoon ? 'Urgent' : 'Safe'}
-          badgeType={summary?.expiringSoon ? 'danger' : 'success'}
+          accentColor={rawSummary?.expiringSoon ? '#dc2626' : '#64748b'}
+          badge={rawSummary?.expiringSoon ? 'Urgent' : 'Safe'}
+          badgeType={rawSummary?.expiringSoon ? 'danger' : 'success'}
           href="/admin/inventory"
           loading={loading}
           icon={
@@ -370,7 +651,7 @@ export default function AdminDashboardPage() {
         <StatCard
           title="Active Requests"
           value={activeRequestsCount}
-          subtitle="Hospital requests awaiting fulfillment"
+          subtitle={`Hospital requests (${dateSpanLabel})`}
           accentColor="#d97706"
           badge="In Queue"
           badgeType="warning"
@@ -388,7 +669,7 @@ export default function AdminDashboardPage() {
         <StatCard
           title="Pending Testing"
           value={pendingTestingCount}
-          subtitle="Units currently in lab testing"
+          subtitle={`Units in lab (${dateSpanLabel})`}
           accentColor="#8b5cf6"
           badge="Laboratory"
           badgeType="info"
@@ -407,8 +688,8 @@ export default function AdminDashboardPage() {
 
         <StatCard
           title="Registered Donors"
-          value={totalDonors}
-          subtitle="Voluntary active donor roster"
+          value={totalDonorsCount}
+          subtitle={`Donors registered (${dateSpanLabel})`}
           accentColor="#059669"
           badge="Registry"
           badgeType="success"
@@ -425,8 +706,8 @@ export default function AdminDashboardPage() {
 
         <StatCard
           title="Total Donations"
-          value={totalDonations}
-          subtitle="Recorded collection events"
+          value={totalDonationsCount}
+          subtitle={`Collection events (${dateSpanLabel})`}
           accentColor="#475569"
           badge="Collections"
           badgeType="info"
@@ -454,8 +735,8 @@ export default function AdminDashboardPage() {
       >
         {/* Inventory Bar Chart */}
         <InventoryBarChart
-          data={summary?.byBloodGroup || {}}
-          componentCounts={summary?.byComponentType || {}}
+          data={inventoryByBloodGroup}
+          componentCounts={rawSummary?.byComponentType || {}}
           loading={loading}
         />
 
@@ -492,7 +773,7 @@ export default function AdminDashboardPage() {
               Operational Blood Lifecycle
             </h3>
             <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.8rem', color: '#64748b' }}>
-              Real-time pipeline from voluntary donation through patient issuance
+              Pipeline metrics for {dateSpanLabel}
             </p>
           </div>
 
@@ -509,9 +790,9 @@ export default function AdminDashboardPage() {
             }}
           >
             {[
-              { label: 'Donations', count: totalDonations, color: '#475569', icon: '💉' },
+              { label: 'Donations', count: totalDonationsCount, color: '#475569', icon: '💉' },
               { label: 'Testing', count: pendingTestingCount, color: '#8b5cf6', icon: '🧪' },
-              { label: 'Available', count: summary?.totalAvailable || 0, color: '#16a34a', icon: '🩸' },
+              { label: 'Available', count: availableInventoryCount, color: '#16a34a', icon: '🩸' },
               { label: 'Reserved', count: reservedCount, color: '#2563eb', icon: '🔒' },
               { label: 'Issued', count: issuedCount, color: '#ea580c', icon: '📦' },
             ].map((stage, idx, arr) => (
@@ -709,7 +990,7 @@ export default function AdminDashboardPage() {
                 textDecoration: 'none',
               }}
             >
-              View All Requests ({requests.length}) →
+              View All Requests ({filteredRequests.length}) →
             </Link>
           </div>
 

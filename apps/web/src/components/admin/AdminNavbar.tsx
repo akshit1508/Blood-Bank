@@ -10,7 +10,7 @@ interface AdminNavbarProps {
 export default function AdminNavbar({
   onToggleSidebar,
 }: AdminNavbarProps) {
-  const { admin, logout } = useAdminAuth();
+  const { admin } = useAdminAuth();
   return (
     <header
       style={{
@@ -23,7 +23,7 @@ export default function AdminNavbar({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        padding: '0 1.5rem',
+        padding: '0 1rem',
         boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.02)',
       }}
     >
@@ -189,36 +189,6 @@ export default function AdminNavbar({
             </span>
           </div>
         </div>
-
-        {/* Divider */}
-        <div style={{ width: '1px', height: '24px', backgroundColor: '#e2e8f0' }} />
-
-        {/* Logout Button */}
-        <button
-          onClick={logout}
-          title="Sign out of Admin Portal"
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '0.35rem',
-            padding: '0.45rem 0.8rem',
-            backgroundColor: '#fff1f2',
-            border: '1px solid #fecdd3',
-            borderRadius: '6px',
-            color: '#be123c',
-            fontSize: '0.8rem',
-            fontWeight: 600,
-            cursor: 'pointer',
-            transition: 'background 0.15s ease',
-          }}
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-            <polyline points="16 17 21 12 16 7" />
-            <line x1="21" y1="12" x2="9" y2="12" />
-          </svg>
-          <span>Sign Out</span>
-        </button>
       </div>
     </header>
   );

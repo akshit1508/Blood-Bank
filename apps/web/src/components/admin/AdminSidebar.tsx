@@ -3,6 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useAdminAuth } from '@/context/AdminAuthContext';
 
 interface AdminSidebarProps {
   isOpen?: boolean;
@@ -26,6 +27,19 @@ export default function AdminSidebar({
   onClose,
 }: AdminSidebarProps) {
   const pathname = usePathname();
+  const { logout } = useAdminAuth();
+
+  // Close sidebar on Escape key when drawer is open
+  React.useEffect(() => {
+    if (!isOpen || !onClose) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
 
   const navigationGroups: NavGroup[] = [
     {
@@ -250,14 +264,56 @@ export default function AdminSidebar({
           ))}
         </div>
 
-        {/* Footer info in sidebar */}
+        {/* Footer info & Sign Out in sidebar */}
         <div
           style={{
             padding: '1rem',
             borderTop: '1px solid #f1f5f9',
             backgroundColor: '#f8fafc',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '0.85rem',
           }}
         >
+          {/* Sign Out Button at last of sidebar */}
+          <button
+            onClick={() => {
+              if (onClose) onClose();
+              logout();
+            }}
+            title="Sign out of Admin Portal"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '0.5rem',
+              width: '100%',
+              padding: '0.6rem 1rem',
+              backgroundColor: '#fee2e2',
+              border: '1px solid #fca5a5',
+              borderRadius: '8px',
+              color: '#dc2626',
+              fontSize: '0.85rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+              boxSizing: 'border-box',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = '#fecaca';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = '#fee2e2';
+            }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+              <polyline points="16 17 21 12 16 7" />
+              <line x1="21" y1="12" x2="9" y2="12" />
+            </svg>
+            <span>Sign Out</span>
+          </button>
+
           <div style={{ fontSize: '0.75rem', color: '#64748b', lineHeight: 1.4 }}>
             <div><strong>Single-Center Instance</strong></div>
             <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>v1.0 &bull; Operational System</div>

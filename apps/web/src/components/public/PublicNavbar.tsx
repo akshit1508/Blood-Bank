@@ -107,6 +107,7 @@ export default function PublicNavbar({ onToggleSidebar, isSidebarOpen }: PublicN
                 fontWeight: 500,
                 letterSpacing: '0.02em',
               }}
+              className="public-brand-subtitle"
             >
               Blood Collection & Distribution Centre
             </div>

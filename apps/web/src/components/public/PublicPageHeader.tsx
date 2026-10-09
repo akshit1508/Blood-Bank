@@ -92,7 +92,7 @@ export default function PublicPageHeader({
           )}
         </div>
 
-        {actions && <div>{actions}</div>}
+        {actions && <div className="public-header-actions">{actions}</div>}
       </div>
     </div>
   );

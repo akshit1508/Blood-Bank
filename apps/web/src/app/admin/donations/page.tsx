@@ -634,7 +634,7 @@ export default function AdminDonationsPage() {
           );
 
           return (
-            <div style={{ border: '1px solid #e2e8f0', borderRadius: '6px', overflow: 'hidden' }}>
+            <div style={{ border: '1px solid #e2e8f0', borderRadius: '6px', overflow: 'hidden' }} className="admin-table-scroll">
               <table
                 style={{
                   width: '100%',
@@ -998,6 +998,7 @@ export default function AdminDonationsPage() {
           gap: '1.5rem',
           alignItems: 'start',
         }}
+        className="admin-split-grid"
       >
         {/* Donations Table */}
         <div
@@ -1054,7 +1055,8 @@ export default function AdminDonationsPage() {
             </div>
           ) : (
             <>
-              <table
+              <div className="admin-table-scroll">
+                <table
                 style={{
                   width: '100%',
                   borderCollapse: 'collapse',
@@ -1218,6 +1220,7 @@ export default function AdminDonationsPage() {
                   })}
                 </tbody>
               </table>
+            </div>
 
               {/* Pagination Bar */}
               <div

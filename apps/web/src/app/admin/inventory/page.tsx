@@ -722,6 +722,7 @@ export default function AdminInventoryPage() {
           gap: '1.5rem',
           alignItems: 'start',
         }}
+        className="admin-split-grid"
       >
         {/* Table Container */}
         <div
@@ -770,7 +771,7 @@ export default function AdminInventoryPage() {
             </div>
           ) : (
             <>
-              <div style={{ overflowX: 'auto' }}>
+              <div style={{ overflowX: 'auto' }} className="admin-table-scroll">
                 <table
                   style={{
                     width: '100%',

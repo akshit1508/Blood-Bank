@@ -30,6 +30,39 @@ export default function PublicLayout({ children }: PublicLayoutProps) {
         color: '#0f172a',
       }}
     >
+      {/* Scoped CSS for Public Sidebar & Drawer */}
+      <style
+        dangerouslySetInnerHTML={{
+          __html: `
+            @media (max-width: 992px) {
+              .public-sidebar {
+                position: fixed !important;
+                top: 64px !important;
+                left: 0 !important;
+                bottom: 0 !important;
+                height: calc(100vh - 64px) !important;
+                z-index: 50 !important;
+                transform: translateX(-100%);
+                box-shadow: 8px 0 24px rgba(0, 0, 0, 0.15) !important;
+                transition: transform 0.25s ease-in-out !important;
+              }
+              .public-sidebar.sidebar-open {
+                transform: translateX(0) !important;
+              }
+              .public-sidebar-backdrop {
+                position: fixed !important;
+                top: 0 !important;
+                left: 0 !important;
+                right: 0 !important;
+                bottom: 0 !important;
+                background-color: rgba(15, 23, 42, 0.5) !important;
+                backdrop-filter: blur(2px) !important;
+                z-index: 45 !important;
+              }
+            }
+          `,
+        }}
+      />
       {/* Top persistent Navbar */}
       <PublicNavbar
         onToggleSidebar={toggleSidebar}

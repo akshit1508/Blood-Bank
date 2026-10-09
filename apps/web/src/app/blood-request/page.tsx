@@ -283,6 +283,7 @@ export default function PublicBloodRequestPage() {
               padding: '2rem',
               boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
             }}
+            className="public-form-card"
           >
             {errorMessage && (
               <div
@@ -317,7 +318,7 @@ export default function PublicBloodRequestPage() {
                 </h3>
 
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
-                  <div style={{ gridColumn: 'span 2' }}>
+                  <div style={{ gridColumn: '1 / -1' }}>
                     <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.35rem' }}>
                       Patient Full Name <span style={{ color: '#dc2626' }}>*</span>
                     </label>
@@ -821,6 +822,7 @@ export default function PublicBloodRequestPage() {
                   borderTop: '1px solid #f1f5f9',
                   paddingTop: '1.25rem',
                 }}
+                className="public-cta-group"
               >
                 <button
                   type="submit"

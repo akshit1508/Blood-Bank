@@ -285,6 +285,26 @@ export default function AdminBloodAcquisitionPage() {
         fontFamily: 'system-ui, -apple-system, sans-serif',
       }}
     >
+      <style
+        dangerouslySetInnerHTML={{
+          __html: `
+            @media (max-width: 768px) {
+              .acquisition-item-row {
+                grid-template-columns: 1fr 1fr !important;
+                gap: 0.5rem !important;
+              }
+              .acquisition-item-row > div:nth-child(5) {
+                grid-column: 1 / -1 !important;
+              }
+              .acquisition-item-row > div:nth-child(6) {
+                grid-column: 1 / -1 !important;
+                text-align: right !important;
+                padding-top: 0 !important;
+              }
+            }
+          `,
+        }}
+      />
       {/* Page Header */}
       <div
         style={{
@@ -322,7 +342,7 @@ export default function AdminBloodAcquisitionPage() {
           </p>
         </div>
 
-        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }} className="admin-header-actions">
           <button
             onClick={() => {
               setPage(1);
@@ -827,6 +847,7 @@ export default function AdminBloodAcquisitionPage() {
               boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.2)',
               border: '1px solid #e2e8f0',
             }}
+            className="admin-modal-card"
           >
             {/* Modal Header */}
             <div
@@ -1457,6 +1478,7 @@ export default function AdminBloodAcquisitionPage() {
                             gap: '0.75rem',
                             alignItems: 'center',
                           }}
+                          className="acquisition-item-row"
                         >
                           {/* Blood Group */}
                           <div>
@@ -1750,6 +1772,7 @@ export default function AdminBloodAcquisitionPage() {
               display: 'flex',
               flexDirection: 'column',
             }}
+            className="admin-drawer-sheet"
           >
             {/* Drawer Header */}
             <div
