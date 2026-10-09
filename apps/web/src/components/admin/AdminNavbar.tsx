@@ -1,5 +1,6 @@
 import React from 'react';
 import Link from 'next/link';
+import { useAdminAuth } from '@/context/AdminAuthContext';
 
 interface AdminNavbarProps {
   onToggleSidebar?: () => void;
@@ -9,6 +10,7 @@ interface AdminNavbarProps {
 export default function AdminNavbar({
   onToggleSidebar,
 }: AdminNavbarProps) {
+  const { admin, logout } = useAdminAuth();
   return (
     <header
       style={{
@@ -146,113 +148,77 @@ export default function AdminNavbar({
             borderRadius: '50%',
             backgroundColor: '#16a34a',
             display: 'inline-block',
-            boxShadow: '0 0 0 2px rgba(22, 163, 74, 0.2)',
+            boxShadow: '0 0 0 2px rgba(220, 38, 38, 0.2)',
           }}
         />
         <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#166534' }}>
-          Physical Center Online &bull; Operational
+          Internal Operations Console &bull; Authenticated
         </span>
       </div>
 
-      {/* Right: Quick Links, Notification & Profile */}
+      {/* Right: Profile & Logout */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-        {/* Link to Public Portal */}
-        <Link
-          href="/"
-          target="_blank"
-          title="Open Public Blood Bank Portal in new tab"
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '0.4rem',
-            padding: '0.45rem 0.75rem',
-            backgroundColor: '#f8fafc',
-            border: '1px solid #e2e8f0',
-            borderRadius: '6px',
-            color: '#475569',
-            fontSize: '0.775rem',
-            fontWeight: 500,
-            textDecoration: 'none',
-            transition: 'background 0.15s ease',
-          }}
-          className="admin-public-link"
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <circle cx="12" cy="12" r="10" />
-            <line x1="2" y1="12" x2="22" y2="12" />
-            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
-          </svg>
-          <span>Public Portal</span>
-        </Link>
-
-        {/* Notifications Icon Button */}
-        <button
-          aria-label="Notifications"
-          style={{
-            position: 'relative',
-            width: '36px',
-            height: '36px',
-            borderRadius: '8px',
-            backgroundColor: '#f8fafc',
-            border: '1px solid #e2e8f0',
-            color: '#475569',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            cursor: 'pointer',
-          }}
-        >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-            <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-          </svg>
-          <span
-            style={{
-              position: 'absolute',
-              top: '6px',
-              right: '6px',
-              width: '7px',
-              height: '7px',
-              borderRadius: '50%',
-              backgroundColor: '#dc2626',
-            }}
-          />
-        </button>
-
-        {/* Divider */}
-        <div style={{ width: '1px', height: '24px', backgroundColor: '#e2e8f0' }} />
-
         {/* Admin Profile Display */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
           {/* Avatar Circle */}
           <div
             style={{
-              width: '38px',
-              height: '38px',
+              width: '36px',
+              height: '36px',
               borderRadius: '50%',
               backgroundColor: '#0f172a',
               color: '#ffffff',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              fontSize: '0.85rem',
+              fontSize: '0.8rem',
               fontWeight: 700,
               boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
             }}
           >
-            AD
+            {admin?.fullName ? admin.fullName.slice(0, 2).toUpperCase() : 'AD'}
           </div>
 
           {/* User Details */}
           <div style={{ display: 'flex', flexDirection: 'column' }} className="admin-profile-details">
-            <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#0f172a', lineHeight: 1.2 }}>
-              Dr. 
+            <span style={{ fontSize: '0.825rem', fontWeight: 600, color: '#0f172a', lineHeight: 1.2 }}>
+              {admin?.fullName || 'Administrator'}
             </span>
-            <span style={{ fontSize: '0.725rem', color: '#64748b', lineHeight: 1.2 }}>
-              Chief Lab Admin
+            <span style={{ fontSize: '0.7rem', color: '#64748b', lineHeight: 1.2 }}>
+              {admin?.email || 'admin@bloodbank.org'}
             </span>
           </div>
         </div>
+
+        {/* Divider */}
+        <div style={{ width: '1px', height: '24px', backgroundColor: '#e2e8f0' }} />
+
+        {/* Logout Button */}
+        <button
+          onClick={logout}
+          title="Sign out of Admin Portal"
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '0.35rem',
+            padding: '0.45rem 0.8rem',
+            backgroundColor: '#fff1f2',
+            border: '1px solid #fecdd3',
+            borderRadius: '6px',
+            color: '#be123c',
+            fontSize: '0.8rem',
+            fontWeight: 600,
+            cursor: 'pointer',
+            transition: 'background 0.15s ease',
+          }}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+            <polyline points="16 17 21 12 16 7" />
+            <line x1="21" y1="12" x2="9" y2="12" />
+          </svg>
+          <span>Sign Out</span>
+        </button>
       </div>
     </header>
   );

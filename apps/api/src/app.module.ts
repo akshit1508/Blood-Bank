@@ -12,6 +12,7 @@ import { InventoryModule } from './modules/inventory/inventory.module';
 import { ReservationsModule } from './modules/reservations/reservations.module';
 import { BloodIssuesModule } from './modules/blood-issues/blood-issues.module';
 import { BloodAcquisitionsModule } from './modules/blood-acquisitions/blood-acquisitions.module';
+import { AuthModule } from './modules/auth/auth.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { BloodAcquisitionsModule } from './modules/blood-acquisitions/blood-acqu
       }),
       inject: [ConfigService],
     }),
+    AuthModule,
     BloodRequestModule,
     DonorsModule,
     DonationsModule,

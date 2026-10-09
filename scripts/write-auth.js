@@ -1,0 +1,108 @@
+const fs = require('fs');
+const path = 'd:/Quantumatrix projects/Blood Bank/apps/web/src/lib/auth-api.ts';
+
+const content = `const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
+
+export interface AdminUser {
+  id: string;
+  email: string;
+  fullName: string;
+  designation: string;
+  role: string;
+  lastLoginAt: string | null;
+}
+
+export interface LoginResponse {
+  token: string;
+  admin: AdminUser;
+}
+
+const TOKEN_KEY = 'blood_bank_admin_token';
+const ADMIN_KEY = 'blood_bank_admin_user';
+
+export function getStoredToken(): string | null {
+  if (typeof window === 'undefined') return null;
+  return localStorage.getItem(TOKEN_KEY);
+}
+
+export function getStoredAdmin(): AdminUser | null {
+  if (typeof window === 'undefined') return null;
+  const raw = localStorage.getItem(ADMIN_KEY);
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+export function saveAdminSession(token: string, admin: AdminUser) {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(TOKEN_KEY, token);
+  localStorage.setItem(ADMIN_KEY, JSON.stringify(admin));
+  document.cookie = 'bb_admin_session=' + encodeURIComponent(token) + '; path=/; max-age=604800; SameSite=Lax';
+}
+
+export function clearAdminSession() {
+  if (typeof window === 'undefined') return;
+  localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(ADMIN_KEY);
+  document.cookie = 'bb_admin_session=; path=/; max-age=0; SameSite=Lax';
+}
+
+export async function adminLogin(email: string, password: string): Promise<LoginResponse> {
+  const res = await fetch(API_BASE_URL + '/auth/login', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+    },
+    body: JSON.stringify({ email, password }),
+  });
+
+  const body = await res.json();
+  if (!res.ok) {
+    const errorMsg = Array.isArray(body.message)
+      ? body.message.join(', ')
+      : body.message || 'Login failed. Please check your credentials.';
+    throw new Error(errorMsg);
+  }
+
+  const data: LoginResponse = body.data;
+  saveAdminSession(data.token, data.admin);
+  return data;
+}
+
+export async function fetchCurrentAdmin(): Promise<AdminUser | null> {
+  const token = getStoredToken();
+  if (!token) return null;
+
+  try {
+    const res = await fetch(API_BASE_URL + '/auth/me', {
+      method: 'GET',
+      headers: {
+        Accept: 'application/json',
+        Authorization: 'Bearer ' + token,
+      },
+      cache: 'no-store',
+    });
+
+    if (!res.ok) {
+      clearAdminSession();
+      return null;
+    }
+
+    const body = await res.json();
+    if (body.data) {
+      localStorage.setItem(ADMIN_KEY, JSON.stringify(body.data));
+      return body.data;
+    }
+    return null;
+  } catch {
+    return getStoredAdmin();
+  }
+}
+`;
+
+fs.writeFileSync(path, content, 'utf8');
+console.log('auth-api.ts written successfully');

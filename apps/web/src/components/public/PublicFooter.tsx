@@ -83,11 +83,6 @@ export default function PublicFooter() {
                 Contact & Emergency Hotline
               </Link>
             </li>
-            <li>
-              <Link href="/admin/blood-requests" style={{ color: '#2563eb', textDecoration: 'none', fontWeight: 500 }}>
-                Staff Management Portal &rarr;
-              </Link>
-            </li>
           </ul>
         </div>
 

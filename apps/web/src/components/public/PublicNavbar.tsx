@@ -114,17 +114,17 @@ export default function PublicNavbar({ onToggleSidebar, isSidebarOpen }: PublicN
         </Link>
       </div>
 
-      {/* Right: Emergency Contact / Helpline & Admin link */}
+      {/* Right: Emergency Contact / Helpline */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
         <div
           style={{
-            display: 'none',
+            display: 'inline-flex',
             alignItems: 'center',
             gap: '0.4rem',
             fontSize: '0.825rem',
             color: '#b91c1c',
             backgroundColor: '#fef2f2',
-            padding: '0.35rem 0.75rem',
+            padding: '0.4rem 0.85rem',
             borderRadius: '6px',
             border: '1px solid #fecaca',
             fontWeight: 600,
@@ -132,29 +132,8 @@ export default function PublicNavbar({ onToggleSidebar, isSidebarOpen }: PublicN
           className="emergency-badge"
         >
           <span style={{ fontSize: '0.9rem' }}>&#9742;</span>
-          <span>Emergency Helpline: Contact details to be configured</span>
+          <span>Emergency Support: 24/7 Helpline</span>
         </div>
-
-        <Link
-          href="/admin"
-          style={{
-            fontSize: '0.825rem',
-            color: '#0f172a',
-            backgroundColor: '#f1f5f9',
-            border: '1px solid #cbd5e1',
-            padding: '0.45rem 0.9rem',
-            borderRadius: '6px',
-            textDecoration: 'none',
-            fontWeight: 600,
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '0.35rem',
-            transition: 'background 0.15s ease',
-          }}
-        >
-          <span>Admin Portal</span>
-          <span style={{ fontSize: '0.9rem' }}>&rarr;</span>
-        </Link>
       </div>
     </header>
   );

@@ -1,6 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
+import { usePathname } from 'next/navigation';
+import { useAdminAuth } from '@/context/AdminAuthContext';
 import AdminNavbar from './AdminNavbar';
 import AdminSidebar from './AdminSidebar';
 
@@ -10,6 +12,10 @@ interface AdminLayoutProps {
 
 export default function AdminLayout({ children }: AdminLayoutProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const pathname = usePathname();
+  const { admin, loading, isAuthenticated } = useAdminAuth();
+
+  const isLoginPage = pathname === '/admin/login';
 
   const toggleSidebar = () => {
     setIsSidebarOpen((prev) => !prev);
@@ -18,6 +24,53 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   const closeSidebar = () => {
     setIsSidebarOpen(false);
   };
+
+  // If on /admin/login, render standalone without sidebar or header
+  if (isLoginPage) {
+    return <>{children}</>;
+  }
+
+  // Show hospital-grade security loading screen while verifying admin session
+  if (loading) {
+    return (
+      <div
+        style={{
+          minHeight: '100vh',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: '#0f172a',
+          color: '#ffffff',
+          fontFamily: 'system-ui, -apple-system, sans-serif',
+        }}
+      >
+        <div
+          style={{
+            width: '42px',
+            height: '42px',
+            borderRadius: '50%',
+            border: '3px solid #334155',
+            borderTopColor: '#dc2626',
+            animation: 'spin 0.8s linear infinite',
+            marginBottom: '1rem',
+          }}
+        />
+        <style dangerouslySetInnerHTML={{ __html: '@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }' }} />
+        <div style={{ fontSize: '1rem', fontWeight: 600, letterSpacing: '-0.01em' }}>
+          Verifying Blood Bank Admin Session...
+        </div>
+        <div style={{ fontSize: '0.8rem', color: '#94a3b8', marginTop: '0.25rem' }}>
+          Checking authorization against secure database
+        </div>
+      </div>
+    );
+  }
+
+  // If not authenticated, the AdminAuthProvider will redirect to /admin/login
+  if (!isAuthenticated) {
+    return null;
+  }
 
   return (
     <div

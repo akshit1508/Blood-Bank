@@ -1,11 +1,47 @@
-import React from 'react';
+'use client';
+
+import React, { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import PublicLayout from '@/components/public/PublicLayout';
 import BloodGroupCard from '@/components/public/BloodGroupCard';
+import {
+  PublicBloodAvailabilityData,
+  fetchPublicBloodAvailability,
+} from '@/lib/blood-availability-api';
 
 const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 
 export default function PublicDashboardPage() {
+  const [availabilityData, setAvailabilityData] = useState<PublicBloodAvailabilityData | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const loadAvailability = useCallback(async () => {
+    try {
+      setLoading(true);
+      const data = await fetchPublicBloodAvailability();
+      setAvailabilityData(data);
+    } catch (err) {
+      console.error('Failed to load blood availability:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadAvailability();
+  }, [loadAvailability]);
+
+  // Create lookup dictionary of groups
+  const groupMap = React.useMemo(() => {
+    const map = new Map<string, any>();
+    if (availabilityData?.groups) {
+      for (const g of availabilityData.groups) {
+        map.set(g.bloodGroup, g);
+      }
+    }
+    return map;
+  }, [availabilityData]);
+
   return (
     <PublicLayout>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '3rem' }}>
@@ -112,28 +148,69 @@ export default function PublicDashboardPage() {
             }}
           >
             <div>
-              <h2 style={{ fontSize: '1.4rem', fontWeight: 700, margin: 0, color: '#0f172a' }}>
-                Blood Availability
-              </h2>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                <h2 style={{ fontSize: '1.4rem', fontWeight: 700, margin: 0, color: '#0f172a' }}>
+                  Blood Availability
+                </h2>
+                {availabilityData && (
+                  <span
+                    style={{
+                      fontSize: '0.75rem',
+                      fontWeight: 700,
+                      backgroundColor: '#dcfce7',
+                      color: '#166534',
+                      padding: '0.2rem 0.55rem',
+                      borderRadius: '9999px',
+                      border: '1px solid #bbf7d0',
+                    }}
+                  >
+                    {availabilityData.totalAvailableUnits} Total Units In Stock
+                  </span>
+                )}
+              </div>
               <p style={{ margin: '0.25rem 0 0 0', color: '#64748b', fontSize: '0.875rem' }}>
-                Verified inventory overview at our blood bank centre.
+                Verified laboratory-cleared inventory at our physical blood bank centre.
               </p>
             </div>
 
-            <Link
-              href="/blood-availability"
-              style={{
-                color: '#dc2626',
-                textDecoration: 'none',
-                fontWeight: 600,
-                fontSize: '0.875rem',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.25rem',
-              }}
-            >
-              View Full Availability &rarr;
-            </Link>
+            <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+              <button
+                type="button"
+                onClick={() => loadAvailability()}
+                style={{
+                  backgroundColor: '#f8fafc',
+                  border: '1px solid #cbd5e1',
+                  color: '#475569',
+                  padding: '0.4rem 0.75rem',
+                  borderRadius: '6px',
+                  fontSize: '0.8rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.35rem',
+                }}
+                title="Refresh real-time availability"
+              >
+                <span>↻</span>
+                <span>Refresh</span>
+              </button>
+
+              <Link
+                href="/blood-availability"
+                style={{
+                  color: '#dc2626',
+                  textDecoration: 'none',
+                  fontWeight: 600,
+                  fontSize: '0.875rem',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.25rem',
+                }}
+              >
+                View Full Availability &rarr;
+              </Link>
+            </div>
           </div>
 
           <div
@@ -143,13 +220,20 @@ export default function PublicDashboardPage() {
               gap: '1rem',
             }}
           >
-            {BLOOD_GROUPS.map((bg) => (
-              <BloodGroupCard
-                key={bg}
-                bloodGroup={bg}
-                statusLabel="Availability data will appear here"
-              />
-            ))}
+            {BLOOD_GROUPS.map((bg) => {
+              const groupInfo = groupMap.get(bg);
+              return (
+                <BloodGroupCard
+                  key={bg}
+                  bloodGroup={bg}
+                  statusLabel={loading ? 'Checking stock...' : 'Availability data will appear here'}
+                  totalUnits={groupInfo ? groupInfo.totalUnits : (loading ? null : 0)}
+                  availability={groupInfo ? groupInfo.availability : 'NOT_AVAILABLE'}
+                  components={groupInfo?.components || []}
+                  lastUpdated={availabilityData?.lastUpdated || null}
+                />
+              );
+            })}
           </div>
         </section>
 

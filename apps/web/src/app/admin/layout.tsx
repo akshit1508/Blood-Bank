@@ -1,5 +1,6 @@
 import React from 'react';
 import AdminLayout from '@/components/admin/AdminLayout';
+import { AdminAuthProvider } from '@/context/AdminAuthContext';
 
 export const metadata = {
   title: 'Blood Bank Administration & Operations',
@@ -7,5 +8,9 @@ export const metadata = {
 };
 
 export default function Layout({ children }: { children: React.ReactNode }) {
-  return <AdminLayout>{children}</AdminLayout>;
+  return (
+    <AdminAuthProvider>
+      <AdminLayout>{children}</AdminLayout>
+    </AdminAuthProvider>
+  );
 }
