@@ -55,9 +55,10 @@ export class ExpensesController {
 
   /**
    * Internal operation: List & filter expenses with pagination.
+   * Restricted to SUPER_ADMIN (Admin staff only submit expenses).
    * GET /api/expenses
    */
-  @Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN)
+  @Roles(AdminRole.SUPER_ADMIN)
   @Get()
   async findAll(@Query() query: QueryExpensesDto) {
     const result = await this.expensesService.findAll(query);
@@ -76,9 +77,10 @@ export class ExpensesController {
 
   /**
    * Internal operation: Aggregate financial KPI summary metrics.
+   * Restricted to SUPER_ADMIN.
    * GET /api/expenses/summary
    */
-  @Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN)
+  @Roles(AdminRole.SUPER_ADMIN)
   @Get('summary')
   async getSummary(
     @Query('startDate') startDate?: string,
@@ -117,12 +119,16 @@ export class ExpensesController {
 
   /**
    * Internal operation: Get single expense with audit history.
+   * If requested by ADMIN, restricted to the creator of the expense.
    * GET /api/expenses/:id
    */
   @Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN)
   @Get(':id')
-  async findById(@Param('id') id: string) {
-    const data = await this.expensesService.findById(id);
+  async findById(
+    @Param('id') id: string,
+    @CurrentAdmin() currentAdmin: any,
+  ) {
+    const data = await this.expensesService.findById(id, currentAdmin);
     return {
       statusCode: HttpStatus.OK,
       message: 'Expense details retrieved successfully',
@@ -195,9 +201,13 @@ export class ExpensesController {
    */
   @Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN)
   @Get(':id/receipt')
-  async streamReceipt(@Param('id') id: string, @Res() res: Response) {
+  async streamReceipt(
+    @Param('id') id: string,
+    @CurrentAdmin() currentAdmin: any,
+    @Res() res: Response,
+  ) {
     const { stream, originalName, mimeType, sizeBytes } =
-      await this.expensesService.getReceiptStream(id);
+      await this.expensesService.getReceiptStream(id, currentAdmin);
 
     res.set({
       'Content-Type': mimeType,

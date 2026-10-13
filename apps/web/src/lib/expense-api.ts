@@ -1,4 +1,4 @@
-﻿import { getAuthHeaders } from './auth-api';
+import { getAuthHeaders } from './auth-api';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
 
@@ -460,12 +460,26 @@ export function getExpenseReceiptUrl(id: string): string {
  * Fetch receipt blob with auth header and create an object URL for preview/download.
  */
 export async function fetchExpenseReceiptBlobUrl(id: string): Promise<{ blobUrl: string; mimeType: string }> {
+  const authHeaders = getAuthHeaders();
+  if (!authHeaders.Authorization) {
+    throw new Error('Authentication session required. Please log in.');
+  }
+
   const res = await fetch(getExpenseReceiptUrl(id), {
     headers: {
-      ...getAuthHeaders(),
+      ...authHeaders,
     },
   });
 
+  if (res.status === 401) {
+    throw new Error('Unauthorized: Session expired or invalid authentication.');
+  }
+  if (res.status === 403) {
+    throw new Error('Access denied: You do not have permission to view this receipt document.');
+  }
+  if (res.status === 404) {
+    throw new Error('Receipt document not found.');
+  }
   if (!res.ok) {
     throw new Error('Failed to load private receipt document.');
   }
@@ -474,4 +488,30 @@ export async function fetchExpenseReceiptBlobUrl(id: string): Promise<{ blobUrl:
   const blob = await res.blob();
   const blobUrl = URL.createObjectURL(blob);
   return { blobUrl, mimeType: contentType };
+}
+
+/**
+ * Opens a private receipt in a new browser tab/window safely using an authenticated blob URL.
+ */
+export async function openExpenseReceiptInNewTab(id: string): Promise<void> {
+  const { blobUrl } = await fetchExpenseReceiptBlobUrl(id);
+  const win = window.open(blobUrl, '_blank', 'noopener,noreferrer');
+  if (!win) {
+    // If popup was blocked, fallback to navigating directly to object URL or notify
+    window.location.href = blobUrl;
+  }
+}
+
+/**
+ * Downloads a private receipt safely using an authenticated blob.
+ */
+export async function downloadExpenseReceipt(id: string, defaultFilename?: string): Promise<void> {
+  const { blobUrl } = await fetchExpenseReceiptBlobUrl(id);
+  const a = document.createElement('a');
+  a.href = blobUrl;
+  a.download = defaultFilename || 'receipt-document';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
 }

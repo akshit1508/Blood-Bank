@@ -24,6 +24,7 @@ import {
   QueryExpensesDto,
 } from './dto/expense.dto';
 import { StorageService } from './storage/storage.service';
+import { AdminRole } from '../auth/schemas/admin-user.schema';
 
 @Injectable()
 export class ExpensesService {
@@ -280,8 +281,9 @@ export class ExpensesService {
 
   /**
    * Retrieves single expense by ID.
+   * If currentAdmin is provided and has role ADMIN, ensures the admin is the creator of the expense.
    */
-  async findById(id: string): Promise<ExpenseDocument> {
+  async findById(id: string, currentAdmin?: any): Promise<ExpenseDocument> {
     if (!isValidObjectId(id)) {
       throw new BadRequestException('Invalid expense ID format.');
     }
@@ -289,6 +291,17 @@ export class ExpensesService {
     const expense = await this.expenseModel.findById(id).exec();
     if (!expense || expense.isDeleted) {
       throw new NotFoundException(`Expense with ID '${id}' was not found.`);
+    }
+
+    if (currentAdmin && currentAdmin.role === AdminRole.ADMIN) {
+      const currentAdminId = (currentAdmin.id || currentAdmin._id).toString();
+      const creatorId = expense.creatorId.toString();
+      if (creatorId !== currentAdminId) {
+        throw new ForbiddenException({
+          message: 'Access denied: You are only authorized to view expense records created by your own account.',
+          code: 'ACCESS_DENIED_NOT_CREATOR',
+        });
+      }
     }
 
     return expense;
@@ -436,8 +449,8 @@ export class ExpensesService {
   /**
    * Streams the attached receipt document securely.
    */
-  async getReceiptStream(id: string) {
-    const expense = await this.findById(id);
+  async getReceiptStream(id: string, currentAdmin?: any) {
+    const expense = await this.findById(id, currentAdmin);
 
     if (!expense.receipt || !expense.receipt.fileId) {
       throw new NotFoundException('Expense has no receipt document attached.');
@@ -484,19 +497,45 @@ export class ExpensesService {
       });
     }
 
-    expense.status = ExpenseStatus.SUBMITTED;
-    expense.submittedAt = new Date();
+    const isSuperAdmin = currentAdmin.role === AdminRole.SUPER_ADMIN;
 
-    expense.auditHistory.push({
-      action: ExpenseAuditEventType.SUBMITTED,
-      fromStatus: ExpenseStatus.DRAFT,
-      toStatus: ExpenseStatus.SUBMITTED,
-      performedBy: new Types.ObjectId(currentAdmin.id || currentAdmin._id),
-      performedByEmail: currentAdmin.email,
-      performedByName: currentAdmin.fullName || 'Admin Staff',
-      notes: dto.submissionRemarks || 'Expense submitted for Super Admin review.',
-      timestamp: new Date(),
-    } as any);
+    if (isSuperAdmin) {
+      expense.status = ExpenseStatus.APPROVED;
+      expense.submittedAt = new Date();
+      expense.reviewedBy = new Types.ObjectId(currentAdmin.id || currentAdmin._id);
+      expense.reviewedByEmail = currentAdmin.email;
+      expense.reviewedAt = new Date();
+      if (dto.submissionRemarks?.trim()) {
+        expense.approvalRemarks = dto.submissionRemarks.trim();
+      }
+
+      expense.auditHistory.push({
+        action: ExpenseAuditEventType.APPROVED,
+        fromStatus: ExpenseStatus.DRAFT,
+        toStatus: ExpenseStatus.APPROVED,
+        performedBy: new Types.ObjectId(currentAdmin.id || currentAdmin._id),
+        performedByEmail: currentAdmin.email,
+        performedByName: currentAdmin.fullName || 'Super Admin',
+        notes: dto.submissionRemarks
+          ? `Directly approved by Super Admin on creation: ${dto.submissionRemarks.trim()}`
+          : 'Directly approved by Super Admin on creation.',
+        timestamp: new Date(),
+      } as any);
+    } else {
+      expense.status = ExpenseStatus.SUBMITTED;
+      expense.submittedAt = new Date();
+
+      expense.auditHistory.push({
+        action: ExpenseAuditEventType.SUBMITTED,
+        fromStatus: ExpenseStatus.DRAFT,
+        toStatus: ExpenseStatus.SUBMITTED,
+        performedBy: new Types.ObjectId(currentAdmin.id || currentAdmin._id),
+        performedByEmail: currentAdmin.email,
+        performedByName: currentAdmin.fullName || 'Admin Staff',
+        notes: dto.submissionRemarks || 'Expense submitted for Super Admin review.',
+        timestamp: new Date(),
+      } as any);
+    }
 
     return await expense.save();
   }
@@ -522,19 +561,41 @@ export class ExpensesService {
       });
     }
 
-    expense.status = ExpenseStatus.SUBMITTED;
-    expense.submittedAt = new Date();
+    const isSuperAdmin = currentAdmin.role === AdminRole.SUPER_ADMIN;
 
-    expense.auditHistory.push({
-      action: ExpenseAuditEventType.RESUBMITTED,
-      fromStatus: ExpenseStatus.REJECTED,
-      toStatus: ExpenseStatus.SUBMITTED,
-      performedBy: new Types.ObjectId(currentAdmin.id || currentAdmin._id),
-      performedByEmail: currentAdmin.email,
-      performedByName: currentAdmin.fullName || 'Admin Staff',
-      notes: `Resubmitted with corrections: ${dto.submissionRemarks.trim()}`,
-      timestamp: new Date(),
-    } as any);
+    if (isSuperAdmin) {
+      expense.status = ExpenseStatus.APPROVED;
+      expense.submittedAt = new Date();
+      expense.reviewedBy = new Types.ObjectId(currentAdmin.id || currentAdmin._id);
+      expense.reviewedByEmail = currentAdmin.email;
+      expense.reviewedAt = new Date();
+      expense.approvalRemarks = `Directly approved by Super Admin upon revision: ${dto.submissionRemarks.trim()}`;
+
+      expense.auditHistory.push({
+        action: ExpenseAuditEventType.APPROVED,
+        fromStatus: ExpenseStatus.REJECTED,
+        toStatus: ExpenseStatus.APPROVED,
+        performedBy: new Types.ObjectId(currentAdmin.id || currentAdmin._id),
+        performedByEmail: currentAdmin.email,
+        performedByName: currentAdmin.fullName || 'Super Admin',
+        notes: `Directly approved by Super Admin upon revision: ${dto.submissionRemarks.trim()}`,
+        timestamp: new Date(),
+      } as any);
+    } else {
+      expense.status = ExpenseStatus.SUBMITTED;
+      expense.submittedAt = new Date();
+
+      expense.auditHistory.push({
+        action: ExpenseAuditEventType.RESUBMITTED,
+        fromStatus: ExpenseStatus.REJECTED,
+        toStatus: ExpenseStatus.SUBMITTED,
+        performedBy: new Types.ObjectId(currentAdmin.id || currentAdmin._id),
+        performedByEmail: currentAdmin.email,
+        performedByName: currentAdmin.fullName || 'Admin Staff',
+        notes: `Resubmitted with corrections: ${dto.submissionRemarks.trim()}`,
+        timestamp: new Date(),
+      } as any);
+    }
 
     return await expense.save();
   }

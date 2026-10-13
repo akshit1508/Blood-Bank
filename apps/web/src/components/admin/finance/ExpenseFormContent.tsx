@@ -58,6 +58,15 @@ export default function ExpenseFormContent({ portalRole, expenseId }: ExpenseFor
   // Duplicate Invoice Warning state
   const [duplicateWarning, setDuplicateWarning] = useState<any | null>(null);
 
+  // Normal Admin submission completion state
+  const [submittedResult, setSubmittedResult] = useState<{
+    expenseCode: string;
+    amount: number;
+    title: string;
+    vendorName: string;
+    submittedAt: string;
+  } | null>(null);
+
   // Load existing expense if edit mode
   useEffect(() => {
     if (!expenseId) return;
@@ -225,18 +234,30 @@ export default function ExpenseFormContent({ portalRole, expenseId }: ExpenseFor
         await uploadExpenseReceipt(activeId, pendingFile);
       }
 
+      let finalExpense: ExpenseItem | null = null;
       if (activeId) {
         if (currentStatus === ExpenseStatus.REJECTED) {
-          await resubmitExpense(activeId, correctionNotes.trim());
+          finalExpense = await resubmitExpense(activeId, correctionNotes.trim());
         } else {
-          await submitExpense(activeId, correctionNotes.trim() || undefined);
+          finalExpense = await submitExpense(activeId, correctionNotes.trim() || undefined);
         }
       }
 
-      setSuccessMessage('Expense successfully submitted for Super Admin review.');
-      setTimeout(() => {
-        router.push(`${basePath}/expenses`);
-      }, 1200);
+      if (portalRole === 'SUPER_ADMIN') {
+        setSuccessMessage('Expense recorded and directly APPROVED with Super Admin authorization.');
+        setTimeout(() => {
+          router.push(`${basePath}/expenses`);
+        }, 1200);
+      } else {
+        // Normal Admin: Clear form and show explicit submission confirmation card with expense code
+        setSubmittedResult({
+          expenseCode: finalExpense?.expenseCode || 'EXP-SUBMITTED',
+          amount: parsedAmount,
+          title: title.trim(),
+          vendorName: vendorName.trim(),
+          submittedAt: new Date().toISOString(),
+        });
+      }
     } catch (err: any) {
       setErrorMessage(err?.message || 'Failed to submit expense for review.');
     } finally {
@@ -252,26 +273,100 @@ export default function ExpenseFormContent({ portalRole, expenseId }: ExpenseFor
     );
   }
 
+  // Clear confirmation screen for Normal Admin
+  if (submittedResult && portalRole === 'ADMIN') {
+    return (
+      <div style={{ maxWidth: '680px', margin: '2rem auto', backgroundColor: '#ffffff', borderRadius: '12px', border: '1px solid #e2e8f0', padding: '2.5rem', textAlign: 'center', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
+        <div style={{ width: '56px', height: '56px', borderRadius: '50%', backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.25rem auto', color: '#16a34a', fontSize: '1.75rem' }}>
+          ✓
+        </div>
+        <h2 style={{ fontSize: '1.4rem', fontWeight: 800, color: '#0f172a', margin: '0 0 0.5rem 0' }}>
+          Expense Successfully Submitted
+        </h2>
+        <p style={{ color: '#64748b', fontSize: '0.875rem', margin: '0 0 1.5rem 0', lineHeight: 1.5 }}>
+          Your operational expenditure has been submitted for Super Admin review and verification along with the supporting receipt voucher.
+        </p>
+
+        <div style={{ backgroundColor: '#f8fafc', borderRadius: '8px', padding: '1.25rem', textAlign: 'left', display: 'flex', flexDirection: 'column', gap: '0.65rem', marginBottom: '2rem', border: '1px solid #f1f5f9' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.825rem' }}>
+            <span style={{ color: '#64748b' }}>Tracking Code:</span>
+            <strong style={{ fontFamily: 'monospace', color: '#0f172a' }}>{submittedResult.expenseCode}</strong>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.825rem' }}>
+            <span style={{ color: '#64748b' }}>Claim Title:</span>
+            <strong style={{ color: '#0f172a' }}>{submittedResult.title}</strong>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.825rem' }}>
+            <span style={{ color: '#64748b' }}>Vendor / Payee:</span>
+            <span style={{ color: '#334155' }}>{submittedResult.vendorName}</span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.825rem' }}>
+            <span style={{ color: '#64748b' }}>Amount Claimed:</span>
+            <strong style={{ color: '#0f172a' }}>{formatINR(submittedResult.amount)}</strong>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.825rem', borderTop: '1px solid #e2e8f0', paddingTop: '0.5rem' }}>
+            <span style={{ color: '#64748b' }}>Status:</span>
+            <span style={{ color: '#1d4ed8', fontWeight: 700 }}>AWAITING SUPER ADMIN REVIEW</span>
+          </div>
+        </div>
+
+        <button
+          onClick={() => {
+            setSubmittedResult(null);
+            setTitle('');
+            setAmount('');
+            setVendorName('');
+            setInvoiceNumber('');
+            setGstinNumber('');
+            setTaxAmount('');
+            setDescription('');
+            setCorrectionNotes('');
+            setPendingFile(null);
+            setExistingReceipt(null);
+          }}
+          style={{
+            padding: '0.65rem 1.5rem',
+            backgroundColor: '#dc2626',
+            color: '#ffffff',
+            border: 'none',
+            borderRadius: '8px',
+            fontSize: '0.875rem',
+            fontWeight: 700,
+            cursor: 'pointer',
+          }}
+        >
+          + Submit Another Expense
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div style={{ maxWidth: '1000px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <Link
-            href={`${basePath}/expenses`}
-            style={{ fontSize: '0.8rem', color: '#dc2626', textDecoration: 'none', fontWeight: 600 }}
-          >
-            &larr; Back to Expenses Directory
-          </Link>
+          {portalRole === 'SUPER_ADMIN' && (
+            <Link
+              href={`${basePath}/expenses`}
+              style={{ fontSize: '0.8rem', color: '#dc2626', textDecoration: 'none', fontWeight: 600 }}
+            >
+              &larr; Back to Expenses Directory
+            </Link>
+          )}
           <h1 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#0f172a', margin: '0.35rem 0 0 0' }}>
             {expenseId
               ? currentStatus === ExpenseStatus.REJECTED
                 ? 'Correct & Resubmit Rejected Expense'
                 : 'Edit Expense Draft'
-              : 'Record Center Expenditure'}
+              : portalRole === 'SUPER_ADMIN'
+              ? 'Record Super Admin Expenditure'
+              : 'Submit Operational Expense'}
           </h1>
           <p style={{ margin: '0.2rem 0 0 0', color: '#64748b', fontSize: '0.825rem' }}>
-            Enter vendor bill details, attach digital receipts, and submit for Super Admin authorization.
+            {portalRole === 'SUPER_ADMIN'
+              ? 'Record center operational expenses with immediate Super Admin authorization and receipt attachment.'
+              : 'Enter vendor bill details, attach digital receipts, and submit for Super Admin authorization.'}
           </p>
         </div>
       </div>
@@ -607,6 +702,8 @@ export default function ExpenseFormContent({ portalRole, expenseId }: ExpenseFor
         >
           {submitting
             ? 'Submitting...'
+            : portalRole === 'SUPER_ADMIN'
+            ? 'Save & Approve Expense'
             : currentStatus === ExpenseStatus.REJECTED
             ? 'Resubmit Corrected Claim'
             : 'Submit for Super Admin Review'}

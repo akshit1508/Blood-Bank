@@ -1,8 +1,19 @@
 'use client';
 
-import React from 'react';
-import ExpenseDirectoryContent from '@/components/admin/finance/ExpenseDirectoryContent';
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 
 export default function AdminExpensesPage() {
-  return <ExpenseDirectoryContent portalRole="ADMIN" />;
+  const router = useRouter();
+
+  useEffect(() => {
+    // Normal Admin does not have access to financial overview/directory; redirect to submission form
+    router.replace('/admin/finance/expenses/new');
+  }, [router]);
+
+  return (
+    <div style={{ padding: '3rem', textAlign: 'center', color: '#64748b' }}>
+      Redirecting to Expense Submission Form...
+    </div>
+  );
 }

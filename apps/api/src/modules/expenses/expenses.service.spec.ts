@@ -104,7 +104,7 @@ describe('ExpensesService', () => {
       );
     });
 
-    it('submits successfully when receipt is attached', async () => {
+    it('submits successfully when receipt is attached by normal Admin (transitions to SUBMITTED)', async () => {
       const draftExpense: any = {
         _id: new Types.ObjectId(),
         status: ExpenseStatus.DRAFT,
@@ -124,6 +124,34 @@ describe('ExpensesService', () => {
       expect(draftExpense.status).toBe(ExpenseStatus.SUBMITTED);
       expect(draftExpense.auditHistory.length).toBe(1);
       expect(draftExpense.auditHistory[0].action).toBe('SUBMITTED');
+    });
+
+    it('directly approves expense when submitted by SUPER_ADMIN without entering pending queue', async () => {
+      const draftExpense: any = {
+        _id: new Types.ObjectId(),
+        status: ExpenseStatus.DRAFT,
+        vendorName: 'Direct Super Vendor',
+        invoiceNumber: 'INV-SA-1',
+        amount: 1500,
+        receipt: { fileId: 'file-sa-1' },
+        auditHistory: [],
+        save: jest.fn().mockResolvedValue(true),
+      };
+      draftExpense.save.mockResolvedValue(draftExpense);
+      mockExpenseModel.findById.mockReturnValue({
+        exec: jest.fn().mockResolvedValue(draftExpense),
+      });
+
+      const res = await service.submitExpense(
+        draftExpense._id.toString(),
+        { submissionRemarks: 'Approved on creation' },
+        mockSuperAdminUser,
+      );
+      expect(draftExpense.status).toBe(ExpenseStatus.APPROVED);
+      expect(draftExpense.reviewedBy.toString()).toBe(mockSuperAdminUser.id);
+      expect(draftExpense.reviewedByEmail).toBe(mockSuperAdminUser.email);
+      expect(draftExpense.auditHistory.length).toBe(1);
+      expect(draftExpense.auditHistory[0].action).toBe('APPROVED');
     });
   });
 
@@ -237,6 +265,52 @@ describe('ExpensesService', () => {
       const res = await service.deleteExpense(draftExpense._id.toString(), mockAdminUser);
       expect(draftExpense.isDeleted).toBe(true);
       expect(draftExpense.status).toBe(ExpenseStatus.CANCELLED);
+    });
+  });
+
+  describe('findById ownership security', () => {
+    it('allows SUPER_ADMIN to view any expense record', async () => {
+      const otherUserExpense: any = {
+        _id: new Types.ObjectId(),
+        creatorId: new Types.ObjectId(mockAdminUser.id),
+        title: 'Other Admin Claim',
+      };
+      mockExpenseModel.findById.mockReturnValue({
+        exec: jest.fn().mockResolvedValue(otherUserExpense),
+      });
+
+      const res = await service.findById(otherUserExpense._id.toString(), mockSuperAdminUser);
+      expect(res).toBe(otherUserExpense);
+    });
+
+    it('denies normal ADMIN from viewing expense created by another staff account', async () => {
+      const anotherAdminId = new Types.ObjectId().toString();
+      const otherUserExpense: any = {
+        _id: new Types.ObjectId(),
+        creatorId: new Types.ObjectId(anotherAdminId),
+        title: 'Another Admin Claim',
+      };
+      mockExpenseModel.findById.mockReturnValue({
+        exec: jest.fn().mockResolvedValue(otherUserExpense),
+      });
+
+      await expect(
+        service.findById(otherUserExpense._id.toString(), mockAdminUser),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('allows normal ADMIN to view their own created expense', async () => {
+      const ownExpense: any = {
+        _id: new Types.ObjectId(),
+        creatorId: new Types.ObjectId(mockAdminUser.id),
+        title: 'Own Claim',
+      };
+      mockExpenseModel.findById.mockReturnValue({
+        exec: jest.fn().mockResolvedValue(ownExpense),
+      });
+
+      const res = await service.findById(ownExpense._id.toString(), mockAdminUser);
+      expect(res).toBe(ownExpense);
     });
   });
 });

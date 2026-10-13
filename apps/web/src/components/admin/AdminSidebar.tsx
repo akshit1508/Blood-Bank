@@ -285,8 +285,7 @@ export default function AdminSidebar({
       {
         label: 'FINANCE',
         items: [
-          { name: 'Expenditure Management', href: '/admin/finance/expenses', icon: icons.finance },
-          { name: 'Bills & Receipts', href: '/admin/finance/receipts', icon: icons.receipt },
+          { name: 'Submit Expense', href: '/admin/finance/expenses/new', icon: icons.finance },
         ],
       },
     ];

@@ -18,6 +18,8 @@ import {
   approveExpense,
   rejectExpense,
   fetchExpenseReceiptBlobUrl,
+  downloadExpenseReceipt,
+  openExpenseReceiptInNewTab,
 } from '@/lib/expense-api';
 import { getStoredAdmin } from '@/lib/auth-api';
 import StatCard from '@/components/admin/StatCard';
@@ -688,22 +690,55 @@ export default function PendingApprovalsPage() {
                 </span>
               </div>
               {selectedExpense.receipt && (
-                <a
-                  href={`http://localhost:4000/api/expenses/${selectedExpense._id}/receipt`}
-                  target="_blank"
-                  rel="noreferrer"
-                  style={{
-                    backgroundColor: '#0284c7',
-                    color: '#ffffff',
-                    padding: '0.4rem 0.85rem',
-                    borderRadius: '6px',
-                    fontSize: '0.8rem',
-                    fontWeight: 600,
-                    textDecoration: 'none',
-                  }}
-                >
-                  View / Download Bill
-                </a>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        await openExpenseReceiptInNewTab(selectedExpense._id);
+                      } catch (err: any) {
+                        alert(err?.message || 'Failed to open private receipt.');
+                      }
+                    }}
+                    style={{
+                      backgroundColor: '#0284c7',
+                      color: '#ffffff',
+                      padding: '0.4rem 0.85rem',
+                      borderRadius: '6px',
+                      fontSize: '0.8rem',
+                      fontWeight: 600,
+                      border: 'none',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    View Bill
+                  </button>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        await downloadExpenseReceipt(
+                          selectedExpense._id,
+                          selectedExpense.receipt?.originalName,
+                        );
+                      } catch (err: any) {
+                        alert(err?.message || 'Failed to download receipt.');
+                      }
+                    }}
+                    style={{
+                      backgroundColor: '#f1f5f9',
+                      color: '#334155',
+                      padding: '0.4rem 0.85rem',
+                      borderRadius: '6px',
+                      fontSize: '0.8rem',
+                      fontWeight: 600,
+                      border: '1px solid #cbd5e1',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Download &darr;
+                  </button>
+                </div>
               )}
             </div>
 
