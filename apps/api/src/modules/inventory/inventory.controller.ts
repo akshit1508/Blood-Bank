@@ -12,13 +12,13 @@ import {
 import { InventoryService } from './inventory.service';
 import { QueryInventoryDto } from './dto/query-inventory.dto';
 import { DiscardInventoryDto } from './dto/discard-inventory.dto';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { AdminRole } from '../auth/schemas/admin-user.schema';
 
 /**
  * Controller for managing operational inventory.
- *
- * NOTE: These endpoints represent internal blood bank operations.
- * Public anonymous blood availability will be safely aggregated in Phase 5C.
  */
+@Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN)
 @Controller('inventory')
 export class InventoryController {
   constructor(private readonly inventoryService: InventoryService) {}

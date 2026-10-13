@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
@@ -14,7 +14,7 @@ import {
 interface AdminAuthContextType {
   admin: AdminUser | null;
   loading: boolean;
-  login: (email: string, pass: string) => Promise<void>;
+  login: (email: string, pass: string, targetRole?: 'SUPER_ADMIN' | 'ADMIN' | 'LAB_TECHNICIAN') => Promise<void>;
   logout: () => void;
   isAuthenticated: boolean;
 }
@@ -59,7 +59,13 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
           if (verified) {
             setAdmin(verified);
             if (isLoginPage) {
-              router.replace('/admin');
+              if (verified.role === 'SUPER_ADMIN') {
+                router.replace('/super-admin/dashboard');
+              } else if (verified.role === 'LAB_TECHNICIAN') {
+                router.replace('/lab/dashboard');
+              } else {
+                router.replace('/admin/dashboard');
+              }
             }
           } else {
             setAdmin(null);
@@ -88,11 +94,49 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, [pathname, isLoginPage, router]);
 
+  // Route protection for roles
+  useEffect(() => {
+    if (loading || !admin) return;
+
+    if (pathname.startsWith('/super-admin')) {
+      if (admin.role !== 'SUPER_ADMIN') {
+        if (admin.role === 'LAB_TECHNICIAN') {
+          router.replace('/lab/dashboard');
+        } else {
+          router.replace('/admin/dashboard');
+        }
+      }
+    } else if (pathname.startsWith('/admin')) {
+      if (!isLoginPage && admin.role === 'LAB_TECHNICIAN') {
+        router.replace('/lab/dashboard');
+      }
+    } else if (pathname.startsWith('/lab')) {
+      if (admin.role === 'ADMIN') {
+        router.replace('/admin/dashboard');
+      }
+    }
+  }, [pathname, admin, loading, isLoginPage, router]);
+
   const login = useCallback(
-    async (email: string, pass: string) => {
+    async (email: string, pass: string, targetRole?: 'SUPER_ADMIN' | 'ADMIN' | 'LAB_TECHNICIAN') => {
       const res = await apiAdminLogin(email, pass);
+      const userRole = res.admin.role;
+
+      if (targetRole && userRole !== targetRole) {
+        clearAdminSession();
+        throw new Error(
+          `Role mismatch: This account has role '${userRole}' but you selected '${targetRole}'. Please select '${userRole}' to continue.`
+        );
+      }
+
       setAdmin(res.admin);
-      router.push('/admin');
+      if (userRole === 'SUPER_ADMIN') {
+        router.push('/super-admin/dashboard');
+      } else if (userRole === 'LAB_TECHNICIAN') {
+        router.push('/lab/dashboard');
+      } else {
+        router.push('/admin/dashboard');
+      }
     },
     [router]
   );

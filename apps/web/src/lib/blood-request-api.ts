@@ -85,6 +85,8 @@ export interface CreateBloodRequestInput {
   additionalNotes?: string;
 }
 
+import { getAuthHeaders } from './auth-api';
+
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
 
@@ -126,6 +128,7 @@ export async function fetchBloodRequests(filters?: {
     method: 'GET',
     headers: {
       Accept: 'application/json',
+      ...getAuthHeaders(),
     },
     cache: 'no-store',
   });
@@ -143,6 +146,7 @@ export async function fetchBloodRequestById(id: string): Promise<BloodRequest> {
     method: 'GET',
     headers: {
       Accept: 'application/json',
+      ...getAuthHeaders(),
     },
     cache: 'no-store',
   });
@@ -165,6 +169,7 @@ export async function updateBloodRequestStatus(
     headers: {
       'Content-Type': 'application/json',
       Accept: 'application/json',
+      ...getAuthHeaders(),
     },
     body: JSON.stringify({ status, statusReason }),
   });
@@ -189,6 +194,7 @@ export async function completeBloodRequest(
     headers: {
       'Content-Type': 'application/json',
       Accept: 'application/json',
+      ...getAuthHeaders(),
     },
     body: JSON.stringify({ notes }),
   });
@@ -237,6 +243,7 @@ export async function fetchBloodRequestMatches(
     method: 'GET',
     headers: {
       Accept: 'application/json',
+      ...getAuthHeaders(),
     },
     cache: 'no-store',
   });
@@ -291,6 +298,7 @@ export async function reserveBloodUnits(
       headers: {
         'Content-Type': 'application/json',
         Accept: 'application/json',
+        ...getAuthHeaders(),
       },
       body: JSON.stringify({ inventoryIds }),
     },
@@ -316,6 +324,7 @@ export async function fetchBloodRequestReservations(
       method: 'GET',
       headers: {
         Accept: 'application/json',
+        ...getAuthHeaders(),
       },
       cache: 'no-store',
     },
@@ -340,6 +349,7 @@ export async function cancelReservation(
     headers: {
       'Content-Type': 'application/json',
       Accept: 'application/json',
+      ...getAuthHeaders(),
     },
     body: JSON.stringify({ reason }),
   });
@@ -390,6 +400,7 @@ export async function issueReservedBlood(
     headers: {
       'Content-Type': 'application/json',
       Accept: 'application/json',
+      ...getAuthHeaders(),
     },
     body: JSON.stringify({ remarks, issuedBy }),
   });
@@ -414,6 +425,7 @@ export async function fetchBloodIssuesByRequest(
       method: 'GET',
       headers: {
         Accept: 'application/json',
+        ...getAuthHeaders(),
       },
       cache: 'no-store',
     },

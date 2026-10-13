@@ -6,6 +6,7 @@ import {
   Body,
   Param,
   Query,
+  Req,
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
@@ -14,13 +15,13 @@ import { CreateTestingDto } from './dto/create-testing.dto';
 import { UpdateTestResultDto } from './dto/update-test-result.dto';
 import { CompleteTestingDto } from './dto/complete-testing.dto';
 import { QueryTestingDto } from './dto/query-testing.dto';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { AdminRole } from '../auth/schemas/admin-user.schema';
 
 /**
  * Controller for managing laboratory testing and screening records.
- *
- * NOTE: These endpoints are designated strictly for internal blood bank staff and laboratory technicians.
- * Anonymous public access is blocked. Role-based Guard enforcement (JWT + RBAC) will be applied in the Auth vertical slice.
  */
+@Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN, AdminRole.LAB_TECHNICIAN)
 @Controller('testing')
 export class TestingController {
   constructor(private readonly testingService: TestingService) {}
@@ -45,7 +46,8 @@ export class TestingController {
    * GET /api/testing
    */
   @Get()
-  async findAll(@Query() query: QueryTestingDto) {
+  async findAll(@Query() query: QueryTestingDto, @Req() req: any) {
+    query.callerRole = req.admin?.role || req.user?.role;
     const result = await this.testingService.findAll(query);
     return {
       statusCode: HttpStatus.OK,
@@ -66,8 +68,9 @@ export class TestingController {
    * GET /api/testing/blood-unit/:bloodUnitId
    */
   @Get('blood-unit/:bloodUnitId')
-  async findByBloodUnitId(@Param('bloodUnitId') bloodUnitId: string) {
-    const testing = await this.testingService.findByBloodUnitId(bloodUnitId);
+  async findByBloodUnitId(@Param('bloodUnitId') bloodUnitId: string, @Req() req: any) {
+    const callerRole = req.admin?.role || req.user?.role;
+    const testing = await this.testingService.findByBloodUnitId(bloodUnitId, callerRole);
     return {
       statusCode: HttpStatus.OK,
       message: 'Testing record for blood unit retrieved successfully',
@@ -80,8 +83,9 @@ export class TestingController {
    * GET /api/testing/:id
    */
   @Get(':id')
-  async findOne(@Param('id') id: string) {
-    const testing = await this.testingService.findOne(id);
+  async findOne(@Param('id') id: string, @Req() req: any) {
+    const callerRole = req.admin?.role || req.user?.role;
+    const testing = await this.testingService.findOne(id, callerRole);
     return {
       statusCode: HttpStatus.OK,
       message: 'Testing record retrieved successfully',

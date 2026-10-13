@@ -11,14 +11,13 @@ import {
 import { BloodAcquisitionsService } from './blood-acquisitions.service';
 import { CreateBloodAcquisitionDto } from './dto/create-blood-acquisition.dto';
 import { QueryBloodAcquisitionsDto } from './dto/query-blood-acquisitions.dto';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { AdminRole } from '../auth/schemas/admin-user.schema';
 
 /**
  * Controller for managing External Blood Acquisitions / Receipts.
- *
- * NOTE: These endpoints are strictly internal for authorized blood bank administrative
- * and laboratory staff. Public access is prohibited. Full JWT + RBAC guards will be
- * attached when authentication slice is enforced.
  */
+@Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN)
 @Controller('blood-acquisitions')
 export class BloodAcquisitionsController {
   constructor(

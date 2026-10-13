@@ -101,16 +101,36 @@ export default function AdminNavbar({
                 style={{
                   fontSize: '0.65rem',
                   fontWeight: 700,
-                  backgroundColor: '#fef2f2',
-                  color: '#dc2626',
-                  border: '1px solid #fecaca',
+                  backgroundColor:
+                    admin?.role === 'SUPER_ADMIN'
+                      ? '#fef3c7'
+                      : admin?.role === 'LAB_TECHNICIAN'
+                      ? '#ede9fe'
+                      : '#fef2f2',
+                  color:
+                    admin?.role === 'SUPER_ADMIN'
+                      ? '#d97706'
+                      : admin?.role === 'LAB_TECHNICIAN'
+                      ? '#7c3aed'
+                      : '#dc2626',
+                  border: `1px solid ${
+                    admin?.role === 'SUPER_ADMIN'
+                      ? '#fde68a'
+                      : admin?.role === 'LAB_TECHNICIAN'
+                      ? '#ddd6fe'
+                      : '#fecaca'
+                  }`,
                   padding: '0.1rem 0.35rem',
                   borderRadius: '4px',
                   textTransform: 'uppercase',
                   letterSpacing: '0.04em',
                 }}
               >
-                ADMIN
+                {admin?.role === 'SUPER_ADMIN'
+                  ? 'SUPER ADMIN'
+                  : admin?.role === 'LAB_TECHNICIAN'
+                  ? 'LAB TECH'
+                  : 'ADMIN'}
               </span>
             </div>
             <span
@@ -122,7 +142,11 @@ export default function AdminNavbar({
                 marginTop: '1px',
               }}
             >
-              Management Console
+              {admin?.role === 'SUPER_ADMIN'
+                ? 'Platform Governance'
+                : admin?.role === 'LAB_TECHNICIAN'
+                ? 'Screening Workstation'
+                : 'Management Console'}
             </span>
           </div>
         </Link>

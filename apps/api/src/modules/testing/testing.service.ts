@@ -25,6 +25,7 @@ import {
   TestingStatus,
 } from './constants/testing.constants';
 import { BloodUnitStatus } from '../blood-units/constants/blood-unit.constants';
+import { AdminRole } from '../auth/schemas/admin-user.schema';
 
 export interface PaginatedBloodTesting {
   items: BloodTesting[];
@@ -407,6 +408,17 @@ export class TestingService {
     const limit = Math.min(100, Math.max(1, Number(query.limit) || 10));
     const skip = (page - 1) * limit;
 
+    const isLabRole = query?.callerRole === AdminRole.LAB_TECHNICIAN;
+
+    // For LAB_TECHNICIAN, omit donor phone and personal names, and omit donation administrative notes
+    const donorSelect = isLabRole
+      ? 'donorCode gender status'
+      : 'donorCode fullName bloodGroup gender status phone';
+
+    const donationSelect = isLabRole
+      ? 'donationCode donationDate donationType status quantity'
+      : 'donationCode donationDate donationType status quantity notes';
+
     const [items, total] = await Promise.all([
       this.bloodTestingModel
         .find(filter)
@@ -418,12 +430,11 @@ export class TestingService {
           },
           {
             path: 'donationId',
-            select:
-              'donationCode donationDate donationType status quantity notes',
+            select: donationSelect,
           },
           {
             path: 'donorId',
-            select: 'donorCode fullName bloodGroup gender status phone',
+            select: donorSelect,
           },
         ])
         .sort({ createdAt: -1 })
@@ -445,50 +456,45 @@ export class TestingService {
   /**
    * Retrieves a single testing record by MongoDB ObjectId or testingCode.
    */
-  async findOne(idOrCode: string): Promise<BloodTesting> {
+  async findOne(idOrCode: string, callerRole?: string): Promise<BloodTesting> {
     let testing: BloodTesting | null = null;
+    const isLabRole = callerRole === AdminRole.LAB_TECHNICIAN;
+
+    const donorSelect = isLabRole
+      ? 'donorCode gender status'
+      : 'donorCode fullName bloodGroup gender status phone';
+
+    const donationSelect = isLabRole
+      ? 'donationCode donationDate donationType status quantity'
+      : 'donationCode donationDate donationType status quantity notes';
+
+    const populateOpts = [
+      {
+        path: 'bloodUnitId',
+        select:
+          'unitCode status bloodGroup componentType collectionDate volume storageLocation',
+      },
+      {
+        path: 'donationId',
+        select: donationSelect,
+      },
+      {
+        path: 'donorId',
+        select: donorSelect,
+      },
+    ];
 
     if (isValidObjectId(idOrCode)) {
       testing = await this.bloodTestingModel
         .findById(idOrCode)
-        .populate([
-          {
-            path: 'bloodUnitId',
-            select:
-              'unitCode status bloodGroup componentType collectionDate volume storageLocation',
-          },
-          {
-            path: 'donationId',
-            select:
-              'donationCode donationDate donationType status quantity notes',
-          },
-          {
-            path: 'donorId',
-            select: 'donorCode fullName bloodGroup gender status phone',
-          },
-        ])
+        .populate(populateOpts)
         .exec();
     }
 
     if (!testing) {
       testing = await this.bloodTestingModel
         .findOne({ testingCode: idOrCode.toUpperCase() })
-        .populate([
-          {
-            path: 'bloodUnitId',
-            select:
-              'unitCode status bloodGroup componentType collectionDate volume storageLocation',
-          },
-          {
-            path: 'donationId',
-            select:
-              'donationCode donationDate donationType status quantity notes',
-          },
-          {
-            path: 'donorId',
-            select: 'donorCode fullName bloodGroup gender status phone',
-          },
-        ])
+        .populate(populateOpts)
         .exec();
     }
 
@@ -505,13 +511,23 @@ export class TestingService {
   /**
    * Retrieves the testing record associated with a specific Blood Unit.
    */
-  async findByBloodUnitId(bloodUnitId: string): Promise<BloodTesting> {
+  async findByBloodUnitId(bloodUnitId: string, callerRole?: string): Promise<BloodTesting> {
     if (!isValidObjectId(bloodUnitId)) {
       throw new BadRequestException({
         message: 'Invalid blood unit ID format',
         code: 'INVALID_BLOOD_UNIT_REFERENCE',
       });
     }
+
+    const isLabRole = callerRole === AdminRole.LAB_TECHNICIAN;
+
+    const donorSelect = isLabRole
+      ? 'donorCode gender status'
+      : 'donorCode fullName bloodGroup gender status phone';
+
+    const donationSelect = isLabRole
+      ? 'donationCode donationDate donationType status quantity'
+      : 'donationCode donationDate donationType status quantity notes';
 
     const testing = await this.bloodTestingModel
       .findOne({ bloodUnitId: new Types.ObjectId(bloodUnitId) })
@@ -523,12 +539,11 @@ export class TestingService {
         },
         {
           path: 'donationId',
-          select:
-            'donationCode donationDate donationType status quantity notes',
+          select: donationSelect,
         },
         {
           path: 'donorId',
-          select: 'donorCode fullName bloodGroup gender status phone',
+          select: donorSelect,
         },
       ])
       .exec();

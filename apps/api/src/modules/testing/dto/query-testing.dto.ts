@@ -43,4 +43,7 @@ export class QueryTestingDto {
   @IsPositive()
   @IsOptional()
   limit?: number;
+
+  @IsOptional()
+  callerRole?: string;
 }

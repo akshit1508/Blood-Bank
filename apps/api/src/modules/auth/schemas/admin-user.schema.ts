@@ -1,4 +1,4 @@
-﻿import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document } from 'mongoose';
 
 export type AdminUserDocument = AdminUser & Document;
@@ -6,6 +6,7 @@ export type AdminUserDocument = AdminUser & Document;
 export enum AdminRole {
   SUPER_ADMIN = 'SUPER_ADMIN',
   ADMIN = 'ADMIN',
+  LAB_TECHNICIAN = 'LAB_TECHNICIAN',
 }
 
 @Schema({ collection: 'admins', timestamps: true })

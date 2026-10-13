@@ -121,6 +121,8 @@ export interface PaginatedBloodAcquisitions {
   totalPages: number;
 }
 
+import { getAuthHeaders } from './auth-api';
+
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
 
@@ -141,6 +143,7 @@ export async function createBloodAcquisition(
     headers: {
       'Content-Type': 'application/json',
       Accept: 'application/json',
+      ...getAuthHeaders(),
     },
     body: JSON.stringify(input),
   });
@@ -179,7 +182,10 @@ export async function fetchBloodAcquisitions(filters?: {
   const url = `${API_BASE_URL}/blood-acquisitions${params.toString() ? `?${params.toString()}` : ''}`;
   const res = await fetch(url, {
     method: 'GET',
-    headers: { Accept: 'application/json' },
+    headers: {
+      Accept: 'application/json',
+      ...getAuthHeaders(),
+    },
     cache: 'no-store',
   });
 
@@ -205,7 +211,10 @@ export async function fetchBloodAcquisitionById(
 ): Promise<BloodAcquisitionDetail> {
   const res = await fetch(`${API_BASE_URL}/blood-acquisitions/${encodeURIComponent(id)}`, {
     method: 'GET',
-    headers: { Accept: 'application/json' },
+    headers: {
+      Accept: 'application/json',
+      ...getAuthHeaders(),
+    },
     cache: 'no-store',
   });
 
@@ -227,7 +236,10 @@ export async function fetchBloodAcquisitionUnits(
     `${API_BASE_URL}/blood-acquisitions/${encodeURIComponent(id)}/units`,
     {
       method: 'GET',
-      headers: { Accept: 'application/json' },
+      headers: {
+        Accept: 'application/json',
+        ...getAuthHeaders(),
+      },
       cache: 'no-store',
     },
   );
@@ -246,7 +258,10 @@ export async function fetchBloodAcquisitionUnits(
 export async function fetchBloodAcquisitionSummary(): Promise<AcquisitionSummaryStats> {
   const res = await fetch(`${API_BASE_URL}/blood-acquisitions/summary`, {
     method: 'GET',
-    headers: { Accept: 'application/json' },
+    headers: {
+      Accept: 'application/json',
+      ...getAuthHeaders(),
+    },
     cache: 'no-store',
   });
 

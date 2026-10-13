@@ -15,7 +15,10 @@ import { CancelReservationDto } from './dto/cancel-reservation.dto';
 import { QueryReservationsDto } from './dto/query-reservations.dto';
 import { BloodIssuesService } from '../blood-issues/blood-issues.service';
 import { CreateBloodIssueDto } from '../blood-issues/dto/create-blood-issue.dto';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { AdminRole } from '../auth/schemas/admin-user.schema';
 
+@Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN)
 @Controller('reservations')
 export class ReservationsController {
   constructor(

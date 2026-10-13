@@ -13,6 +13,9 @@ import { DonorsService } from './donors.service';
 import { CreateDonorDto } from './dto/create-donor.dto';
 import { UpdateDonorStatusDto } from './dto/update-donor-status.dto';
 import { BloodGroup, DonorStatus } from './constants/donor.constants';
+import { Public } from '../auth/decorators/public.decorator';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { AdminRole } from '../auth/schemas/admin-user.schema';
 
 @Controller('donors')
 export class DonorsController {
@@ -23,6 +26,7 @@ export class DonorsController {
    * POST /api/donors
    * ACCESS: PUBLIC
    */
+  @Public()
   @Post()
   @HttpCode(HttpStatus.CREATED)
   async create(@Body() createDonorDto: CreateDonorDto) {
@@ -40,8 +44,9 @@ export class DonorsController {
   /**
    * Staff/Admin query of registered donors with filters and search.
    * GET /api/donors
-   * ACCESS: INTERNAL STAFF/ADMIN (Pending Auth Guard implementation)
+   * ACCESS: INTERNAL STAFF/ADMIN
    */
+  @Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN)
   @Get()
   async findAll(
     @Query('search') search?: string,
@@ -62,8 +67,9 @@ export class DonorsController {
   /**
    * Staff/Admin retrieve a specific donor by ID or donorCode.
    * GET /api/donors/:id
-   * ACCESS: INTERNAL STAFF/ADMIN (Pending Auth Guard implementation)
+   * ACCESS: INTERNAL STAFF/ADMIN
    */
+  @Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN)
   @Get(':id')
   async findOne(@Param('id') id: string) {
     const donor = await this.donorsService.findOne(id);
@@ -76,8 +82,9 @@ export class DonorsController {
   /**
    * Staff/Admin update donor status (ACTIVE / INACTIVE).
    * PATCH /api/donors/:id/status
-   * ACCESS: INTERNAL STAFF/ADMIN (Pending Auth Guard implementation)
+   * ACCESS: INTERNAL STAFF/ADMIN
    */
+  @Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN)
   @Patch(':id/status')
   async updateStatus(
     @Param('id') id: string,
@@ -94,5 +101,3 @@ export class DonorsController {
     };
   }
 }
-
-

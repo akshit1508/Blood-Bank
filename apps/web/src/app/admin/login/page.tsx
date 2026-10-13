@@ -5,10 +5,16 @@ import { useAdminAuth } from '@/context/AdminAuthContext';
 
 export default function AdminLoginPage() {
   const { login } = useAdminAuth();
+  const [role, setRole] = useState<'SUPER_ADMIN' | 'ADMIN' | 'LAB_TECHNICIAN'>('SUPER_ADMIN');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const handleRoleChange = (newRole: 'SUPER_ADMIN' | 'ADMIN' | 'LAB_TECHNICIAN') => {
+    setRole(newRole);
+    setError(null);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -21,7 +27,7 @@ export default function AdminLoginPage() {
 
     setSubmitting(true);
     try {
-      await login(email.trim(), password);
+      await login(email.trim(), password, role);
     } catch (err: any) {
       setError(err?.message || 'Invalid email or password. Please try again.');
     } finally {
@@ -126,6 +132,40 @@ export default function AdminLoginPage() {
                   marginBottom: '0.35rem',
                 }}
               >
+                Select Portal / Role
+              </label>
+              <select
+                value={role}
+                onChange={(e) => handleRoleChange(e.target.value as any)}
+                style={{
+                  width: '100%',
+                  padding: '0.65rem 0.85rem',
+                  border: '2px solid #dc2626',
+                  borderRadius: '6px',
+                  fontSize: '0.9rem',
+                  fontWeight: 600,
+                  color: '#0f172a',
+                  backgroundColor: '#fff',
+                  outline: 'none',
+                  boxSizing: 'border-box',
+                  cursor: 'pointer',
+                }}
+              >
+                <option value="SUPER_ADMIN">👑 Super Admin Portal (/super-admin/dashboard)</option>
+                <option value="ADMIN">🛡️ Operations Admin Portal (/admin/dashboard)</option>
+                <option value="LAB_TECHNICIAN">🧪 Testing / Lab Technician Portal (/lab/dashboard)</option>
+              </select>
+            </div>
+            <div>
+              <label
+                style={{
+                  display: 'block',
+                  fontSize: '0.825rem',
+                  fontWeight: 600,
+                  color: '#334155',
+                  marginBottom: '0.35rem',
+                }}
+              >
                 Staff Email Address
               </label>
               <input
@@ -134,7 +174,7 @@ export default function AdminLoginPage() {
                 autoFocus
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="admin@bloodbank.org"
+                placeholder="staff@bloodbank.org"
                 style={{
                   width: '100%',
                   padding: '0.65rem 0.85rem',

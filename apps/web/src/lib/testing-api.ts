@@ -102,6 +102,8 @@ export interface CompleteTestingInput {
   remarks?: string;
 }
 
+import { getAuthHeaders } from './auth-api';
+
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
 
@@ -161,6 +163,7 @@ export async function fetchTestingRecords(filters?: {
     method: 'GET',
     headers: {
       Accept: 'application/json',
+      ...getAuthHeaders(),
     },
     cache: 'no-store',
   });
@@ -196,6 +199,7 @@ export async function fetchTestingRecordById(
     method: 'GET',
     headers: {
       Accept: 'application/json',
+      ...getAuthHeaders(),
     },
     cache: 'no-store',
   });
@@ -225,6 +229,7 @@ export async function fetchTestingRecordByBloodUnitId(
     method: 'GET',
     headers: {
       Accept: 'application/json',
+      ...getAuthHeaders(),
     },
     cache: 'no-store',
   });
@@ -255,6 +260,7 @@ export async function createTestingRecord(
     headers: {
       'Content-Type': 'application/json',
       Accept: 'application/json',
+      ...getAuthHeaders(),
     },
     body: JSON.stringify(input),
   });
@@ -289,6 +295,7 @@ export async function updateIndividualTestResult(
       headers: {
         'Content-Type': 'application/json',
         Accept: 'application/json',
+        ...getAuthHeaders(),
       },
       body: JSON.stringify(input),
     },
@@ -321,6 +328,7 @@ export async function completeTestingRecord(
     headers: {
       'Content-Type': 'application/json',
       Accept: 'application/json',
+      ...getAuthHeaders(),
     },
     body: JSON.stringify(input),
   });
@@ -341,16 +349,16 @@ export async function completeTestingRecord(
 
 /**
  * Fetch candidate blood units currently in TESTING status.
- * Used for the "Start Testing" selection dialog.
- * GET /api/blood-units?status=TESTING
+ * Uses the dedicated testing-scoped endpoint /api/blood-units/awaiting-testing
  */
 export async function fetchUnitsAwaitingTesting(
   limit: number = 50,
 ): Promise<{ items: BloodUnitSummary[]; total: number }> {
-  const res = await fetch(`${API_BASE_URL}/blood-units?status=TESTING&limit=${limit}`, {
+  const res = await fetch(`${API_BASE_URL}/blood-units/awaiting-testing?limit=${limit}`, {
     method: 'GET',
     headers: {
       Accept: 'application/json',
+      ...getAuthHeaders(),
     },
     cache: 'no-store',
   });

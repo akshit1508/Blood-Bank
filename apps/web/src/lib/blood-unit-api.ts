@@ -1,3 +1,5 @@
+import { getAuthHeaders } from './auth-api';
+
 export enum BloodUnitStatus {
   TESTING = 'TESTING',
   APPROVED = 'APPROVED',
@@ -81,6 +83,7 @@ export async function createBloodUnit(
     headers: {
       'Content-Type': 'application/json',
       Accept: 'application/json',
+      ...getAuthHeaders(),
     },
     body: JSON.stringify(input),
   });
@@ -113,6 +116,7 @@ export async function fetchBloodUnitByDonationId(
         method: 'GET',
         headers: {
           Accept: 'application/json',
+          ...getAuthHeaders(),
         },
         cache: 'no-store',
       },
@@ -161,6 +165,7 @@ export async function fetchBloodUnits(filters?: {
     method: 'GET',
     headers: {
       Accept: 'application/json',
+      ...getAuthHeaders(),
     },
     cache: 'no-store',
   });
@@ -196,6 +201,7 @@ export async function fetchBloodUnitById(idOrCode: string): Promise<BloodUnit> {
       method: 'GET',
       headers: {
         Accept: 'application/json',
+        ...getAuthHeaders(),
       },
       cache: 'no-store',
     },
@@ -213,4 +219,34 @@ export async function fetchBloodUnitById(idOrCode: string): Promise<BloodUnit> {
   }
 
   return body.data;
+}
+
+/**
+ * Dedicated scoped query: fetch blood units in TESTING status.
+ * GET /api/blood-units/awaiting-testing
+ */
+export async function fetchUnitsAwaitingTestingApi(
+  limit: number = 50,
+): Promise<{ items: BloodUnit[]; total: number }> {
+  const res = await fetch(`${API_BASE_URL}/blood-units/awaiting-testing?limit=${limit}`, {
+    method: 'GET',
+    headers: {
+      Accept: 'application/json',
+      ...getAuthHeaders(),
+    },
+    cache: 'no-store',
+  });
+
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const errorMsg = Array.isArray(body.message)
+      ? body.message.join(', ')
+      : body.message || 'Failed to fetch blood units awaiting testing';
+    throw new Error(errorMsg);
+  }
+
+  return {
+    items: body.data || [],
+    total: body.meta?.total || 0,
+  };
 }

@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 import { AppController } from './app.controller';
@@ -12,13 +13,16 @@ import { InventoryModule } from './modules/inventory/inventory.module';
 import { ReservationsModule } from './modules/reservations/reservations.module';
 import { BloodIssuesModule } from './modules/blood-issues/blood-issues.module';
 import { BloodAcquisitionsModule } from './modules/blood-acquisitions/blood-acquisitions.module';
+import { ExpensesModule } from './modules/expenses/expenses.module';
 import { AuthModule } from './modules/auth/auth.module';
+import { AdminAuthGuard } from './modules/auth/guards/admin-auth.guard';
+import { RolesGuard } from './modules/auth/guards/roles.guard';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: ['.env.local', '.env'],
+      envFilePath: ['apps/api/.env', '.env', '../../.env', '.env.local'],
     }),
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
@@ -37,8 +41,21 @@ import { AuthModule } from './modules/auth/auth.module';
     ReservationsModule,
     BloodIssuesModule,
     BloodAcquisitionsModule,
+    ExpensesModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    // Global Authentication Guard - Executes FIRST: Rejects unauthenticated requests unless marked @Public()
+    {
+      provide: APP_GUARD,
+      useClass: AdminAuthGuard,
+    },
+    // Global Role Authorization Guard - Executes SECOND: Rejects authenticated users without required @Roles()
+    {
+      provide: APP_GUARD,
+      useClass: RolesGuard,
+    },
+  ],
 })
 export class AppModule {}

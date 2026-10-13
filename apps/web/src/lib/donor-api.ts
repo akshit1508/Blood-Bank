@@ -64,6 +64,8 @@ export interface CreateDonorInput {
   emergencyContact?: EmergencyContact;
 }
 
+import { getAuthHeaders } from './auth-api';
+
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
 
@@ -114,6 +116,7 @@ export async function fetchDonors(filters?: {
     method: 'GET',
     headers: {
       Accept: 'application/json',
+      ...getAuthHeaders(),
     },
     cache: 'no-store',
   });
@@ -134,6 +137,7 @@ export async function fetchDonorById(id: string): Promise<Donor> {
     method: 'GET',
     headers: {
       Accept: 'application/json',
+      ...getAuthHeaders(),
     },
     cache: 'no-store',
   });
@@ -158,6 +162,7 @@ export async function updateDonorStatus(
     headers: {
       'Content-Type': 'application/json',
       Accept: 'application/json',
+      ...getAuthHeaders(),
     },
     body: JSON.stringify({ status }),
   });

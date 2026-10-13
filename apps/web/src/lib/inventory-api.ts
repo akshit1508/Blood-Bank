@@ -1,3 +1,5 @@
+import { getAuthHeaders } from './auth-api';
+
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
 
@@ -133,6 +135,7 @@ export async function fetchInventory(filters?: {
     method: 'GET',
     headers: {
       Accept: 'application/json',
+      ...getAuthHeaders(),
     },
     cache: 'no-store',
   });
@@ -165,6 +168,7 @@ export async function fetchInventoryById(id: string): Promise<InventoryItem> {
     method: 'GET',
     headers: {
       Accept: 'application/json',
+      ...getAuthHeaders(),
     },
     cache: 'no-store',
   });
@@ -196,6 +200,7 @@ export async function fetchInventoryByBloodUnitId(
       method: 'GET',
       headers: {
         Accept: 'application/json',
+        ...getAuthHeaders(),
       },
       cache: 'no-store',
     },
@@ -228,6 +233,7 @@ export async function createInventoryFromBloodUnit(
       method: 'POST',
       headers: {
         Accept: 'application/json',
+        ...getAuthHeaders(),
       },
     },
   );
@@ -255,6 +261,7 @@ export async function fetchInventorySummary(): Promise<InventorySummary> {
     method: 'GET',
     headers: {
       Accept: 'application/json',
+      ...getAuthHeaders(),
     },
     cache: 'no-store',
   });
@@ -286,6 +293,7 @@ export async function discardInventoryItem(
     headers: {
       'Content-Type': 'application/json',
       Accept: 'application/json',
+      ...getAuthHeaders(),
     },
     body: JSON.stringify({ reason }),
   });
@@ -316,6 +324,7 @@ export async function evaluateInventoryExpiry(): Promise<{
     method: 'POST',
     headers: {
       Accept: 'application/json',
+      ...getAuthHeaders(),
     },
   });
 
@@ -346,6 +355,7 @@ export async function fetchInventoryHistory(
       method: 'GET',
       headers: {
         Accept: 'application/json',
+        ...getAuthHeaders(),
       },
       cache: 'no-store',
     },

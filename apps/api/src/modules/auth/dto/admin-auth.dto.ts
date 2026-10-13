@@ -1,4 +1,5 @@
-﻿import { IsEmail, IsNotEmpty, IsString, MinLength } from 'class-validator';
+import { IsEmail, IsNotEmpty, IsString, MinLength, IsIn, IsBoolean, IsOptional } from 'class-validator';
+import { AdminRole } from '../schemas/admin-user.schema';
 
 export class AdminLoginDto {
   @IsEmail({}, { message: 'Invalid email address' })
@@ -26,5 +27,20 @@ export class CreateAdminDto {
   fullName: string;
 
   @IsString()
+  @IsOptional()
   designation?: string;
+
+  @IsString()
+  @IsNotEmpty({ message: 'Role is required' })
+  @IsIn([AdminRole.ADMIN, AdminRole.LAB_TECHNICIAN], {
+    message: 'Role must be either ADMIN or LAB_TECHNICIAN',
+  })
+  role: AdminRole.ADMIN | AdminRole.LAB_TECHNICIAN;
 }
+
+export class UpdateAdminStatusDto {
+  @IsBoolean({ message: 'isActive must be a boolean' })
+  @IsNotEmpty({ message: 'isActive is required' })
+  isActive: boolean;
+}
+

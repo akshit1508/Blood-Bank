@@ -1,6 +1,7 @@
 import { Controller, Get, Query, HttpStatus } from '@nestjs/common';
 import { InventoryService } from './inventory.service';
 import { QueryPublicAvailabilityDto } from './dto/query-public-availability.dto';
+import { Public } from '../auth/decorators/public.decorator';
 
 /**
  * Public Controller for Anonymous Blood Availability Board.
@@ -10,6 +11,7 @@ import { QueryPublicAvailabilityDto } from './dto/query-public-availability.dto'
  * Absolutely no donor, patient, testing, storage, or internal ID data is exposed.
  * GET /api/public/blood-availability
  */
+@Public()
 @Controller('public/blood-availability')
 export class PublicBloodAvailabilityController {
   constructor(private readonly inventoryService: InventoryService) {}

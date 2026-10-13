@@ -1,4 +1,5 @@
 import { Donor, BloodGroup } from './donor-api';
+import { getAuthHeaders } from './auth-api';
 
 export enum DonationType {
   WHOLE_BLOOD = 'WHOLE_BLOOD',
@@ -70,6 +71,7 @@ export async function createDonation(
     headers: {
       'Content-Type': 'application/json',
       Accept: 'application/json',
+      ...getAuthHeaders(),
     },
     body: JSON.stringify(input),
   });
@@ -116,6 +118,7 @@ export async function fetchDonations(filters?: {
     method: 'GET',
     headers: {
       Accept: 'application/json',
+      ...getAuthHeaders(),
     },
     cache: 'no-store',
   });
@@ -136,6 +139,7 @@ export async function fetchDonationById(id: string): Promise<Donation> {
     method: 'GET',
     headers: {
       Accept: 'application/json',
+      ...getAuthHeaders(),
     },
     cache: 'no-store',
   });
@@ -160,6 +164,7 @@ export async function updateDonationStatus(
     headers: {
       'Content-Type': 'application/json',
       Accept: 'application/json',
+      ...getAuthHeaders(),
     },
     body: JSON.stringify({ status }),
   });

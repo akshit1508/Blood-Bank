@@ -17,7 +17,10 @@ import {
   DonationType,
 } from './constants/donation.constants';
 import { BloodGroup } from '../donors/constants/donor.constants';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { AdminRole } from '../auth/schemas/admin-user.schema';
 
+@Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN)
 @Controller('donations')
 export class DonationsController {
   constructor(private readonly donationsService: DonationsService) {}

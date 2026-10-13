@@ -5,18 +5,18 @@ import {
   Body,
   Param,
   Query,
+  Req,
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
 import { BloodUnitsService } from './blood-units.service';
 import { CreateBloodUnitDto } from './dto/create-blood-unit.dto';
 import { QueryBloodUnitsDto } from './dto/query-blood-units.dto';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { AdminRole } from '../auth/schemas/admin-user.schema';
 
 /**
  * Controller for managing physical blood units.
- *
- * NOTE: These endpoints are designated strictly for internal blood bank staff and laboratory technicians.
- * Public access is prohibited. Full JWT + RBAC authorization guards will be applied in the Auth vertical slice.
  */
 @Controller('blood-units')
 export class BloodUnitsController {
@@ -26,6 +26,7 @@ export class BloodUnitsController {
    * Internal staff creation of a Blood Unit from a COMPLETED donation.
    * POST /api/blood-units
    */
+  @Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN)
   @Post()
   @HttpCode(HttpStatus.CREATED)
   async create(@Body() createBloodUnitDto: CreateBloodUnitDto) {
@@ -38,9 +39,30 @@ export class BloodUnitsController {
   }
 
   /**
+   * Dedicated testing scope endpoint: Retrieves blood units in TESTING status.
+   * Accessible to LAB_TECHNICIAN, ADMIN, SUPER_ADMIN.
+   * GET /api/blood-units/awaiting-testing
+   */
+  @Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN, AdminRole.LAB_TECHNICIAN)
+  @Get('awaiting-testing')
+  async findAwaitingTesting(@Query('limit') limit?: number) {
+    const result = await this.bloodUnitsService.findAwaitingTesting(limit);
+    return {
+      statusCode: HttpStatus.OK,
+      message: 'Blood units awaiting laboratory testing retrieved successfully',
+      data: result.items,
+      meta: {
+        total: result.total,
+      },
+    };
+  }
+
+  /**
    * Internal staff query of blood units with filtering and pagination.
+   * Restricted strictly to SUPER_ADMIN and ADMIN (general inventory view).
    * GET /api/blood-units
    */
+  @Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN)
   @Get()
   async findAll(@Query() query: QueryBloodUnitsDto) {
     const result = await this.bloodUnitsService.findAll(query);
@@ -59,9 +81,10 @@ export class BloodUnitsController {
 
   /**
    * Internal staff retrieval of blood unit produced from a specific donation.
-   * Placed before :id parameter route to prevent route collision.
+   * Restricted strictly to SUPER_ADMIN and ADMIN.
    * GET /api/blood-units/donation/:donationId
    */
+  @Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN)
   @Get('donation/:donationId')
   async findByDonationId(@Param('donationId') donationId: string) {
     const bloodUnit = await this.bloodUnitsService.findByDonationId(donationId);
@@ -74,11 +97,14 @@ export class BloodUnitsController {
 
   /**
    * Internal staff retrieval of single blood unit by MongoDB _id or unitCode.
+   * Accessible to LAB_TECHNICIAN only if unit is in TESTING status (sanitized).
    * GET /api/blood-units/:id
    */
+  @Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN, AdminRole.LAB_TECHNICIAN)
   @Get(':id')
-  async findOne(@Param('id') id: string) {
-    const bloodUnit = await this.bloodUnitsService.findOne(id);
+  async findOne(@Param('id') id: string, @Req() req: any) {
+    const callerRole = req.admin?.role || req.user?.role;
+    const bloodUnit = await this.bloodUnitsService.findOne(id, callerRole);
     return {
       statusCode: HttpStatus.OK,
       message: 'Blood unit retrieved successfully',

@@ -3,6 +3,7 @@ import {
   NotFoundException,
   BadRequestException,
   ConflictException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, isValidObjectId, Types } from 'mongoose';
@@ -16,6 +17,7 @@ import {
   BloodUnitStatus,
 } from './constants/blood-unit.constants';
 import { DonationStatus } from '../donations/constants/donation.constants';
+import { AdminRole } from '../auth/schemas/admin-user.schema';
 
 export interface PaginatedBloodUnits {
   items: BloodUnit[];
@@ -242,42 +244,76 @@ export class BloodUnitsService {
   }
 
   /**
-   * Retrieves a single blood unit by MongoDB ObjectId or human-readable unitCode.
+   * Dedicated testing scope endpoint: Retrieves blood units in TESTING status.
+   * Strips all donor PII (phone, full name) and donation notes.
+   * Accessible to LAB_TECHNICIAN, ADMIN, SUPER_ADMIN.
    */
-  async findOne(idOrCode: string): Promise<BloodUnit> {
-    let bloodUnit: BloodUnit | null = null;
+  async findAwaitingTesting(limit: number = 50) {
+    const safeLimit = Math.min(100, Math.max(1, Number(limit) || 50));
+    const items = await this.bloodUnitModel
+      .find({ status: BloodUnitStatus.TESTING })
+      .select('unitCode status bloodGroup componentType collectionDate volume storageLocation createdAt')
+      .populate([
+        {
+          path: 'donorId',
+          select: 'donorCode gender status',
+        },
+        {
+          path: 'donationId',
+          select: 'donationCode donationDate donationType status',
+        },
+      ])
+      .sort({ collectionDate: 1 })
+      .limit(safeLimit)
+      .exec();
+
+    const total = await this.bloodUnitModel.countDocuments({ status: BloodUnitStatus.TESTING }).exec();
+
+    return {
+      items,
+      total,
+    };
+  }
+
+  /**
+   * Retrieves a single blood unit by MongoDB ObjectId or human-readable unitCode.
+   * If callerRole is LAB_TECHNICIAN, enforces unit must be in TESTING status and omits donor PII.
+   */
+  async findOne(idOrCode: string, callerRole?: string): Promise<BloodUnit> {
+    const isLabRole = callerRole === AdminRole.LAB_TECHNICIAN;
+
+    const donorSelect = isLabRole
+      ? 'donorCode gender status'
+      : 'donorCode fullName bloodGroup gender status phone';
+
+    const donationSelect = isLabRole
+      ? 'donationCode donationDate donationType status'
+      : 'donationCode donationDate donationType status quantity notes';
+
+    const populateOpts = [
+      {
+        path: 'donorId',
+        select: donorSelect,
+      },
+      {
+        path: 'donationId',
+        select: donationSelect,
+      },
+    ];
+
+    let bloodUnit: any = null;
 
     if (isValidObjectId(idOrCode)) {
       bloodUnit = await this.bloodUnitModel
         .findById(idOrCode)
-        .populate([
-          {
-            path: 'donorId',
-            select: 'donorCode fullName bloodGroup gender status phone',
-          },
-          {
-            path: 'donationId',
-            select:
-              'donationCode donationDate donationType status quantity notes',
-          },
-        ])
+        .populate(populateOpts)
         .exec();
     }
 
     if (!bloodUnit) {
       bloodUnit = await this.bloodUnitModel
         .findOne({ unitCode: idOrCode.toUpperCase() })
-        .populate([
-          {
-            path: 'donorId',
-            select: 'donorCode fullName bloodGroup gender status phone',
-          },
-          {
-            path: 'donationId',
-            select:
-              'donationCode donationDate donationType status quantity notes',
-          },
-        ])
+        .populate(populateOpts)
         .exec();
     }
 
@@ -286,6 +322,13 @@ export class BloodUnitsService {
         message: `Blood unit '${idOrCode}' was not found.`,
         code: 'BLOOD_UNIT_NOT_FOUND',
       });
+    }
+
+    // Lab Technician restriction: can only access blood units in TESTING status
+    if (isLabRole && bloodUnit.status !== BloodUnitStatus.TESTING) {
+      throw new ForbiddenException(
+        'Access restricted: Lab Technicians may only inspect blood units in TESTING status.',
+      );
     }
 
     return bloodUnit;

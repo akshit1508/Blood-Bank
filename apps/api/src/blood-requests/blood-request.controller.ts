@@ -17,7 +17,11 @@ import { BloodRequestStatus } from './blood-request.constants';
 import { ReservationsService } from '../modules/reservations/reservations.service';
 import { CreateReservationDto } from '../modules/reservations/dto/create-reservation.dto';
 import { BloodIssuesService } from '../modules/blood-issues/blood-issues.service';
+import { Public } from '../modules/auth/decorators/public.decorator';
+import { Roles } from '../modules/auth/decorators/roles.decorator';
+import { AdminRole } from '../modules/auth/schemas/admin-user.schema';
 
+@Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN)
 @Controller('blood-requests')
 export class BloodRequestController {
   constructor(
@@ -30,6 +34,7 @@ export class BloodRequestController {
    * Public or staff submission of a new blood request.
    * POST /api/blood-requests
    */
+  @Public()
   @Post()
   @HttpCode(HttpStatus.CREATED)
   async create(@Body() createBloodRequestDto: CreateBloodRequestDto) {
