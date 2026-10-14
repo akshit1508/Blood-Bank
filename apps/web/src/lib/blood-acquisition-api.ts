@@ -183,9 +183,37 @@ export interface AcquiredUnitTraceability {
 
 export interface AcquisitionSummaryStats {
   totalReceipts: number;
+  totalAcquisitions?: number;
+  totalInvoicedValuePaise?: number;
+  totalInvoicedValue?: number;
+  approvedLiabilityPaise?: number;
+  approvedLiability?: number;
+  pendingApprovalAmountPaise?: number;
+  pendingApprovalAmount?: number;
+  pendingApprovalCount?: number;
+  outstandingDuesPaise?: number;
+  outstandingDues?: number;
+  totalPaidPaise?: number;
+  totalPaid?: number;
   totalUnitsReceived: number;
-  directToInventory: number;
+  totalAcceptedUnits?: number;
+  totalRejectedUnits?: number;
   pendingTesting: number;
+  pendingTestingUnits?: number;
+  directToInventory: number;
+  byBloodGroup?: Record<string, number>;
+  byComponent?: Record<string, number>;
+  byTestingStatus?: {
+    accepted: number;
+    rejected: number;
+    pending: number;
+  };
+  timeline?: Array<{
+    date: string;
+    count: number;
+    valuePaise: number;
+    value: number;
+  }>;
 }
 
 export interface PaginatedBloodAcquisitions {
@@ -258,6 +286,10 @@ export async function fetchBloodAcquisitions(filters?: {
   sourceType?: string;
   status?: string;
   search?: string;
+  startDate?: string;
+  endDate?: string;
+  paymentStatus?: string;
+  expenseStatus?: string;
   page?: number;
   limit?: number;
 }): Promise<PaginatedBloodAcquisitions> {
@@ -265,6 +297,10 @@ export async function fetchBloodAcquisitions(filters?: {
   if (filters?.sourceType) params.append('sourceType', filters.sourceType);
   if (filters?.status) params.append('status', filters.status);
   if (filters?.search) params.append('search', filters.search);
+  if (filters?.startDate) params.append('startDate', filters.startDate);
+  if (filters?.endDate) params.append('endDate', filters.endDate);
+  if (filters?.paymentStatus) params.append('paymentStatus', filters.paymentStatus);
+  if (filters?.expenseStatus) params.append('expenseStatus', filters.expenseStatus);
   if (filters?.page) params.append('page', String(filters.page));
   if (filters?.limit) params.append('limit', String(filters.limit));
 
@@ -426,8 +462,17 @@ export async function uploadAcquisitionCertificate(
 /**
  * Retrieves KPI summary stats.
  */
-export async function fetchBloodAcquisitionSummary(): Promise<AcquisitionSummaryStats> {
-  const res = await fetch(`${API_BASE_URL}/blood-acquisitions/summary`, {
+export async function fetchBloodAcquisitionSummary(
+  startDate?: string,
+  endDate?: string,
+): Promise<AcquisitionSummaryStats> {
+  const query = new URLSearchParams();
+  if (startDate) query.append('startDate', startDate);
+  if (endDate) query.append('endDate', endDate);
+  const qStr = query.toString();
+  const url = `${API_BASE_URL}/blood-acquisitions/summary${qStr ? `?${qStr}` : ''}`;
+
+  const res = await fetch(url, {
     method: 'GET',
     headers: {
       Accept: 'application/json',

@@ -88,10 +88,10 @@ describe('PaymentsService', () => {
   });
 
   describe('Validation & Vendor Derivation Safeguards', () => {
-    it('should reject payment on non-approved expense', async () => {
+    it('should reject payment on non-payable expense (e.g. DRAFT)', async () => {
       expenseModel.findById.mockResolvedValue({
         _id: validExpenseId,
-        status: ExpenseStatus.SUBMITTED,
+        status: ExpenseStatus.DRAFT,
         vendorId: validVendorId,
       });
 
@@ -108,6 +108,56 @@ describe('PaymentsService', () => {
           mockAdmin,
         ),
       ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should allow payment on SUBMITTED expense and transition it to APPROVED', async () => {
+      expenseModel.findById.mockResolvedValue({
+        _id: validExpenseId,
+        status: ExpenseStatus.SUBMITTED,
+        vendorId: validVendorId,
+        vendorName: 'Direct Supplier Co',
+        amountPaise: 100000,
+        paidAmountPaise: 0,
+      });
+      paymentModel.findOne.mockResolvedValue(null);
+      expenseModel.findOneAndUpdate.mockResolvedValue({
+        _id: validExpenseId,
+        status: ExpenseStatus.APPROVED,
+        paidAmountPaise: 100000,
+        paidAmount: 1000.0,
+        paymentStatus: ExpensePaymentStatus.PAID,
+      });
+      const createdPayment = {
+        _id: new Types.ObjectId(),
+        amountPaise: 100000,
+        amount: 1000.0,
+        vendorName: 'Direct Supplier Co',
+        status: PaymentStatus.COMPLETED,
+      };
+      paymentModel.create.mockResolvedValue([createdPayment]);
+      expenseModel.updateOne.mockResolvedValue({ modifiedCount: 1 });
+
+      const result = await service.recordPayment(
+        {
+          expenseId: validExpenseId.toString(),
+          amount: 1000.0,
+          paymentMethod: PaymentMethod.UPI,
+          referenceNumber: 'UPI-SUBMITTED-01',
+          paymentDate: '2026-10-14',
+          idempotencyKey: 'idemp-test-submitted-01',
+        },
+        mockAdmin,
+      );
+
+      expect(result).toBeDefined();
+      expect(expenseModel.findOneAndUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          _id: validExpenseId,
+          status: { $in: [ExpenseStatus.APPROVED, ExpenseStatus.SUBMITTED] },
+        }),
+        expect.any(Array),
+        expect.any(Object),
+      );
     });
 
     it('should allow payment on historical expense lacking a linked vendor using vendorName directly', async () => {

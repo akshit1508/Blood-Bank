@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import {
   Payment,
   PaymentMethod,
@@ -35,6 +36,10 @@ function PaymentsContent() {
   const [statusFilter, setStatusFilter] = useState('');
   const [methodFilter, setMethodFilter] = useState('');
 
+  // Bills Awaiting Disbursement states
+  const [pendingExpenses, setPendingExpenses] = useState<ExpenseItem[]>([]);
+  const [pendingLoading, setPendingLoading] = useState(true);
+
   // Record Disbursement Modal states
   const [showRecordModal, setShowRecordModal] = useState(false);
   const [approvedExpenses, setApprovedExpenses] = useState<ExpenseItem[]>([]);
@@ -59,6 +64,27 @@ function PaymentsContent() {
   const [selectedPaymentDetail, setSelectedPaymentDetail] = useState<any | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
 
+  const loadPendingExpenses = async () => {
+    try {
+      setPendingLoading(true);
+      const [appRes, subRes] = await Promise.all([
+        fetchExpenses({ status: ExpenseStatus.APPROVED, limit: 50 }),
+        fetchExpenses({ status: ExpenseStatus.SUBMITTED, limit: 50 }),
+      ]);
+      const map = new Map<string, ExpenseItem>();
+      [...appRes.items, ...subRes.items].forEach((e) => map.set(e._id, e));
+      const unpaid = Array.from(map.values()).filter((e) => {
+        const paid = e.paidAmount || 0;
+        return e.amount > paid;
+      });
+      setPendingExpenses(unpaid);
+    } catch (e) {
+      console.error('Failed to load pending expenses:', e);
+    } finally {
+      setPendingLoading(false);
+    }
+  };
+
   const loadPayments = async () => {
     try {
       setLoading(true);
@@ -77,6 +103,7 @@ function PaymentsContent() {
 
   useEffect(() => {
     loadPayments();
+    loadPendingExpenses();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [statusFilter, methodFilter]);
 
@@ -92,9 +119,14 @@ function PaymentsContent() {
     setShowRecordModal(true);
 
     try {
-      // Fetch approved expenses with unpaid balances
-      const res = await fetchExpenses({ status: ExpenseStatus.APPROVED, limit: 100 });
-      let unpaid = res.items.filter((e) => {
+      // Fetch approved and submitted expenses with unpaid balances
+      const [appRes, subRes] = await Promise.all([
+        fetchExpenses({ status: ExpenseStatus.APPROVED, limit: 100 }),
+        fetchExpenses({ status: ExpenseStatus.SUBMITTED, limit: 100 }),
+      ]);
+      const map = new Map<string, ExpenseItem>();
+      [...appRes.items, ...subRes.items].forEach((e) => map.set(e._id, e));
+      let unpaid = Array.from(map.values()).filter((e) => {
         const paid = e.paidAmount || 0;
         return e.amount > paid;
       });
@@ -106,15 +138,12 @@ function PaymentsContent() {
       if (targetId && !matched) {
         try {
           const direct = await fetchExpenseById(targetId);
-          if (direct && direct.status === ExpenseStatus.APPROVED) {
+          if (direct && (direct.status === ExpenseStatus.APPROVED || direct.status === ExpenseStatus.SUBMITTED)) {
             const rem = direct.amount - (direct.paidAmount || 0);
             if (rem > 0) {
               unpaid = [direct, ...unpaid];
               matched = direct;
             }
-          } else if (direct && direct.status === ExpenseStatus.SUBMITTED) {
-            setModalError(`Expense ${direct.expenseCode} is currently PENDING APPROVAL. A Super Admin must approve it in Approvals before disbursement.`);
-            return;
           }
         } catch {}
       }
@@ -130,10 +159,10 @@ function PaymentsContent() {
         const rem = unpaid[0].amount - (unpaid[0].paidAmount || 0);
         setPaymentAmount(rem.toFixed(2));
       } else if (targetId) {
-        setModalError('The requested expense is either not approved, already fully settled, or not found.');
+        setModalError('The requested expense is either not found, already fully settled, or not payable.');
       }
     } catch (err: any) {
-      setModalError('Could not fetch approved expenses list: ' + err.message);
+      setModalError('Could not fetch payable expenses list: ' + err.message);
     }
   };
 
@@ -193,6 +222,7 @@ function PaymentsContent() {
 
       setShowRecordModal(false);
       loadPayments();
+      loadPendingExpenses();
     } catch (err: any) {
       setModalError(err?.message || 'Failed to record disbursement');
     } finally {
@@ -222,6 +252,7 @@ function PaymentsContent() {
       await cancelPayment(paymentToCancel._id, cancelReason.trim());
       setShowCancelModal(false);
       loadPayments();
+      loadPendingExpenses();
     } catch (err: any) {
       setCancelError(err?.message || 'Failed to cancel payment');
     } finally {
@@ -272,6 +303,129 @@ function PaymentsContent() {
           </button>
         </div>
 
+        {/* Bills & Consignments Awaiting Disbursement */}
+        <div style={{ backgroundColor: '#ffffff', borderRadius: '8px', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+          <div style={{ padding: '0.85rem 1.25rem', backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <span style={{ fontSize: '1rem' }}>📋</span>
+              <strong style={{ fontSize: '0.9rem', color: '#0f172a' }}>Bills &amp; Consignments Awaiting Disbursement</strong>
+              <span
+                style={{
+                  fontSize: '0.75rem',
+                  fontWeight: 700,
+                  padding: '0.15rem 0.5rem',
+                  borderRadius: '9999px',
+                  backgroundColor: pendingExpenses.length > 0 ? '#fee2e2' : '#f1f5f9',
+                  color: pendingExpenses.length > 0 ? '#991b1b' : '#64748b',
+                }}
+              >
+                {pendingExpenses.length} pending
+              </span>
+            </div>
+            <Link
+              href="/super-admin/finance/dues"
+              style={{ fontSize: '0.8rem', fontWeight: 600, color: '#dc2626', textDecoration: 'none' }}
+            >
+              View Outstanding Dues &amp; Aging &rarr;
+            </Link>
+          </div>
+
+          {pendingLoading ? (
+            <div style={{ padding: '2rem', textAlign: 'center', color: '#64748b', fontSize: '0.85rem' }}>
+              Loading pending payable bills...
+            </div>
+          ) : pendingExpenses.length === 0 ? (
+            <div style={{ padding: '1.75rem 1.25rem', textAlign: 'center', color: '#166534', backgroundColor: '#f0fdf4' }}>
+              <p style={{ margin: 0, fontWeight: 700, fontSize: '0.875rem' }}>✓ All bills and blood acquisition orders are fully disbursed!</p>
+              <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.8rem', color: '#15803d' }}>
+                No center or blood acquisition expenditures are currently pending payment.
+              </p>
+            </div>
+          ) : (
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.825rem' }}>
+                <thead>
+                  <tr style={{ backgroundColor: '#fdfdfd', borderBottom: '1px solid #e2e8f0', color: '#64748b' }}>
+                    <th style={{ padding: '0.65rem 1rem', fontWeight: 600 }}>Expense Code</th>
+                    <th style={{ padding: '0.65rem 1rem', fontWeight: 600 }}>Payee / Center</th>
+                    <th style={{ padding: '0.65rem 1rem', fontWeight: 600 }}>Title / Description</th>
+                    <th style={{ padding: '0.65rem 1rem', fontWeight: 600 }}>Invoice Date</th>
+                    <th style={{ padding: '0.65rem 1rem', fontWeight: 600, textAlign: 'right' }}>Total (₹)</th>
+                    <th style={{ padding: '0.65rem 1rem', fontWeight: 600, textAlign: 'right' }}>Outstanding Due (₹)</th>
+                    <th style={{ padding: '0.65rem 1rem', fontWeight: 600 }}>Status</th>
+                    <th style={{ padding: '0.65rem 1rem', fontWeight: 600, textAlign: 'right' }}>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pendingExpenses.map((exp) => {
+                    const remaining = Math.max(0, exp.amount - (exp.paidAmount || 0));
+                    return (
+                      <tr key={exp._id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                        <td style={{ padding: '0.75rem 1rem', fontWeight: 700, fontFamily: 'monospace', color: '#0f172a' }}>
+                          {exp.expenseCode}
+                        </td>
+                        <td style={{ padding: '0.75rem 1rem', fontWeight: 600, color: '#1e293b' }}>
+                          {exp.vendorName || 'Unspecified Payee'}
+                        </td>
+                        <td style={{ padding: '0.75rem 1rem', color: '#475569' }}>
+                          {exp.title}
+                        </td>
+                        <td style={{ padding: '0.75rem 1rem', color: '#64748b' }}>
+                          {exp.expenseDate ? new Date(exp.expenseDate).toLocaleDateString('en-IN') : '—'}
+                        </td>
+                        <td style={{ padding: '0.75rem 1rem', textAlign: 'right', fontWeight: 600, color: '#334155' }}>
+                          {formatINR(exp.amount)}
+                        </td>
+                        <td style={{ padding: '0.75rem 1rem', textAlign: 'right', fontWeight: 700, color: '#be123c' }}>
+                          {formatINR(remaining)}
+                        </td>
+                        <td style={{ padding: '0.75rem 1rem' }}>
+                          <span
+                            style={{
+                              padding: '0.2rem 0.5rem',
+                              borderRadius: '4px',
+                              fontSize: '0.7rem',
+                              fontWeight: 700,
+                              backgroundColor: exp.status === ExpenseStatus.SUBMITTED ? '#fef3c7' : '#ecfdf5',
+                              color: exp.status === ExpenseStatus.SUBMITTED ? '#92400e' : '#065f46',
+                            }}
+                          >
+                            {exp.status === ExpenseStatus.SUBMITTED ? 'Pending Approval' : 'Approved'}
+                          </span>
+                        </td>
+                        <td style={{ padding: '0.75rem 1rem', textAlign: 'right' }}>
+                          <button
+                            onClick={() => openRecordModal(exp._id)}
+                            style={{
+                              padding: '0.35rem 0.75rem',
+                              backgroundColor: '#dc2626',
+                              color: '#ffffff',
+                              border: 'none',
+                              borderRadius: '4px',
+                              fontSize: '0.75rem',
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                            }}
+                          >
+                            Disburse &rarr;
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        {/* Section Heading & Filters for Payment Records */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.5rem' }}>
+          <h2 style={{ fontSize: '1.15rem', fontWeight: 700, color: '#1e293b', margin: 0 }}>
+            Disbursement History &amp; Vouchers
+          </h2>
+        </div>
+
         {/* Filters */}
         <div
           style={{
@@ -281,7 +435,6 @@ function PaymentsContent() {
             padding: '1rem',
             borderRadius: '8px',
             border: '1px solid #e2e8f0',
-            marginBottom: '1.5rem',
             alignItems: 'center',
           }}
         >
@@ -470,7 +623,7 @@ function PaymentsContent() {
               }}
             >
               <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#0f172a', margin: '0 0 1rem 0' }}>
-                Record Vendor Disbursement
+                Record Supplier Disbursement
               </h2>
 
               {modalError && (
@@ -482,13 +635,13 @@ function PaymentsContent() {
               <form onSubmit={handleRecordSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 {approvedExpenses.length === 0 ? (
                   <div style={{ padding: '1.5rem', textAlign: 'center', color: '#64748b', backgroundColor: '#f8fafc', borderRadius: '6px' }}>
-                    No approved expenses with pending payable balances were found.
+                    No expenses or blood acquisition orders with pending payable balances were found.
                   </div>
                 ) : (
                   <>
                     <div>
                       <label style={{ display: 'block', fontSize: '0.775rem', fontWeight: 600, color: '#334155', marginBottom: '0.25rem' }}>
-                        Select Approved Expense *
+                        Select Payable Expense or Blood Consignment *
                       </label>
                       <select
                         value={selectedExpenseId}
@@ -497,9 +650,10 @@ function PaymentsContent() {
                       >
                         {approvedExpenses.map((exp) => {
                           const rem = exp.amount - (exp.paidAmount || 0);
+                          const isPending = exp.status === ExpenseStatus.SUBMITTED;
                           return (
                             <option key={exp._id} value={exp._id}>
-                              {exp.expenseCode} &bull; {exp.title} &bull; {exp.vendorName} &bull; Bal: {formatINR(rem)}
+                              {exp.expenseCode} &bull; {exp.title} &bull; {exp.vendorName} &bull; Bal: {formatINR(rem)} {isPending ? '— [Pending Approval]' : '— [Approved]'}
                             </option>
                           );
                         })}
@@ -507,20 +661,29 @@ function PaymentsContent() {
                     </div>
 
                     {selectedExpense && (
-                      <div style={{ backgroundColor: '#f8fafc', padding: '0.85rem 1rem', borderRadius: '6px', border: '1px solid #e2e8f0', fontSize: '0.8rem', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.75rem' }}>
-                        <div>
-                          <span style={{ color: '#64748b', display: 'block' }}>Total Invoiced</span>
-                          <strong style={{ color: '#0f172a' }}>{formatINR(selectedExpense.amount)}</strong>
+                      <>
+                        <div style={{ backgroundColor: '#f8fafc', padding: '0.85rem 1rem', borderRadius: '6px', border: '1px solid #e2e8f0', fontSize: '0.8rem', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.75rem' }}>
+                          <div>
+                            <span style={{ color: '#64748b', display: 'block' }}>Total Invoiced</span>
+                            <strong style={{ color: '#0f172a' }}>{formatINR(selectedExpense.amount)}</strong>
+                          </div>
+                          <div>
+                            <span style={{ color: '#64748b', display: 'block' }}>Already Paid</span>
+                            <strong style={{ color: '#166534' }}>{formatINR(selectedExpense.paidAmount || 0)}</strong>
+                          </div>
+                          <div>
+                            <span style={{ color: '#64748b', display: 'block' }}>Remaining Due</span>
+                            <strong style={{ color: '#be123c' }}>{formatINR(remainingPayable)}</strong>
+                          </div>
                         </div>
-                        <div>
-                          <span style={{ color: '#64748b', display: 'block' }}>Already Paid</span>
-                          <strong style={{ color: '#166534' }}>{formatINR(selectedExpense.paidAmount || 0)}</strong>
-                        </div>
-                        <div>
-                          <span style={{ color: '#64748b', display: 'block' }}>Remaining Due</span>
-                          <strong style={{ color: '#be123c' }}>{formatINR(remainingPayable)}</strong>
-                        </div>
-                      </div>
+
+                        {selectedExpense.status === ExpenseStatus.SUBMITTED && (
+                          <div style={{ backgroundColor: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '6px', padding: '0.65rem 0.85rem', fontSize: '0.775rem', color: '#1e40af', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <span>ℹ️</span>
+                            <span>This bill is currently pending approval. Disbursing payment as Super Admin authorizes and approves this expenditure simultaneously.</span>
+                          </div>
+                        )}
+                      </>
                     )}
 
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>

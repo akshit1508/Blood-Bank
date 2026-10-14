@@ -1,11 +1,12 @@
 'use client';
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   ExpenseItem,
   ExpenseStatus,
+  ExpensePaymentStatus,
   ExpenseCategory,
   CostCenter,
   EXPENSE_CATEGORY_LABELS,
@@ -13,6 +14,7 @@ import {
   fetchExpenses,
   fetchExpenseSummary,
   deleteExpense,
+  submitExpense,
   formatINR,
   ExpenseSummaryStats,
   downloadExpenseReceipt,
@@ -79,12 +81,60 @@ export default function ExpenseDirectoryContent({ portalRole }: ExpenseDirectory
 
   // Filters
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [paymentStatusFilter, setPaymentStatusFilter] = useState<string>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [costCenterFilter, setCostCenterFilter] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState<string>('');
+  const [datePreset, setDatePreset] = useState<'all' | 'today' | '7days' | '15days' | '30days' | 'this_month' | 'custom'>('all');
+  const [customStartDate, setCustomStartDate] = useState('');
+  const [customEndDate, setCustomEndDate] = useState('');
   const [page, setPage] = useState<number>(1);
   const [totalPages, setTotalPages] = useState<number>(1);
   const [totalCount, setTotalCount] = useState<number>(0);
+
+  // Calculate actual ISO date boundaries for server-side queries
+  const { queryStartDate, queryEndDate } = useMemo(() => {
+    const now = new Date();
+    if (datePreset === 'today') {
+      const todayStr = now.toISOString().slice(0, 10);
+      return { queryStartDate: todayStr, queryEndDate: todayStr };
+    }
+    if (datePreset === '7days') {
+      const past = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      return {
+        queryStartDate: past.toISOString().slice(0, 10),
+        queryEndDate: now.toISOString().slice(0, 10),
+      };
+    }
+    if (datePreset === '15days') {
+      const past = new Date(now.getTime() - 15 * 24 * 60 * 60 * 1000);
+      return {
+        queryStartDate: past.toISOString().slice(0, 10),
+        queryEndDate: now.toISOString().slice(0, 10),
+      };
+    }
+    if (datePreset === '30days') {
+      const past = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      return {
+        queryStartDate: past.toISOString().slice(0, 10),
+        queryEndDate: now.toISOString().slice(0, 10),
+      };
+    }
+    if (datePreset === 'this_month') {
+      const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+      return {
+        queryStartDate: firstDay.toISOString().slice(0, 10),
+        queryEndDate: now.toISOString().slice(0, 10),
+      };
+    }
+    if (datePreset === 'custom') {
+      return {
+        queryStartDate: customStartDate || undefined,
+        queryEndDate: customEndDate || undefined,
+      };
+    }
+    return { queryStartDate: undefined, queryEndDate: undefined };
+  }, [datePreset, customStartDate, customEndDate]);
 
   // Selected item modal for audit view
   const [selectedExpense, setSelectedExpense] = useState<ExpenseItem | null>(null);
@@ -125,13 +175,16 @@ export default function ExpenseDirectoryContent({ portalRole }: ExpenseDirectory
       const [listRes, summaryRes] = await Promise.all([
         fetchExpenses({
           status: statusFilter !== 'all' ? statusFilter : undefined,
+          paymentStatus: paymentStatusFilter !== 'all' ? paymentStatusFilter : undefined,
           category: categoryFilter !== 'all' ? categoryFilter : undefined,
           costCenter: costCenterFilter !== 'all' ? costCenterFilter : undefined,
+          startDate: queryStartDate,
+          endDate: queryEndDate,
           search: searchTerm.trim() || undefined,
           page,
           limit: 15,
         }),
-        fetchExpenseSummary(),
+        fetchExpenseSummary(queryStartDate, queryEndDate),
       ]);
 
       setExpenses(listRes.items);
@@ -143,11 +196,30 @@ export default function ExpenseDirectoryContent({ portalRole }: ExpenseDirectory
     } finally {
       setLoading(false);
     }
-  }, [statusFilter, categoryFilter, costCenterFilter, searchTerm, page]);
+  }, [
+    statusFilter,
+    paymentStatusFilter,
+    categoryFilter,
+    costCenterFilter,
+    searchTerm,
+    queryStartDate,
+    queryEndDate,
+    page,
+  ]);
 
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  const handleSubmitDraft = async (id: string, code: string) => {
+    if (!confirm(`Submit expense ${code} for review and approval?`)) return;
+    try {
+      await submitExpense(id);
+      await loadData();
+    } catch (err: any) {
+      alert(err?.message || 'Failed to submit expense for review.');
+    }
+  };
 
 
   const handleDeleteDraft = async (id: string, code: string) => {
@@ -516,7 +588,7 @@ export default function ExpenseDirectoryContent({ portalRole }: ExpenseDirectory
             {/* Search Input */}
             <input
               type="text"
-              placeholder="Search code, vendor, invoice..."
+              placeholder="Search code, vendor/source, invoice, receipt..."
               value={searchTerm}
               onChange={(e) => {
                 setSearchTerm(e.target.value);
@@ -528,9 +600,32 @@ export default function ExpenseDirectoryContent({ portalRole }: ExpenseDirectory
                 border: '1px solid #cbd5e1',
                 borderRadius: '6px',
                 outline: 'none',
-                minWidth: '220px',
+                minWidth: '240px',
               }}
             />
+
+            {/* Payment Status Dropdown */}
+            <select
+              value={paymentStatusFilter}
+              onChange={(e) => {
+                setPaymentStatusFilter(e.target.value);
+                setPage(1);
+              }}
+              style={{
+                padding: '0.45rem 0.65rem',
+                fontSize: '0.8rem',
+                border: '1px solid #cbd5e1',
+                borderRadius: '6px',
+                outline: 'none',
+                backgroundColor: '#ffffff',
+                color: '#334155',
+              }}
+            >
+              <option value="all">All Payment Statuses</option>
+              <option value={ExpensePaymentStatus.UNPAID}>Unpaid</option>
+              <option value={ExpensePaymentStatus.PARTIALLY_PAID}>Partially Paid</option>
+              <option value={ExpensePaymentStatus.PAID}>Paid</option>
+            </select>
 
             {/* Category Dropdown */}
             <select
@@ -582,6 +677,88 @@ export default function ExpenseDirectoryContent({ portalRole }: ExpenseDirectory
               ))}
             </select>
           </div>
+        </div>
+
+        {/* Date Filter Row */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem', paddingTop: '0.65rem', borderTop: '1px solid #f1f5f9' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexWrap: 'wrap' }}>
+            <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b', marginRight: '0.25rem' }}>
+              📅 Expense Date:
+            </span>
+            {[
+              { id: 'all', label: 'All Time' },
+              { id: 'today', label: 'Today' },
+              { id: '7days', label: 'Last 7 Days' },
+              { id: '15days', label: 'Last 15 Days' },
+              { id: '30days', label: 'Last 30 Days' },
+              { id: 'this_month', label: 'This Month' },
+              { id: 'custom', label: 'Custom' },
+            ].map((p) => {
+              const active = datePreset === p.id;
+              return (
+                <button
+                  key={p.id}
+                  onClick={() => {
+                    setDatePreset(p.id as any);
+                    setPage(1);
+                  }}
+                  style={{
+                    padding: '0.3rem 0.65rem',
+                    borderRadius: '6px',
+                    border: active ? '1px solid #dc2626' : '1px solid #e2e8f0',
+                    backgroundColor: active ? '#fef2f2' : '#ffffff',
+                    color: active ? '#dc2626' : '#64748b',
+                    fontSize: '0.75rem',
+                    fontWeight: active ? 700 : 500,
+                    cursor: 'pointer',
+                  }}
+                >
+                  {p.label}
+                </button>
+              );
+            })}
+          </div>
+
+          {datePreset === 'custom' && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                <span style={{ fontSize: '0.725rem', color: '#64748b' }}>From:</span>
+                <input
+                  type="date"
+                  value={customStartDate}
+                  onChange={(e) => {
+                    setCustomStartDate(e.target.value);
+                    setPage(1);
+                  }}
+                  style={{
+                    padding: '0.25rem 0.5rem',
+                    fontSize: '0.75rem',
+                    border: '1px solid #cbd5e1',
+                    borderRadius: '4px',
+                    outline: 'none',
+                  }}
+                />
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                <span style={{ fontSize: '0.725rem', color: '#64748b' }}>To:</span>
+                <input
+                  type="date"
+                  value={customEndDate}
+                  onChange={(e) => {
+                    setCustomEndDate(e.target.value);
+                    setPage(1);
+                  }}
+                  style={{
+                    padding: '0.25rem 0.5rem',
+                    fontSize: '0.75rem',
+                    border: '1px solid #cbd5e1',
+                    borderRadius: '4px',
+                    outline: 'none',
+                  }}
+                />
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -748,6 +925,22 @@ export default function ExpenseDirectoryContent({ portalRole }: ExpenseDirectory
                       <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
                         {item.status === ExpenseStatus.DRAFT && (
                           <>
+                            <button
+                              onClick={() => handleSubmitDraft(item._id, item.expenseCode)}
+                              style={{
+                                background: 'none',
+                                border: '1px solid #86efac',
+                                color: '#15803d',
+                                backgroundColor: '#f0fdf4',
+                                borderRadius: '4px',
+                                padding: '0.25rem 0.5rem',
+                                fontSize: '0.75rem',
+                                cursor: 'pointer',
+                                fontWeight: 700,
+                              }}
+                            >
+                              Submit
+                            </button>
                             <Link
                               href={`${basePath}/expenses/${item._id}/edit`}
                               style={{

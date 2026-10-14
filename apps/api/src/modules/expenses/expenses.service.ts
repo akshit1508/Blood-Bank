@@ -4,6 +4,7 @@ import {
   BadRequestException,
   ForbiddenException,
   Logger,
+  OnModuleInit,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types, isValidObjectId } from 'mongoose';
@@ -30,7 +31,7 @@ import { Vendor, VendorDocument } from '../vendors/schemas/vendor.schema';
 import { CurrencyUtil } from '../../common/utils/currency.util';
 
 @Injectable()
-export class ExpensesService {
+export class ExpensesService implements OnModuleInit {
   private readonly logger = new Logger(ExpensesService.name);
 
   constructor(
@@ -40,6 +41,47 @@ export class ExpensesService {
     private readonly vendorModel: Model<VendorDocument>,
     private readonly storageService: StorageService,
   ) {}
+
+  async onModuleInit() {
+    await this.syncHistoricalAcquisitionExpenses();
+  }
+
+  /**
+   * Auto-promotes any legacy acquisition-linked expense in DRAFT or SUBMITTED to APPROVED,
+   * as blood acquisition expenses are fixed and do not require permission for approval.
+   */
+  async syncHistoricalAcquisitionExpenses() {
+    try {
+      const unapprovedAcquisitionExpenses = await this.expenseModel.find({
+        acquisitionId: { $exists: true, $ne: null },
+        status: { $in: [ExpenseStatus.DRAFT, ExpenseStatus.SUBMITTED] },
+        isDeleted: false,
+      }).exec();
+
+      if (unapprovedAcquisitionExpenses.length > 0) {
+        this.logger.log(`Promoting ${unapprovedAcquisitionExpenses.length} historical acquisition expense(s) to APPROVED...`);
+        for (const exp of unapprovedAcquisitionExpenses) {
+          const fromStatus = exp.status;
+          exp.status = ExpenseStatus.APPROVED;
+          exp.reviewedAt = exp.reviewedAt || new Date();
+          exp.approvalRemarks = 'Fixed acquisition cost auto-approved upon consignment submission.';
+          exp.auditHistory.push({
+            action: ExpenseAuditEventType.APPROVED,
+            fromStatus,
+            toStatus: ExpenseStatus.APPROVED,
+            performedBy: exp.creatorId,
+            performedByEmail: exp.creatorEmail || 'system@internal',
+            performedByName: 'SYSTEM_TRANSITION',
+            notes: 'Fixed blood acquisition consignment expense automatically approved (no separate approval required).',
+            timestamp: new Date(),
+          } as any);
+          await exp.save();
+        }
+      }
+    } catch (err: any) {
+      this.logger.warn(`Could not sync historical acquisition expenses: ${err.message}`);
+    }
+  }
 
   /**
    * Generates unique sequential expense code: EXP-YYYYMMDD-XXXX
@@ -173,6 +215,10 @@ export class ExpensesService {
       filter.status = queryDto.status;
     }
 
+    if (queryDto.paymentStatus && queryDto.paymentStatus !== 'all') {
+      filter.paymentStatus = queryDto.paymentStatus;
+    }
+
     if (queryDto.category && queryDto.category !== 'all') {
       filter.category = queryDto.category;
     }
@@ -200,6 +246,7 @@ export class ExpensesService {
         { title: regex },
         { vendorName: regex },
         { invoiceNumber: regex },
+        { description: regex },
       ];
     }
 
@@ -537,7 +584,7 @@ export class ExpensesService {
       });
     }
 
-    if (!expense.receipt || !expense.receipt.fileId) {
+    if ((!expense.receipt || !expense.receipt.fileId) && !expense.acquisitionId) {
       throw new BadRequestException({
         message: 'A digital bill or receipt attachment is mandatory before submitting for approval.',
         code: 'RECEIPT_REQUIRED',
@@ -552,8 +599,10 @@ export class ExpensesService {
     }
 
     const isSuperAdmin = currentAdmin.role === AdminRole.SUPER_ADMIN;
+    // Acquisition-linked expenses must always go through explicit approval (segregation of duties)
+    const autoApprove = isSuperAdmin && !expense.acquisitionId;
 
-    if (isSuperAdmin) {
+    if (autoApprove) {
       expense.status = ExpenseStatus.APPROVED;
       expense.submittedAt = new Date();
       expense.reviewedBy = new Types.ObjectId(currentAdmin.id || currentAdmin._id);

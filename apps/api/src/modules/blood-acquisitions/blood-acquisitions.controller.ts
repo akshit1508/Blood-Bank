@@ -62,8 +62,11 @@ export class BloodAcquisitionsController {
    * GET /api/blood-acquisitions/summary
    */
   @Get('summary')
-  async getSummary() {
-    const stats = await this.bloodAcquisitionsService.getSummary();
+  async getSummary(
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    const stats = await this.bloodAcquisitionsService.getSummary(startDate, endDate);
     return {
       statusCode: HttpStatus.OK,
       message: 'Blood acquisition summary retrieved successfully',

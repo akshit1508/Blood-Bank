@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAdminAuth } from '@/context/AdminAuthContext';
 import { AdminRole } from '@/lib/auth-api';
+import { fetchExpenseSummary } from '@/lib/expense-api';
+import { fetchOutstandingDues } from '@/lib/payment-api';
 
 interface AdminSidebarProps {
   isOpen?: boolean;
@@ -17,6 +19,7 @@ export interface NavItem {
   href?: string;
   icon: React.ReactNode;
   badge?: string;
+  isNotification?: boolean;
   isComingSoon?: boolean;
 }
 
@@ -34,6 +37,45 @@ export default function AdminSidebar({
   const { admin, logout } = useAdminAuth();
 
   const currentRole = roleOverride || (admin?.role as AdminRole) || AdminRole.ADMIN;
+
+  // Real-time finance notification badge counts for Super Admin
+  const [expenseBadgeCount, setExpenseBadgeCount] = React.useState<number>(0);
+  const [paymentBadgeCount, setPaymentBadgeCount] = React.useState<number>(0);
+
+  React.useEffect(() => {
+    if (currentRole !== AdminRole.SUPER_ADMIN) return;
+
+    let isMounted = true;
+
+    const loadFinanceNotificationCounts = async () => {
+      try {
+        const [summaryRes, duesRes] = await Promise.allSettled([
+          fetchExpenseSummary(),
+          fetchOutstandingDues(),
+        ]);
+
+        if (!isMounted) return;
+
+        if (summaryRes.status === 'fulfilled' && summaryRes.value) {
+          setExpenseBadgeCount(summaryRes.value.submittedCount || 0);
+        }
+
+        if (duesRes.status === 'fulfilled' && duesRes.value?.summary) {
+          setPaymentBadgeCount(duesRes.value.summary.pendingExpensesCount || 0);
+        }
+      } catch {
+        // Silently catch network or permission errors
+      }
+    };
+
+    loadFinanceNotificationCounts();
+
+    const interval = setInterval(loadFinanceNotificationCounts, 30000);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, [currentRole, pathname]);
 
   // Close sidebar on Escape key when drawer is open
   React.useEffect(() => {
@@ -220,10 +262,22 @@ export default function AdminSidebar({
       {
         label: 'FINANCE',
         items: [
-          { name: 'Expenditure Management', href: '/super-admin/finance/expenses', icon: icons.finance },
-          { name: 'Disbursements & Payments', href: '/super-admin/finance/payments', icon: icons.finance },
+          {
+            name: 'Expenditure Management',
+            href: '/super-admin/finance/expenses',
+            icon: icons.finance,
+            badge: expenseBadgeCount > 0 ? String(expenseBadgeCount) : undefined,
+            isNotification: expenseBadgeCount > 0,
+          },
+          {
+            name: 'Disbursements & Payments',
+            href: '/super-admin/finance/payments',
+            icon: icons.finance,
+            badge: paymentBadgeCount > 0 ? String(paymentBadgeCount) : undefined,
+            isNotification: paymentBadgeCount > 0,
+          },
           { name: 'Outstanding Dues', href: '/super-admin/finance/dues', icon: icons.analytics },
-          { name: 'Acquisition Costing', icon: icons.acquisition, isComingSoon: true, badge: 'Coming Soon' },
+          { name: 'Acquisition Costing', href: '/super-admin/finance/acquisition-costing', icon: icons.acquisition },
           { name: 'Payroll', icon: icons.staff, isComingSoon: true, badge: 'Coming Soon' },
           { name: 'Income & Funding', icon: icons.finance, isComingSoon: true, badge: 'Coming Soon' },
           { name: 'Financial Reports', icon: icons.analytics, isComingSoon: true, badge: 'Coming Soon' },
@@ -448,15 +502,33 @@ export default function AdminSidebar({
 
                       {item.badge && (
                         <span
-                          style={{
-                            fontSize: '0.65rem',
-                            fontWeight: 700,
-                            padding: '0.1rem 0.35rem',
-                            borderRadius: '4px',
-                            backgroundColor: isActive ? '#dc2626' : '#f1f5f9',
-                            color: isActive ? '#ffffff' : '#64748b',
-                            border: isActive ? '1px solid #dc2626' : '1px solid #e2e8f0',
-                          }}
+                          style={
+                            item.isNotification
+                              ? {
+                                  fontSize: '0.7rem',
+                                  fontWeight: 800,
+                                  minWidth: '20px',
+                                  height: '20px',
+                                  padding: '0 6px',
+                                  borderRadius: '9999px',
+                                  backgroundColor: '#dc2626',
+                                  color: '#ffffff',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  boxShadow: '0 1px 3px rgba(220, 38, 38, 0.4)',
+                                  lineHeight: 1,
+                                }
+                              : {
+                                  fontSize: '0.65rem',
+                                  fontWeight: 700,
+                                  padding: '0.1rem 0.35rem',
+                                  borderRadius: '4px',
+                                  backgroundColor: isActive ? '#dc2626' : '#f1f5f9',
+                                  color: isActive ? '#ffffff' : '#64748b',
+                                  border: isActive ? '1px solid #dc2626' : '1px solid #e2e8f0',
+                                }
+                          }
                         >
                           {item.badge}
                         </span>

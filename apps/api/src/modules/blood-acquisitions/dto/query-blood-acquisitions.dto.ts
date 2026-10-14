@@ -16,6 +16,22 @@ export class QueryBloodAcquisitionsDto {
   search?: string;
 
   @IsOptional()
+  @IsString()
+  startDate?: string;
+
+  @IsOptional()
+  @IsString()
+  endDate?: string;
+
+  @IsOptional()
+  @IsString()
+  paymentStatus?: string;
+
+  @IsOptional()
+  @IsString()
+  expenseStatus?: string;
+
+  @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)

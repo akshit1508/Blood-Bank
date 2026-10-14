@@ -45,7 +45,7 @@ export default function SuperAdminDuesPage() {
             Outstanding Dues &amp; Aging
           </h1>
           <p style={{ margin: '0.25rem 0 0 0', color: '#94a3b8', fontSize: '0.85rem' }}>
-            Real-time summary of approved center expenditures awaiting supplier disbursement.
+            Real-time summary of center and blood acquisition expenditures awaiting supplier disbursement.
           </p>
         </div>
           <Link
@@ -241,6 +241,7 @@ export default function SuperAdminDuesPage() {
                               <th style={{ padding: '0.5rem' }}>Invoice No</th>
                               <th style={{ padding: '0.5rem' }}>Date</th>
                               <th style={{ padding: '0.5rem' }}>Aging</th>
+                              <th style={{ padding: '0.5rem' }}>Status</th>
                               <th style={{ padding: '0.5rem', textAlign: 'right' }}>Total (₹)</th>
                               <th style={{ padding: '0.5rem', textAlign: 'right' }}>Paid (₹)</th>
                               <th style={{ padding: '0.5rem', textAlign: 'right' }}>Balance (₹)</th>
@@ -290,6 +291,20 @@ export default function SuperAdminDuesPage() {
                                       }}
                                     >
                                       {exp.agingBucket || '0-30 Days'} ({exp.ageDays || 0}d)
+                                    </span>
+                                  </td>
+                                  <td style={{ padding: '0.5rem' }}>
+                                    <span
+                                      style={{
+                                        fontSize: '0.7rem',
+                                        fontWeight: 700,
+                                        padding: '0.15rem 0.45rem',
+                                        borderRadius: '4px',
+                                        backgroundColor: exp.status === 'SUBMITTED' ? '#fef3c7' : '#ecfdf5',
+                                        color: exp.status === 'SUBMITTED' ? '#92400e' : '#065f46',
+                                      }}
+                                    >
+                                      {exp.status === 'SUBMITTED' ? 'Pending Approval' : 'Approved'}
                                     </span>
                                   </td>
                                   <td style={{ padding: '0.5rem', textAlign: 'right', fontWeight: 600 }}>

@@ -411,7 +411,7 @@ describe('Phase 4 — Blood Acquisition & Acquisition Costing Integration Suite'
 
       const result = await acquisitionsService.create(costingDto, mockAdminStaff);
       expect((result as any).expense).toBeDefined();
-      expect((result as any).expense.status).toBe(ExpenseStatus.SUBMITTED);
+      expect((result as any).expense.status).toBe(ExpenseStatus.APPROVED);
       // Total payable = (10 * 1500) + 500 = ₹15,500
       expect((result as any).expense.amount).toBe(15500);
       expect((result as any).expense.amountPaise).toBe(1550000);

@@ -10,6 +10,12 @@ export enum ExpenseStatus {
   CANCELLED = 'CANCELLED',
 }
 
+export enum ExpensePaymentStatus {
+  UNPAID = 'UNPAID',
+  PARTIALLY_PAID = 'PARTIALLY_PAID',
+  PAID = 'PAID',
+}
+
 export enum ExpenseCategory {
   MEDICAL_SUPPLIES = 'MEDICAL_SUPPLIES',
   LABORATORY_TESTING = 'LABORATORY_TESTING',
@@ -156,6 +162,7 @@ export async function fetchExpenses(params?: {
   status?: string;
   category?: string;
   costCenter?: string;
+  paymentStatus?: string;
   startDate?: string;
   endDate?: string;
   page?: number;
@@ -166,6 +173,7 @@ export async function fetchExpenses(params?: {
   if (params?.status) query.append('status', params.status);
   if (params?.category) query.append('category', params.category);
   if (params?.costCenter) query.append('costCenter', params.costCenter);
+  if (params?.paymentStatus) query.append('paymentStatus', params.paymentStatus);
   if (params?.startDate) query.append('startDate', params.startDate);
   if (params?.endDate) query.append('endDate', params.endDate);
   if (params?.page) query.append('page', String(params.page));

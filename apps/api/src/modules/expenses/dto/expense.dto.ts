@@ -171,6 +171,10 @@ export class QueryExpensesDto {
   @IsOptional()
   costCenter?: string;
 
+  @IsString()
+  @IsOptional()
+  paymentStatus?: string;
+
   @IsDateString()
   @IsOptional()
   startDate?: string;

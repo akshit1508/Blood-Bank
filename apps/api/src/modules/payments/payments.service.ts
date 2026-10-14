@@ -106,10 +106,10 @@ export class PaymentsService implements OnApplicationBootstrap {
       throw new NotFoundException(`Expense with ID '${dto.expenseId}' not found.`);
     }
 
-    if (expense.status !== ExpenseStatus.APPROVED) {
+    if (expense.status !== ExpenseStatus.APPROVED && expense.status !== ExpenseStatus.SUBMITTED) {
       throw new BadRequestException({
-        message: `Payments can only be recorded against APPROVED expenses. Current status: ${expense.status}`,
-        code: 'EXPENSE_NOT_APPROVED',
+        message: `Payments can only be recorded against APPROVED or SUBMITTED expenses. Current status: ${expense.status}`,
+        code: 'EXPENSE_NOT_PAYABLE',
       });
     }
 
@@ -170,6 +170,12 @@ export class PaymentsService implements OnApplicationBootstrap {
     const maxRetries = 3;
     let attempt = 0;
 
+    const reviewerId = currentAdmin?.id
+      ? new Types.ObjectId(currentAdmin.id)
+      : currentAdmin?._id
+      ? new Types.ObjectId(currentAdmin._id)
+      : expense.reviewedBy || null;
+
     while (attempt < maxRetries) {
       attempt++;
       const session = await this.connection.startSession();
@@ -181,7 +187,7 @@ export class PaymentsService implements OnApplicationBootstrap {
           const updatedExpense = await this.expenseModel.findOneAndUpdate(
             {
               _id: expense._id,
-              status: ExpenseStatus.APPROVED,
+              status: { $in: [ExpenseStatus.APPROVED, ExpenseStatus.SUBMITTED] },
               // Invariant guard: Paid paise + payment paise <= effective net liability
               $expr: {
                 $lte: [{ $add: ['$paidAmountPaise', paymentPaise] }, effectiveNetLiabilityPaise],
@@ -191,6 +197,9 @@ export class PaymentsService implements OnApplicationBootstrap {
               {
                 $set: {
                   paidAmountPaise: { $add: ['$paidAmountPaise', paymentPaise] },
+                  status: ExpenseStatus.APPROVED,
+                  reviewedBy: reviewerId,
+                  reviewedAt: expense.reviewedAt || new Date(),
                 },
               },
               {
@@ -239,19 +248,25 @@ export class PaymentsService implements OnApplicationBootstrap {
           );
 
           // Append Audit Trail to Expense
+          const fromStatus = expense.status;
+          const auditNotes =
+            fromStatus === ExpenseStatus.SUBMITTED
+              ? `Disbursement of ₹${derivedInrAmount.toFixed(2)} recorded with Super Admin approval via ${dto.paymentMethod} (Ref: ${dto.referenceNumber.trim()}). Payment ID: ${paymentDoc._id}`
+              : `Disbursement of ₹${derivedInrAmount.toFixed(2)} recorded via ${dto.paymentMethod} (Ref: ${dto.referenceNumber.trim()}). Payment ID: ${paymentDoc._id}`;
+
           await this.expenseModel.updateOne(
             { _id: expense._id },
             {
               $push: {
                 auditHistory: {
                   action: ExpenseAuditEventType.DISBURSEMENT_RECORDED,
-                  fromStatus: expense.status,
-                  toStatus: expense.status,
+                  fromStatus,
+                  toStatus: ExpenseStatus.APPROVED,
                   performedBy: new Types.ObjectId(currentAdmin.id || currentAdmin._id),
                   performedByName: currentAdmin.fullName || 'Super Admin',
                   performedByEmail: currentAdmin.email,
                   timestamp: new Date(),
-                  notes: `Disbursement of ₹${derivedInrAmount.toFixed(2)} recorded via ${dto.paymentMethod} (Ref: ${dto.referenceNumber.trim()}). Payment ID: ${paymentDoc._id}`,
+                  notes: auditNotes,
                 },
               },
             },
@@ -506,7 +521,7 @@ export class PaymentsService implements OnApplicationBootstrap {
   async getOutstandingDues(): Promise<any> {
     const expenses = await this.expenseModel
       .find({
-        status: ExpenseStatus.APPROVED,
+        status: { $in: [ExpenseStatus.APPROVED, ExpenseStatus.SUBMITTED] },
         isDeleted: false,
         paymentStatus: { $ne: ExpensePaymentStatus.PAID },
       })
@@ -597,6 +612,7 @@ export class PaymentsService implements OnApplicationBootstrap {
         _id: exp._id,
         expenseCode: exp.expenseCode,
         title: exp.title,
+        status: exp.status,
         category: exp.category,
         invoiceNumber: exp.invoiceNumber,
         expenseDate: exp.expenseDate,

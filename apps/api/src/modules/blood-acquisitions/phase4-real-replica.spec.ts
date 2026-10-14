@@ -229,10 +229,10 @@ describe('Phase 4 — Real MongoDB Replica Set Integration Audit', () => {
       const dbInventory = await inventoryModel.find({}).exec();
       expect(dbInventory.length).toBe(0); // Zero units in inventory
 
-      // Confirm linked Expense created in SUBMITTED in database
+      // Confirm linked Expense created in APPROVED in database (fixed acquisition cost auto-approved)
       const dbExpense = await expenseModel.findById((result as any).expense._id).exec();
       expect(dbExpense).toBeDefined();
-      expect(dbExpense!.status).toBe(ExpenseStatus.SUBMITTED);
+      expect(dbExpense!.status).toBe(ExpenseStatus.APPROVED);
       // Payable: (5 * 1500) + (3 * 1200) + 500 = 7500 + 3600 + 500 = ₹11,600 (1,160,000 paise)
       expect(dbExpense!.amountPaise).toBe(1160000);
       expect(dbExpense!.paidAmountPaise).toBe(0);
@@ -441,22 +441,7 @@ describe('Phase 4 — Real MongoDB Replica Set Integration Audit', () => {
         },
       });
 
-      // 3. Confirm expense was created directly in SUBMITTED status awaiting Super Admin approval
-      const submittedExp = await expenseModel.findById(expenseId).exec();
-      expect(submittedExp!.status).toBe(ExpenseStatus.SUBMITTED);
-
-      // 4. Segregation of duties: Admin creator CANNOT approve their own expense
-      await expect(
-        expensesService.approveExpense(expenseId, { approvalRemarks: 'Self approval attempt' }, adminCreator),
-      ).rejects.toThrow(ForbiddenException);
-
-      // 5. Authorized Super Admin approves the expense
-      await expensesService.approveExpense(
-        expenseId,
-        { approvalRemarks: 'Consignment verified and approved by Super Admin' },
-        superAdminApprover,
-      );
-
+      // 3. Confirm expense was created directly in APPROVED status (fixed acquisition cost auto-approved)
       let dbExp = await expenseModel.findById(expenseId).exec();
       expect(dbExp!.status).toBe(ExpenseStatus.APPROVED);
       expect(dbExp!.amountPaise).toBe(1000000); // ₹10,000.00

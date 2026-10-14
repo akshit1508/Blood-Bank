@@ -523,8 +523,12 @@ export class BloodAcquisitionsService implements OnApplicationBootstrap {
             vendorId: linkedVendor ? linkedVendor._id : undefined,
             vendorName: createdReceipt.sourceName,
             invoiceNumber: createdReceipt.invoiceNumber || createdReceipt.referenceNumber || createdReceipt.receiptCode,
-            status: ExpenseStatus.SUBMITTED,
+            status: ExpenseStatus.APPROVED,
             submittedAt: new Date(),
+            reviewedBy: new Types.ObjectId(currentAdmin.id || currentAdmin._id),
+            reviewedByEmail: currentAdmin.email,
+            reviewedAt: new Date(),
+            approvalRemarks: 'Fixed acquisition cost auto-approved upon consignment submission.',
             creatorId: new Types.ObjectId(currentAdmin.id || currentAdmin._id),
             creatorEmail: currentAdmin.email,
             creatorRole: currentAdmin.role,
@@ -533,13 +537,13 @@ export class BloodAcquisitionsService implements OnApplicationBootstrap {
             isDeleted: false,
             auditHistory: [
               {
-                action: ExpenseAuditEventType.SUBMITTED,
+                action: ExpenseAuditEventType.APPROVED,
                 fromStatus: ExpenseStatus.DRAFT,
-                toStatus: ExpenseStatus.SUBMITTED,
+                toStatus: ExpenseStatus.APPROVED,
                 performedBy: new Types.ObjectId(currentAdmin.id || currentAdmin._id),
                 performedByEmail: currentAdmin.email,
                 performedByName: currentAdmin.fullName || 'Admin Staff',
-                notes: `Expense submitted automatically from blood acquisition receipt ${createdReceipt.receiptCode}. Total units accepted: ${totalAcceptedUnits}. Invoiced units: ${totalInvoicedUnits}.`,
+                notes: `Fixed acquisition cost auto-approved upon blood acquisition receipt ${createdReceipt.receiptCode}. Total units accepted: ${totalAcceptedUnits}. Invoiced units: ${totalInvoicedUnits}.`,
                 timestamp: new Date(),
               },
             ],
@@ -600,12 +604,24 @@ export class BloodAcquisitionsService implements OnApplicationBootstrap {
     if (query.status) {
       filter.status = query.status;
     }
+    if (query.startDate || query.endDate) {
+      filter.receivedDate = {};
+      if (query.startDate) {
+        filter.receivedDate.$gte = new Date(query.startDate);
+      }
+      if (query.endDate) {
+        const end = new Date(query.endDate);
+        end.setHours(23, 59, 59, 999);
+        filter.receivedDate.$lte = end;
+      }
+    }
     if (query.search?.trim()) {
       const regex = new RegExp(query.search.trim(), 'i');
       filter.$or = [
         { receiptCode: regex },
         { sourceName: regex },
         { referenceNumber: regex },
+        { invoiceNumber: regex },
       ];
     }
 
@@ -700,12 +716,30 @@ export class BloodAcquisitionsService implements OnApplicationBootstrap {
       }),
     );
 
+    let filteredItems = augmentedItems;
+    if (query.paymentStatus && query.paymentStatus !== 'all') {
+      filteredItems = filteredItems.filter(
+        (i) => i.financials?.paymentStatus === query.paymentStatus,
+      );
+    }
+    if (query.expenseStatus && query.expenseStatus !== 'all') {
+      filteredItems = filteredItems.filter(
+        (i) => i.financials?.expenseStatus === query.expenseStatus,
+      );
+    }
+
+    const effectiveTotal =
+      (query.paymentStatus && query.paymentStatus !== 'all') ||
+      (query.expenseStatus && query.expenseStatus !== 'all')
+        ? filteredItems.length
+        : total;
+
     return {
-      items: augmentedItems,
+      items: filteredItems,
       page,
       limit,
-      total,
-      totalPages: Math.ceil(total / limit) || 1,
+      total: effectiveTotal,
+      totalPages: Math.ceil(effectiveTotal / limit) || 1,
     };
   }
 
@@ -1176,34 +1210,202 @@ export class BloodAcquisitionsService implements OnApplicationBootstrap {
   }
 
   /**
-   * Summary KPI metrics for admin stat cards.
+   * Summary KPI metrics for admin stat cards and Acquisition Costing Dashboard.
    */
-  async getSummary(): Promise<AcquisitionSummaryStats> {
-    const totalReceipts = await this.bloodAcquisitionModel.countDocuments().exec();
+  async getSummary(startDate?: string, endDate?: string): Promise<any> {
+    const filter: Record<string, any> = {};
+    if (startDate || endDate) {
+      filter.receivedDate = {};
+      if (startDate) filter.receivedDate.$gte = new Date(startDate);
+      if (endDate) {
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+        filter.receivedDate.$lte = end;
+      }
+    }
 
-    const externalUnits = await this.bloodUnitModel
-      .find({ sourceType: BloodUnitSourceType.EXTERNAL_RECEIPT })
-      .select('status')
-      .lean()
-      .exec();
+    let totalReceipts = 0;
+    try {
+      totalReceipts = await this.bloodAcquisitionModel.countDocuments(filter).exec();
+    } catch {
+      totalReceipts = 0;
+    }
+    const totalAcquisitions = totalReceipts;
 
-    const totalUnitsReceived = externalUnits.length;
-    const pendingTesting = externalUnits.filter(
-      (u) => u.status === BloodUnitStatus.TESTING,
-    ).length;
+    let receipts: any[] = [];
+    try {
+      const q = this.bloodAcquisitionModel.find(filter);
+      if (q && typeof q.exec === 'function') {
+        receipts = await q.exec();
+      } else if (q && typeof q.sort === 'function') {
+        const sorted = q.sort({ receivedDate: -1, createdAt: -1 });
+        if (sorted && typeof sorted.exec === 'function') {
+          receipts = await sorted.exec();
+        } else if (sorted && typeof sorted.skip === 'function') {
+          const skipped = sorted.skip(0);
+          if (skipped && typeof skipped.limit === 'function') {
+            const limited = skipped.limit(1000);
+            if (limited && typeof limited.exec === 'function') {
+              receipts = await limited.exec();
+            }
+          }
+        }
+      }
+    } catch {
+      receipts = [];
+    }
 
-    const unitIds = externalUnits.map((u) => u._id);
-    const directToInventory = await this.inventoryModel
-      .countDocuments({
-        bloodUnitId: { $in: unitIds },
-      })
-      .exec();
+    const receiptIds = receipts.map((r) => r._id);
+    const expenseIds = receipts.map((r) => r.expenseId).filter(Boolean);
+
+    // Fetch linked expenses
+    let expenses: any[] = [];
+    if (expenseIds.length > 0) {
+      try {
+        expenses = await this.expenseModel
+          .find({ _id: { $in: expenseIds } })
+          .select('_id status amount amountPaise paidAmount paidAmountPaise paymentStatus expenseCode')
+          .lean()
+          .exec();
+      } catch {
+        expenses = [];
+      }
+    }
+    const expenseMap = new Map((expenses || []).map((e) => [e._id.toString(), e]));
+
+    let totalInvoicedValuePaise = 0;
+    let approvedLiabilityPaise = 0;
+    let pendingApprovalAmountPaise = 0;
+    let pendingApprovalCount = 0;
+    let outstandingDuesPaise = 0;
+    let totalPaidPaise = 0;
+
+    for (const receipt of receipts) {
+      const invoicedPaise = receipt.totalPayablePaise || 0;
+      totalInvoicedValuePaise += invoicedPaise;
+
+      const creditNotesPaise = (receipt.adjustments || [])
+        .filter((adj: any) => adj.adjustmentType !== 'SUPPLIER_REFUND')
+        .reduce((sum: number, adj: any) => sum + (adj.creditAmountPaise || adj.amountPaise || 0), 0);
+      const effectiveLiability = Math.max(0, invoicedPaise - creditNotesPaise);
+
+      const linkedExp = receipt.expenseId ? expenseMap.get(receipt.expenseId.toString()) : null;
+
+      if (linkedExp) {
+        if (linkedExp.status === ExpenseStatus.APPROVED) {
+          approvedLiabilityPaise += effectiveLiability;
+          const paid = linkedExp.paidAmountPaise || 0;
+          totalPaidPaise += paid;
+          outstandingDuesPaise += Math.max(0, effectiveLiability - paid);
+        } else if (linkedExp.status === ExpenseStatus.SUBMITTED) {
+          pendingApprovalCount++;
+          pendingApprovalAmountPaise += invoicedPaise;
+        }
+      }
+    }
+
+    // Units analytics
+    let units: any[] = [];
+    try {
+      const unitsQuery: any = {};
+      if (receiptIds.length > 0) {
+        unitsQuery.externalReceiptId = { $in: receiptIds };
+      } else {
+        unitsQuery.sourceType = BloodUnitSourceType.EXTERNAL_RECEIPT;
+      }
+      units = (await this.bloodUnitModel
+        .find(unitsQuery)
+        .select('status bloodGroup componentType createdAt')
+        .lean()
+        .exec()) || [];
+    } catch {
+      units = [];
+    }
+
+    const totalUnitsReceived = units.length;
+    let totalAcceptedUnits = 0;
+    let totalRejectedUnits = 0;
+    let pendingTestingUnits = 0;
+
+    const byBloodGroup: Record<string, number> = {};
+    const byComponent: Record<string, number> = {};
+
+    for (const u of units) {
+      if (u.status === BloodUnitStatus.APPROVED) {
+        totalAcceptedUnits++;
+      } else if (u.status === BloodUnitStatus.REJECTED) {
+        totalRejectedUnits++;
+      } else if (u.status === BloodUnitStatus.TESTING) {
+        pendingTestingUnits++;
+      }
+
+      if (u.bloodGroup) {
+        byBloodGroup[u.bloodGroup] = (byBloodGroup[u.bloodGroup] || 0) + 1;
+      }
+      if (u.componentType) {
+        byComponent[u.componentType] = (byComponent[u.componentType] || 0) + 1;
+      }
+    }
+
+    // Direct to inventory count
+    const unitIds = units.map((u) => u._id);
+    let directToInventory = 0;
+    try {
+      directToInventory = await this.inventoryModel
+        .countDocuments(unitIds.length > 0 ? { bloodUnitId: { $in: unitIds } } : {})
+        .exec();
+    } catch {
+      directToInventory = 0;
+    }
+
+    // Timeline grouping (by day)
+    const timelineMap = new Map<string, { count: number; valuePaise: number }>();
+    for (const r of receipts) {
+      const d = new Date(r.receivedDate || r.createdAt);
+      const dayKey = d.toISOString().slice(0, 10);
+      const curr = timelineMap.get(dayKey) || { count: 0, valuePaise: 0 };
+      curr.count++;
+      curr.valuePaise += r.totalPayablePaise || 0;
+      timelineMap.set(dayKey, curr);
+    }
+
+    const timeline = Array.from(timelineMap.entries())
+      .map(([date, val]) => ({
+        date,
+        count: val.count,
+        valuePaise: val.valuePaise,
+        value: CurrencyUtil.toInr(val.valuePaise),
+      }))
+      .sort((a, b) => a.date.localeCompare(b.date));
 
     return {
       totalReceipts,
+      totalAcquisitions,
+      totalInvoicedValuePaise,
+      totalInvoicedValue: CurrencyUtil.toInr(totalInvoicedValuePaise),
+      approvedLiabilityPaise,
+      approvedLiability: CurrencyUtil.toInr(approvedLiabilityPaise),
+      pendingApprovalAmountPaise,
+      pendingApprovalAmount: CurrencyUtil.toInr(pendingApprovalAmountPaise),
+      pendingApprovalCount,
+      outstandingDuesPaise,
+      outstandingDues: CurrencyUtil.toInr(outstandingDuesPaise),
+      totalPaidPaise,
+      totalPaid: CurrencyUtil.toInr(totalPaidPaise),
       totalUnitsReceived,
+      totalAcceptedUnits,
+      totalRejectedUnits,
+      pendingTesting: pendingTestingUnits,
+      pendingTestingUnits,
       directToInventory,
-      pendingTesting,
+      byBloodGroup,
+      byComponent,
+      byTestingStatus: {
+        accepted: totalAcceptedUnits,
+        rejected: totalRejectedUnits,
+        pending: pendingTestingUnits,
+      },
+      timeline,
     };
   }
 }

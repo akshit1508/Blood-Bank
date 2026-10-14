@@ -289,7 +289,7 @@ describe('BloodAcquisitionsService', () => {
       expect(result.pendingTestingCount).toBe(3);
       expect(result.receipt.receiptCode).toMatch(/^EXT-\d{8}-[A-Z0-9]{4}$/);
       expect((result as any).expense).toBeDefined();
-      expect((result as any).expense?.status).toBe(ExpenseStatus.SUBMITTED);
+      expect((result as any).expense?.status).toBe(ExpenseStatus.APPROVED);
       expect(result.isIdempotentReplay).toBe(false);
     });
 

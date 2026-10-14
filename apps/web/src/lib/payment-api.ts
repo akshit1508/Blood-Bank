@@ -86,6 +86,8 @@ export interface OutstandingCreditor {
     paidAmount: number;
     outstandingAmount: number;
     paymentStatus: string;
+    status?: string;
+    acquisitionId?: string;
     vendorId?: string;
     vendorName: string;
     ageDays?: number;
