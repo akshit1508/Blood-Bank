@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -14,6 +14,7 @@ import {
   EMPLOYMENT_TYPE_LABELS,
   EmployeeStatus,
   EMPLOYEE_STATUS_LABELS,
+  formatINR,
 } from '@/lib/payroll-api';
 
 export default function EmployeesDirectoryPage() {
@@ -107,7 +108,6 @@ export default function EmployeesDirectoryPage() {
       setIsSubmitting(true);
       setSubmitError(null);
 
-      // Clean & sanitize payload before submitting
       const cleanedPayload: CreateEmployeeInput = {
         firstName: formData.firstName.trim(),
         lastName: formData.lastName.trim(),
@@ -139,7 +139,6 @@ export default function EmployeesDirectoryPage() {
 
       await createEmployee(cleanedPayload);
       setShowModal(false);
-      // Reset form
       setFormData({
         firstName: '',
         lastName: '',
@@ -171,6 +170,32 @@ export default function EmployeesDirectoryPage() {
     }
   };
 
+  // KPI Calculations
+  const stats = useMemo(() => {
+    const total = employees.length;
+    const active = employees.filter((e) => e.status === EmployeeStatus.ACTIVE).length;
+    let totalMonthlySalary = 0;
+    employees.forEach((e) => {
+      if (e.status === EmployeeStatus.ACTIVE && e.activeSalaryStructure?.netSalary) {
+        totalMonthlySalary += e.activeSalaryStructure.netSalary;
+      }
+    });
+    const clinical = employees.filter(
+      (e) =>
+        e.department === EmployeeDepartment.MEDICAL_CLINICAL ||
+        e.department === EmployeeDepartment.LABORATORY ||
+        e.department === EmployeeDepartment.PHLEBOTOMY_COLLECTION,
+    ).length;
+    const operations = employees.filter(
+      (e) =>
+        e.department === EmployeeDepartment.ADMINISTRATION_HR ||
+        e.department === EmployeeDepartment.FINANCE_ACCOUNTS ||
+        e.department === EmployeeDepartment.LOGISTICS_DISPATCH ||
+        e.department === EmployeeDepartment.QUALITY_ASSURANCE,
+    ).length;
+    return { total, active, totalMonthlySalary, clinical, operations };
+  }, [employees]);
+
   const getStatusBadge = (status: EmployeeStatus) => {
     switch (status) {
       case EmployeeStatus.ACTIVE:
@@ -178,7 +203,7 @@ export default function EmployeesDirectoryPage() {
           <span
             style={{
               display: 'inline-flex',
-              padding: '0.2rem 0.55rem',
+              padding: '0.2rem 0.6rem',
               borderRadius: '9999px',
               fontSize: '0.725rem',
               fontWeight: 700,
@@ -195,7 +220,7 @@ export default function EmployeesDirectoryPage() {
           <span
             style={{
               display: 'inline-flex',
-              padding: '0.2rem 0.55rem',
+              padding: '0.2rem 0.6rem',
               borderRadius: '9999px',
               fontSize: '0.725rem',
               fontWeight: 700,
@@ -212,7 +237,7 @@ export default function EmployeesDirectoryPage() {
           <span
             style={{
               display: 'inline-flex',
-              padding: '0.2rem 0.55rem',
+              padding: '0.2rem 0.6rem',
               borderRadius: '9999px',
               fontSize: '0.725rem',
               fontWeight: 700,
@@ -229,12 +254,13 @@ export default function EmployeesDirectoryPage() {
           <span
             style={{
               display: 'inline-flex',
-              padding: '0.2rem 0.55rem',
+              padding: '0.2rem 0.6rem',
               borderRadius: '9999px',
               fontSize: '0.725rem',
               fontWeight: 700,
               backgroundColor: '#334155',
               color: '#94a3b8',
+              border: '1px solid #475569',
             }}
           >
             Resigned
@@ -245,7 +271,7 @@ export default function EmployeesDirectoryPage() {
           <span
             style={{
               display: 'inline-flex',
-              padding: '0.2rem 0.55rem',
+              padding: '0.2rem 0.6rem',
               borderRadius: '9999px',
               fontSize: '0.725rem',
               fontWeight: 700,
@@ -257,21 +283,23 @@ export default function EmployeesDirectoryPage() {
             Terminated
           </span>
         );
+      default:
+        return <span style={{ color: '#94a3b8' }}>{status}</span>;
     }
   };
 
   return (
     <div
       style={{
-        maxWidth: '1280px',
+        maxWidth: '1360px',
         margin: '0 auto',
         display: 'flex',
         flexDirection: 'column',
-        gap: '1.75rem',
+        gap: '1.5rem',
         color: '#f8fafc',
       }}
     >
-      {/* 1. Header */}
+      {/* 1. Header with Authority Badge & Register Button (NO Payroll buttons) */}
       <div
         style={{
           display: 'flex',
@@ -303,41 +331,21 @@ export default function EmployeesDirectoryPage() {
           </div>
           <h1
             style={{
-              fontSize: '1.75rem',
+              fontSize: '1.85rem',
               fontWeight: 800,
               color: '#f8fafc',
               margin: '0.35rem 0 0 0',
               letterSpacing: '-0.02em',
             }}
           >
-            Blood Bank Staff & Employee Directory
+            Blood Bank Employee & Staff Directory
           </h1>
           <p style={{ color: '#94a3b8', margin: '0.35rem 0 0 0', fontSize: '0.875rem' }}>
-            Manage medical officers, phlebotomists, lab technicians, and administration staff profiles and compensation.
+            Complete staff roster, departmental profiles, contact details, bank credentials, and monthly compensation.
           </p>
         </div>
 
-        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-          <Link
-            href="/super-admin/payroll"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '0.45rem',
-              backgroundColor: '#1e293b',
-              border: '1px solid #334155',
-              padding: '0.6rem 1rem',
-              borderRadius: '8px',
-              color: '#f8fafc',
-              fontSize: '0.85rem',
-              fontWeight: 600,
-              textDecoration: 'none',
-              cursor: 'pointer',
-            }}
-          >
-            <span>💳</span>
-            <span>Payroll Batches</span>
-          </Link>
+        <div>
           <button
             onClick={() => {
               setSubmitError(null);
@@ -346,25 +354,110 @@ export default function EmployeesDirectoryPage() {
             style={{
               display: 'inline-flex',
               alignItems: 'center',
-              gap: '0.45rem',
+              gap: '0.5rem',
               backgroundColor: '#dc2626',
               color: '#ffffff',
-              padding: '0.6rem 1.1rem',
+              padding: '0.65rem 1.25rem',
               borderRadius: '8px',
-              fontWeight: 600,
-              fontSize: '0.85rem',
+              fontWeight: 700,
+              fontSize: '0.875rem',
               border: 'none',
               cursor: 'pointer',
-              boxShadow: '0 1px 3px rgba(220,38,38,0.3)',
+              boxShadow: '0 2px 4px rgba(220,38,38,0.3)',
             }}
           >
-            <span style={{ fontSize: '1rem', lineHeight: 1 }}>+</span>
-            <span>Register Employee</span>
+            <span style={{ fontSize: '1.1rem', lineHeight: 1 }}>+</span>
+            <span>Register New Employee</span>
           </button>
         </div>
       </div>
 
-      {/* 2. Filter Toolbar */}
+      {/* 2. Employee Statistics Ribbon */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+          gap: '1rem',
+        }}
+      >
+        <div
+          style={{
+            backgroundColor: '#0f172a',
+            border: '1px solid #1e293b',
+            borderRadius: '12px',
+            padding: '1.1rem 1.25rem',
+          }}
+        >
+          <div style={{ color: '#94a3b8', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase' }}>
+            Total Registered Staff
+          </div>
+          <div style={{ color: '#f8fafc', fontSize: '1.75rem', fontWeight: 800, marginTop: '0.35rem' }}>
+            {stats.total}
+          </div>
+          <div style={{ color: '#64748b', fontSize: '0.75rem', marginTop: '0.2rem' }}>
+            Across all 7 departments
+          </div>
+        </div>
+
+        <div
+          style={{
+            backgroundColor: '#0f172a',
+            border: '1px solid #1e293b',
+            borderRadius: '12px',
+            padding: '1.1rem 1.25rem',
+          }}
+        >
+          <div style={{ color: '#10b981', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase' }}>
+            Active Personnel
+          </div>
+          <div style={{ color: '#10b981', fontSize: '1.75rem', fontWeight: 800, marginTop: '0.35rem' }}>
+            {stats.active}
+          </div>
+          <div style={{ color: '#64748b', fontSize: '0.75rem', marginTop: '0.2rem' }}>
+            Currently in active service
+          </div>
+        </div>
+
+        <div
+          style={{
+            backgroundColor: '#0f172a',
+            border: '1px solid #1e293b',
+            borderRadius: '12px',
+            padding: '1.1rem 1.25rem',
+          }}
+        >
+          <div style={{ color: '#38bdf8', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase' }}>
+            Total Monthly Decided Salary
+          </div>
+          <div style={{ color: '#38bdf8', fontSize: '1.75rem', fontWeight: 800, marginTop: '0.35rem' }}>
+            {formatINR(stats.totalMonthlySalary)}
+          </div>
+          <div style={{ color: '#64748b', fontSize: '0.75rem', marginTop: '0.2rem' }}>
+            Monthly net take-home liability
+          </div>
+        </div>
+
+        <div
+          style={{
+            backgroundColor: '#0f172a',
+            border: '1px solid #1e293b',
+            borderRadius: '12px',
+            padding: '1.1rem 1.25rem',
+          }}
+        >
+          <div style={{ color: '#f59e0b', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase' }}>
+            Departmental Breakdown
+          </div>
+          <div style={{ color: '#f59e0b', fontSize: '1.4rem', fontWeight: 800, marginTop: '0.45rem' }}>
+            {stats.clinical} Clinical &bull; {stats.operations} Support
+          </div>
+          <div style={{ color: '#64748b', fontSize: '0.75rem', marginTop: '0.2rem' }}>
+            Medical officers, lab & operations
+          </div>
+        </div>
+      </div>
+
+      {/* 3. Filter Toolbar */}
       <div
         style={{
           display: 'flex',
@@ -381,17 +474,18 @@ export default function EmployeesDirectoryPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
           <input
             type="text"
-            placeholder="Search name, code, phone..."
+            placeholder="Search name, code, phone, email, designation..."
             value={searchFilter}
             onChange={(e) => setSearchFilter(e.target.value)}
             style={{
               backgroundColor: '#1e293b',
               border: '1px solid #334155',
               borderRadius: '8px',
-              padding: '0.45rem 0.75rem',
+              padding: '0.5rem 0.85rem',
               color: '#f8fafc',
               fontSize: '0.85rem',
               outline: 'none',
+              width: '280px',
             }}
           />
           <select
@@ -401,7 +495,7 @@ export default function EmployeesDirectoryPage() {
               backgroundColor: '#1e293b',
               border: '1px solid #334155',
               borderRadius: '8px',
-              padding: '0.45rem 0.75rem',
+              padding: '0.5rem 0.85rem',
               color: '#f8fafc',
               fontSize: '0.85rem',
               outline: 'none',
@@ -422,7 +516,7 @@ export default function EmployeesDirectoryPage() {
               backgroundColor: '#1e293b',
               border: '1px solid #334155',
               borderRadius: '8px',
-              padding: '0.45rem 0.75rem',
+              padding: '0.5rem 0.85rem',
               color: '#f8fafc',
               fontSize: '0.85rem',
               outline: 'none',
@@ -449,7 +543,7 @@ export default function EmployeesDirectoryPage() {
                 color: '#fca5a5',
                 fontSize: '0.775rem',
                 fontWeight: 600,
-                padding: '0.4rem 0.65rem',
+                padding: '0.45rem 0.75rem',
                 borderRadius: '6px',
                 cursor: 'pointer',
               }}
@@ -468,7 +562,7 @@ export default function EmployeesDirectoryPage() {
             gap: '0.35rem',
             backgroundColor: '#1e293b',
             border: '1px solid #334155',
-            padding: '0.45rem 0.85rem',
+            padding: '0.5rem 0.95rem',
             borderRadius: '8px',
             color: '#f8fafc',
             fontSize: '0.825rem',
@@ -496,7 +590,7 @@ export default function EmployeesDirectoryPage() {
         </div>
       )}
 
-      {/* 3. Employees Table Card */}
+      {/* 4. Complete Employee Directory Table */}
       <div
         style={{
           backgroundColor: '#0f172a',
@@ -514,33 +608,38 @@ export default function EmployeesDirectoryPage() {
             alignItems: 'center',
           }}
         >
-          <div style={{ fontSize: '1rem', fontWeight: 700, color: '#f8fafc' }}>
-            Registered Staff
+          <div>
+            <div style={{ fontSize: '1rem', fontWeight: 700, color: '#f8fafc' }}>
+              Staff & Employee Dossier Table
+            </div>
+            <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.15rem' }}>
+              Click any employee to view their complete dossier, date of joining, contact, bank, and full salary breakdown.
+            </div>
           </div>
           <div style={{ fontSize: '0.8rem', color: '#64748b' }}>
-            {employees.length} employees found
+            {employees.length} employees registered
           </div>
         </div>
 
         {loading ? (
-          <div style={{ padding: '3rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.875rem' }}>
-            Loading staff records...
+          <div style={{ padding: '3.5rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.875rem' }}>
+            Loading employee directory...
           </div>
         ) : employees.length === 0 ? (
-          <div style={{ padding: '3.5rem 1rem', textAlign: 'center' }}>
+          <div style={{ padding: '4rem 1rem', textAlign: 'center' }}>
             <div style={{ fontSize: '2.5rem', marginBottom: '0.75rem' }}>👥</div>
-            <div style={{ fontSize: '1.1rem', fontWeight: 700, color: '#f8fafc' }}>
+            <div style={{ fontSize: '1.15rem', fontWeight: 700, color: '#f8fafc' }}>
               No employees registered
             </div>
             <p style={{ color: '#64748b', fontSize: '0.85rem', maxWidth: '420px', margin: '0.5rem auto 1.25rem' }}>
-              Register new blood bank employees to configure compensation structures and run payroll.
+              Register new blood bank employees with their complete personal, contact, and banking details.
             </p>
             <button
               onClick={() => setShowModal(true)}
               style={{
                 backgroundColor: '#dc2626',
                 color: '#ffffff',
-                padding: '0.6rem 1.2rem',
+                padding: '0.65rem 1.35rem',
                 borderRadius: '8px',
                 fontWeight: 600,
                 fontSize: '0.85rem',
@@ -556,28 +655,31 @@ export default function EmployeesDirectoryPage() {
             <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
               <thead>
                 <tr style={{ backgroundColor: '#1e293b', borderBottom: '1px solid #334155' }}>
-                  <th style={{ padding: '0.75rem 1rem', color: '#94a3b8', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  <th style={{ padding: '0.8rem 1rem', color: '#94a3b8', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                     Code
                   </th>
-                  <th style={{ padding: '0.75rem 1rem', color: '#94a3b8', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                    Full Name
+                  <th style={{ padding: '0.8rem 1rem', color: '#94a3b8', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    Staff Member
                   </th>
-                  <th style={{ padding: '0.75rem 1rem', color: '#94a3b8', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                    Department & Designation
+                  <th style={{ padding: '0.8rem 1rem', color: '#94a3b8', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    Role & Department
                   </th>
-                  <th style={{ padding: '0.75rem 1rem', color: '#94a3b8', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                    Contact
+                  <th style={{ padding: '0.8rem 1rem', color: '#94a3b8', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    Contact Details
                   </th>
-                  <th style={{ padding: '0.75rem 1rem', color: '#94a3b8', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                    Type
+                  <th style={{ padding: '0.8rem 1rem', color: '#94a3b8', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    Date Joined
                   </th>
-                  <th style={{ padding: '0.75rem 1rem', color: '#94a3b8', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                    Joined
+                  <th style={{ padding: '0.8rem 1rem', color: '#94a3b8', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    Decided Salary
                   </th>
-                  <th style={{ padding: '0.75rem 1rem', color: '#94a3b8', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'center' }}>
+                  <th style={{ padding: '0.8rem 1rem', color: '#94a3b8', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    Bank Coordinates
+                  </th>
+                  <th style={{ padding: '0.8rem 1rem', color: '#94a3b8', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'center' }}>
                     Status
                   </th>
-                  <th style={{ padding: '0.75rem 1rem', color: '#94a3b8', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'right' }}>
+                  <th style={{ padding: '0.8rem 1rem', color: '#94a3b8', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'right' }}>
                     Actions
                   </th>
                 </tr>
@@ -586,42 +688,131 @@ export default function EmployeesDirectoryPage() {
                 {employees.map((emp) => (
                   <tr
                     key={emp._id}
+                    onClick={() => router.push(`/super-admin/employees/${emp._id}`)}
                     style={{
                       borderBottom: '1px solid #1e293b',
                       transition: 'background-color 0.15s ease',
+                      cursor: 'pointer',
+                    }}
+                    onMouseEnter={(e) => {
+                      (e.currentTarget as HTMLElement).style.backgroundColor = 'rgba(30, 41, 59, 0.45)';
+                    }}
+                    onMouseLeave={(e) => {
+                      (e.currentTarget as HTMLElement).style.backgroundColor = 'transparent';
                     }}
                   >
-                    <td style={{ padding: '0.9rem 1rem', fontFamily: 'monospace', fontWeight: 700, color: '#38bdf8', fontSize: '0.8rem' }}>
+                    <td style={{ padding: '0.95rem 1rem', fontFamily: 'monospace', fontWeight: 700, color: '#38bdf8', fontSize: '0.85rem' }}>
                       {emp.employeeCode}
                     </td>
-                    <td style={{ padding: '0.9rem 1rem', fontWeight: 700, color: '#f8fafc' }}>
-                      {emp.fullName}
+                    <td style={{ padding: '0.95rem 1rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                        <div
+                          style={{
+                            width: '36px',
+                            height: '36px',
+                            borderRadius: '50%',
+                            backgroundColor: 'rgba(220, 38, 38, 0.15)',
+                            border: '1px solid rgba(220, 38, 38, 0.35)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: '#f87171',
+                            fontWeight: 700,
+                            fontSize: '0.8rem',
+                          }}
+                        >
+                          {emp.firstName[0]}
+                          {emp.lastName[0]}
+                        </div>
+                        <div>
+                          <div style={{ fontWeight: 700, color: '#f8fafc', fontSize: '0.9rem' }}>{emp.fullName}</div>
+                          <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
+                            {EMPLOYMENT_TYPE_LABELS[emp.employmentType] || emp.employmentType}
+                          </div>
+                        </div>
+                      </div>
                     </td>
-                    <td style={{ padding: '0.9rem 1rem' }}>
+                    <td style={{ padding: '0.95rem 1rem' }}>
                       <div style={{ fontWeight: 600, color: '#f8fafc' }}>{emp.designation}</div>
                       <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
                         {DEPARTMENT_LABELS[emp.department] || emp.department}
                       </div>
                     </td>
-                    <td style={{ padding: '0.9rem 1rem' }}>
-                      <div style={{ fontSize: '0.8rem', color: '#f8fafc' }}>{emp.email}</div>
+                    <td style={{ padding: '0.95rem 1rem' }}>
+                      <div style={{ fontSize: '0.825rem', color: '#f8fafc' }}>{emp.email}</div>
                       <div style={{ fontSize: '0.75rem', color: '#64748b' }}>{emp.phone}</div>
                     </td>
-                    <td style={{ padding: '0.9rem 1rem', fontSize: '0.8rem', color: '#cbd5e1' }}>
-                      {EMPLOYMENT_TYPE_LABELS[emp.employmentType] || emp.employmentType}
+                    <td style={{ padding: '0.95rem 1rem' }}>
+                      <div style={{ fontSize: '0.825rem', fontWeight: 600, color: '#cbd5e1' }}>
+                        {new Date(emp.dateOfJoining).toLocaleDateString('en-IN', {
+                          day: 'numeric',
+                          month: 'short',
+                          year: 'numeric',
+                        })}
+                      </div>
+                      <div style={{ fontSize: '0.725rem', color: '#64748b' }}>
+                        {(() => {
+                          const diffDays = Math.ceil(
+                            Math.abs(new Date().getTime() - new Date(emp.dateOfJoining).getTime()) /
+                              (1000 * 60 * 60 * 24),
+                          );
+                          if (diffDays < 30) return `${diffDays} days tenure`;
+                          const months = Math.floor(diffDays / 30.4375);
+                          if (months < 12) return `${months} mo tenure`;
+                          return `${(diffDays / 365.25).toFixed(1)} yrs tenure`;
+                        })()}
+                      </div>
                     </td>
-                    <td style={{ padding: '0.9rem 1rem', fontSize: '0.8rem', color: '#94a3b8' }}>
-                      {new Date(emp.dateOfJoining).toLocaleDateString('en-IN')}
+                    <td style={{ padding: '0.95rem 1rem' }}>
+                      {emp.activeSalaryStructure ? (
+                        <div>
+                          <div style={{ fontSize: '0.875rem', fontWeight: 800, color: '#10b981' }}>
+                            {formatINR(emp.activeSalaryStructure.netSalary)}
+                            <span style={{ fontSize: '0.7rem', fontWeight: 500, color: '#94a3b8' }}>/mo</span>
+                          </div>
+                          <div style={{ fontSize: '0.725rem', color: '#64748b' }}>
+                            Basic: {formatINR(emp.activeSalaryStructure.basicSalary)}
+                          </div>
+                        </div>
+                      ) : (
+                        <span
+                          style={{
+                            fontSize: '0.725rem',
+                            backgroundColor: '#1e293b',
+                            color: '#94a3b8',
+                            padding: '0.2rem 0.5rem',
+                            borderRadius: '6px',
+                            border: '1px solid #334155',
+                          }}
+                        >
+                          Not Decided
+                        </span>
+                      )}
                     </td>
-                    <td style={{ padding: '0.9rem 1rem', textAlign: 'center' }}>
+                    <td style={{ padding: '0.95rem 1rem' }}>
+                      {emp.bankDetails?.accountNumber ? (
+                        <div>
+                          <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#cbd5e1' }}>
+                            {emp.bankDetails.bankName}
+                          </div>
+                          <div style={{ fontSize: '0.75rem', fontFamily: 'monospace', color: '#94a3b8' }}>
+                            A/C ••••{emp.bankDetails.accountNumber.slice(-4)} &bull; {emp.bankDetails.ifscCode}
+                          </div>
+                        </div>
+                      ) : (
+                        <span style={{ fontSize: '0.75rem', color: '#64748b', fontStyle: 'italic' }}>
+                          Not provided
+                        </span>
+                      )}
+                    </td>
+                    <td style={{ padding: '0.95rem 1rem', textAlign: 'center' }}>
                       {getStatusBadge(emp.status)}
                     </td>
-                    <td style={{ padding: '0.9rem 1rem', textAlign: 'right' }}>
+                    <td style={{ padding: '0.95rem 1rem', textAlign: 'right' }}>
                       <Link
                         href={`/super-admin/employees/${emp._id}`}
                         onClick={(e) => {
-                          e.preventDefault();
-                          router.push(`/super-admin/employees/${emp._id}`);
+                          e.stopPropagation();
                         }}
                         style={{
                           display: 'inline-flex',
@@ -630,7 +821,7 @@ export default function EmployeesDirectoryPage() {
                           backgroundColor: '#1e293b',
                           color: '#f8fafc',
                           border: '1px solid #334155',
-                          padding: '0.35rem 0.75rem',
+                          padding: '0.45rem 0.85rem',
                           borderRadius: '6px',
                           fontSize: '0.8rem',
                           fontWeight: 600,
@@ -638,7 +829,7 @@ export default function EmployeesDirectoryPage() {
                           cursor: 'pointer',
                         }}
                       >
-                        <span>Profile & Salary</span>
+                        <span>View Details</span>
                         <span>&rarr;</span>
                       </Link>
                     </td>
@@ -650,7 +841,7 @@ export default function EmployeesDirectoryPage() {
         )}
       </div>
 
-      {/* 4. Register Employee Modal */}
+      {/* 5. Register Employee Modal */}
       {showModal && (
         <div
           style={{
@@ -691,9 +882,14 @@ export default function EmployeesDirectoryPage() {
                 paddingBottom: '0.75rem',
               }}
             >
-              <h3 style={{ fontSize: '1.2rem', fontWeight: 700, margin: 0, color: '#f8fafc' }}>
-                Register New Blood Bank Staff
-              </h3>
+              <div>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0, color: '#f8fafc' }}>
+                  Register New Blood Bank Staff
+                </h3>
+                <p style={{ color: '#94a3b8', fontSize: '0.75rem', margin: '0.2rem 0 0 0' }}>
+                  Record personal profile, department role, emergency contact, and bank account details.
+                </p>
+              </div>
               <button
                 onClick={() => setShowModal(false)}
                 style={{
@@ -917,7 +1113,7 @@ export default function EmployeesDirectoryPage() {
                 }}
               >
                 <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  Bank Disbursement Account Details
+                  Bank Disbursement Account Coordinates
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.85rem' }}>
                   <div>

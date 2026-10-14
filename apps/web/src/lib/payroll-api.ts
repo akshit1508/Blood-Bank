@@ -129,6 +129,7 @@ export interface Employee {
     panNumber?: string;
   };
   notes?: string;
+  activeSalaryStructure?: SalaryStructure | null;
   createdAt: string;
   updatedAt: string;
 }

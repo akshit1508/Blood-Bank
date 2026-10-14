@@ -12,6 +12,10 @@ import {
   UpdateEmployeeDto,
   QueryEmployeesDto,
 } from '../dto/employee.dto';
+import {
+  SalaryStructure,
+  SalaryStructureDocument,
+} from '../schemas/salary-structure.schema';
 import { EmployeeStatus, EmploymentType } from '../constants/payroll.constants';
 
 @Injectable()
@@ -19,6 +23,8 @@ export class EmployeesService {
   constructor(
     @InjectModel(Employee.name)
     private readonly employeeModel: Model<EmployeeDocument>,
+    @InjectModel(SalaryStructure.name)
+    private readonly structureModel: Model<SalaryStructureDocument>,
   ) {}
 
   /**
@@ -285,13 +291,26 @@ export class EmployeesService {
       throw new NotFoundException(`Employee with ID ${id} not found.`);
     }
 
+    let activeSalaryStructure: any = null;
+    try {
+      const q: any = this.structureModel.findOne({ employeeId: employee._id, isActive: true });
+      activeSalaryStructure = typeof q?.lean === 'function' ? await q.lean().exec() : await q;
+    } catch {
+      activeSalaryStructure = null;
+    }
+
+    const result = {
+      ...employee,
+      activeSalaryStructure: activeSalaryStructure || null,
+    };
+
     if (!isSuperAdmin) {
       // Strip bank details for non-super admin
-      const { bankDetails, ...sanitized } = employee as any;
+      const { bankDetails, ...sanitized } = result as any;
       return sanitized;
     }
 
-    return employee;
+    return result;
   }
 
   /**
@@ -324,11 +343,34 @@ export class EmployeesService {
     }
 
     const projection = isSuperAdmin ? {} : { bankDetails: 0 };
-    return await this.employeeModel
+    const employees = await this.employeeModel
       .find(filter, projection)
       .sort({ createdAt: -1 })
       .lean()
       .exec();
+
+    const empIds = employees.map((e) => e._id);
+    let activeStructures: any[] = [];
+    try {
+      const q: any = this.structureModel.find({ employeeId: { $in: empIds }, isActive: true });
+      activeStructures = typeof q?.lean === 'function' ? await q.lean().exec() : await q;
+    } catch {
+      activeStructures = [];
+    }
+
+    const structureMap = new Map<string, any>();
+    if (Array.isArray(activeStructures)) {
+      for (const s of activeStructures) {
+        if (s && s.employeeId) {
+          structureMap.set(s.employeeId.toString(), s);
+        }
+      }
+    }
+
+    return employees.map((emp) => ({
+      ...emp,
+      activeSalaryStructure: structureMap.get(emp._id.toString()) || null,
+    }));
   }
 
   /**
