@@ -38,7 +38,7 @@ import { PaymentMethod, PaymentStatus } from '../payments/constants/payment.cons
 
 import { MongoMemoryReplSet } from 'mongodb-memory-server';
 
-describe('Phase 4 — Real MongoDB Replica Set Integration Audit', () => {
+describe('Blood Acquisition MongoDB Replica Set Transaction Audit', () => {
   jest.setTimeout(60000);
 
   let replSet: MongoMemoryReplSet;
@@ -99,7 +99,7 @@ describe('Phase 4 — Real MongoDB Replica Set Integration Audit', () => {
       imports: [
         ConfigModule.forRoot({ isGlobal: true }),
         MongooseModule.forRoot(mongoUri, {
-          dbName: 'blood_bank_phase4_audit',
+          dbName: 'blood_bank_acquisition_audit',
         }),
         BloodAcquisitionsModule,
         PaymentsModule,

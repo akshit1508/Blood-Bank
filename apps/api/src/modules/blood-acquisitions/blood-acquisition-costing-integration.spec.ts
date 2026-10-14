@@ -32,7 +32,7 @@ import {
 } from '../expenses/constants/expense.constants';
 import { PaymentMethod, PaymentStatus } from '../payments/constants/payment.constants';
 
-describe('Phase 4 — Blood Acquisition & Acquisition Costing Integration Suite', () => {
+describe('Blood Acquisition & Costing Integration Suite', () => {
   let acquisitionsService: BloodAcquisitionsService;
   let paymentsService: PaymentsService;
   let vendorsService: VendorsService;

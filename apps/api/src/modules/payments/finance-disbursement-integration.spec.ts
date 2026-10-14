@@ -11,7 +11,7 @@ import { ExpenseStatus, ExpensePaymentStatus } from '../expenses/constants/expen
 import { PaymentMethod, PaymentStatus } from './constants/payment.constants';
 import { BloodAcquisition } from '../blood-acquisitions/schemas/blood-acquisition.schema';
 
-describe('Phase 3 Integration: Expenditure -> Approval -> Vendor -> Payments -> Dues', () => {
+describe('Finance Disbursement Integration: Expenditure -> Approval -> Payments -> Dues', () => {
   let paymentsService: PaymentsService;
   let vendorsService: VendorsService;
   let paymentModel: any;
