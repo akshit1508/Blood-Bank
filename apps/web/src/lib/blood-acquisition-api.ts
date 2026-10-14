@@ -1,4 +1,5 @@
 import { BloodGroup } from './donor-api';
+import { getAuthHeaders } from './auth-api';
 
 export enum ExternalSourceType {
   BLOOD_BANK = 'BLOOD_BANK',
@@ -24,20 +25,32 @@ export enum BloodAcquisitionStatus {
 export interface BloodAcquisitionItemInput {
   bloodGroup: BloodGroup | string;
   componentType: string;
-  quantity: number;
+  invoicedQuantity: number;
+  receivedQuantity: number;
+  acceptedQuantity: number;
+  rejectedQuantity?: number;
+  pendingInspectionQuantity?: number;
+  unitCost?: number;
   testingRequired: boolean;
   volumePerUnit?: number;
   expiryDate?: string;
   storageLocation?: string;
+  rejectionReason?: string;
   itemNotes?: string;
 }
 
 export interface CreateBloodAcquisitionInput {
   sourceType: ExternalSourceType;
   sourceName: string;
+  invoiceNumber?: string;
   referenceNumber?: string;
   receivedDate: string;
   notes?: string;
+  vendorId?: string;
+  transportCharges?: number;
+  clearanceCertificateNumber?: string;
+  sourceTestingCertified?: boolean;
+  reconciliationNotes?: string;
   items: BloodAcquisitionItemInput[];
 }
 
@@ -45,25 +58,85 @@ export interface BloodAcquisitionItem {
   _id: string;
   bloodGroup: string;
   componentType: string;
+  invoicedQuantity: number;
+  receivedQuantity: number;
+  acceptedQuantity: number;
+  rejectedQuantity: number;
   quantity: number;
+  unitCost: number;
+  unitCostPaise: number;
+  totalCostPaise: number;
   testingRequired: boolean;
   volumePerUnit?: number;
   expiryDate?: string;
   storageLocation?: string;
+  rejectionReason?: string;
   itemNotes?: string;
+}
+
+export interface BloodAcquisitionAdjustment {
+  _id?: string;
+  adjustmentType: 'CREDIT_NOTE' | 'SUPPLIER_REFUND';
+  amountPaise: number;
+  amount: number;
+  reason: string;
+  creditNoteReference: string;
+  supportingDocumentKey?: string;
+  approvedByName?: string;
+  approvedAt: string;
+  notes?: string;
+}
+
+export interface AcquisitionFinancialSummary {
+  totalPayablePaise: number;
+  totalPayable: number;
+  totalAdjustmentsPaise: number;
+  totalAdjustments: number;
+  effectiveNetLiabilityPaise: number;
+  effectiveNetLiability: number;
+  paidAmountPaise: number;
+  paidAmount: number;
+  outstandingBalancePaise: number;
+  outstandingBalance: number;
+  supplierRefundReceivablePaise: number;
+  supplierRefundReceivable: number;
+  paymentStatus: string;
+  expenseStatus?: string;
+  expenseCode?: string;
+  expenseId?: string;
 }
 
 export interface BloodAcquisitionReceipt {
   _id: string;
   receiptCode: string;
+  idempotencyKey?: string;
   sourceType: ExternalSourceType;
   sourceName: string;
+  invoiceNumber?: string;
   referenceNumber?: string;
   receivedDate: string;
   notes?: string;
   status: BloodAcquisitionStatus;
   totalUnitsGenerated: number;
   items: BloodAcquisitionItem[];
+  vendorId?: string;
+  expenseId?: string;
+  acquisitionCostPaise?: number;
+  transportChargesPaise?: number;
+  totalPayablePaise: number;
+  totalPayable: number;
+  clearanceCertificateNumber?: string;
+  sourceTestingCertified?: boolean;
+  clearanceAuthorizedByName?: string;
+  clearanceAuthorizationDate?: string;
+  invoiceDocumentKey?: string;
+  invoiceDocumentUrl?: string;
+  clearanceCertificateKey?: string;
+  clearanceCertificateUrl?: string;
+  hasDiscrepancy: boolean;
+  reconciliationNotes?: string;
+  adjustments?: BloodAcquisitionAdjustment[];
+  financials?: AcquisitionFinancialSummary;
   unitsSummary?: {
     total: number;
     testing: number;
@@ -82,6 +155,8 @@ export interface BloodAcquisitionDetail extends BloodAcquisitionReceipt {
     rejected: number;
     inInventory: number;
   };
+  financials?: AcquisitionFinancialSummary;
+  expense?: any;
 }
 
 export interface AcquiredUnitTraceability {
@@ -121,30 +196,44 @@ export interface PaginatedBloodAcquisitions {
   totalPages: number;
 }
 
-import { getAuthHeaders } from './auth-api';
+export interface RecordAcquisitionAdjustmentInput {
+  adjustmentType: 'CREDIT_NOTE' | 'SUPPLIER_REFUND';
+  amount: number;
+  reason: string;
+  creditNoteReference: string;
+  notes?: string;
+}
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
 
 /**
- * Creates an external blood receipt with bulk items.
+ * Creates an external blood receipt with bulk items, costing, and clearance details.
  */
 export async function createBloodAcquisition(
   input: CreateBloodAcquisitionInput,
+  idempotencyKey?: string,
 ): Promise<{
   receipt: BloodAcquisitionReceipt;
   totalUnitsCreated: number;
   directInventoryCount: number;
   pendingTestingCount: number;
-  units: any[];
+  expense?: any;
+  isIdempotentReplay?: boolean;
 }> {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    Accept: 'application/json',
+    ...getAuthHeaders(),
+  };
+
+  if (idempotencyKey) {
+    headers['idempotency-key'] = idempotencyKey;
+  }
+
   const res = await fetch(`${API_BASE_URL}/blood-acquisitions`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Accept: 'application/json',
-      ...getAuthHeaders(),
-    },
+    headers,
     body: JSON.stringify(input),
   });
 
@@ -154,7 +243,7 @@ export async function createBloodAcquisition(
       ? body.message.join(', ')
       : body.message || 'Failed to create blood acquisition receipt';
     const err: any = new Error(errorMsg);
-    err.code = body.code;
+    err.code = body.code || body.error;
     err.details = body;
     throw err;
   }
@@ -250,6 +339,88 @@ export async function fetchBloodAcquisitionUnits(
   }
 
   return body.data || [];
+}
+
+/**
+ * Records a supplier credit note or refund adjustment against an acquisition receipt.
+ */
+export async function recordAcquisitionAdjustment(
+  id: string,
+  input: RecordAcquisitionAdjustmentInput,
+): Promise<BloodAcquisitionDetail> {
+  const res = await fetch(`${API_BASE_URL}/blood-acquisitions/${encodeURIComponent(id)}/adjustments`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+      ...getAuthHeaders(),
+    },
+    body: JSON.stringify(input),
+  });
+
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const errorMsg = Array.isArray(body.message)
+      ? body.message.join(', ')
+      : body.message || 'Failed to record credit adjustment';
+    const err: any = new Error(errorMsg);
+    err.code = body.code || body.error;
+    throw err;
+  }
+
+  return body.data;
+}
+
+/**
+ * Uploads an invoice document file for an acquisition receipt.
+ */
+export async function uploadAcquisitionInvoice(
+  id: string,
+  file: File,
+): Promise<BloodAcquisitionReceipt> {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const res = await fetch(`${API_BASE_URL}/blood-acquisitions/${encodeURIComponent(id)}/invoice`, {
+    method: 'POST',
+    headers: {
+      ...getAuthHeaders(),
+    },
+    body: formData,
+  });
+
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(body.message || 'Failed to upload acquisition invoice');
+  }
+
+  return body.data;
+}
+
+/**
+ * Uploads a clearance certificate file for an acquisition receipt.
+ */
+export async function uploadAcquisitionCertificate(
+  id: string,
+  file: File,
+): Promise<BloodAcquisitionReceipt> {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const res = await fetch(`${API_BASE_URL}/blood-acquisitions/${encodeURIComponent(id)}/certificate`, {
+    method: 'POST',
+    headers: {
+      ...getAuthHeaders(),
+    },
+    body: formData,
+  });
+
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(body.message || 'Failed to upload clearance certificate');
+  }
+
+  return body.data;
 }
 
 /**

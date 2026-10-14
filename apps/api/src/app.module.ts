@@ -14,6 +14,8 @@ import { ReservationsModule } from './modules/reservations/reservations.module';
 import { BloodIssuesModule } from './modules/blood-issues/blood-issues.module';
 import { BloodAcquisitionsModule } from './modules/blood-acquisitions/blood-acquisitions.module';
 import { ExpensesModule } from './modules/expenses/expenses.module';
+import { VendorsModule } from './modules/vendors/vendors.module';
+import { PaymentsModule } from './modules/payments/payments.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { AdminAuthGuard } from './modules/auth/guards/admin-auth.guard';
 import { RolesGuard } from './modules/auth/guards/roles.guard';
@@ -42,6 +44,8 @@ import { RolesGuard } from './modules/auth/guards/roles.guard';
     BloodIssuesModule,
     BloodAcquisitionsModule,
     ExpensesModule,
+    VendorsModule,
+    PaymentsModule,
   ],
   controllers: [AppController],
   providers: [

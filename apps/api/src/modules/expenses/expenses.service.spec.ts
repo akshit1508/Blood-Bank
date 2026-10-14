@@ -4,6 +4,7 @@ import { BadRequestException, ForbiddenException, NotFoundException } from '@nes
 import { Types } from 'mongoose';
 import { ExpensesService } from './expenses.service';
 import { Expense } from './schemas/expense.schema';
+import { Vendor } from '../vendors/schemas/vendor.schema';
 import { StorageService } from './storage/storage.service';
 import { ExpenseStatus, ExpenseCategory, CostCenter } from './constants/expense.constants';
 
@@ -42,12 +43,21 @@ describe('ExpensesService', () => {
       deleteReceipt: jest.fn(),
     };
 
+    const mockVendorModel = {
+      findById: jest.fn().mockResolvedValue({ _id: new Types.ObjectId(), name: 'Test Vendor', isActive: true }),
+      findOne: jest.fn(),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ExpensesService,
         {
           provide: getModelToken(Expense.name),
           useValue: mockExpenseModel,
+        },
+        {
+          provide: getModelToken(Vendor.name),
+          useValue: mockVendorModel,
         },
         {
           provide: StorageService,

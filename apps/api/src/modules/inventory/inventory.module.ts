@@ -16,6 +16,10 @@ import {
   BloodTesting,
   BloodTestingSchema,
 } from '../testing/schemas/blood-testing.schema';
+import {
+  BloodAcquisition,
+  BloodAcquisitionSchema,
+} from '../blood-acquisitions/schemas/blood-acquisition.schema';
 
 @Module({
   imports: [
@@ -24,6 +28,7 @@ import {
       { name: InventoryHistory.name, schema: InventoryHistorySchema },
       { name: BloodUnit.name, schema: BloodUnitSchema },
       { name: BloodTesting.name, schema: BloodTestingSchema },
+      { name: BloodAcquisition.name, schema: BloodAcquisitionSchema },
     ]),
   ],
   controllers: [InventoryController, PublicBloodAvailabilityController],

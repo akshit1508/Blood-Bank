@@ -6,6 +6,12 @@ export enum ExpenseStatus {
   CANCELLED = 'CANCELLED',
 }
 
+export enum ExpensePaymentStatus {
+  UNPAID = 'UNPAID',
+  PARTIALLY_PAID = 'PARTIALLY_PAID',
+  PAID = 'PAID',
+}
+
 export enum ExpenseCategory {
   MEDICAL_SUPPLIES = 'MEDICAL_SUPPLIES',
   LABORATORY_TESTING = 'LABORATORY_TESTING',
@@ -42,6 +48,9 @@ export enum ExpenseAuditEventType {
   REJECTED = 'REJECTED',
   RESUBMITTED = 'RESUBMITTED',
   CANCELLED = 'CANCELLED',
+  VENDOR_LINKED = 'VENDOR_LINKED',
+  DISBURSEMENT_RECORDED = 'DISBURSEMENT_RECORDED',
+  DISBURSEMENT_CANCELLED = 'DISBURSEMENT_CANCELLED',
 }
 
 export const EXPENSE_CATEGORY_LABELS: Record<ExpenseCategory, string> = {

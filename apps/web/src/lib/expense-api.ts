@@ -76,7 +76,12 @@ export interface ExpenseItem {
   costCenter: CostCenter;
   expenseDate: string;
   amount: number;
+  amountPaise?: number;
+  paidAmount?: number;
+  paidAmountPaise?: number;
+  paymentStatus?: string;
   currency: string;
+  vendorId?: string;
   vendorName: string;
   invoiceNumber: string;
   gstinNumber?: string;
@@ -117,11 +122,13 @@ export interface CreateExpensePayload {
   costCenter: CostCenter;
   expenseDate: string;
   amount: number;
+  vendorId?: string;
   vendorName: string;
   invoiceNumber: string;
   gstinNumber?: string;
   taxAmount?: number;
   description?: string;
+  correctionNotes?: string;
 }
 
 export interface UpdateExpensePayload extends Partial<CreateExpensePayload> {

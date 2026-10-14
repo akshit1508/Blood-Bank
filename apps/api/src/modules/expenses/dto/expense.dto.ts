@@ -11,6 +11,7 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ExpenseCategory, CostCenter } from '../constants/expense.constants';
+import { IsValidInrCurrency } from '../../../common/validators/currency.validator';
 
 export class CreateExpenseDto {
   @IsString()
@@ -29,8 +30,13 @@ export class CreateExpenseDto {
 
   @IsNumber({ maxDecimalPlaces: 2 })
   @IsPositive()
+  @IsValidInrCurrency()
   @Type(() => Number)
   amount: number;
+
+  @IsString()
+  @IsOptional()
+  vendorId?: string;
 
   @IsString()
   @IsNotEmpty()
@@ -79,9 +85,14 @@ export class UpdateExpenseDto {
 
   @IsNumber({ maxDecimalPlaces: 2 })
   @IsPositive()
+  @IsValidInrCurrency()
   @IsOptional()
   @Type(() => Number)
   amount?: number;
+
+  @IsString()
+  @IsOptional()
+  vendorId?: string;
 
   @IsString()
   @IsOptional()
@@ -177,4 +188,10 @@ export class QueryExpensesDto {
   @IsOptional()
   @Type(() => Number)
   limit?: number = 20;
+}
+
+export class LinkVendorDto {
+  @IsString()
+  @IsNotEmpty()
+  vendorId: string;
 }

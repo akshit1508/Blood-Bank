@@ -21,6 +21,7 @@ import {
   TestingDecision,
 } from '../testing/constants/testing.constants';
 import { BloodGroup } from '../donors/constants/donor.constants';
+import { BloodAcquisition } from '../blood-acquisitions/schemas/blood-acquisition.schema';
 
 describe('InventoryService (Phase 5A & 5B)', () => {
   let service: InventoryService;
@@ -28,6 +29,7 @@ describe('InventoryService (Phase 5A & 5B)', () => {
   let mockInventoryHistoryModel: any;
   let mockBloodUnitModel: any;
   let mockBloodTestingModel: any;
+  let mockBloodAcquisitionModel: any;
 
   const validUnitId = new Types.ObjectId().toString();
   const validDonationId = new Types.ObjectId().toString();
@@ -106,6 +108,11 @@ describe('InventoryService (Phase 5A & 5B)', () => {
       find: jest.fn(),
     };
 
+    mockBloodAcquisitionModel = {
+      findById: jest.fn(),
+      find: jest.fn(),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         InventoryService,
@@ -124,6 +131,10 @@ describe('InventoryService (Phase 5A & 5B)', () => {
         {
           provide: getModelToken(BloodTesting.name),
           useValue: mockBloodTestingModel,
+        },
+        {
+          provide: getModelToken(BloodAcquisition.name),
+          useValue: mockBloodAcquisitionModel,
         },
       ],
     }).compile();

@@ -10,6 +10,7 @@ import { Model, Types, isValidObjectId } from 'mongoose';
 import { Expense, ExpenseDocument } from './schemas/expense.schema';
 import {
   ExpenseStatus,
+  ExpensePaymentStatus,
   ExpenseAuditEventType,
   ExpenseCategory,
   CostCenter,
@@ -25,6 +26,8 @@ import {
 } from './dto/expense.dto';
 import { StorageService } from './storage/storage.service';
 import { AdminRole } from '../auth/schemas/admin-user.schema';
+import { Vendor, VendorDocument } from '../vendors/schemas/vendor.schema';
+import { CurrencyUtil } from '../../common/utils/currency.util';
 
 @Injectable()
 export class ExpensesService {
@@ -33,6 +36,8 @@ export class ExpensesService {
   constructor(
     @InjectModel(Expense.name)
     private readonly expenseModel: Model<ExpenseDocument>,
+    @InjectModel(Vendor.name)
+    private readonly vendorModel: Model<VendorDocument>,
     private readonly storageService: StorageService,
   ) {}
 
@@ -70,14 +75,33 @@ export class ExpensesService {
       timestamp: new Date(),
     };
 
+    const amountPaise = CurrencyUtil.toPaise(dto.amount);
+    let linkedVendorId: Types.ObjectId | undefined = undefined;
+
+    if (dto.vendorId) {
+      if (!isValidObjectId(dto.vendorId)) {
+        throw new BadRequestException('Invalid vendorId format.');
+      }
+      const vendor = await this.vendorModel.findById(dto.vendorId);
+      if (!vendor || !vendor.isActive) {
+        throw new BadRequestException('Selected vendor does not exist or is inactive.');
+      }
+      linkedVendorId = vendor._id;
+    }
+
     const expense = await this.expenseModel.create({
       expenseCode,
       title: dto.title.trim(),
       category: dto.category,
       costCenter: dto.costCenter,
       expenseDate,
-      amount: Math.round(dto.amount * 100) / 100,
+      amount: CurrencyUtil.toInr(amountPaise),
+      amountPaise,
+      paidAmountPaise: 0,
+      paidAmount: 0,
+      paymentStatus: ExpensePaymentStatus.UNPAID,
       currency: 'INR',
+      vendorId: linkedVendorId,
       vendorName: dto.vendorName.trim(),
       invoiceNumber: dto.invoiceNumber.trim(),
       gstinNumber: dto.gstinNumber ? dto.gstinNumber.trim().toUpperCase() : undefined,
@@ -335,12 +359,42 @@ export class ExpensesService {
       throw new ForbiddenException('Only the expense creator or Super Admin can edit this expense.');
     }
 
+    if (expense.paidAmountPaise && expense.paidAmountPaise > 0) {
+      throw new BadRequestException({
+        message: 'Cannot modify an expense with active disbursements.',
+        code: 'CANNOT_ALTER_EXPENSE_WITH_ACTIVE_PAYMENTS',
+      });
+    }
+
+    if (expense.isPaymentLocked) {
+      throw new BadRequestException({
+        message: 'This expense is locked for payment reconciliation.',
+        code: 'EXPENSE_PAYMENT_LOCKED',
+      });
+    }
+
     if (dto.title !== undefined) expense.title = dto.title.trim();
     if (dto.category !== undefined) expense.category = dto.category;
     if (dto.costCenter !== undefined) expense.costCenter = dto.costCenter;
     if (dto.expenseDate !== undefined) expense.expenseDate = new Date(dto.expenseDate);
-    if (dto.amount !== undefined) expense.amount = Math.round(dto.amount * 100) / 100;
-    if (dto.vendorName !== undefined) expense.vendorName = dto.vendorName.trim();
+    if (dto.amount !== undefined) {
+      const amountPaise = CurrencyUtil.toPaise(dto.amount);
+      expense.amount = CurrencyUtil.toInr(amountPaise);
+      expense.amountPaise = amountPaise;
+    }
+    if (dto.vendorId !== undefined) {
+      if (!isValidObjectId(dto.vendorId)) {
+        throw new BadRequestException('Invalid vendorId format.');
+      }
+      const vendor = await this.vendorModel.findById(dto.vendorId);
+      if (!vendor || !vendor.isActive) {
+        throw new BadRequestException('Selected vendor does not exist or is inactive.');
+      }
+      expense.vendorId = vendor._id;
+      expense.vendorName = vendor.name;
+    } else if (dto.vendorName !== undefined) {
+      expense.vendorName = dto.vendorName.trim();
+    }
     if (dto.invoiceNumber !== undefined) expense.invoiceNumber = dto.invoiceNumber.trim();
     if (dto.gstinNumber !== undefined) expense.gstinNumber = dto.gstinNumber.trim().toUpperCase() || undefined;
     if (dto.taxAmount !== undefined) expense.taxAmount = Math.round(dto.taxAmount * 100) / 100;
@@ -745,5 +799,55 @@ export class ExpensesService {
       success: true,
       message: `Draft expense '${expense.expenseCode}' has been cancelled successfully.`,
     };
+  }
+
+  /**
+   * Explicitly links a historical or unlinked expense to a registered Vendor (Super Admin only).
+   * Preserves historical vendorName string and records an immutable audit log.
+   */
+  async linkVendor(id: string, vendorId: string, currentAdmin: any): Promise<Expense> {
+    if (!isValidObjectId(id) || !isValidObjectId(vendorId)) {
+      throw new BadRequestException('Invalid ID format for expense or vendor.');
+    }
+
+    const expense = await this.findById(id);
+
+    if (expense.isDeleted || expense.status === ExpenseStatus.CANCELLED) {
+      throw new BadRequestException({
+        message: 'Cannot link a vendor to a cancelled or deleted expense.',
+        code: 'EXPENSE_CANCELLED_OR_DELETED',
+      });
+    }
+
+    if (expense.paidAmountPaise && expense.paidAmountPaise > 0) {
+      throw new BadRequestException({
+        message: 'Cannot re-link vendor for an expense that already has recorded disbursements.',
+        code: 'CANNOT_ALTER_EXPENSE_WITH_ACTIVE_PAYMENTS',
+      });
+    }
+
+    const vendor = await this.vendorModel.findById(vendorId);
+    if (!vendor || !vendor.isActive) {
+      throw new BadRequestException({
+        message: 'Target vendor does not exist or is inactive.',
+        code: 'VENDOR_INACTIVE_OR_NOT_FOUND',
+      });
+    }
+
+    const oldVendorName = expense.vendorName;
+    expense.vendorId = vendor._id;
+
+    expense.auditHistory.push({
+      action: ExpenseAuditEventType.VENDOR_LINKED,
+      fromStatus: expense.status,
+      toStatus: expense.status,
+      performedBy: new Types.ObjectId(currentAdmin.id || currentAdmin._id),
+      performedByName: currentAdmin.fullName || 'Super Admin',
+      performedByEmail: currentAdmin.email,
+      notes: `Linked to registered vendor "${vendor.name}" (${vendor._id}). Historical vendor string "${oldVendorName}" preserved.`,
+      timestamp: new Date(),
+    } as any);
+
+    return await expense.save();
   }
 }

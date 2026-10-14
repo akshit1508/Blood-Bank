@@ -221,9 +221,9 @@ export default function AdminSidebar({
         label: 'FINANCE',
         items: [
           { name: 'Expenditure Management', href: '/super-admin/finance/expenses', icon: icons.finance },
-          { name: 'Bills & Receipts', href: '/super-admin/finance/receipts', icon: icons.receipt },
-          { name: 'Pending Approvals', href: '/super-admin/finance/approvals', icon: icons.security, badge: 'Review' },
-          { name: 'Vendors & Payments', icon: icons.finance, isComingSoon: true, badge: 'Coming Soon' },
+          { name: 'Vendor Directory', href: '/super-admin/finance/vendors', icon: icons.acquisition },
+          { name: 'Disbursements & Payments', href: '/super-admin/finance/payments', icon: icons.finance },
+          { name: 'Outstanding Dues', href: '/super-admin/finance/dues', icon: icons.analytics },
           { name: 'Acquisition Costing', icon: icons.acquisition, isComingSoon: true, badge: 'Coming Soon' },
           { name: 'Payroll', icon: icons.staff, isComingSoon: true, badge: 'Coming Soon' },
           { name: 'Income & Funding', icon: icons.finance, isComingSoon: true, badge: 'Coming Soon' },

@@ -25,6 +25,7 @@ import {
   ApproveExpenseDto,
   RejectExpenseDto,
   QueryExpensesDto,
+  LinkVendorDto,
 } from './dto/expense.dto';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentAdmin } from '../auth/decorators/current-admin.decorator';
@@ -312,6 +313,25 @@ export class ExpensesController {
     return {
       statusCode: HttpStatus.OK,
       message: 'Expense rejected and returned to operator for correction',
+      data,
+    };
+  }
+
+  /**
+   * Super Admin operation: Explicitly link a registered Vendor to an expense.
+   * PATCH /api/expenses/:id/link-vendor
+   */
+  @Roles(AdminRole.SUPER_ADMIN)
+  @Patch(':id/link-vendor')
+  async linkVendor(
+    @Param('id') id: string,
+    @Body() dto: LinkVendorDto,
+    @CurrentAdmin() currentAdmin: any,
+  ) {
+    const data = await this.expensesService.linkVendor(id, dto.vendorId, currentAdmin);
+    return {
+      statusCode: HttpStatus.OK,
+      message: 'Vendor linked to expense successfully',
       data,
     };
   }

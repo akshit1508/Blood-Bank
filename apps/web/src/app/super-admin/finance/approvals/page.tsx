@@ -669,7 +669,17 @@ export default function PendingApprovalsPage() {
               </div>
               <div>
                 <span style={{ fontSize: '0.7rem', color: '#64748b', textTransform: 'uppercase', display: 'block' }}>Vendor</span>
-                <strong style={{ color: '#0f172a' }}>{selectedExpense.vendorName}</strong>
+                {selectedExpense.vendorId ? (
+                  <Link
+                    href={`/super-admin/finance/vendors?vendorId=${selectedExpense.vendorId}`}
+                    style={{ color: '#0284c7', fontWeight: 700, textDecoration: 'none' }}
+                    title="View Vendor Financial Ledger"
+                  >
+                    {selectedExpense.vendorName} ↗
+                  </Link>
+                ) : (
+                  <strong style={{ color: '#0f172a' }}>{selectedExpense.vendorName}</strong>
+                )}
               </div>
               <div>
                 <span style={{ fontSize: '0.7rem', color: '#64748b', textTransform: 'uppercase', display: 'block' }}>Invoice Number</span>

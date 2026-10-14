@@ -69,6 +69,17 @@ export class BloodUnit {
   })
   externalReceiptId?: Types.ObjectId;
 
+  /**
+   * Reference to the specific line item in BloodAcquisition.items
+   */
+  @Prop({
+    type: Types.ObjectId,
+    required: false,
+    index: true,
+    sparse: true,
+  })
+  acquisitionItemId?: Types.ObjectId;
+
   @Prop({
     required: true,
     enum: Object.values(BloodGroup),

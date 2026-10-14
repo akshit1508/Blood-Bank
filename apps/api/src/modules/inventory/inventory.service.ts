@@ -35,7 +35,14 @@ import {
   TestingDecision,
 } from '../testing/constants/testing.constants';
 import { BloodGroup } from '../donors/constants/donor.constants';
-import { BloodUnitSourceType } from '../blood-acquisitions/constants/blood-acquisition.constants';
+import {
+  BloodAcquisition,
+  BloodAcquisitionDocument,
+} from '../blood-acquisitions/schemas/blood-acquisition.schema';
+import {
+  ExternalSourceType,
+  BloodUnitSourceType,
+} from '../blood-acquisitions/constants/blood-acquisition.constants';
 
 @Injectable()
 export class InventoryService {
@@ -48,6 +55,8 @@ export class InventoryService {
     private readonly bloodUnitModel: Model<BloodUnitDocument>,
     @InjectModel(BloodTesting.name)
     private readonly bloodTestingModel: Model<BloodTestingDocument>,
+    @InjectModel(BloodAcquisition.name)
+    private readonly bloodAcquisitionModel: Model<BloodAcquisitionDocument>,
   ) {}
 
   /**
@@ -221,17 +230,66 @@ export class InventoryService {
       });
     }
 
-    // 4. Approval Gate: Verify corresponding laboratory testing record
+    // 4. Approval Gate: Verify corresponding laboratory testing record or authorized external clearance
     const testingRecord = await this.bloodTestingModel
       .findOne({ bloodUnitId: bloodUnit._id })
       .exec();
 
-    // External blood units with testingRequired = false are considered pre-cleared by source
-    const isPreClearedExternal =
-      bloodUnit.sourceType === BloodUnitSourceType.EXTERNAL_RECEIPT &&
-      !testingRecord;
+    let isAuthorizedExternalDirectIntake = false;
 
-    if (!isPreClearedExternal) {
+    if (bloodUnit.sourceType === BloodUnitSourceType.EXTERNAL_RECEIPT && !testingRecord) {
+      if (!bloodUnit.externalReceiptId) {
+        throw new BadRequestException({
+          message: `Blood unit '${bloodUnit.unitCode}' lacks external receipt reference. Cannot verify clearance.`,
+          code: 'EXTERNAL_CLEARANCE_DOCUMENTATION_MISSING',
+        });
+      }
+
+      const receipt = await this.bloodAcquisitionModel.findById(bloodUnit.externalReceiptId).exec();
+      if (!receipt) {
+        throw new BadRequestException({
+          message: `Blood unit '${bloodUnit.unitCode}' referenced receipt was not found. Cannot verify clearance.`,
+          code: 'EXTERNAL_CLEARANCE_DOCUMENTATION_MISSING',
+        });
+      }
+
+      // Strict 4-point Medical Clearance Verification Gate:
+      // 1. Regulated source
+      const isRegulatedSource = [
+        ExternalSourceType.GOVERNMENT_BLOOD_CENTRE,
+        ExternalSourceType.BLOOD_BANK,
+        ExternalSourceType.HOSPITAL,
+      ].includes(receipt.sourceType);
+
+      // 2. Documented certificate number
+      const hasCertificateNumber = Boolean(
+        receipt.clearanceCertificateNumber && receipt.clearanceCertificateNumber.trim().length > 0,
+      );
+
+      // 3. Affirmative source testing attestation
+      const hasTestingAttestation = Boolean(receipt.sourceTestingCertified === true);
+
+      // 4. Authorized medical staff sign-off
+      const hasMedicalOfficerSignOff = Boolean(
+        receipt.clearanceAuthorizedByStaffId && receipt.clearanceAuthorizationDate,
+      );
+
+      if (
+        !isRegulatedSource ||
+        !hasCertificateNumber ||
+        !hasTestingAttestation ||
+        !hasMedicalOfficerSignOff
+      ) {
+        throw new BadRequestException({
+          message: `Direct inventory intake for external blood unit '${bloodUnit.unitCode}' rejected. Incomplete medical clearance documentation (requires regulated source, certificate number, source testing attestation, and authorized medical officer sign-off). Unit must enter in-house laboratory testing or quarantine.`,
+          code: 'EXTERNAL_CLEARANCE_DOCUMENTATION_MISSING',
+        });
+      }
+
+      isAuthorizedExternalDirectIntake = true;
+    }
+
+    if (!isAuthorizedExternalDirectIntake) {
       if (
         !testingRecord ||
         testingRecord.status !== TestingStatus.COMPLETED ||
@@ -251,8 +309,8 @@ export class InventoryService {
     });
 
     // 6. Record Initial History Entry
-    const initialReason = isPreClearedExternal
-      ? 'Initial operational inventory entry from pre-cleared external blood acquisition'
+    const initialReason = isAuthorizedExternalDirectIntake
+      ? 'Initial operational inventory entry from medically certified external blood acquisition'
       : 'Initial operational inventory entry from laboratory-approved blood unit';
 
     await this.recordHistory(

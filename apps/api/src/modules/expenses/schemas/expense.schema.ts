@@ -2,6 +2,7 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 import {
   ExpenseStatus,
+  ExpensePaymentStatus,
   ExpenseCategory,
   CostCenter,
   ExpenseAuditEventType,
@@ -102,15 +103,51 @@ export class Expense {
   @Prop({ required: true, index: true })
   expenseDate: Date;
 
-  /** Stored monetary amount in INR (>= 0.01) */
+  /** Stored monetary amount in INR (>= 0.01) - Mirrored for compatibility */
   @Prop({ required: true, type: Number, min: 0.01 })
   amount: number;
+
+  /** Authoritative total amount in integer paise (1 INR = 100 paise) */
+  @Prop({ required: false, type: Number, min: 1, index: true })
+  amountPaise?: number;
+
+  /** Authoritative disbursed amount in integer paise */
+  @Prop({ required: false, type: Number, default: 0, min: 0, index: true })
+  paidAmountPaise: number;
+
+  /** Derived disbursed amount in INR (strictly derived: paidAmountPaise / 100) */
+  @Prop({ required: false, type: Number, default: 0, min: 0 })
+  paidAmount: number;
+
+  /** Payment status lifecycle */
+  @Prop({
+    required: false,
+    type: String,
+    enum: Object.values(ExpensePaymentStatus),
+    default: ExpensePaymentStatus.UNPAID,
+    index: true,
+  })
+  paymentStatus: ExpensePaymentStatus;
 
   @Prop({ required: true, default: 'INR', uppercase: true })
   currency: string;
 
+  /** Verified registered vendor reference (required before disbursement) */
+  @Prop({ type: Types.ObjectId, ref: 'Vendor', required: false, default: null, index: true })
+  vendorId?: Types.ObjectId;
+
   @Prop({ required: true, trim: true, index: true })
   vendorName: string;
+
+  @Prop({ required: false, trim: true })
+  migrationStatus?: string;
+
+  @Prop({ required: false, default: false })
+  isPaymentLocked?: boolean;
+
+  /** Reference to linked BloodAcquisition if liability originated from external blood consignment */
+  @Prop({ type: Types.ObjectId, ref: 'BloodAcquisition', required: false, index: true, sparse: true })
+  acquisitionId?: Types.ObjectId;
 
   @Prop({ required: true, trim: true, index: true })
   invoiceNumber: string;

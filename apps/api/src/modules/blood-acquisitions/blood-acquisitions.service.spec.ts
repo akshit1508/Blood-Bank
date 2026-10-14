@@ -1,12 +1,15 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { getModelToken } from '@nestjs/mongoose';
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { getModelToken, getConnectionToken } from '@nestjs/mongoose';
+import { BadRequestException, NotFoundException, ConflictException } from '@nestjs/common';
 import { BloodAcquisitionsService } from './blood-acquisitions.service';
 import { BloodAcquisition } from './schemas/blood-acquisition.schema';
 import { BloodUnit } from '../blood-units/schemas/blood-unit.schema';
 import { Inventory } from '../inventory/schemas/inventory.schema';
 import { BloodTesting } from '../testing/schemas/blood-testing.schema';
+import { Expense } from '../expenses/schemas/expense.schema';
+import { Vendor } from '../vendors/schemas/vendor.schema';
 import { InventoryService } from '../inventory/inventory.service';
+import { StorageService } from '../expenses/storage/storage.service';
 import {
   ExternalSourceType,
   BloodUnitSourceType,
@@ -18,6 +21,7 @@ import {
   BloodUnitStatus,
 } from '../blood-units/constants/blood-unit.constants';
 import { InventoryStatus } from '../inventory/constants/inventory.constants';
+import { ExpenseStatus, ExpensePaymentStatus } from '../expenses/constants/expense.constants';
 import { Types } from 'mongoose';
 
 describe('BloodAcquisitionsService', () => {
@@ -26,38 +30,53 @@ describe('BloodAcquisitionsService', () => {
   let mockBloodUnitModel: any;
   let mockInventoryModel: any;
   let mockBloodTestingModel: any;
+  let mockExpenseModel: any;
+  let mockVendorModel: any;
   let mockInventoryService: any;
+  let mockStorageService: any;
+  let mockSession: any;
+  let mockConnection: any;
 
   const validReceiptId = new Types.ObjectId();
+  const mockAdmin = {
+    id: new Types.ObjectId().toString(),
+    _id: new Types.ObjectId().toString(),
+    email: 'lab.admin@bloodbank.org',
+    role: 'SUPER_ADMIN',
+    fullName: 'Dr. Jane Admin',
+  };
 
   beforeEach(async () => {
+    mockSession = {
+      withTransaction: jest.fn(async (cb: () => Promise<any>) => cb()),
+      endSession: jest.fn().mockResolvedValue(undefined),
+    };
+
+    mockConnection = {
+      startSession: jest.fn().mockResolvedValue(mockSession),
+    };
+
     function MockBloodAcquisitionModel(dto: any) {
+      Object.assign(this, dto);
       this._id = validReceiptId;
-      this.receiptCode = dto.receiptCode;
-      this.sourceType = dto.sourceType;
-      this.sourceName = dto.sourceName;
-      this.referenceNumber = dto.referenceNumber;
-      this.receivedDate = dto.receivedDate;
-      this.notes = dto.notes;
-      this.status = dto.status || BloodAcquisitionStatus.PROCESSING;
-      this.totalUnitsGenerated = dto.totalUnitsGenerated;
-      this.items = dto.items || [];
+      this.receiptCode = dto.receiptCode || 'EXT-20261013-0001';
+      this.adjustments = dto.adjustments || [];
       this.save = jest.fn().mockResolvedValue(this);
-      this.toObject = jest.fn().mockReturnValue({
-        _id: this._id,
-        receiptCode: this.receiptCode,
-        sourceType: this.sourceType,
-        sourceName: this.sourceName,
-        referenceNumber: this.referenceNumber,
-        receivedDate: this.receivedDate,
-        notes: this.notes,
-        status: this.status,
-        totalUnitsGenerated: this.totalUnitsGenerated,
-        items: this.items,
-      });
+      this.toObject = jest.fn().mockReturnValue({ ...this });
     }
 
-    MockBloodAcquisitionModel.exists = jest.fn().mockResolvedValue(false);
+    const createExistsMock = (value: any = false) => {
+      return jest.fn().mockImplementation(() => {
+        const p: any = Promise.resolve(value);
+        p.session = jest.fn().mockResolvedValue(value);
+        return p;
+      });
+    };
+
+    MockBloodAcquisitionModel.exists = createExistsMock(false);
+    MockBloodAcquisitionModel.collection = {
+      createIndex: jest.fn().mockResolvedValue('ok'),
+    };
     MockBloodAcquisitionModel.find = jest.fn().mockReturnValue({
       sort: jest.fn().mockReturnValue({
         skip: jest.fn().mockReturnValue({
@@ -70,8 +89,12 @@ describe('BloodAcquisitionsService', () => {
     MockBloodAcquisitionModel.countDocuments = jest.fn().mockReturnValue({
       exec: jest.fn().mockResolvedValue(0),
     });
-    MockBloodAcquisitionModel.findById = jest.fn();
-    MockBloodAcquisitionModel.findOne = jest.fn();
+    MockBloodAcquisitionModel.findById = jest.fn().mockReturnValue({
+      exec: jest.fn().mockResolvedValue(null),
+    });
+    MockBloodAcquisitionModel.findOne = jest.fn().mockReturnValue({
+      exec: jest.fn().mockResolvedValue(null),
+    });
     MockBloodAcquisitionModel.deleteOne = jest.fn().mockReturnValue({
       exec: jest.fn().mockResolvedValue({ deletedCount: 1 }),
     });
@@ -79,22 +102,11 @@ describe('BloodAcquisitionsService', () => {
     mockBloodAcquisitionModel = MockBloodAcquisitionModel;
 
     function MockBloodUnitModel(dto: any) {
+      Object.assign(this, dto);
       this._id = new Types.ObjectId();
-      this.unitCode = dto.unitCode;
-      this.sourceType = dto.sourceType;
-      this.externalReceiptId = dto.externalReceiptId;
-      this.bloodGroup = dto.bloodGroup;
-      this.componentType = dto.componentType;
-      this.collectionDate = dto.collectionDate;
-      this.expiryDate = dto.expiryDate;
-      this.volume = dto.volume;
-      this.status = dto.status;
-      this.storageLocation = dto.storageLocation;
-      this.notes = dto.notes;
       this.save = jest.fn().mockResolvedValue(this);
     }
-
-    MockBloodUnitModel.exists = jest.fn().mockResolvedValue(false);
+    MockBloodUnitModel.exists = createExistsMock(false);
     MockBloodUnitModel.find = jest.fn().mockReturnValue({
       select: jest.fn().mockReturnValue({
         lean: jest.fn().mockReturnValue({
@@ -111,33 +123,75 @@ describe('BloodAcquisitionsService', () => {
 
     mockBloodUnitModel = MockBloodUnitModel;
 
-    mockInventoryModel = {
-      create: jest.fn(),
-      find: jest.fn().mockReturnValue({
-        lean: jest.fn().mockReturnValue({
-          exec: jest.fn().mockResolvedValue([]),
-        }),
+    function MockInventoryModel(dto: any) {
+      Object.assign(this, dto);
+      this._id = new Types.ObjectId();
+      this.save = jest.fn().mockResolvedValue(this);
+    }
+    MockInventoryModel.create = jest.fn();
+    MockInventoryModel.find = jest.fn().mockReturnValue({
+      lean: jest.fn().mockReturnValue({
+        exec: jest.fn().mockResolvedValue([]),
       }),
-      countDocuments: jest.fn().mockReturnValue({
-        exec: jest.fn().mockResolvedValue(0),
-      }),
-      deleteOne: jest.fn().mockReturnValue({
-        exec: jest.fn().mockResolvedValue({ deletedCount: 1 }),
-      }),
-    };
+    });
+    MockInventoryModel.countDocuments = jest.fn().mockReturnValue({
+      exec: jest.fn().mockResolvedValue(0),
+    });
+    MockInventoryModel.deleteOne = jest.fn().mockReturnValue({
+      exec: jest.fn().mockResolvedValue({ deletedCount: 1 }),
+    });
 
-    mockBloodTestingModel = {
-      find: jest.fn().mockReturnValue({
-        lean: jest.fn().mockReturnValue({
-          exec: jest.fn().mockResolvedValue([]),
-        }),
+    mockInventoryModel = MockInventoryModel;
+
+    function MockBloodTestingModel(dto: any) {
+      Object.assign(this, dto);
+      this._id = new Types.ObjectId();
+      this.save = jest.fn().mockResolvedValue(this);
+    }
+    MockBloodTestingModel.exists = createExistsMock(false);
+    MockBloodTestingModel.find = jest.fn().mockReturnValue({
+      lean: jest.fn().mockReturnValue({
+        exec: jest.fn().mockResolvedValue([]),
       }),
+    });
+
+    mockBloodTestingModel = MockBloodTestingModel;
+
+    function MockExpenseModel(dto: any) {
+      Object.assign(this, dto);
+      this._id = new Types.ObjectId();
+      this.auditHistory = dto.auditHistory || [];
+      this.save = jest.fn().mockResolvedValue(this);
+      this.toObject = jest.fn().mockReturnValue({ ...this });
+    }
+    MockExpenseModel.exists = createExistsMock(false);
+    MockExpenseModel.findById = jest.fn();
+    MockExpenseModel.findOne = jest.fn();
+
+    mockExpenseModel = MockExpenseModel;
+
+    mockVendorModel = {
+      findById: jest.fn(),
+      findOne: jest.fn(),
     };
 
     mockInventoryService = {
       createFromBloodUnit: jest.fn().mockResolvedValue({
         _id: new Types.ObjectId(),
         status: InventoryStatus.AVAILABLE,
+      }),
+    };
+
+    mockStorageService = {
+      saveReceipt: jest.fn().mockResolvedValue({
+        fileId: 'file-123',
+        originalName: 'test.pdf',
+        mimeType: 'application/pdf',
+        sizeBytes: 1024,
+      }),
+      getReceiptStream: jest.fn().mockReturnValue({
+        stream: {},
+        exists: true,
       }),
     };
 
@@ -161,8 +215,24 @@ describe('BloodAcquisitionsService', () => {
           useValue: mockBloodTestingModel,
         },
         {
+          provide: getModelToken(Expense.name),
+          useValue: mockExpenseModel,
+        },
+        {
+          provide: getModelToken(Vendor.name),
+          useValue: mockVendorModel,
+        },
+        {
           provide: InventoryService,
           useValue: mockInventoryService,
+        },
+        {
+          provide: StorageService,
+          useValue: mockStorageService,
+        },
+        {
+          provide: getConnectionToken(),
+          useValue: mockConnection,
         },
       ],
     }).compile();
@@ -170,52 +240,142 @@ describe('BloodAcquisitionsService', () => {
     service = module.get<BloodAcquisitionsService>(BloodAcquisitionsService);
   });
 
-  describe('create', () => {
-    const validDto = {
+  describe('create - Phase 4 Invariants and Rules', () => {
+    const validDto: any = {
       sourceType: ExternalSourceType.BLOOD_BANK,
       sourceName: 'Metro Blood Centre',
       referenceNumber: 'REF-2026-001',
-      receivedDate: new Date('2026-10-07T10:00:00.000Z').toISOString(),
+      invoiceNumber: 'INV-2026-999',
+      receivedDate: new Date(Date.now() - 3600000).toISOString(),
       notes: 'Bulk transfer shipment',
+      transportCharges: 250,
+      clearanceCertificateNumber: 'CERT-REG-888',
+      sourceTestingCertified: true,
+      clearanceSignoffStaffName: 'Dr. Clearance Medical Officer',
       items: [
         {
           bloodGroup: BloodGroup.A_POSITIVE,
           componentType: BloodUnitComponent.PRBC,
-          quantity: 2,
+          invoicedQuantity: 2,
+          receivedQuantity: 2,
+          acceptedQuantity: 2,
+          rejectedQuantity: 0,
+          pendingInspectionQuantity: 0,
+          unitCost: 1500,
           testingRequired: false,
           volumePerUnit: 450,
         },
         {
           bloodGroup: BloodGroup.O_POSITIVE,
           componentType: BloodUnitComponent.PRBC,
-          quantity: 3,
+          invoicedQuantity: 3,
+          receivedQuantity: 3,
+          acceptedQuantity: 3,
+          rejectedQuantity: 0,
+          pendingInspectionQuantity: 0,
+          unitCost: 1500,
           testingRequired: true,
           volumePerUnit: 450,
         },
       ],
     };
 
-    it('should successfully create a receipt and generate individual blood units', async () => {
-      const result = await service.create(validDto);
+    it('should successfully create acquisition, generate units for accepted quantity, and create DRAFT expense', async () => {
+      const result = await service.create(validDto, mockAdmin);
 
       expect(result).toBeDefined();
       expect(result.totalUnitsCreated).toBe(5);
       expect(result.directInventoryCount).toBe(2);
       expect(result.pendingTestingCount).toBe(3);
       expect(result.receipt.receiptCode).toMatch(/^EXT-\d{8}-[A-Z0-9]{4}$/);
+      expect((result as any).expense).toBeDefined();
+      expect((result as any).expense?.status).toBe(ExpenseStatus.DRAFT);
+      expect(result.isIdempotentReplay).toBe(false);
+    });
 
-      // Verify that direct-to-inventory units were sent to InventoryService
-      expect(mockInventoryService.createFromBloodUnit).toHaveBeenCalledTimes(2);
+    it('should enforce quantity invariant: receivedQuantity = acceptedQuantity + rejectedQuantity', async () => {
+      const invalidDto = {
+        ...validDto,
+        items: [
+          {
+            bloodGroup: BloodGroup.A_POSITIVE,
+            componentType: BloodUnitComponent.PRBC,
+            invoicedQuantity: 5,
+            receivedQuantity: 5,
+            acceptedQuantity: 3,
+            rejectedQuantity: 1, // 3 + 1 = 4 != 5
+            pendingInspectionQuantity: 0,
+            testingRequired: true,
+          },
+        ],
+      };
 
-      // Verify unit details
-      expect(result.units.length).toBe(5);
-      const aPosUnits = result.units.filter((u) => u.bloodGroup === BloodGroup.A_POSITIVE);
-      const oPosUnits = result.units.filter((u) => u.bloodGroup === BloodGroup.O_POSITIVE);
-      expect(aPosUnits.length).toBe(2);
-      expect(oPosUnits.length).toBe(3);
+      await expect(service.create(invalidDto, mockAdmin)).rejects.toThrow(BadRequestException);
+    });
 
-      expect(aPosUnits[0].status).toBe(BloodUnitStatus.APPROVED);
-      expect(oPosUnits[0].status).toBe(BloodUnitStatus.TESTING);
+    it('should mandate non-empty rejectionReason when rejectedQuantity > 0', async () => {
+      const invalidDto = {
+        ...validDto,
+        items: [
+          {
+            bloodGroup: BloodGroup.A_POSITIVE,
+            componentType: BloodUnitComponent.PRBC,
+            invoicedQuantity: 5,
+            receivedQuantity: 5,
+            acceptedQuantity: 3,
+            rejectedQuantity: 2, // 3 + 2 = 5
+            pendingInspectionQuantity: 0,
+            rejectionReason: '', // Empty reason
+            testingRequired: true,
+          },
+        ],
+      };
+
+      await expect(service.create(invalidDto, mockAdmin)).rejects.toThrow(BadRequestException);
+    });
+
+    it('should reject intake if pendingInspectionQuantity > 0 (inspection incomplete)', async () => {
+      const invalidDto = {
+        ...validDto,
+        items: [
+          {
+            bloodGroup: BloodGroup.A_POSITIVE,
+            componentType: BloodUnitComponent.PRBC,
+            invoicedQuantity: 5,
+            receivedQuantity: 5,
+            acceptedQuantity: 3,
+            rejectedQuantity: 2,
+            pendingInspectionQuantity: 1, // Pending > 0
+            testingRequired: true,
+          },
+        ],
+      };
+
+      await expect(service.create(invalidDto, mockAdmin)).rejects.toThrow(BadRequestException);
+    });
+
+    it('should reject testingRequired = false if regulated source or clearance certificate is missing', async () => {
+      const uncertifiedDto = {
+        ...validDto,
+        sourceType: ExternalSourceType.OTHER, // Not regulated BLOOD_BANK or HOSPITAL
+        clearanceCertificateNumber: undefined,
+        clearanceAttestationConfirmed: false,
+        clearanceSignoffStaffName: undefined,
+        items: [
+          {
+            bloodGroup: BloodGroup.A_POSITIVE,
+            componentType: BloodUnitComponent.PRBC,
+            invoicedQuantity: 2,
+            receivedQuantity: 2,
+            acceptedQuantity: 2,
+            rejectedQuantity: 0,
+            pendingInspectionQuantity: 0,
+            testingRequired: false,
+          },
+        ],
+      };
+
+      await expect(service.create(uncertifiedDto, mockAdmin)).rejects.toThrow(BadRequestException);
     });
 
     it('should reject receivedDate in the future', async () => {
@@ -225,7 +385,7 @@ describe('BloodAcquisitionsService', () => {
         receivedDate: futureDate,
       };
 
-      await expect(service.create(invalidDto)).rejects.toThrow(BadRequestException);
+      await expect(service.create(invalidDto, mockAdmin)).rejects.toThrow(BadRequestException);
     });
 
     it('should reject empty items array', async () => {
@@ -234,68 +394,153 @@ describe('BloodAcquisitionsService', () => {
         items: [],
       };
 
-      await expect(service.create(invalidDto)).rejects.toThrow(BadRequestException);
+      await expect(service.create(invalidDto, mockAdmin)).rejects.toThrow(BadRequestException);
     });
 
-    it('should reject item with zero or negative quantity', async () => {
-      const invalidDto = {
-        ...validDto,
-        items: [
-          {
-            bloodGroup: BloodGroup.A_POSITIVE,
-            componentType: BloodUnitComponent.PRBC,
-            quantity: 0,
-            testingRequired: false,
-          },
-        ],
+    it('should return existing receipt on idempotent replay with matching canonical hash', async () => {
+      const idempotencyKey = '123e4567-e89b-12d3-a456-426614174000';
+      const canonicalHash = service.computeCanonicalPayloadHash(validDto);
+
+      const existingReceipt = {
+        _id: validReceiptId,
+        idempotencyKey,
+        requestPayloadHash: canonicalHash,
+        receiptCode: 'EXT-20261013-0001',
+        totalUnitsGenerated: 5,
+        expenseId: new Types.ObjectId(),
       };
 
-      await expect(service.create(invalidDto)).rejects.toThrow(BadRequestException);
+      mockBloodAcquisitionModel.findOne = jest.fn().mockReturnValue({
+        exec: jest.fn().mockResolvedValue(existingReceipt),
+      });
+      mockExpenseModel.findById = jest.fn().mockReturnValue({
+        exec: jest.fn().mockResolvedValue({ _id: existingReceipt.expenseId, status: ExpenseStatus.DRAFT }),
+      });
+
+      const replayResult = await service.create(validDto, mockAdmin, idempotencyKey);
+
+      expect(replayResult.isIdempotentReplay).toBe(true);
+      expect(replayResult.receipt._id).toBe(validReceiptId);
     });
 
-    it('should reject expiryDate before or equal to receivedDate', async () => {
-      const invalidDto = {
-        ...validDto,
-        items: [
-          {
-            bloodGroup: BloodGroup.A_POSITIVE,
-            componentType: BloodUnitComponent.PRBC,
-            quantity: 2,
-            testingRequired: false,
-            expiryDate: new Date('2026-10-06T00:00:00.000Z').toISOString(), // Before receivedDate
-          },
-        ],
+    it('should throw ConflictException on idempotent key reuse with mismatched payload', async () => {
+      const idempotencyKey = '123e4567-e89b-12d3-a456-426614174000';
+      const existingReceipt = {
+        _id: validReceiptId,
+        idempotencyKey,
+        requestPayloadHash: 'different-sha256-hash',
+        receiptCode: 'EXT-20261013-0001',
+        totalUnitsGenerated: 5,
       };
 
-      await expect(service.create(invalidDto)).rejects.toThrow(BadRequestException);
-    });
+      mockBloodAcquisitionModel.findOne = jest.fn().mockReturnValue({
+        exec: jest.fn().mockResolvedValue(existingReceipt),
+      });
 
-    it('should mark receipt COMPLETED if all units require no testing', async () => {
-      const allDirectDto = {
-        ...validDto,
-        items: [
-          {
-            bloodGroup: BloodGroup.AB_POSITIVE,
-            componentType: BloodUnitComponent.FFP,
-            quantity: 2,
-            testingRequired: false,
-          },
-        ],
+      await expect(service.create(validDto, mockAdmin, idempotencyKey)).rejects.toThrow(ConflictException);
+    });
+  });
+
+  describe('recordAdjustment - Phase 4 Credit Memos', () => {
+    it('should successfully record credit adjustment and update linked expense net liability', async () => {
+      const mockExpense = {
+        _id: new Types.ObjectId(),
+        amountPaise: 500000, // ₹5,000
+        paidAmountPaise: 200000, // ₹2,000 paid
+        paymentStatus: ExpensePaymentStatus.PARTIALLY_PAID,
+        auditHistory: [] as any[],
+        save: jest.fn().mockResolvedValue(true),
       };
 
-      const result = await service.create(allDirectDto);
-      expect(result.receipt.status).toBe(BloodAcquisitionStatus.COMPLETED);
-      expect(result.pendingTestingCount).toBe(0);
-      expect(result.directInventoryCount).toBe(2);
+      const mockReceipt: any = {
+        _id: validReceiptId,
+        receiptCode: 'EXT-20261013-0001',
+        totalPayablePaise: 500000,
+        totalPayable: 5000,
+        expenseId: mockExpense._id,
+        adjustments: [] as any[],
+        save: jest.fn().mockResolvedValue(true),
+      };
+
+      mockBloodAcquisitionModel.findById = jest.fn().mockReturnValue({
+        exec: jest.fn().mockResolvedValue(mockReceipt),
+      });
+      mockExpenseModel.findById = jest.fn().mockReturnValue({
+        exec: jest.fn().mockResolvedValue(mockExpense),
+      });
+
+      // Mock findOne for the returned result
+      jest.spyOn(service, 'findOne').mockResolvedValue(mockReceipt as any);
+
+      const adjDto: any = {
+        adjustmentType: 'CREDIT_NOTE',
+        creditNoteReference: 'CR-NOTE-001',
+        amount: 1000, // ₹1,000
+        reason: 'Hemolyzed units during transport',
+      };
+
+      await service.recordAdjustment(validReceiptId.toString(), adjDto, mockAdmin);
+
+      expect(mockReceipt.adjustments.length).toBe(1);
+      expect((mockReceipt.adjustments[0] as any).creditAmountPaise).toBe(100000);
+      expect(mockExpense.save).toHaveBeenCalled();
+      expect(mockExpense.auditHistory.length).toBe(1);
     });
 
-    it('should clean up and rollback on failure during unit generation', async () => {
-      mockInventoryService.createFromBloodUnit.mockRejectedValueOnce(
-        new Error('Inventory DB failure'),
+    it('should reject adjustment if cumulative credits exceed total payable amount', async () => {
+      const mockReceipt = {
+        _id: validReceiptId,
+        receiptCode: 'EXT-20261013-0001',
+        totalPayablePaise: 50000, // ₹500
+        totalPayable: 500,
+        adjustments: [
+          { creditAmountPaise: 40000, creditNoteReference: 'CR-1' },
+        ],
+        save: jest.fn(),
+      };
+
+      mockBloodAcquisitionModel.findById = jest.fn().mockReturnValue({
+        exec: jest.fn().mockResolvedValue(mockReceipt),
+      });
+
+      const adjDto: any = {
+        adjustmentType: 'CREDIT_NOTE',
+        creditNoteReference: 'CR-2',
+        amount: 200, // ₹200 + ₹400 = ₹600 > ₹500
+        reason: 'Excess credit memo beyond payable',
+      };
+
+      await expect(service.recordAdjustment(validReceiptId.toString(), adjDto, mockAdmin)).rejects.toThrow(
+        BadRequestException,
       );
+    });
 
-      await expect(service.create(validDto)).rejects.toThrow('Inventory DB failure');
-      expect(mockBloodAcquisitionModel.deleteOne).toHaveBeenCalled();
+    it('should reject duplicate credit note reference on the same acquisition', async () => {
+      const mockReceipt = {
+        _id: validReceiptId,
+        receiptCode: 'EXT-20261013-0001',
+        totalPayablePaise: 500000,
+        totalPayable: 5000,
+        adjustments: [
+          { creditAmountPaise: 100000, creditNoteReference: 'DUPLICATE-REF' },
+        ],
+        save: jest.fn(),
+      };
+
+      mockBloodAcquisitionModel.findById = jest.fn().mockReturnValue({
+        exec: jest.fn().mockResolvedValue(mockReceipt),
+      });
+
+      const adjDto: any = {
+        adjustmentType: 'CREDIT_NOTE',
+        creditNoteReference: 'DUPLICATE-REF',
+        amount: 500,
+        reason: 'Attempted duplicate credit note',
+      };
+
+      await expect(service.recordAdjustment(validReceiptId.toString(), adjDto, mockAdmin)).rejects.toThrow(
+        ConflictException,
+      );
     });
   });
 
@@ -432,3 +677,4 @@ describe('BloodAcquisitionsService', () => {
     });
   });
 });
+

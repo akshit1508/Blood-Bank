@@ -18,7 +18,10 @@ import {
   BloodTesting,
   BloodTestingSchema,
 } from '../testing/schemas/blood-testing.schema';
+import { Expense, ExpenseSchema } from '../expenses/schemas/expense.schema';
+import { Vendor, VendorSchema } from '../vendors/schemas/vendor.schema';
 import { InventoryModule } from '../inventory/inventory.module';
+import { ExpensesModule } from '../expenses/expenses.module';
 
 @Module({
   imports: [
@@ -27,8 +30,11 @@ import { InventoryModule } from '../inventory/inventory.module';
       { name: BloodUnit.name, schema: BloodUnitSchema },
       { name: Inventory.name, schema: InventorySchema },
       { name: BloodTesting.name, schema: BloodTestingSchema },
+      { name: Expense.name, schema: ExpenseSchema },
+      { name: Vendor.name, schema: VendorSchema },
     ]),
     InventoryModule,
+    ExpensesModule,
   ],
   controllers: [BloodAcquisitionsController],
   providers: [BloodAcquisitionsService],
