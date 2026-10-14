@@ -145,6 +145,10 @@ export class CreateBloodAcquisitionDto {
   sourceTestingCertified?: boolean;
 
   @IsOptional()
+  @IsBoolean()
+  hasDiscrepancy?: boolean;
+
+  @IsOptional()
   @IsString()
   reconciliationNotes?: string;
 }

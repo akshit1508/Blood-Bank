@@ -521,9 +521,10 @@ export class BloodAcquisitionsService implements OnApplicationBootstrap {
             paymentStatus: ExpensePaymentStatus.UNPAID,
             currency: 'INR',
             vendorId: linkedVendor ? linkedVendor._id : undefined,
-            vendorName: linkedVendor ? linkedVendor.name : createdReceipt.sourceName,
+            vendorName: createdReceipt.sourceName,
             invoiceNumber: createdReceipt.invoiceNumber || createdReceipt.referenceNumber || createdReceipt.receiptCode,
-            status: ExpenseStatus.DRAFT,
+            status: ExpenseStatus.SUBMITTED,
+            submittedAt: new Date(),
             creatorId: new Types.ObjectId(currentAdmin.id || currentAdmin._id),
             creatorEmail: currentAdmin.email,
             creatorRole: currentAdmin.role,
@@ -532,12 +533,13 @@ export class BloodAcquisitionsService implements OnApplicationBootstrap {
             isDeleted: false,
             auditHistory: [
               {
-                action: ExpenseAuditEventType.CREATED,
-                toStatus: ExpenseStatus.DRAFT,
+                action: ExpenseAuditEventType.SUBMITTED,
+                fromStatus: ExpenseStatus.DRAFT,
+                toStatus: ExpenseStatus.SUBMITTED,
                 performedBy: new Types.ObjectId(currentAdmin.id || currentAdmin._id),
                 performedByEmail: currentAdmin.email,
                 performedByName: currentAdmin.fullName || 'Admin Staff',
-                notes: `Expense draft created from blood acquisition ${createdReceipt.receiptCode}.`,
+                notes: `Expense submitted automatically from blood acquisition receipt ${createdReceipt.receiptCode}. Total units accepted: ${totalAcceptedUnits}. Invoiced units: ${totalInvoicedUnits}.`,
                 timestamp: new Date(),
               },
             ],
@@ -645,14 +647,28 @@ export class BloodAcquisitionsService implements OnApplicationBootstrap {
           linkedExpense = await this.expenseModel.findById(item.expenseId).select('paidAmountPaise paymentStatus status expenseCode').lean().exec() as any;
         }
 
-        const totalAdjustmentsPaise = (item.adjustments || []).reduce(
-          (sum: number, adj: any) => sum + (adj.amountPaise || 0),
-          0,
-        );
-        const effectiveNetLiabilityPaise = Math.max(0, (item.totalPayablePaise || 0) - totalAdjustmentsPaise);
+        const totalCreditNotesPaise = (item.adjustments || [])
+          .filter((adj: any) => adj.adjustmentType !== 'SUPPLIER_REFUND')
+          .reduce((sum: number, adj: any) => sum + (adj.creditAmountPaise || adj.amountPaise || 0), 0);
+        const effectiveNetLiabilityPaise = Math.max(0, (item.totalPayablePaise || 0) - totalCreditNotesPaise);
         const paidAmountPaise = linkedExpense ? (linkedExpense.paidAmountPaise || 0) : 0;
         const outstandingBalancePaise = Math.max(0, effectiveNetLiabilityPaise - paidAmountPaise);
-        const supplierRefundReceivablePaise = Math.max(0, paidAmountPaise - effectiveNetLiabilityPaise);
+
+        // Supplier refunds received reduce gross refund due (do not reduce liability twice)
+        const grossRefundDuePaise = Math.max(0, paidAmountPaise - effectiveNetLiabilityPaise);
+        const supplierRefundsReceivedPaise = (item.adjustments || [])
+          .filter((adj: any) => adj.adjustmentType === 'SUPPLIER_REFUND')
+          .reduce((sum: number, adj: any) => sum + (adj.creditAmountPaise || adj.amountPaise || 0), 0);
+        const netSupplierRefundReceivablePaise = Math.max(0, grossRefundDuePaise - supplierRefundsReceivedPaise);
+
+        let derivedPaymentStatus = ExpensePaymentStatus.UNPAID;
+        if (paidAmountPaise >= effectiveNetLiabilityPaise && effectiveNetLiabilityPaise >= 0 && paidAmountPaise > 0) {
+          derivedPaymentStatus = ExpensePaymentStatus.PAID;
+        } else if (paidAmountPaise > 0) {
+          derivedPaymentStatus = ExpensePaymentStatus.PARTIALLY_PAID;
+        } else if (linkedExpense && linkedExpense.paymentStatus) {
+          derivedPaymentStatus = linkedExpense.paymentStatus;
+        }
 
         return {
           ...item.toObject(),
@@ -665,19 +681,20 @@ export class BloodAcquisitionsService implements OnApplicationBootstrap {
           financials: {
             totalPayablePaise: item.totalPayablePaise || 0,
             totalPayable: item.totalPayable || CurrencyUtil.toInr(item.totalPayablePaise || 0),
-            totalAdjustmentsPaise,
-            totalAdjustments: CurrencyUtil.toInr(totalAdjustmentsPaise),
+            totalAdjustmentsPaise: totalCreditNotesPaise,
+            totalAdjustments: CurrencyUtil.toInr(totalCreditNotesPaise),
             effectiveNetLiabilityPaise,
             effectiveNetLiability: CurrencyUtil.toInr(effectiveNetLiabilityPaise),
             paidAmountPaise,
             paidAmount: CurrencyUtil.toInr(paidAmountPaise),
             outstandingBalancePaise,
             outstandingBalance: CurrencyUtil.toInr(outstandingBalancePaise),
-            supplierRefundReceivablePaise,
-            supplierRefundReceivable: CurrencyUtil.toInr(supplierRefundReceivablePaise),
-            paymentStatus: linkedExpense ? linkedExpense.paymentStatus : ExpensePaymentStatus.UNPAID,
+            supplierRefundReceivablePaise: netSupplierRefundReceivablePaise,
+            supplierRefundReceivable: CurrencyUtil.toInr(netSupplierRefundReceivablePaise),
+            paymentStatus: derivedPaymentStatus,
             expenseStatus: linkedExpense ? linkedExpense.status : null,
             expenseCode: linkedExpense ? linkedExpense.expenseCode : null,
+            expenseId: linkedExpense ? linkedExpense._id : null,
           },
         };
       }),
@@ -745,29 +762,43 @@ export class BloodAcquisitionsService implements OnApplicationBootstrap {
       linkedExpense = await this.expenseModel.findById(receipt.expenseId).exec();
     }
 
-    const totalAdjustmentsPaise = (receipt.adjustments || []).reduce(
-      (sum, adj) => sum + (adj.amountPaise || 0),
-      0,
-    );
-    const effectiveNetLiabilityPaise = Math.max(0, (receipt.totalPayablePaise || 0) - totalAdjustmentsPaise);
+    const totalCreditNotesPaise = (receipt.adjustments || [])
+      .filter((adj: any) => adj.adjustmentType !== 'SUPPLIER_REFUND')
+      .reduce((sum: number, adj: any) => sum + (adj.creditAmountPaise || adj.amountPaise || 0), 0);
+    const effectiveNetLiabilityPaise = Math.max(0, (receipt.totalPayablePaise || 0) - totalCreditNotesPaise);
     const paidAmountPaise = linkedExpense ? (linkedExpense.paidAmountPaise || 0) : 0;
     const outstandingBalancePaise = Math.max(0, effectiveNetLiabilityPaise - paidAmountPaise);
-    const supplierRefundReceivablePaise = Math.max(0, paidAmountPaise - effectiveNetLiabilityPaise);
+
+    // Supplier refunds received reduce gross refund due (do not reduce liability twice)
+    const grossRefundDuePaise = Math.max(0, paidAmountPaise - effectiveNetLiabilityPaise);
+    const supplierRefundsReceivedPaise = (receipt.adjustments || [])
+      .filter((adj: any) => adj.adjustmentType === 'SUPPLIER_REFUND')
+      .reduce((sum: number, adj: any) => sum + (adj.creditAmountPaise || adj.amountPaise || 0), 0);
+    const netSupplierRefundReceivablePaise = Math.max(0, grossRefundDuePaise - supplierRefundsReceivedPaise);
+
+    let derivedPaymentStatus = ExpensePaymentStatus.UNPAID;
+    if (paidAmountPaise >= effectiveNetLiabilityPaise && effectiveNetLiabilityPaise >= 0 && paidAmountPaise > 0) {
+      derivedPaymentStatus = ExpensePaymentStatus.PAID;
+    } else if (paidAmountPaise > 0) {
+      derivedPaymentStatus = ExpensePaymentStatus.PARTIALLY_PAID;
+    } else if (linkedExpense && linkedExpense.paymentStatus) {
+      derivedPaymentStatus = linkedExpense.paymentStatus;
+    }
 
     const financials = {
       totalPayablePaise: receipt.totalPayablePaise || 0,
       totalPayable: receipt.totalPayable || CurrencyUtil.toInr(receipt.totalPayablePaise || 0),
-      totalAdjustmentsPaise,
-      totalAdjustments: CurrencyUtil.toInr(totalAdjustmentsPaise),
+      totalAdjustmentsPaise: totalCreditNotesPaise,
+      totalAdjustments: CurrencyUtil.toInr(totalCreditNotesPaise),
       effectiveNetLiabilityPaise,
       effectiveNetLiability: CurrencyUtil.toInr(effectiveNetLiabilityPaise),
       paidAmountPaise,
       paidAmount: CurrencyUtil.toInr(paidAmountPaise),
       outstandingBalancePaise,
       outstandingBalance: CurrencyUtil.toInr(outstandingBalancePaise),
-      supplierRefundReceivablePaise,
-      supplierRefundReceivable: CurrencyUtil.toInr(supplierRefundReceivablePaise),
-      paymentStatus: linkedExpense ? linkedExpense.paymentStatus : ExpensePaymentStatus.UNPAID,
+      supplierRefundReceivablePaise: netSupplierRefundReceivablePaise,
+      supplierRefundReceivable: CurrencyUtil.toInr(netSupplierRefundReceivablePaise),
+      paymentStatus: derivedPaymentStatus,
       expenseStatus: linkedExpense ? linkedExpense.status : null,
       expenseCode: linkedExpense ? linkedExpense.expenseCode : null,
       expenseId: linkedExpense ? linkedExpense._id : null,
@@ -983,7 +1014,7 @@ export class BloodAcquisitionsService implements OnApplicationBootstrap {
 
     if (receipt.expenseId) {
       const expense = await this.expenseModel.findById(receipt.expenseId).exec();
-      if (expense && !expense.receipt) {
+      if (expense) {
         expense.receipt = {
           fileId: stored.fileId,
           originalName: stored.originalName,
@@ -992,6 +1023,16 @@ export class BloodAcquisitionsService implements OnApplicationBootstrap {
           uploadedAt: new Date(),
           uploadedBy: new Types.ObjectId(currentAdmin.id || currentAdmin._id),
         };
+        expense.auditHistory.push({
+          action: ExpenseAuditEventType.RECEIPT_UPLOADED,
+          fromStatus: expense.status,
+          toStatus: expense.status,
+          performedBy: new Types.ObjectId(currentAdmin.id || currentAdmin._id),
+          performedByEmail: currentAdmin.email,
+          performedByName: currentAdmin.fullName || 'Admin Staff',
+          notes: `Invoice document attached from blood acquisition receipt ${receipt.receiptCode} (File: ${stored.originalName}).`,
+          timestamp: new Date(),
+        } as any);
         await expense.save();
       }
     }

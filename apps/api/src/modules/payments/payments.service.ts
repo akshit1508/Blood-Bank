@@ -70,7 +70,7 @@ export class PaymentsService implements OnApplicationBootstrap {
    */
   computeCanonicalPayloadHash(data: {
     expenseId: string;
-    vendorId: string;
+    vendorId?: string;
     amountPaise: number;
     paymentMethod: string;
     paymentDate: string; // YYYY-MM-DD
@@ -84,7 +84,7 @@ export class PaymentsService implements OnApplicationBootstrap {
       paymentDate: data.paymentDate.trim(),
       paymentMethod: data.paymentMethod.trim().toUpperCase(),
       referenceNumber: data.referenceNumber.trim(),
-      vendorId: data.vendorId.toString(),
+      vendorId: (data.vendorId || '').toString(),
     };
     return crypto.createHash('sha256').update(JSON.stringify(canonical)).digest('hex');
   }
@@ -113,34 +113,17 @@ export class PaymentsService implements OnApplicationBootstrap {
       });
     }
 
-    if (!expense.vendorId) {
+    if (dto.vendorId && expense.vendorId && String(dto.vendorId) !== String(expense.vendorId)) {
       throw new BadRequestException({
-        statusCode: 400,
-        error: 'PAYMENT_REQUIRES_LINKED_VENDOR',
-        message: 'Historical expense must be linked to a verified registered vendor before recording a payment.',
-        expenseCode: expense.expenseCode,
-        historicalVendorName: expense.vendorName,
+        message: 'Submitted vendor ID does not match the expense vendor ID.',
+        code: 'VENDOR_MISMATCH',
       });
     }
 
-    // 2. Server-Authoritative Vendor Verification
-    if (dto.vendorId && dto.vendorId !== expense.vendorId.toString()) {
-      throw new BadRequestException({
-        statusCode: 400,
-        error: 'VENDOR_MISMATCH',
-        message: 'Client-supplied vendor does not match the expense registered vendor.',
-      });
-    }
-
-    const vendor = await this.vendorModel.findById(expense.vendorId);
-    if (!vendor || !vendor.isActive) {
-      throw new BadRequestException('The linked vendor is inactive or no longer registered.');
-    }
-
-    // 3. Compute Canonical Fingerprint
+    // 2. Compute Canonical Fingerprint
     const payloadHash = this.computeCanonicalPayloadHash({
       expenseId: expense._id.toString(),
-      vendorId: vendor._id.toString(),
+      vendorId: expense.vendorId ? expense.vendorId.toString() : '',
       amountPaise: paymentPaise,
       paymentMethod: dto.paymentMethod,
       paymentDate: dto.paymentDate,
@@ -199,7 +182,6 @@ export class PaymentsService implements OnApplicationBootstrap {
             {
               _id: expense._id,
               status: ExpenseStatus.APPROVED,
-              vendorId: expense.vendorId,
               // Invariant guard: Paid paise + payment paise <= effective net liability
               $expr: {
                 $lte: [{ $add: ['$paidAmountPaise', paymentPaise] }, effectiveNetLiabilityPaise],
@@ -238,8 +220,8 @@ export class PaymentsService implements OnApplicationBootstrap {
             [
               {
                 expenseId: expense._id,
-                vendorId: vendor._id,
-                vendorName: vendor.name,
+                vendorId: expense.vendorId || undefined,
+                vendorName: expense.vendorName,
                 amountPaise: paymentPaise,
                 amount: derivedInrAmount,
                 paymentMethod: dto.paymentMethod,
@@ -590,13 +572,14 @@ export class PaymentsService implements OnApplicationBootstrap {
       grandTotalPaidPaise += expPaidPaise;
       grandTotalOutstandingPaise += expDuePaise;
 
-      const groupKey = exp.vendorId ? exp.vendorId.toString() : `LEGACY_${exp.vendorName}`;
+      const normalizedVendorName = (exp.vendorName || 'Unspecified Payee').trim();
+      const groupKey = normalizedVendorName.toUpperCase();
 
       if (!vendorMap.has(groupKey)) {
         vendorMap.set(groupKey, {
           vendorId: exp.vendorId ? exp.vendorId.toString() : null,
-          vendorName: exp.vendorName,
-          isLinked: !!exp.vendorId,
+          vendorName: normalizedVendorName,
+          isLinked: true,
           totalInvoicedPaise: 0,
           totalPaidPaise: 0,
           outstandingPaise: 0,
@@ -617,13 +600,15 @@ export class PaymentsService implements OnApplicationBootstrap {
         category: exp.category,
         invoiceNumber: exp.invoiceNumber,
         expenseDate: exp.expenseDate,
-        amount: exp.amount,
+        amount: CurrencyUtil.toInr(expTotalPaise),
+        originalAmount: exp.amount,
         amountPaise: expTotalPaise,
         paidAmount: CurrencyUtil.toInr(expPaidPaise),
         paidAmountPaise: expPaidPaise,
         outstandingAmount: CurrencyUtil.toInr(expDuePaise),
         outstandingPaise: expDuePaise,
         paymentStatus: exp.paymentStatus || 'UNPAID',
+        acquisitionId: exp.acquisitionId,
         vendorId: exp.vendorId,
         vendorName: exp.vendorName,
         ageDays,

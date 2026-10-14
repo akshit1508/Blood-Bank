@@ -21,7 +21,6 @@ import {
   uploadAcquisitionInvoice,
   uploadAcquisitionCertificate,
 } from '@/lib/blood-acquisition-api';
-import { fetchActiveVendorOptions, ActiveVendorOption } from '@/lib/vendor-api';
 import { BloodGroup } from '@/lib/donor-api';
 import StatCard from '@/components/admin/StatCard';
 import StatusBadge from '@/components/admin/StatusBadge';
@@ -54,7 +53,6 @@ export default function AdminBloodAcquisitionPage() {
     directToInventory: 0,
     pendingTesting: 0,
   });
-  const [vendors, setVendors] = useState<ActiveVendorOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -80,7 +78,6 @@ export default function AdminBloodAcquisitionPage() {
     ExternalSourceType.BLOOD_BANK,
   );
   const [formSourceName, setFormSourceName] = useState('');
-  const [formVendorId, setFormVendorId] = useState('');
   const [formInvoiceNumber, setFormInvoiceNumber] = useState('');
   const [formReferenceNumber, setFormReferenceNumber] = useState('');
   const [formReceivedDate, setFormReceivedDate] = useState(() => {
@@ -135,7 +132,7 @@ export default function AdminBloodAcquisitionPage() {
     setLoading(true);
     setError(null);
     try {
-      const [listRes, statsRes, vendorOptions] = await Promise.all([
+      const [listRes, statsRes] = await Promise.all([
         fetchBloodAcquisitions({
           sourceType: sourceFilter || undefined,
           status: statusFilter || undefined,
@@ -144,14 +141,12 @@ export default function AdminBloodAcquisitionPage() {
           limit: 10,
         }),
         fetchBloodAcquisitionSummary(),
-        fetchActiveVendorOptions().catch(() => []),
       ]);
 
       setReceipts(listRes.items);
       setTotalPages(listRes.totalPages);
       setTotalCount(listRes.total);
       setStats(statsRes);
-      setVendors(vendorOptions);
     } catch (err: any) {
       setError(err.message || 'Failed to load blood acquisitions.');
     } finally {
@@ -365,14 +360,12 @@ export default function AdminBloodAcquisitionPage() {
     const payload: CreateBloodAcquisitionInput = {
       sourceType: formSourceType,
       sourceName: formSourceName.trim(),
-      vendorId: formVendorId || undefined,
       invoiceNumber: formInvoiceNumber.trim() || undefined,
       referenceNumber: formReferenceNumber.trim() || undefined,
       receivedDate: new Date(formReceivedDate).toISOString(),
       transportCharges: Number(formTransportCharges) || 0,
       clearanceCertificateNumber: formClearanceCertNo.trim() || undefined,
       sourceTestingCertified: Boolean(formSourceTestingCertified),
-      hasDiscrepancy: formCalculations.hasDiscrepancy,
       reconciliationNotes: formReconciliationNotes.trim() || undefined,
       notes: formNotes.trim() || undefined,
       items: formItems.map((it) => ({
@@ -420,7 +413,6 @@ export default function AdminBloodAcquisitionPage() {
   const handleResetForm = () => {
     setFormSourceType(ExternalSourceType.BLOOD_BANK);
     setFormSourceName('');
-    setFormVendorId('');
     setFormInvoiceNumber('');
     setFormReferenceNumber('');
     setFormReceivedDate(new Date().toISOString().slice(0, 10));
@@ -1390,30 +1382,6 @@ export default function AdminBloodAcquisitionPage() {
                         />
                       </div>
 
-                      <div>
-                        <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#334155', marginBottom: '0.25rem' }}>
-                          Link Registered Vendor (Optional)
-                        </label>
-                        <select
-                          value={formVendorId}
-                          onChange={(e) => setFormVendorId(e.target.value)}
-                          style={{
-                            width: '100%',
-                            padding: '0.45rem 0.65rem',
-                            borderRadius: '6px',
-                            border: '1px solid #cbd5e1',
-                            fontSize: '0.875rem',
-                            backgroundColor: '#fff',
-                          }}
-                        >
-                          <option value="">-- No Vendor Link --</option>
-                          {vendors.map((v) => (
-                            <option key={v._id} value={v._id}>
-                              {v.name}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
 
                       <div>
                         <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#334155', marginBottom: '0.25rem' }}>
@@ -1977,14 +1945,40 @@ export default function AdminBloodAcquisitionPage() {
                   <h3 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 700, color: '#0f172a' }}>
                     Financial Liability & Payment Status
                   </h3>
-                  {selectedReceipt.financials?.expenseCode && (
-                    <Link
-                      href={`/super-admin/finance/expenditure?search=${selectedReceipt.financials.expenseCode}`}
-                      style={{ fontSize: '0.775rem', color: '#0284c7', textDecoration: 'none', fontWeight: 600 }}
-                    >
-                      Linked Expense: {selectedReceipt.financials.expenseCode} &rarr;
-                    </Link>
-                  )}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    {selectedReceipt.financials?.expenseStatus && (
+                      <span
+                        style={{
+                          fontSize: '0.7rem',
+                          fontWeight: 700,
+                          padding: '0.15rem 0.45rem',
+                          borderRadius: '4px',
+                          backgroundColor:
+                            selectedReceipt.financials.expenseStatus === 'APPROVED'
+                              ? '#dcfce7'
+                              : selectedReceipt.financials.expenseStatus === 'SUBMITTED'
+                              ? '#fef3c7'
+                              : '#fee2e2',
+                          color:
+                            selectedReceipt.financials.expenseStatus === 'APPROVED'
+                              ? '#166534'
+                              : selectedReceipt.financials.expenseStatus === 'SUBMITTED'
+                              ? '#b45309'
+                              : '#991b1b',
+                        }}
+                      >
+                        Expense: {selectedReceipt.financials.expenseStatus === 'SUBMITTED' ? 'PENDING APPROVAL' : selectedReceipt.financials.expenseStatus}
+                      </span>
+                    )}
+                    {selectedReceipt.financials?.expenseCode && (
+                      <Link
+                        href={`/super-admin/finance/expenses?search=${selectedReceipt.financials.expenseCode}`}
+                        style={{ fontSize: '0.775rem', color: '#0284c7', textDecoration: 'none', fontWeight: 600 }}
+                      >
+                        {selectedReceipt.financials.expenseCode} &rarr;
+                      </Link>
+                    )}
+                  </div>
                 </div>
 
                 <div
@@ -2085,8 +2079,25 @@ export default function AdminBloodAcquisitionPage() {
                   </div>
                 )}
 
-                {/* Record Credit Note Button */}
-                <div style={{ marginTop: '0.75rem', display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+                {/* Action Buttons: Disburse & Credit Note */}
+                <div style={{ marginTop: '0.75rem', display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '0.5rem' }}>
+                  {selectedReceipt.financials?.expenseStatus === 'APPROVED' &&
+                    (selectedReceipt.financials?.outstandingBalance || 0) > 0 && (
+                      <Link
+                        href={`/super-admin/finance/payments?expenseId=${selectedReceipt.expenseId || selectedReceipt.financials.expenseId}`}
+                        style={{
+                          backgroundColor: '#dc2626',
+                          color: '#ffffff',
+                          padding: '0.35rem 0.75rem',
+                          borderRadius: '5px',
+                          fontSize: '0.775rem',
+                          fontWeight: 700,
+                          textDecoration: 'none',
+                        }}
+                      >
+                        💳 Disburse in Payments &rarr;
+                      </Link>
+                    )}
                   <button
                     onClick={() => setShowAdjustmentModal(true)}
                     style={{

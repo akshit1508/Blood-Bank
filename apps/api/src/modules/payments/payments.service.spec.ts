@@ -110,28 +110,55 @@ describe('PaymentsService', () => {
       ).rejects.toThrow(BadRequestException);
     });
 
-    it('should reject payment on historical expense lacking a linked vendor', async () => {
+    it('should allow payment on historical expense lacking a linked vendor using vendorName directly', async () => {
       expenseModel.findById.mockResolvedValue({
         _id: validExpenseId,
         status: ExpenseStatus.APPROVED,
-        vendorId: null, // Unlinked legacy expense
+        vendorId: null, // Unlinked expense
         expenseCode: 'EXP-LEGACY-01',
-        vendorName: 'Old Unregistered Supplier',
+        vendorName: 'Direct Supplier Co',
+        amountPaise: 100000,
+        paidAmountPaise: 0,
       });
+      paymentModel.findOne.mockResolvedValue(null);
+      expenseModel.findOneAndUpdate.mockResolvedValue({
+        _id: validExpenseId,
+        paidAmountPaise: 50000,
+        paidAmount: 500.0,
+        paymentStatus: ExpensePaymentStatus.PARTIALLY_PAID,
+      });
+      const createdPayment = {
+        _id: new Types.ObjectId(),
+        amountPaise: 50000,
+        amount: 500.0,
+        vendorName: 'Direct Supplier Co',
+        status: PaymentStatus.COMPLETED,
+      };
+      paymentModel.create.mockResolvedValue([createdPayment]);
+      expenseModel.updateOne.mockResolvedValue({ modifiedCount: 1 });
 
-      await expect(
-        service.recordPayment(
-          {
-            expenseId: validExpenseId.toString(),
-            amount: 500.0,
-            paymentMethod: PaymentMethod.NEFT,
-            referenceNumber: 'NEFT-889900',
-            paymentDate: '2026-10-13',
-            idempotencyKey: 'idemp-test-key-002',
-          },
-          mockAdmin,
-        ),
-      ).rejects.toThrow(BadRequestException);
+      const result = await service.recordPayment(
+        {
+          expenseId: validExpenseId.toString(),
+          amount: 500.0,
+          paymentMethod: PaymentMethod.NEFT,
+          referenceNumber: 'NEFT-889900',
+          paymentDate: '2026-10-13',
+          idempotencyKey: 'idemp-test-key-002',
+        },
+        mockAdmin,
+      );
+
+      expect(result).toBe(createdPayment);
+      expect(paymentModel.create).toHaveBeenCalledWith(
+        expect.arrayContaining([
+          expect.objectContaining({
+            vendorName: 'Direct Supplier Co',
+            vendorId: undefined,
+          }),
+        ]),
+        expect.anything(),
+      );
     });
 
     it('should reject payment when client submits conflicting vendorId', async () => {

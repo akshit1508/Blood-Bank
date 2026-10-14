@@ -20,7 +20,6 @@ import {
   ExpenseStatus,
   formatINR,
 } from '@/lib/expense-api';
-import { fetchActiveVendorOptions, ActiveVendorOption } from '@/lib/vendor-api';
 
 interface ExpenseFormProps {
   portalRole: 'ADMIN' | 'SUPER_ADMIN';
@@ -67,17 +66,6 @@ export default function ExpenseFormContent({ portalRole, expenseId }: ExpenseFor
     vendorName: string;
     submittedAt: string;
   } | null>(null);
-
-  // Registered active vendors list
-  const [vendorOptions, setVendorOptions] = useState<ActiveVendorOption[]>([]);
-  const [selectedVendorId, setSelectedVendorId] = useState<string>('');
-
-  // Fetch active vendors for dropdown
-  useEffect(() => {
-    fetchActiveVendorOptions()
-      .then((opts) => setVendorOptions(opts))
-      .catch(() => {});
-  }, []);
 
   // Load existing expense if edit mode
   useEffect(() => {
@@ -166,7 +154,6 @@ export default function ExpenseFormContent({ portalRole, expenseId }: ExpenseFor
         costCenter,
         expenseDate,
         amount: parsedAmount,
-        vendorId: selectedVendorId || undefined,
         vendorName: vendorName.trim(),
         invoiceNumber: invoiceNumber.trim(),
         gstinNumber: gstinNumber.trim() || undefined,
@@ -227,7 +214,6 @@ export default function ExpenseFormContent({ portalRole, expenseId }: ExpenseFor
         costCenter,
         expenseDate,
         amount: parsedAmount,
-        vendorId: selectedVendorId || undefined,
         vendorName: vendorName.trim(),
         invoiceNumber: invoiceNumber.trim(),
         gstinNumber: gstinNumber.trim() || undefined,
@@ -568,36 +554,6 @@ export default function ExpenseFormContent({ portalRole, expenseId }: ExpenseFor
           <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1rem', fontWeight: 700, color: '#0f172a', borderBottom: '1px solid #f1f5f9', paddingBottom: '0.5rem' }}>
             2. Payee & Bill Document
           </h3>
-
-          {vendorOptions.length > 0 && (
-            <div>
-              <label style={{ display: 'block', fontSize: '0.775rem', fontWeight: 600, color: '#334155', marginBottom: '0.35rem' }}>
-                Select Registered Vendor (Optional)
-              </label>
-              <select
-                value={selectedVendorId}
-                onChange={(e) => {
-                  const id = e.target.value;
-                  setSelectedVendorId(id);
-                  const found = vendorOptions.find((v) => v._id === id);
-                  if (found) {
-                    setVendorName(found.name);
-                    if (found.category && Object.values(ExpenseCategory).includes(found.category as any)) {
-                      setCategory(found.category as ExpenseCategory);
-                    }
-                  }
-                }}
-                style={{ width: '100%', padding: '0.55rem', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '0.85rem', backgroundColor: '#f8fafc' }}
-              >
-                <option value="">-- Choose from Registered Vendors (or type manually below) --</option>
-                {vendorOptions.map((v) => (
-                  <option key={v._id} value={v._id}>
-                    {v.name} ({v.category})
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
 
           <div>
             <label style={{ display: 'block', fontSize: '0.775rem', fontWeight: 600, color: '#334155', marginBottom: '0.35rem' }}>

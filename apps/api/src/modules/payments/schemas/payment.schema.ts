@@ -12,8 +12,8 @@ export class Payment {
   @Prop({ type: Types.ObjectId, ref: 'Expense', required: true, index: true })
   expenseId: Types.ObjectId;
 
-  @Prop({ type: Types.ObjectId, ref: 'Vendor', required: true, index: true })
-  vendorId: Types.ObjectId;
+  @Prop({ type: Types.ObjectId, ref: 'Vendor', required: false, index: true })
+  vendorId?: Types.ObjectId;
 
   @Prop({ required: true, trim: true })
   vendorName: string;

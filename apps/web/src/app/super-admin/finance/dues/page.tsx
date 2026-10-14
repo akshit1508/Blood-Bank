@@ -6,9 +6,7 @@ import {
   OutstandingDuesReport,
   OutstandingCreditor,
   fetchOutstandingDues,
-  linkExpenseVendor,
 } from '@/lib/payment-api';
-import { fetchActiveVendorOptions, ActiveVendorOption } from '@/lib/vendor-api';
 import { formatINR } from '@/lib/expense-api';
 
 export default function SuperAdminDuesPage() {
@@ -16,14 +14,6 @@ export default function SuperAdminDuesPage() {
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [expandedVendor, setExpandedVendor] = useState<string | null>(null);
-
-  // Link Vendor Modal states
-  const [showLinkModal, setShowLinkModal] = useState(false);
-  const [targetExpense, setTargetExpense] = useState<{ id: string; code: string; vendorName: string } | null>(null);
-  const [registeredVendors, setRegisteredVendors] = useState<ActiveVendorOption[]>([]);
-  const [selectedLinkVendorId, setSelectedLinkVendorId] = useState('');
-  const [linking, setLinking] = useState(false);
-  const [linkError, setLinkError] = useState<string | null>(null);
 
   const loadDues = async () => {
     try {
@@ -41,40 +31,6 @@ export default function SuperAdminDuesPage() {
   useEffect(() => {
     loadDues();
   }, []);
-
-  const openLinkModal = async (expenseId: string, expenseCode: string, historicalName: string) => {
-    setTargetExpense({ id: expenseId, code: expenseCode, vendorName: historicalName });
-    setSelectedLinkVendorId('');
-    setLinkError(null);
-    setShowLinkModal(true);
-
-    try {
-      const opts = await fetchActiveVendorOptions();
-      setRegisteredVendors(opts);
-      if (opts.length > 0) {
-        setSelectedLinkVendorId(opts[0]._id);
-      }
-    } catch (err: any) {
-      setLinkError('Failed to load registered vendor list: ' + err.message);
-    }
-  };
-
-  const handleLinkSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!targetExpense || !selectedLinkVendorId) return;
-    setLinkError(null);
-
-    try {
-      setLinking(true);
-      await linkExpenseVendor(targetExpense.id, selectedLinkVendorId);
-      setShowLinkModal(false);
-      loadDues();
-    } catch (err: any) {
-      setLinkError(err?.message || 'Failed to link vendor to expense');
-    } finally {
-      setLinking(false);
-    }
-  };
 
   const toggleExpand = (key: string) => {
     setExpandedVendor(expandedVendor === key ? null : key);
@@ -241,20 +197,6 @@ export default function SuperAdminDuesPage() {
                             <strong style={{ fontSize: '0.95rem', color: '#0f172a' }}>
                               {creditor.vendorName}
                             </strong>
-                            {!creditor.isLinked && (
-                              <span
-                                style={{
-                                  padding: '0.15rem 0.45rem',
-                                  borderRadius: '4px',
-                                  fontSize: '0.675rem',
-                                  fontWeight: 700,
-                                  backgroundColor: '#fef3c7',
-                                  color: '#b45309',
-                                }}
-                              >
-                                LEGACY / UNLINKED
-                              </span>
-                            )}
                           </div>
                           <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.15rem' }}>
                             {creditor.expenseCount} pending invoice{creditor.expenseCount > 1 ? 's' : ''}
@@ -360,39 +302,21 @@ export default function SuperAdminDuesPage() {
                                     {formatINR(exp.outstandingAmount)}
                                   </td>
                                   <td style={{ padding: '0.5rem', textAlign: 'right' }}>
-                                    {!exp.vendorId ? (
-                                      <button
-                                        onClick={() => openLinkModal(exp._id, exp.expenseCode, exp.vendorName)}
-                                        style={{
-                                          padding: '0.25rem 0.55rem',
-                                          backgroundColor: '#fef3c7',
-                                          border: '1px solid #fde68a',
-                                          borderRadius: '4px',
-                                          color: '#b45309',
-                                          fontSize: '0.725rem',
-                                          fontWeight: 700,
-                                          cursor: 'pointer',
-                                        }}
-                                      >
-                                        Link Vendor
-                                      </button>
-                                    ) : (
-                                      <Link
-                                        href={`/super-admin/finance/payments?expenseId=${exp._id}`}
-                                        style={{
-                                          padding: '0.25rem 0.55rem',
-                                          backgroundColor: '#eff6ff',
-                                          border: '1px solid #bfdbfe',
-                                          borderRadius: '4px',
-                                          color: '#1d4ed8',
-                                          fontSize: '0.725rem',
-                                          fontWeight: 700,
-                                          textDecoration: 'none',
-                                        }}
-                                      >
-                                        Disburse &rarr;
-                                      </Link>
-                                    )}
+                                    <Link
+                                      href={`/super-admin/finance/payments?expenseId=${exp._id}`}
+                                      style={{
+                                        padding: '0.25rem 0.55rem',
+                                        backgroundColor: '#eff6ff',
+                                        border: '1px solid #bfdbfe',
+                                        borderRadius: '4px',
+                                        color: '#1d4ed8',
+                                        fontSize: '0.725rem',
+                                        fontWeight: 700,
+                                        textDecoration: 'none',
+                                      }}
+                                    >
+                                      Disburse &rarr;
+                                    </Link>
                                   </td>
                                 </tr>
                               );
@@ -407,91 +331,6 @@ export default function SuperAdminDuesPage() {
             </div>
           )}
         </div>
-
-        {/* Link Vendor Modal */}
-        {showLinkModal && targetExpense && (
-          <div
-            style={{
-              position: 'fixed',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              backgroundColor: 'rgba(15, 23, 42, 0.5)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              zIndex: 999,
-              padding: '1rem',
-            }}
-          >
-            <div
-              style={{
-                backgroundColor: '#ffffff',
-                borderRadius: '10px',
-                width: '100%',
-                maxWidth: '520px',
-                boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)',
-                padding: '1.75rem',
-              }}
-            >
-              <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#0f172a', margin: '0 0 0.5rem 0' }}>
-                Link Historical Expense to Registered Vendor
-              </h2>
-              <p style={{ margin: 0, color: '#475569', fontSize: '0.85rem' }}>
-                Expense <strong>{targetExpense.code}</strong> currently has free-text vendor name &ldquo;{targetExpense.vendorName}&rdquo;. Select a registered vendor profile to enable disbursement.
-              </p>
-
-              {linkError && (
-                <div style={{ padding: '0.75rem 1rem', backgroundColor: '#fee2e2', border: '1px solid #fca5a5', borderRadius: '6px', color: '#991b1b', margin: '1rem 0', fontSize: '0.825rem' }}>
-                  ⚠️ {linkError}
-                </div>
-              )}
-
-              <form onSubmit={handleLinkSubmit} style={{ marginTop: '1rem' }}>
-                {registeredVendors.length === 0 ? (
-                  <div style={{ padding: '1rem', textAlign: 'center', color: '#64748b', backgroundColor: '#f8fafc', borderRadius: '6px' }}>
-                    No registered vendors found. Please register a vendor first in the Vendor Directory.
-                  </div>
-                ) : (
-                  <div>
-                    <label style={{ display: 'block', fontSize: '0.775rem', fontWeight: 700, color: '#334155', marginBottom: '0.35rem' }}>
-                      Select Registered Vendor *
-                    </label>
-                    <select
-                      value={selectedLinkVendorId}
-                      onChange={(e) => setSelectedLinkVendorId(e.target.value)}
-                      style={{ width: '100%', padding: '0.55rem', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '0.85rem' }}
-                    >
-                      {registeredVendors.map((v) => (
-                        <option key={v._id} value={v._id}>
-                          {v.name} ({v.category})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-
-                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1.5rem' }}>
-                  <button
-                    type="button"
-                    onClick={() => setShowLinkModal(false)}
-                    style={{ padding: '0.55rem 1rem', border: '1px solid #cbd5e1', borderRadius: '6px', backgroundColor: '#ffffff', color: '#475569', fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer' }}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={linking || registeredVendors.length === 0}
-                    style={{ padding: '0.55rem 1.25rem', border: 'none', borderRadius: '6px', backgroundColor: '#dc2626', color: '#ffffff', fontSize: '0.85rem', fontWeight: 600, cursor: linking ? 'not-allowed' : 'pointer' }}
-                  >
-                    {linking ? 'Linking...' : 'Confirm Link'}
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
     </div>
   );
 }

@@ -486,57 +486,55 @@ describe('Phase 3 Integration: Expenditure -> Approval -> Vendor -> Payments -> 
       ).rejects.toThrow(BadRequestException);
     });
 
-    it('should reject payment recording if expense is not linked to registered vendor', async () => {
+    it('should allow payment recording directly when expense is not linked to a registered vendor', async () => {
       expenseModel.findById.mockResolvedValue({
         _id: expenseId,
         status: ExpenseStatus.APPROVED,
         vendorId: null,
-        vendorName: 'Legacy Hospital Supply',
+        vendorName: 'Direct Hospital Supply',
         isDeleted: false,
+        amountPaise: 100000,
+        paidAmountPaise: 0,
       });
-
-      await expect(
-        paymentsService.recordPayment(
-          {
-            expenseId: expenseId.toString(),
-            amount: 500.0,
-            paymentMethod: PaymentMethod.CASH,
-            referenceNumber: 'VOUCHER-02',
-            paymentDate: '2026-10-13',
-            idempotencyKey: 'idem-unlinked',
-          },
-          mockSuperAdmin,
-        ),
-      ).rejects.toThrow(BadRequestException);
-    });
-
-    it('should reject payment recording if vendor is marked inactive', async () => {
-      expenseModel.findById.mockResolvedValue({
+      paymentModel.findOne.mockResolvedValue(null);
+      expenseModel.findOneAndUpdate.mockResolvedValue({
         _id: expenseId,
-        status: ExpenseStatus.APPROVED,
-        vendorId,
-        vendorName: 'Apex Medical Supplies Ltd',
-        isDeleted: false,
+        paidAmountPaise: 50000,
+        paidAmount: 500.0,
+        paymentStatus: ExpensePaymentStatus.PARTIALLY_PAID,
       });
+      const createdPayment = {
+        _id: new Types.ObjectId(),
+        amountPaise: 50000,
+        amount: 500.0,
+        vendorName: 'Direct Hospital Supply',
+        status: PaymentStatus.COMPLETED,
+      };
+      paymentModel.create.mockResolvedValue([createdPayment]);
+      expenseModel.updateOne.mockResolvedValue({ modifiedCount: 1 });
 
-      vendorModel.findById.mockResolvedValue({
-        _id: vendorId,
-        isActive: false, // Inactive
-      });
+      const result = await paymentsService.recordPayment(
+        {
+          expenseId: expenseId.toString(),
+          amount: 500.0,
+          paymentMethod: PaymentMethod.CASH,
+          referenceNumber: 'VOUCHER-02',
+          paymentDate: '2026-10-13',
+          idempotencyKey: 'idem-unlinked',
+        },
+        mockSuperAdmin,
+      );
 
-      await expect(
-        paymentsService.recordPayment(
-          {
-            expenseId: expenseId.toString(),
-            amount: 500.0,
-            paymentMethod: PaymentMethod.CASH,
-            referenceNumber: 'VOUCHER-03',
-            paymentDate: '2026-10-13',
-            idempotencyKey: 'idem-inactive-vendor',
-          },
-          mockSuperAdmin,
-        ),
-      ).rejects.toThrow(BadRequestException);
+      expect(result).toBe(createdPayment);
+      expect(paymentModel.create).toHaveBeenCalledWith(
+        expect.arrayContaining([
+          expect.objectContaining({
+            vendorName: 'Direct Hospital Supply',
+            vendorId: undefined,
+          }),
+        ]),
+        expect.anything(),
+      );
     });
 
     it('should enforce idempotency by returning existing payment when key and payload match', async () => {

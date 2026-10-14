@@ -30,9 +30,7 @@ import {
   fetchPayments,
   recordPayment,
   cancelPayment,
-  linkExpenseVendor,
 } from '@/lib/payment-api';
-import { fetchActiveVendorOptions, ActiveVendorOption } from '@/lib/vendor-api';
 import StatCard from '@/components/admin/StatCard';
 import StatusBadge from '@/components/admin/StatusBadge';
 import EmptyState from '@/components/admin/EmptyState';
@@ -113,14 +111,6 @@ export default function ExpenseDirectoryContent({ portalRole }: ExpenseDirectory
   const [paySubmitting, setPaySubmitting] = useState(false);
   const [payError, setPayError] = useState<string | null>(null);
 
-  // Link Vendor in Audit Modal
-  const [showLinkVendorModal, setShowLinkVendorModal] = useState(false);
-  const [vendorOptions, setVendorOptions] = useState<ActiveVendorOption[]>([]);
-  const [loadingVendorOptions, setLoadingVendorOptions] = useState(false);
-  const [selectedVendorToLink, setSelectedVendorToLink] = useState('');
-  const [linkingVendor, setLinkingVendor] = useState(false);
-  const [linkVendorError, setLinkVendorError] = useState<string | null>(null);
-
   // Payment Cancellation in Audit Modal
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [paymentToCancel, setPaymentToCancel] = useState<Payment | null>(null);
@@ -159,16 +149,6 @@ export default function ExpenseDirectoryContent({ portalRole }: ExpenseDirectory
     loadData();
   }, [loadData]);
 
-  // Pre-load active vendors for instant modal rendering
-  useEffect(() => {
-    fetchActiveVendorOptions()
-      .then((opts) => {
-        setVendorOptions(opts);
-      })
-      .catch((err) => {
-        console.error('Failed to pre-fetch active vendor options:', err);
-      });
-  }, []);
 
   const handleDeleteDraft = async (id: string, code: string) => {
     if (!confirm(`Are you sure you want to cancel draft expense ${code}?`)) return;
@@ -309,54 +289,6 @@ export default function ExpenseDirectoryContent({ portalRole }: ExpenseDirectory
       setPayError(err?.message || 'Failed to record disbursement.');
     } finally {
       setPaySubmitting(false);
-    }
-  };
-
-  const openLinkVendorDialog = async () => {
-    if (!selectedExpense) return;
-    setLinkVendorError(null);
-    setShowLinkVendorModal(true);
-
-    // If options are already loaded, find matching vendor or select first
-    if (vendorOptions.length > 0) {
-      const match = vendorOptions.find(
-        (v) => v.name.toLowerCase() === (selectedExpense.vendorName || '').toLowerCase()
-      );
-      setSelectedVendorToLink(match ? match._id : vendorOptions[0]._id);
-    }
-
-    try {
-      setLoadingVendorOptions(true);
-      const opts = await fetchActiveVendorOptions();
-      setVendorOptions(opts);
-      if (opts.length > 0) {
-        const match = opts.find(
-          (v) => v.name.toLowerCase() === (selectedExpense.vendorName || '').toLowerCase()
-        );
-        setSelectedVendorToLink(match ? match._id : opts[0]._id);
-      } else {
-        setSelectedVendorToLink('');
-      }
-    } catch (err: any) {
-      setLinkVendorError('Failed to load active vendors: ' + (err?.message || 'Unknown error'));
-    } finally {
-      setLoadingVendorOptions(false);
-    }
-  };
-
-  const handleLinkVendorSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedExpense || !selectedVendorToLink) return;
-    try {
-      setLinkingVendor(true);
-      await linkExpenseVendor(selectedExpense._id, selectedVendorToLink);
-      setShowLinkVendorModal(false);
-      setActionSuccess('Registered vendor successfully linked to this expense.');
-      await refreshSelectedExpense(selectedExpense._id);
-    } catch (err: any) {
-      setLinkVendorError(err?.message || 'Failed to link vendor.');
-    } finally {
-      setLinkingVendor(false);
     }
   };
 
@@ -1055,32 +987,9 @@ export default function ExpenseDirectoryContent({ portalRole }: ExpenseDirectory
                   <span style={{ fontSize: '0.7rem', color: '#64748b', textTransform: 'uppercase', display: 'block', fontWeight: 600 }}>
                     Vendor / Payee
                   </span>
-                  {portalRole === 'SUPER_ADMIN' && selectedExpense.vendorId ? (
-                    <Link
-                      href={`/super-admin/finance/vendors?vendorId=${selectedExpense.vendorId}`}
-                      style={{ color: '#0284c7', fontWeight: 700, textDecoration: 'none', fontSize: '0.9rem' }}
-                      title="View Vendor Financial Statement & Ledger"
-                    >
-                      {selectedExpense.vendorName} ↗
-                    </Link>
-                  ) : (
-                    <span style={{ color: '#0f172a', fontWeight: 700, fontSize: '0.9rem' }}>
-                      {selectedExpense.vendorName}
-                    </span>
-                  )}
-                  {!selectedExpense.vendorId && (
-                    <span
-                      style={{
-                        display: 'block',
-                        fontSize: '0.675rem',
-                        color: '#d97706',
-                        fontWeight: 600,
-                        marginTop: '0.15rem',
-                      }}
-                    >
-                      ⚠️ Unlinked (Historical)
-                    </span>
-                  )}
+                  <span style={{ color: '#0f172a', fontWeight: 700, fontSize: '0.9rem' }}>
+                    {selectedExpense.vendorName}
+                  </span>
                 </div>
 
                 <div>
@@ -1100,17 +1009,7 @@ export default function ExpenseDirectoryContent({ portalRole }: ExpenseDirectory
                 </div>
                 <div>
                   <span style={{ fontSize: '0.7rem', color: '#64748b', textTransform: 'uppercase', display: 'block' }}>Vendor</span>
-                  {portalRole === 'SUPER_ADMIN' && selectedExpense.vendorId ? (
-                    <Link
-                      href={`/super-admin/finance/vendors?vendorId=${selectedExpense.vendorId}`}
-                      style={{ color: '#0284c7', fontWeight: 700, textDecoration: 'none' }}
-                      title="View Vendor Financial Ledger"
-                    >
-                      {selectedExpense.vendorName} ↗
-                    </Link>
-                  ) : (
-                    <strong style={{ color: '#0f172a' }}>{selectedExpense.vendorName}</strong>
-                  )}
+                  <strong style={{ color: '#0f172a' }}>{selectedExpense.vendorName}</strong>
                 </div>
                 <div>
                   <span style={{ fontSize: '0.7rem', color: '#64748b', textTransform: 'uppercase', display: 'block' }}>Invoice Number</span>
@@ -1249,42 +1148,23 @@ export default function ExpenseDirectoryContent({ portalRole }: ExpenseDirectory
                           </span>
                         </div>
                         <div style={{ display: 'flex', gap: '0.5rem' }}>
-                          {!selectedExpense.vendorId ? (
-                            <button
-                              type="button"
-                              onClick={openLinkVendorDialog}
-                              style={{
-                                padding: '0.55rem 1.15rem',
-                                backgroundColor: '#fef3c7',
-                                color: '#92400e',
-                                border: '1px solid #fde68a',
-                                borderRadius: '6px',
-                                fontSize: '0.85rem',
-                                fontWeight: 700,
-                                cursor: 'pointer',
-                              }}
-                            >
-                              🔗 Link Registered Vendor
-                            </button>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={openRecordPaymentModal}
-                              style={{
-                                padding: '0.55rem 1.25rem',
-                                backgroundColor: '#dc2626',
-                                color: '#ffffff',
-                                border: 'none',
-                                borderRadius: '6px',
-                                fontSize: '0.85rem',
-                                fontWeight: 700,
-                                cursor: 'pointer',
-                                boxShadow: '0 1px 3px rgba(220,38,38,0.25)',
-                              }}
-                            >
-                              💳 Record Payment
-                            </button>
-                          )}
+                          <button
+                            type="button"
+                            onClick={openRecordPaymentModal}
+                            style={{
+                              padding: '0.55rem 1.25rem',
+                              backgroundColor: '#dc2626',
+                              color: '#ffffff',
+                              border: 'none',
+                              borderRadius: '6px',
+                              fontSize: '0.85rem',
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                              boxShadow: '0 1px 3px rgba(220,38,38,0.25)',
+                            }}
+                          >
+                            💳 Record Payment
+                          </button>
                         </div>
                       </div>
                     ) : (
@@ -1310,7 +1190,7 @@ export default function ExpenseDirectoryContent({ portalRole }: ExpenseDirectory
                   <h4 style={{ margin: 0, fontSize: '0.925rem', color: '#0f172a', fontWeight: 700 }}>
                     Payment &amp; Disbursement History ({expensePayments.length})
                   </h4>
-                  {Math.max(0, selectedExpense.amount - (selectedExpense.paidAmount || 0)) > 0 && selectedExpense.vendorId && (
+                  {Math.max(0, selectedExpense.amount - (selectedExpense.paidAmount || 0)) > 0 && (
                     <button
                       type="button"
                       onClick={openRecordPaymentModal}
@@ -1632,125 +1512,6 @@ export default function ExpenseDirectoryContent({ portalRole }: ExpenseDirectory
         </div>
       )}
 
-      {/* Link Vendor Dialog */}
-      {showLinkVendorModal && selectedExpense && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            backgroundColor: 'rgba(15, 23, 42, 0.6)',
-            backdropFilter: 'blur(4px)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 110,
-            padding: '1rem',
-          }}
-          onClick={() => setShowLinkVendorModal(false)}
-        >
-          <div
-            style={{
-              backgroundColor: '#ffffff',
-              borderRadius: '12px',
-              maxWidth: '480px',
-              width: '100%',
-              padding: '1.75rem',
-              boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '1rem',
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div>
-              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#d97706', textTransform: 'uppercase' }}>
-                Vendor Master Linking
-              </span>
-              <h3 style={{ margin: '0.2rem 0 0 0', fontSize: '1.15rem', color: '#0f172a' }}>
-                Link Registered Vendor &bull; {selectedExpense.expenseCode}
-              </h3>
-            </div>
-
-            <p style={{ margin: 0, fontSize: '0.825rem', color: '#64748b' }}>
-              Historical recorded payee: <strong>{selectedExpense.vendorName}</strong>. Select the corresponding active registered vendor profile to establish this ledger relationship.
-            </p>
-
-            {linkVendorError && (
-              <div style={{ padding: '0.75rem', backgroundColor: '#fef2f2', border: '1px solid #fecaca', borderRadius: '6px', color: '#991b1b', fontSize: '0.825rem' }}>
-                ⚠️ {linkVendorError}
-              </div>
-            )}
-
-            <form onSubmit={handleLinkVendorSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: '#334155', marginBottom: '0.25rem' }}>
-                  Select Registered Vendor *
-                </label>
-                <select
-                  value={selectedVendorToLink}
-                  onChange={(e) => setSelectedVendorToLink(e.target.value)}
-                  disabled={loadingVendorOptions || vendorOptions.length === 0}
-                  style={{
-                    width: '100%',
-                    padding: '0.6rem 0.75rem',
-                    border: '1px solid #cbd5e1',
-                    borderRadius: '6px',
-                    fontSize: '0.85rem',
-                    backgroundColor: '#ffffff',
-                    color: '#0f172a',
-                    fontWeight: 500,
-                    outline: 'none',
-                    cursor: loadingVendorOptions ? 'wait' : 'pointer',
-                  }}
-                >
-                  {loadingVendorOptions ? (
-                    <option value="" disabled style={{ color: '#64748b', backgroundColor: '#ffffff' }}>
-                      ⏳ Loading registered vendors...
-                    </option>
-                  ) : vendorOptions.length === 0 ? (
-                    <option value="" disabled style={{ color: '#64748b', backgroundColor: '#ffffff' }}>
-                      No active registered vendors found
-                    </option>
-                  ) : (
-                    <>
-                      <option value="" disabled style={{ color: '#64748b', backgroundColor: '#ffffff' }}>
-                        -- Select Registered Vendor --
-                      </option>
-                      {vendorOptions.map((v) => (
-                        <option key={v._id} value={v._id} style={{ color: '#0f172a', backgroundColor: '#ffffff', padding: '4px' }}>
-                          {v.name} &bull; {EXPENSE_CATEGORY_LABELS[v.category as ExpenseCategory] || v.category}
-                        </option>
-                      ))}
-                    </>
-                  )}
-                </select>
-                {vendorOptions.length === 0 && !loadingVendorOptions && (
-                  <p style={{ margin: '0.4rem 0 0 0', fontSize: '0.75rem', color: '#dc2626' }}>
-                    No active vendors available in Master Directory. Please register an active vendor profile first.
-                  </p>
-                )}
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
-                <button
-                  type="button"
-                  onClick={() => setShowLinkVendorModal(false)}
-                  style={{ padding: '0.55rem 1rem', border: '1px solid #cbd5e1', borderRadius: '6px', backgroundColor: '#f8fafc', color: '#475569', fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer' }}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={linkingVendor || !selectedVendorToLink}
-                  style={{ padding: '0.55rem 1.25rem', border: 'none', borderRadius: '6px', backgroundColor: '#0284c7', color: '#ffffff', fontSize: '0.85rem', fontWeight: 700, cursor: linkingVendor ? 'not-allowed' : 'pointer' }}
-                >
-                  {linkingVendor ? 'Linking...' : 'Confirm Link'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
       {/* Reject Reason Modal */}
       {showRejectModal && selectedExpense && (

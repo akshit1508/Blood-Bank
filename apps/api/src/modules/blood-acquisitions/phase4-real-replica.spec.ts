@@ -229,10 +229,10 @@ describe('Phase 4 — Real MongoDB Replica Set Integration Audit', () => {
       const dbInventory = await inventoryModel.find({}).exec();
       expect(dbInventory.length).toBe(0); // Zero units in inventory
 
-      // Confirm linked Expense created in DRAFT in database
+      // Confirm linked Expense created in SUBMITTED in database
       const dbExpense = await expenseModel.findById((result as any).expense._id).exec();
       expect(dbExpense).toBeDefined();
-      expect(dbExpense!.status).toBe(ExpenseStatus.DRAFT);
+      expect(dbExpense!.status).toBe(ExpenseStatus.SUBMITTED);
       // Payable: (5 * 1500) + (3 * 1200) + 500 = 7500 + 3600 + 500 = ₹11,600 (1,160,000 paise)
       expect(dbExpense!.amountPaise).toBe(1160000);
       expect(dbExpense!.paidAmountPaise).toBe(0);
@@ -441,8 +441,9 @@ describe('Phase 4 — Real MongoDB Replica Set Integration Audit', () => {
         },
       });
 
-      // 3. Admin submits expense for approval
-      await expensesService.submitExpense(expenseId, {}, adminCreator);
+      // 3. Confirm expense was created directly in SUBMITTED status awaiting Super Admin approval
+      const submittedExp = await expenseModel.findById(expenseId).exec();
+      expect(submittedExp!.status).toBe(ExpenseStatus.SUBMITTED);
 
       // 4. Segregation of duties: Admin creator CANNOT approve their own expense
       await expect(

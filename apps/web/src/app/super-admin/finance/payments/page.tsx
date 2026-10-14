@@ -112,6 +112,9 @@ function PaymentsContent() {
               unpaid = [direct, ...unpaid];
               matched = direct;
             }
+          } else if (direct && direct.status === ExpenseStatus.SUBMITTED) {
+            setModalError(`Expense ${direct.expenseCode} is currently PENDING APPROVAL. A Super Admin must approve it in Approvals before disbursement.`);
+            return;
           }
         } catch {}
       }
@@ -122,16 +125,10 @@ function PaymentsContent() {
         setSelectedExpenseId(matched._id);
         const rem = matched.amount - (matched.paidAmount || 0);
         setPaymentAmount(rem.toFixed(2));
-        if (!matched.vendorId) {
-          setModalError('Historical expense must be linked to a registered vendor before recording payment. Please link the vendor in Outstanding Dues or Expenditure Management.');
-        }
       } else if (unpaid.length > 0) {
         setSelectedExpenseId(unpaid[0]._id);
         const rem = unpaid[0].amount - (unpaid[0].paidAmount || 0);
         setPaymentAmount(rem.toFixed(2));
-        if (!unpaid[0].vendorId) {
-          setModalError('Selected expense is unlinked. Please link a registered vendor before disbursement.');
-        }
       } else if (targetId) {
         setModalError('The requested expense is either not approved, already fully settled, or not found.');
       }
