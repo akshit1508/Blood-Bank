@@ -20,6 +20,7 @@ import {
   completeBloodRequest,
   buildBloodRequestWhatsAppUrl,
 } from '@/lib/blood-request-api';
+import { generateInvoice } from '@/lib/billing-api';
 
 const WhatsAppIcon = ({ size = 15 }: { size?: number }) => (
   <svg
@@ -298,8 +299,15 @@ export default function AdminBloodRequestsPage() {
       setIssueModalOpen(false);
       setTargetReservationForIssue(null);
       setIssueRemarks('');
+      // Automatically generate invoice for the completed issue
+      try {
+        await generateInvoice(res._id);
+      } catch {
+        // Non-blocking: bill can also be generated on-demand at Billing Desk
+      }
+
       setIssueSuccess(
-        `Blood units successfully issued for ${selectedRequest.requestCode}! Issue Code: ${res.issueCode}`,
+        `Blood units successfully issued for ${selectedRequest.requestCode}! Issue Code: ${res.issueCode}. Invoice generated at Billing Desk.`,
       );
       await loadRequests();
       await loadMatches(selectedRequest._id);
@@ -1632,15 +1640,41 @@ export default function AdminBloodRequestsPage() {
 
                       <div
                         style={{
-                          fontSize: '0.7rem',
-                          color: '#7c2d12',
-                          marginTop: '0.5rem',
-                          fontStyle: 'italic',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          marginTop: '0.6rem',
                           borderTop: '1px dashed #fed7aa',
-                          paddingTop: '0.35rem',
+                          paddingTop: '0.45rem',
+                          flexWrap: 'wrap',
+                          gap: '0.5rem',
                         }}
                       >
-                        Notice: Units have been officially issued from inventory for this request. (Clinical transfusion takes place at bedside).
+                        <span style={{ fontSize: '0.7rem', color: '#7c2d12', fontStyle: 'italic' }}>
+                          Notice: Units officially issued from inventory.
+                        </span>
+                        <Link
+                          href={`/admin/finance/billing?search=${issue.issueCode}`}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.35rem',
+                            fontSize: '0.75rem',
+                            fontWeight: 600,
+                            padding: '0.25rem 0.65rem',
+                            background: '#0f172a',
+                            color: '#ffffff',
+                            borderRadius: '4px',
+                            textDecoration: 'none',
+                          }}
+                        >
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <rect x="2" y="4" width="20" height="16" rx="2" />
+                            <line x1="12" y1="8" x2="12" y2="16" />
+                            <line x1="8" y1="12" x2="16" y2="12" />
+                          </svg>
+                          Billing & Receipts &rarr;
+                        </Link>
                       </div>
                     </div>
                   ))}

@@ -278,8 +278,8 @@ export default function AdminSidebar({
           },
           { name: 'Outstanding Dues', href: '/super-admin/finance/dues', icon: icons.analytics },
           { name: 'Acquisition Costing', href: '/super-admin/finance/acquisition-costing', icon: icons.acquisition },
-          { name: 'Payroll', icon: icons.staff, isComingSoon: true, badge: 'Coming Soon' },
-          { name: 'Income & Funding', icon: icons.finance, isComingSoon: true, badge: 'Coming Soon' },
+          { name: 'Blood Issue Billing', href: '/super-admin/finance/billing', icon: icons.finance },
+          { name: 'Fee Tariffs', href: '/super-admin/finance/billing/tariffs', icon: icons.settings },
           { name: 'Financial Reports', icon: icons.analytics, isComingSoon: true, badge: 'Coming Soon' },
         ],
       },
@@ -338,7 +338,8 @@ export default function AdminSidebar({
       {
         label: 'FINANCE',
         items: [
-          { name: 'Submit Expense', href: '/admin/finance/expenses/new', icon: icons.finance },
+          { name: 'Billing Desk', href: '/admin/finance/billing', icon: icons.finance },
+          { name: 'Submit Expense', href: '/admin/finance/expenses/new', icon: icons.receipt },
         ],
       },
     ];
