@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import {
   FinancialPeriodPreset,
@@ -15,12 +15,8 @@ import {
   downloadFinancialCsv,
   formatCurrencyINR,
 } from '@/lib/financial-control-center-api';
-import { useAdminAuth } from '@/context/AdminAuthContext';
-import { AdminRole } from '@/lib/auth-api';
 
 export default function FinancialControlCenterPage() {
-  const { admin } = useAdminAuth();
-
   // Period state
   const [period, setPeriod] = useState<FinancialPeriodPreset>(FinancialPeriodPreset.THIS_MONTH);
   const [customStart, setCustomStart] = useState<string>('');
@@ -62,7 +58,7 @@ export default function FinancialControlCenterPage() {
       setKpiData(kpiRes);
       setTrendsData(trendRes);
     } catch (err: any) {
-      setErrorMessage(err?.message || 'Failed to load financial KPI data');
+      setErrorMessage(err?.message || 'Failed to load financial KPI data.');
     } finally {
       setLoadingKpi(false);
     }
@@ -89,7 +85,7 @@ export default function FinancialControlCenterPage() {
 
       setLedgerData(res);
     } catch (err: any) {
-      // ledger error caught gracefully
+      // Catch ledger fetch errors gracefully
     } finally {
       setLoadingLedger(false);
     }
@@ -152,54 +148,125 @@ export default function FinancialControlCenterPage() {
 
   // Helper for status badge
   const getStatusBadge = (status: string) => {
-    const s = status.toUpperCase();
+    const s = (status || '').toUpperCase();
     if (['APPROVED', 'PAID', 'COMPLETED', 'CONFIRMED', 'DISBURSED'].includes(s)) {
-      return { bg: '#064e3b', color: '#34d399' };
+      return { bg: '#064e3b', color: '#34d399', border: '#059669' };
     }
     if (['PENDING', 'PARTIALLY_PAID', 'PARTIALLY_COLLECTED', 'SUBMITTED', 'DRAFT'].includes(s)) {
-      return { bg: '#451a03', color: '#fbbf24' };
+      return { bg: '#451a03', color: '#fbbf24', border: '#b45309' };
     }
     if (['REJECTED', 'CANCELLED', 'REVERSED'].includes(s)) {
-      return { bg: '#450a0a', color: '#f87171' };
+      return { bg: '#450a0a', color: '#f87171', border: '#dc2626' };
     }
-    return { bg: '#1e293b', color: '#cbd5e1' };
+    return { bg: '#1e293b', color: '#cbd5e1', border: '#334155' };
   };
 
   return (
-    <div className="min-h-screen bg-[#0b1120] text-[#f8fafc] p-4 md:p-8 space-y-8">
+    <div
+      style={{
+        minHeight: '100vh',
+        backgroundColor: '#0b1120',
+        color: '#f8fafc',
+        padding: '2rem 2.5rem',
+        boxSizing: 'border-box',
+        fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+      }}
+    >
       {/* Top Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[#1e293b] pb-6">
-        <div>
-          <div className="flex items-center gap-3">
-            <span className="p-2.5 bg-gradient-to-br from-red-600 to-rose-700 rounded-xl shadow-lg shadow-red-900/30 text-white font-black text-xl">
-              ₹
-            </span>
-            <div>
-              <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-white flex items-center gap-2">
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: '1.25rem',
+          borderBottom: '1px solid #1e293b',
+          paddingBottom: '1.75rem',
+          marginBottom: '2rem',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
+          <div
+            style={{
+              width: '54px',
+              height: '54px',
+              borderRadius: '16px',
+              background: 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '1.65rem',
+              fontWeight: 900,
+              color: '#ffffff',
+              boxShadow: '0 8px 20px rgba(220, 38, 38, 0.3)',
+            }}
+          >
+            ₹
+          </div>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+              <h1 style={{ margin: 0, fontSize: '1.85rem', fontWeight: 800, color: '#ffffff', letterSpacing: '-0.02em' }}>
                 Financial Control Center
-                <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-red-950 text-red-400 border border-red-800">
-                  Super Admin Exclusive
-                </span>
               </h1>
-              <p className="text-sm text-slate-400 mt-0.5">
-                Centralized real-time accounting, multi-stream liquidity audit, cash vs. accruals, and transaction ledger.
-              </p>
+              <span
+                style={{
+                  backgroundColor: '#450a0a',
+                  color: '#f87171',
+                  border: '1px solid #7f1d1d',
+                  borderRadius: '9999px',
+                  padding: '0.2rem 0.75rem',
+                  fontSize: '0.75rem',
+                  fontWeight: 700,
+                }}
+              >
+                Super Admin Exclusive
+              </span>
             </div>
+            <p style={{ margin: '0.35rem 0 0 0', color: '#94a3b8', fontSize: '0.9rem' }}>
+              Centralized real-time accounting, multi-stream liquidity audit, cash vs. accruals, and transaction ledger.
+            </p>
           </div>
         </div>
 
         {/* Global Action Buttons */}
-        <div className="flex items-center gap-3">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
           <button
             onClick={handleExportCsv}
             disabled={exportingCsv}
-            className="flex items-center gap-2 px-4 py-2.5 bg-[#1e293b] hover:bg-[#334155] text-slate-200 text-sm font-semibold rounded-lg border border-slate-700 transition disabled:opacity-50"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              padding: '0.65rem 1.15rem',
+              backgroundColor: '#1e293b',
+              color: '#f8fafc',
+              border: '1px solid #334155',
+              borderRadius: '8px',
+              fontSize: '0.85rem',
+              fontWeight: 600,
+              cursor: exportingCsv ? 'not-allowed' : 'pointer',
+              opacity: exportingCsv ? 0.6 : 1,
+              transition: 'background-color 0.2s',
+            }}
           >
-            <span>{exportingCsv ? 'Exporting...' : '📥 Export CSV'}</span>
+            <span>{exportingCsv ? '⏳ Exporting...' : '📥 Export CSV'}</span>
           </button>
           <button
             onClick={handlePrint}
-            className="flex items-center gap-2 px-4 py-2.5 bg-[#1e293b] hover:bg-[#334155] text-slate-200 text-sm font-semibold rounded-lg border border-slate-700 transition"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              padding: '0.65rem 1.15rem',
+              backgroundColor: '#1e293b',
+              color: '#f8fafc',
+              border: '1px solid #334155',
+              borderRadius: '8px',
+              fontSize: '0.85rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              transition: 'background-color 0.2s',
+            }}
           >
             <span>🖨️ Print Statement</span>
           </button>
@@ -208,30 +275,63 @@ export default function FinancialControlCenterPage() {
 
       {/* Error Alert */}
       {errorMessage && (
-        <div className="p-4 rounded-xl bg-red-950/60 border border-red-800 text-red-300 text-sm flex items-center justify-between">
+        <div
+          style={{
+            backgroundColor: '#450a0a',
+            border: '1px solid #dc2626',
+            color: '#fecaca',
+            borderRadius: '10px',
+            padding: '1rem 1.25rem',
+            fontSize: '0.85rem',
+            marginBottom: '1.75rem',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+          }}
+        >
           <span>⚠️ {errorMessage}</span>
-          <button onClick={() => setErrorMessage(null)} className="text-red-400 font-bold hover:text-red-200">
+          <button
+            onClick={() => setErrorMessage(null)}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: '#f87171',
+              fontWeight: 800,
+              fontSize: '1rem',
+              cursor: 'pointer',
+              padding: '0 0.5rem',
+            }}
+          >
             ✕
           </button>
         </div>
       )}
 
       {/* Reporting Period Filter Bar */}
-      <div className="bg-[#0f172a] p-4 rounded-2xl border border-slate-800 shadow-xl space-y-3">
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
+      <div
+        style={{
+          backgroundColor: '#0f172a',
+          border: '1px solid #1e293b',
+          borderRadius: '14px',
+          padding: '1.25rem 1.5rem',
+          marginBottom: '1.75rem',
+          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)',
+        }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+          <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
             Reporting Period Filter
           </span>
           {kpiData && (
-            <span className="text-xs text-slate-400 font-medium">
-              Active Range: <span className="text-slate-200 font-semibold">{kpiData.period.presetName}</span> (
+            <span style={{ fontSize: '0.8rem', color: '#94a3b8' }}>
+              Active Range: <strong style={{ color: '#f8fafc' }}>{kpiData.period.presetName}</strong> (
               {new Date(kpiData.period.startDate).toLocaleDateString()} &ndash;{' '}
               {new Date(kpiData.period.endDate).toLocaleDateString()})
             </span>
           )}
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.5rem' }}>
           {[
             { id: FinancialPeriodPreset.TODAY, label: 'Today' },
             { id: FinancialPeriodPreset.YESTERDAY, label: 'Yesterday' },
@@ -241,49 +341,95 @@ export default function FinancialControlCenterPage() {
             { id: FinancialPeriodPreset.LAST_MONTH, label: 'Last Month' },
             { id: FinancialPeriodPreset.THIS_FINANCIAL_YEAR, label: 'Financial Year (FY)' },
             { id: FinancialPeriodPreset.CUSTOM, label: 'Custom Range' },
-          ].map((p) => (
-            <button
-              key={p.id}
-              onClick={() => {
-                setPeriod(p.id);
-                setCurrentPage(1);
-              }}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                period === p.id
-                  ? 'bg-red-600 text-white shadow-md shadow-red-900/40 ring-1 ring-red-400'
-                  : 'bg-[#1e293b] text-slate-300 hover:bg-[#334155] border border-slate-800'
-              }`}
-            >
-              {p.label}
-            </button>
-          ))}
+          ].map((p) => {
+            const isActive = period === p.id;
+            return (
+              <button
+                key={p.id}
+                onClick={() => {
+                  setPeriod(p.id);
+                  setCurrentPage(1);
+                }}
+                style={{
+                  backgroundColor: isActive ? '#dc2626' : '#1e293b',
+                  color: isActive ? '#ffffff' : '#cbd5e1',
+                  border: isActive ? '1px solid #ef4444' : '1px solid #334155',
+                  borderRadius: '8px',
+                  padding: '0.45rem 1rem',
+                  fontSize: '0.8rem',
+                  fontWeight: isActive ? 700 : 600,
+                  cursor: 'pointer',
+                  boxShadow: isActive ? '0 2px 8px rgba(220, 38, 38, 0.4)' : 'none',
+                  transition: 'all 0.15s ease-in-out',
+                }}
+              >
+                {p.label}
+              </button>
+            );
+          })}
         </div>
 
         {/* Custom Date Inputs */}
         {period === FinancialPeriodPreset.CUSTOM && (
-          <div className="pt-3 border-t border-slate-800/80 flex flex-wrap items-center gap-3">
-            <div className="flex items-center gap-2 text-xs">
-              <span className="text-slate-400">From:</span>
+          <div
+            style={{
+              marginTop: '1rem',
+              paddingTop: '1rem',
+              borderTop: '1px solid #1e293b',
+              display: 'flex',
+              flexWrap: 'wrap',
+              alignItems: 'center',
+              gap: '1rem',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem' }}>
+              <span style={{ color: '#94a3b8' }}>From Date:</span>
               <input
                 type="date"
                 value={customStart}
                 onChange={(e) => setCustomStart(e.target.value)}
-                className="bg-[#1e293b] border border-slate-700 text-slate-200 text-xs rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-red-500"
+                style={{
+                  backgroundColor: '#1e293b',
+                  border: '1px solid #334155',
+                  color: '#f8fafc',
+                  fontSize: '0.8rem',
+                  borderRadius: '6px',
+                  padding: '0.4rem 0.65rem',
+                  outline: 'none',
+                }}
               />
             </div>
-            <div className="flex items-center gap-2 text-xs">
-              <span className="text-slate-400">To:</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem' }}>
+              <span style={{ color: '#94a3b8' }}>To Date:</span>
               <input
                 type="date"
                 value={customEnd}
                 onChange={(e) => setCustomEnd(e.target.value)}
-                className="bg-[#1e293b] border border-slate-700 text-slate-200 text-xs rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-red-500"
+                style={{
+                  backgroundColor: '#1e293b',
+                  border: '1px solid #334155',
+                  color: '#f8fafc',
+                  fontSize: '0.8rem',
+                  borderRadius: '6px',
+                  padding: '0.4rem 0.65rem',
+                  outline: 'none',
+                }}
               />
             </div>
             <button
               onClick={handleApplyCustomDates}
               disabled={!customStart || !customEnd}
-              className="px-3.5 py-1.5 bg-red-600 hover:bg-red-500 text-white text-xs font-bold rounded-lg transition disabled:opacity-50"
+              style={{
+                padding: '0.45rem 1.15rem',
+                backgroundColor: '#dc2626',
+                color: '#ffffff',
+                border: 'none',
+                borderRadius: '6px',
+                fontSize: '0.8rem',
+                fontWeight: 700,
+                cursor: !customStart || !customEnd ? 'not-allowed' : 'pointer',
+                opacity: !customStart || !customEnd ? 0.5 : 1,
+              }}
             >
               Apply Filter
             </button>
@@ -293,34 +439,79 @@ export default function FinancialControlCenterPage() {
 
       {/* Net Working Capital Liquidity Banner */}
       {kpiData && (
-        <div className="bg-gradient-to-r from-slate-900 via-[#131d36] to-slate-900 rounded-2xl p-5 border border-slate-800 shadow-xl flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-blue-950/80 border border-blue-800 rounded-xl text-blue-400 text-xl font-black">
+        <div
+          style={{
+            background: 'linear-gradient(90deg, #0f172a 0%, #172554 50%, #0f172a 100%)',
+            border: '1px solid #1e3a8a',
+            borderRadius: '14px',
+            padding: '1.25rem 1.75rem',
+            marginBottom: '1.75rem',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: '1.25rem',
+            boxShadow: '0 4px 16px rgba(0, 0, 0, 0.3)',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
+            <div
+              style={{
+                width: '46px',
+                height: '46px',
+                borderRadius: '12px',
+                backgroundColor: '#1e3a8a',
+                border: '1px solid #3b82f6',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '1.4rem',
+              }}
+            >
               ⚖️
             </div>
             <div>
-              <div className="text-xs uppercase font-extrabold text-slate-400 tracking-wider">
-                Working Capital Position (Receivables vs. Payables)
+              <div style={{ fontSize: '0.72rem', fontWeight: 800, textTransform: 'uppercase', color: '#93c5fd', letterSpacing: '0.05em' }}>
+                Net Working Capital Position (Receivables vs. Payables)
               </div>
-              <div className="text-xl md:text-2xl font-black text-white mt-0.5">
+              <div style={{ fontSize: '1.65rem', fontWeight: 900, color: '#ffffff', marginTop: '0.2rem' }}>
                 {formatCurrencyINR(kpiData.receivablesVsPayables.netWorkingPositionInr)}
-                <span className="text-xs font-normal text-slate-400 ml-2">
+                <span style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8', marginLeft: '0.75rem' }}>
                   (Receivables: {formatCurrencyINR(kpiData.receivablesVsPayables.receivablesInr)} &ndash; Payables:{' '}
                   {formatCurrencyINR(kpiData.receivablesVsPayables.payablesInr)})
                 </span>
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
             <Link
               href="/super-admin/finance/dues"
-              className="text-xs px-3.5 py-2 rounded-lg bg-[#1e293b] hover:bg-[#334155] text-slate-300 font-semibold border border-slate-700 transition"
+              style={{
+                fontSize: '0.8rem',
+                fontWeight: 600,
+                padding: '0.5rem 1rem',
+                borderRadius: '8px',
+                backgroundColor: '#1e293b',
+                color: '#cbd5e1',
+                border: '1px solid #334155',
+                textDecoration: 'none',
+              }}
             >
-              View Supplier Aging &rarr;
+              Supplier Aging &rarr;
             </Link>
             <Link
               href="/super-admin/finance/billing"
-              className="text-xs px-3.5 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-semibold shadow-md shadow-blue-900/30 transition"
+              style={{
+                fontSize: '0.8rem',
+                fontWeight: 600,
+                padding: '0.5rem 1rem',
+                borderRadius: '8px',
+                backgroundColor: '#2563eb',
+                color: '#ffffff',
+                border: 'none',
+                textDecoration: 'none',
+                boxShadow: '0 2px 8px rgba(37, 99, 235, 0.4)',
+              }}
             >
               Billing Desk &rarr;
             </Link>
@@ -329,175 +520,183 @@ export default function FinancialControlCenterPage() {
       )}
 
       {/* 10 Core Authoritative Financial KPI Cards */}
-      <div>
-        <div className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">
-          Key Performance Indicators &amp; Cash Flow
+      <div style={{ marginBottom: '2rem' }}>
+        <div style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#94a3b8', marginBottom: '0.85rem' }}>
+          Key Financial Metrics &amp; Cash Flow
         </div>
 
         {loadingKpi ? (
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))', gap: '1rem' }}>
             {Array.from({ length: 10 }).map((_, i) => (
-              <div key={i} className="h-28 bg-[#0f172a] rounded-2xl animate-pulse border border-slate-800" />
+              <div
+                key={i}
+                style={{
+                  height: '115px',
+                  backgroundColor: '#0f172a',
+                  borderRadius: '14px',
+                  border: '1px solid #1e293b',
+                }}
+              />
             ))}
           </div>
         ) : kpiData ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))', gap: '1rem' }}>
             {/* 1. Actual Money Received */}
-            <div className="bg-[#0f172a] p-4 rounded-2xl border border-emerald-900/40 shadow-lg relative overflow-hidden">
-              <div className="text-[11px] font-bold text-emerald-400 uppercase tracking-wide">
+            <div style={{ backgroundColor: '#0f172a', border: '1px solid #065f46', borderRadius: '14px', padding: '1.15rem' }}>
+              <div style={{ fontSize: '0.72rem', fontWeight: 800, color: '#34d399', textTransform: 'uppercase' }}>
                 1. Money Received (Inflow)
               </div>
-              <div className="text-xl font-extrabold text-emerald-300 mt-1">
+              <div style={{ fontSize: '1.45rem', fontWeight: 900, color: '#6ee7b7', marginTop: '0.4rem' }}>
                 {formatCurrencyINR(kpiData.kpis.actualMoneyReceived.inr)}
               </div>
-              <p className="text-[11px] text-slate-400 mt-1 leading-snug">
+              <p style={{ fontSize: '0.72rem', color: '#94a3b8', margin: '0.35rem 0 0 0', lineHeight: 1.35 }}>
                 Confirmed billing collections &amp; receipts.
               </p>
-              <Link href="/super-admin/finance/billing" className="text-[10px] text-emerald-400 font-bold hover:underline mt-2 inline-block">
+              <Link href="/super-admin/finance/billing" style={{ fontSize: '0.75rem', fontWeight: 700, color: '#34d399', textDecoration: 'none', marginTop: '0.65rem', display: 'inline-block' }}>
                 View Collections &rarr;
               </Link>
             </div>
 
             {/* 2. Recognized Expenditure */}
-            <div className="bg-[#0f172a] p-4 rounded-2xl border border-amber-900/40 shadow-lg relative overflow-hidden">
-              <div className="text-[11px] font-bold text-amber-400 uppercase tracking-wide">
+            <div style={{ backgroundColor: '#0f172a', border: '1px solid #92400e', borderRadius: '14px', padding: '1.15rem' }}>
+              <div style={{ fontSize: '0.72rem', fontWeight: 800, color: '#fbbf24', textTransform: 'uppercase' }}>
                 2. Approved Expenditure
               </div>
-              <div className="text-xl font-extrabold text-amber-300 mt-1">
+              <div style={{ fontSize: '1.45rem', fontWeight: 900, color: '#fcd34d', marginTop: '0.4rem' }}>
                 {formatCurrencyINR(kpiData.kpis.recognizedExpenditure.inr)}
               </div>
-              <p className="text-[11px] text-slate-400 mt-1 leading-snug">
+              <p style={{ fontSize: '0.72rem', color: '#94a3b8', margin: '0.35rem 0 0 0', lineHeight: 1.35 }}>
                 Approved operating, camp &amp; payroll liabilities.
               </p>
-              <Link href="/super-admin/finance/expenses" className="text-[10px] text-amber-400 font-bold hover:underline mt-2 inline-block">
+              <Link href="/super-admin/finance/expenses" style={{ fontSize: '0.75rem', fontWeight: 700, color: '#fbbf24', textDecoration: 'none', marginTop: '0.65rem', display: 'inline-block' }}>
                 View Expenses &rarr;
               </Link>
             </div>
 
             {/* 3. Actual Cash Outflows */}
-            <div className="bg-[#0f172a] p-4 rounded-2xl border border-rose-900/40 shadow-lg relative overflow-hidden">
-              <div className="text-[11px] font-bold text-rose-400 uppercase tracking-wide">
+            <div style={{ backgroundColor: '#0f172a', border: '1px solid #9f1239', borderRadius: '14px', padding: '1.15rem' }}>
+              <div style={{ fontSize: '0.72rem', fontWeight: 800, color: '#fb7185', textTransform: 'uppercase' }}>
                 3. Cash Outflows
               </div>
-              <div className="text-xl font-extrabold text-rose-300 mt-1">
+              <div style={{ fontSize: '1.45rem', fontWeight: 900, color: '#fda4af', marginTop: '0.4rem' }}>
                 {formatCurrencyINR(kpiData.kpis.actualCashOutflows.inr)}
               </div>
-              <p className="text-[11px] text-slate-400 mt-1 leading-snug">
-                Actual supplier payments &amp; salary transfers.
+              <p style={{ fontSize: '0.72rem', color: '#94a3b8', margin: '0.35rem 0 0 0', lineHeight: 1.35 }}>
+                Supplier payments &amp; salary transfers.
               </p>
-              <Link href="/super-admin/finance/payments" className="text-[10px] text-rose-400 font-bold hover:underline mt-2 inline-block">
+              <Link href="/super-admin/finance/payments" style={{ fontSize: '0.75rem', fontWeight: 700, color: '#fb7185', textDecoration: 'none', marginTop: '0.65rem', display: 'inline-block' }}>
                 View Disbursements &rarr;
               </Link>
             </div>
 
             {/* 4. Outstanding Payables */}
-            <div className="bg-[#0f172a] p-4 rounded-2xl border border-red-900/40 shadow-lg relative overflow-hidden">
-              <div className="text-[11px] font-bold text-red-400 uppercase tracking-wide">
+            <div style={{ backgroundColor: '#0f172a', border: '1px solid #991b1b', borderRadius: '14px', padding: '1.15rem' }}>
+              <div style={{ fontSize: '0.72rem', fontWeight: 800, color: '#f87171', textTransform: 'uppercase' }}>
                 4. Outstanding Payables
               </div>
-              <div className="text-xl font-extrabold text-red-300 mt-1">
+              <div style={{ fontSize: '1.45rem', fontWeight: 900, color: '#fca5a5', marginTop: '0.4rem' }}>
                 {formatCurrencyINR(kpiData.kpis.outstandingPayables.inr)}
               </div>
-              <p className="text-[11px] text-slate-400 mt-1 leading-snug">
+              <p style={{ fontSize: '0.72rem', color: '#94a3b8', margin: '0.35rem 0 0 0', lineHeight: 1.35 }}>
                 Supplier dues ({formatCurrencyINR(kpiData.kpis.outstandingPayables.supplierPayablesInr)}) + Payroll.
               </p>
-              <Link href="/super-admin/finance/dues" className="text-[10px] text-red-400 font-bold hover:underline mt-2 inline-block">
+              <Link href="/super-admin/finance/dues" style={{ fontSize: '0.75rem', fontWeight: 700, color: '#f87171', textDecoration: 'none', marginTop: '0.65rem', display: 'inline-block' }}>
                 View Dues Roster &rarr;
               </Link>
             </div>
 
             {/* 5. Outstanding Receivables */}
-            <div className="bg-[#0f172a] p-4 rounded-2xl border border-blue-900/40 shadow-lg relative overflow-hidden">
-              <div className="text-[11px] font-bold text-blue-400 uppercase tracking-wide">
+            <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e40af', borderRadius: '14px', padding: '1.15rem' }}>
+              <div style={{ fontSize: '0.72rem', fontWeight: 800, color: '#60a5fa', textTransform: 'uppercase' }}>
                 5. Blood Issue Receivables
               </div>
-              <div className="text-xl font-extrabold text-blue-300 mt-1">
+              <div style={{ fontSize: '1.45rem', fontWeight: 900, color: '#93c5fd', marginTop: '0.4rem' }}>
                 {formatCurrencyINR(kpiData.kpis.outstandingReceivables.inr)}
               </div>
-              <p className="text-[11px] text-slate-400 mt-1 leading-snug">
+              <p style={{ fontSize: '0.72rem', color: '#94a3b8', margin: '0.35rem 0 0 0', lineHeight: 1.35 }}>
                 Uncollected hospital invoice balances.
               </p>
-              <Link href="/super-admin/finance/billing" className="text-[10px] text-blue-400 font-bold hover:underline mt-2 inline-block">
+              <Link href="/super-admin/finance/billing" style={{ fontSize: '0.75rem', fontWeight: 700, color: '#60a5fa', textDecoration: 'none', marginTop: '0.65rem', display: 'inline-block' }}>
                 View Invoices &rarr;
               </Link>
             </div>
 
             {/* 6. Blood Acquisition Cost */}
-            <div className="bg-[#0f172a] p-4 rounded-2xl border border-slate-800 shadow-lg relative overflow-hidden">
-              <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wide">
-                6. Blood Acquisition Cost
+            <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', padding: '1.15rem' }}>
+              <div style={{ fontSize: '0.72rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase' }}>
+                6. Acquisition Cost
               </div>
-              <div className="text-xl font-extrabold text-slate-100 mt-1">
+              <div style={{ fontSize: '1.45rem', fontWeight: 900, color: '#ffffff', marginTop: '0.4rem' }}>
                 {formatCurrencyINR(kpiData.kpis.bloodAcquisitionCost.inr)}
               </div>
-              <p className="text-[11px] text-slate-400 mt-1 leading-snug">
-                External consignment unit charges &amp; transport.
+              <p style={{ fontSize: '0.72rem', color: '#94a3b8', margin: '0.35rem 0 0 0', lineHeight: 1.35 }}>
+                Consignment unit charges &amp; transport.
               </p>
-              <Link href="/super-admin/finance/acquisition-costing" className="text-[10px] text-slate-300 font-bold hover:underline mt-2 inline-block">
+              <Link href="/super-admin/finance/acquisition-costing" style={{ fontSize: '0.75rem', fontWeight: 700, color: '#94a3b8', textDecoration: 'none', marginTop: '0.65rem', display: 'inline-block' }}>
                 View Acquisition &rarr;
               </Link>
             </div>
 
             {/* 7. Campaign Expenditure */}
-            <div className="bg-[#0f172a] p-4 rounded-2xl border border-slate-800 shadow-lg relative overflow-hidden">
-              <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wide">
+            <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', padding: '1.15rem' }}>
+              <div style={{ fontSize: '0.72rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase' }}>
                 7. Campaign Expenses
               </div>
-              <div className="text-xl font-extrabold text-slate-100 mt-1">
+              <div style={{ fontSize: '1.45rem', fontWeight: 900, color: '#ffffff', marginTop: '0.4rem' }}>
                 {formatCurrencyINR(kpiData.kpis.campaignExpenditure.inr)}
               </div>
-              <p className="text-[11px] text-slate-400 mt-1 leading-snug">
-                Mobile camp logistics, canopy, &amp; refreshments.
+              <p style={{ fontSize: '0.72rem', color: '#94a3b8', margin: '0.35rem 0 0 0', lineHeight: 1.35 }}>
+                Mobile camp logistics, canopy &amp; meals.
               </p>
-              <Link href="/admin/campaigns" className="text-[10px] text-slate-300 font-bold hover:underline mt-2 inline-block">
+              <Link href="/admin/campaigns" style={{ fontSize: '0.75rem', fontWeight: 700, color: '#94a3b8', textDecoration: 'none', marginTop: '0.65rem', display: 'inline-block' }}>
                 View Campaigns &rarr;
               </Link>
             </div>
 
             {/* 8. Payroll Expense */}
-            <div className="bg-[#0f172a] p-4 rounded-2xl border border-slate-800 shadow-lg relative overflow-hidden">
-              <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wide">
+            <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', padding: '1.15rem' }}>
+              <div style={{ fontSize: '0.72rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase' }}>
                 8. Payroll Expense
               </div>
-              <div className="text-xl font-extrabold text-slate-100 mt-1">
+              <div style={{ fontSize: '1.45rem', fontWeight: 900, color: '#ffffff', marginTop: '0.4rem' }}>
                 {formatCurrencyINR(kpiData.kpis.payrollExpense.inr)}
               </div>
-              <p className="text-[11px] text-slate-400 mt-1 leading-snug">
-                Net approved salary commitments for period.
+              <p style={{ fontSize: '0.72rem', color: '#94a3b8', margin: '0.35rem 0 0 0', lineHeight: 1.35 }}>
+                Approved salary commitments for period.
               </p>
-              <Link href="/super-admin/payroll" className="text-[10px] text-slate-300 font-bold hover:underline mt-2 inline-block">
+              <Link href="/super-admin/payroll" style={{ fontSize: '0.75rem', fontWeight: 700, color: '#94a3b8', textDecoration: 'none', marginTop: '0.65rem', display: 'inline-block' }}>
                 View Payroll &rarr;
               </Link>
             </div>
 
-            {/* 9. Total Invoices Billed */}
-            <div className="bg-[#0f172a] p-4 rounded-2xl border border-slate-800 shadow-lg relative overflow-hidden">
-              <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wide">
-                9. Gross Invoices Billed
+            {/* 9. Gross Invoices Billed */}
+            <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', padding: '1.15rem' }}>
+              <div style={{ fontSize: '0.72rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase' }}>
+                9. Gross Billed
               </div>
-              <div className="text-xl font-extrabold text-slate-100 mt-1">
+              <div style={{ fontSize: '1.45rem', fontWeight: 900, color: '#ffffff', marginTop: '0.4rem' }}>
                 {formatCurrencyINR(kpiData.kpis.totalInvoicedGross.inr)}
               </div>
-              <p className="text-[11px] text-slate-400 mt-1 leading-snug">
+              <p style={{ fontSize: '0.72rem', color: '#94a3b8', margin: '0.35rem 0 0 0', lineHeight: 1.35 }}>
                 Waivers: {formatCurrencyINR(kpiData.kpis.totalInvoicedGross.waiversInr)}
               </p>
-              <Link href="/super-admin/finance/billing" className="text-[10px] text-slate-300 font-bold hover:underline mt-2 inline-block">
-                View Billing &rarr;
+              <Link href="/super-admin/finance/billing" style={{ fontSize: '0.75rem', fontWeight: 700, color: '#94a3b8', textDecoration: 'none', marginTop: '0.65rem', display: 'inline-block' }}>
+                View Invoices &rarr;
               </Link>
             </div>
 
             {/* 10. Total Collections Received */}
-            <div className="bg-[#0f172a] p-4 rounded-2xl border border-slate-800 shadow-lg relative overflow-hidden">
-              <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wide">
-                10. Total Billing Remittances
+            <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', padding: '1.15rem' }}>
+              <div style={{ fontSize: '0.72rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase' }}>
+                10. Total Remittances
               </div>
-              <div className="text-xl font-extrabold text-slate-100 mt-1">
+              <div style={{ fontSize: '1.45rem', fontWeight: 900, color: '#ffffff', marginTop: '0.4rem' }}>
                 {formatCurrencyINR(kpiData.kpis.totalCollectionsReceived.inr)}
               </div>
-              <p className="text-[11px] text-slate-400 mt-1 leading-snug">
-                Cashier receipts across payment methods.
+              <p style={{ fontSize: '0.72rem', color: '#94a3b8', margin: '0.35rem 0 0 0', lineHeight: 1.35 }}>
+                Cash, UPI &amp; card cashier desk receipts.
               </p>
-              <Link href="/super-admin/finance/billing" className="text-[10px] text-slate-300 font-bold hover:underline mt-2 inline-block">
+              <Link href="/super-admin/finance/billing" style={{ fontSize: '0.75rem', fontWeight: 700, color: '#94a3b8', textDecoration: 'none', marginTop: '0.65rem', display: 'inline-block' }}>
                 Daily Register &rarr;
               </Link>
             </div>
@@ -507,35 +706,50 @@ export default function FinancialControlCenterPage() {
 
       {/* Visual Breakdowns Section */}
       {kpiData && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
           {/* Expense Category Breakdown */}
-          <div className="bg-[#0f172a] p-5 rounded-2xl border border-slate-800 shadow-xl space-y-4">
-            <h3 className="text-sm font-bold uppercase tracking-wider text-slate-300 flex items-center justify-between">
-              <span>Expenditure Category Distribution</span>
-              <span className="text-xs font-normal text-slate-400">
+          <div
+            style={{
+              backgroundColor: '#0f172a',
+              border: '1px solid #1e293b',
+              borderRadius: '14px',
+              padding: '1.5rem',
+              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+              <span style={{ fontSize: '0.85rem', fontWeight: 800, textTransform: 'uppercase', color: '#cbd5e1', letterSpacing: '0.04em' }}>
+                Expenditure Category Distribution
+              </span>
+              <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
                 {kpiData.expenseCategoryBreakdown.length} Categories
               </span>
-            </h3>
+            </div>
 
             {kpiData.expenseCategoryBreakdown.length === 0 ? (
-              <div className="text-center py-8 text-xs text-slate-500">
+              <div style={{ textAlign: 'center', padding: '2rem 0', color: '#64748b', fontSize: '0.8rem' }}>
                 No approved expenses recorded in this period.
               </div>
             ) : (
-              <div className="space-y-3">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
                 {kpiData.expenseCategoryBreakdown.map((cat) => {
                   const maxAmt = Math.max(...kpiData.expenseCategoryBreakdown.map((c) => c.amountInr), 1);
-                  const pct = Math.round((cat.amountInr / maxAmt) * 100);
+                  const pct = Math.min(100, Math.round((cat.amountInr / maxAmt) * 100));
                   return (
-                    <div key={cat.category} className="space-y-1">
-                      <div className="flex justify-between text-xs">
-                        <span className="text-slate-300 font-medium">{cat.label}</span>
-                        <span className="text-slate-100 font-bold">{formatCurrencyINR(cat.amountInr)}</span>
+                    <div key={cat.category}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: '0.25rem' }}>
+                        <span style={{ color: '#cbd5e1', fontWeight: 500 }}>{cat.label}</span>
+                        <span style={{ color: '#f8fafc', fontWeight: 700 }}>{formatCurrencyINR(cat.amountInr)}</span>
                       </div>
-                      <div className="w-full bg-[#1e293b] rounded-full h-2 overflow-hidden">
+                      <div style={{ width: '100%', height: '8px', backgroundColor: '#1e293b', borderRadius: '9999px', overflow: 'hidden' }}>
                         <div
-                          className="bg-amber-500 h-2 rounded-full transition-all duration-500"
-                          style={{ width: `${pct}%` }}
+                          style={{
+                            height: '100%',
+                            width: `${pct}%`,
+                            backgroundColor: '#f59e0b',
+                            borderRadius: '9999px',
+                            transition: 'width 0.4s ease-out',
+                          }}
                         />
                       </div>
                     </div>
@@ -546,35 +760,50 @@ export default function FinancialControlCenterPage() {
           </div>
 
           {/* Payment Method Distribution */}
-          <div className="bg-[#0f172a] p-5 rounded-2xl border border-slate-800 shadow-xl space-y-4">
-            <h3 className="text-sm font-bold uppercase tracking-wider text-slate-300 flex items-center justify-between">
-              <span>Payment Channel Breakdown</span>
-              <span className="text-xs font-normal text-slate-400">
+          <div
+            style={{
+              backgroundColor: '#0f172a',
+              border: '1px solid #1e293b',
+              borderRadius: '14px',
+              padding: '1.5rem',
+              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+              <span style={{ fontSize: '0.85rem', fontWeight: 800, textTransform: 'uppercase', color: '#cbd5e1', letterSpacing: '0.04em' }}>
+                Payment Channel Breakdown
+              </span>
+              <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
                 Inflows &amp; Outflows
               </span>
-            </h3>
+            </div>
 
             {kpiData.paymentMethodBreakdown.length === 0 ? (
-              <div className="text-center py-8 text-xs text-slate-500">
+              <div style={{ textAlign: 'center', padding: '2rem 0', color: '#64748b', fontSize: '0.8rem' }}>
                 No payment transactions recorded in this period.
               </div>
             ) : (
-              <div className="space-y-3">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
                 {kpiData.paymentMethodBreakdown.map((pm) => {
                   const maxAmt = Math.max(...kpiData.paymentMethodBreakdown.map((p) => p.amountInr), 1);
-                  const pct = Math.round((pm.amountInr / maxAmt) * 100);
+                  const pct = Math.min(100, Math.round((pm.amountInr / maxAmt) * 100));
                   return (
-                    <div key={pm.method} className="space-y-1">
-                      <div className="flex justify-between text-xs">
-                        <span className="text-slate-300 font-medium">{pm.label}</span>
-                        <span className="text-slate-100 font-bold">
-                          {formatCurrencyINR(pm.amountInr)} ({pm.count} txns)
+                    <div key={pm.method}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: '0.25rem' }}>
+                        <span style={{ color: '#cbd5e1', fontWeight: 500 }}>{pm.label}</span>
+                        <span style={{ color: '#f8fafc', fontWeight: 700 }}>
+                          {formatCurrencyINR(pm.amountInr)} <small style={{ color: '#94a3b8', fontWeight: 400 }}>({pm.count} txns)</small>
                         </span>
                       </div>
-                      <div className="w-full bg-[#1e293b] rounded-full h-2 overflow-hidden">
+                      <div style={{ width: '100%', height: '8px', backgroundColor: '#1e293b', borderRadius: '9999px', overflow: 'hidden' }}>
                         <div
-                          className="bg-emerald-500 h-2 rounded-full transition-all duration-500"
-                          style={{ width: `${pct}%` }}
+                          style={{
+                            height: '100%',
+                            width: `${pct}%`,
+                            backgroundColor: '#10b981',
+                            borderRadius: '9999px',
+                            transition: 'width 0.4s ease-out',
+                          }}
                         />
                       </div>
                     </div>
@@ -587,32 +816,72 @@ export default function FinancialControlCenterPage() {
       )}
 
       {/* Central Financial Transaction Ledger */}
-      <div className="bg-[#0f172a] rounded-2xl border border-slate-800 shadow-xl overflow-hidden space-y-4 p-5">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800/80 pb-4">
+      <div
+        style={{
+          backgroundColor: '#0f172a',
+          border: '1px solid #1e293b',
+          borderRadius: '14px',
+          padding: '1.5rem',
+          boxShadow: '0 4px 16px rgba(0, 0, 0, 0.2)',
+        }}
+      >
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: '1rem',
+            borderBottom: '1px solid #1e293b',
+            paddingBottom: '1.25rem',
+            marginBottom: '1.25rem',
+          }}
+        >
           <div>
-            <h2 className="text-base font-extrabold uppercase tracking-wide text-white flex items-center gap-2">
-              <span>Unified Financial Transaction Ledger</span>
-              <span className="text-xs font-normal px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <h2 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, textTransform: 'uppercase', color: '#ffffff', letterSpacing: '0.02em' }}>
+                Unified Financial Transaction Ledger
+              </h2>
+              <span
+                style={{
+                  backgroundColor: '#1e293b',
+                  color: '#cbd5e1',
+                  borderRadius: '9999px',
+                  padding: '0.15rem 0.65rem',
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  border: '1px solid #334155',
+                }}
+              >
                 {ledgerData?.total || 0} Records
               </span>
-            </h2>
-            <p className="text-xs text-slate-400 mt-0.5">
-              Complete, chronological audit timeline across billing, collections, expenses, supplier payments, and payroll.
+            </div>
+            <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.8rem', color: '#94a3b8' }}>
+              Chronological audit timeline across billing, collections, expenses, supplier payments, and payroll.
             </p>
           </div>
 
           {/* Filter Controls */}
-          <div className="flex flex-wrap items-center gap-2.5">
+          <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.65rem' }}>
             {/* Search */}
             <input
               type="text"
-              placeholder="Search reference, vendor, party..."
+              placeholder="Search reference, vendor, hospital..."
               value={searchQuery}
               onChange={(e) => {
                 setSearchQuery(e.target.value);
                 setCurrentPage(1);
               }}
-              className="bg-[#1e293b] border border-slate-700 text-slate-200 text-xs rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-red-500 w-48"
+              style={{
+                backgroundColor: '#1e293b',
+                border: '1px solid #334155',
+                color: '#f8fafc',
+                fontSize: '0.8rem',
+                borderRadius: '8px',
+                padding: '0.5rem 0.85rem',
+                outline: 'none',
+                minWidth: '220px',
+              }}
             />
 
             {/* Direction Filter */}
@@ -622,7 +891,16 @@ export default function FinancialControlCenterPage() {
                 setDirectionFilter(e.target.value);
                 setCurrentPage(1);
               }}
-              className="bg-[#1e293b] border border-slate-700 text-slate-200 text-xs rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-red-500"
+              style={{
+                backgroundColor: '#1e293b',
+                border: '1px solid #334155',
+                color: '#f8fafc',
+                fontSize: '0.8rem',
+                borderRadius: '8px',
+                padding: '0.5rem 0.85rem',
+                outline: 'none',
+                cursor: 'pointer',
+              }}
             >
               <option value="ALL">All Directions</option>
               <option value={FinancialTransactionDirection.INFLOW}>Inflow (Received)</option>
@@ -637,7 +915,16 @@ export default function FinancialControlCenterPage() {
                 setTypeFilter(e.target.value);
                 setCurrentPage(1);
               }}
-              className="bg-[#1e293b] border border-slate-700 text-slate-200 text-xs rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-red-500"
+              style={{
+                backgroundColor: '#1e293b',
+                border: '1px solid #334155',
+                color: '#f8fafc',
+                fontSize: '0.8rem',
+                borderRadius: '8px',
+                padding: '0.5rem 0.85rem',
+                outline: 'none',
+                cursor: 'pointer',
+              }}
             >
               <option value="ALL">All Transaction Types</option>
               <option value={FinancialTransactionType.BLOOD_ISSUE_COLLECTION}>Billing Collections</option>
@@ -651,34 +938,34 @@ export default function FinancialControlCenterPage() {
         </div>
 
         {/* Ledger Table */}
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs border-collapse">
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.8rem' }}>
             <thead>
-              <tr className="border-b border-slate-800 text-slate-400 font-bold uppercase tracking-wider bg-[#0b1120]/50">
-                <th className="py-3 px-3">Date</th>
-                <th className="py-3 px-3">Reference #</th>
-                <th className="py-3 px-3">Type &amp; Flow</th>
-                <th className="py-3 px-3">Category</th>
-                <th className="py-3 px-3">Description</th>
-                <th className="py-3 px-3 text-right">Amount (₹)</th>
-                <th className="py-3 px-3">Method</th>
-                <th className="py-3 px-3">Status</th>
-                <th className="py-3 px-3 text-center">Action</th>
+              <tr style={{ backgroundColor: '#0b1120', color: '#94a3b8', borderBottom: '1px solid #1e293b' }}>
+                <th style={{ padding: '0.85rem 0.75rem', fontWeight: 700, fontSize: '0.72rem', textTransform: 'uppercase' }}>Date</th>
+                <th style={{ padding: '0.85rem 0.75rem', fontWeight: 700, fontSize: '0.72rem', textTransform: 'uppercase' }}>Reference #</th>
+                <th style={{ padding: '0.85rem 0.75rem', fontWeight: 700, fontSize: '0.72rem', textTransform: 'uppercase' }}>Type &amp; Flow</th>
+                <th style={{ padding: '0.85rem 0.75rem', fontWeight: 700, fontSize: '0.72rem', textTransform: 'uppercase' }}>Category</th>
+                <th style={{ padding: '0.85rem 0.75rem', fontWeight: 700, fontSize: '0.72rem', textTransform: 'uppercase' }}>Description</th>
+                <th style={{ padding: '0.85rem 0.75rem', fontWeight: 700, fontSize: '0.72rem', textTransform: 'uppercase', textAlign: 'right' }}>Amount (₹)</th>
+                <th style={{ padding: '0.85rem 0.75rem', fontWeight: 700, fontSize: '0.72rem', textTransform: 'uppercase' }}>Method</th>
+                <th style={{ padding: '0.85rem 0.75rem', fontWeight: 700, fontSize: '0.72rem', textTransform: 'uppercase' }}>Status</th>
+                <th style={{ padding: '0.85rem 0.75rem', fontWeight: 700, fontSize: '0.72rem', textTransform: 'uppercase', textAlign: 'center' }}>Action</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/60">
+            <tbody>
               {loadingLedger ? (
-                Array.from({ length: 8 }).map((_, i) => (
-                  <tr key={i} className="animate-pulse">
-                    <td colSpan={9} className="py-3 px-3">
-                      <div className="h-5 bg-[#1e293b] rounded w-full" />
+                Array.from({ length: 6 }).map((_, i) => (
+                  <tr key={i} style={{ borderBottom: '1px solid #1e293b' }}>
+                    <td colSpan={9} style={{ padding: '1rem 0.75rem' }}>
+                      <div style={{ height: '16px', backgroundColor: '#1e293b', borderRadius: '4px', width: '100%' }} />
                     </td>
                   </tr>
                 ))
               ) : !ledgerData || ledgerData.items.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="py-8 text-center text-slate-500">
-                    No transactions match the selected filters or reporting period.
+                  <td colSpan={9} style={{ padding: '3rem 0', textAlign: 'center', color: '#64748b', fontSize: '0.85rem' }}>
+                    No financial transactions match the selected filters or reporting period.
                   </td>
                 </tr>
               ) : (
@@ -687,69 +974,96 @@ export default function FinancialControlCenterPage() {
                   const statBadge = getStatusBadge(item.status);
 
                   return (
-                    <tr key={item.id} className="hover:bg-slate-800/40 transition">
-                      <td className="py-3 px-3 whitespace-nowrap text-slate-300 font-mono">
+                    <tr
+                      key={item.id}
+                      style={{
+                        borderBottom: '1px solid #1e293b',
+                        transition: 'background-color 0.15s',
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(30, 41, 59, 0.4)')}
+                      onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                    >
+                      <td style={{ padding: '0.75rem', whiteSpace: 'nowrap', fontFamily: 'monospace', color: '#cbd5e1' }}>
                         {new Date(item.date).toLocaleDateString()}
                       </td>
-                      <td className="py-3 px-3 font-mono font-bold text-slate-200">
+                      <td style={{ padding: '0.75rem', fontFamily: 'monospace', fontWeight: 700, color: '#f8fafc' }}>
                         {item.reference}
                       </td>
-                      <td className="py-3 px-3 whitespace-nowrap">
+                      <td style={{ padding: '0.75rem', whiteSpace: 'nowrap' }}>
                         <span
-                          className="px-2 py-0.5 rounded text-[10px] font-extrabold border"
                           style={{
+                            padding: '0.2rem 0.5rem',
+                            borderRadius: '4px',
+                            fontSize: '0.68rem',
+                            fontWeight: 800,
                             backgroundColor: dirBadge.bg,
                             color: dirBadge.color,
-                            borderColor: dirBadge.border,
+                            border: `1px solid ${dirBadge.border}`,
                           }}
                         >
                           {dirBadge.label}
                         </span>
-                        <div className="text-[10px] text-slate-400 mt-0.5">{item.typeLabel}</div>
+                        <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: '0.2rem' }}>{item.typeLabel}</div>
                       </td>
-                      <td className="py-3 px-3 text-slate-300">{item.category}</td>
-                      <td className="py-3 px-3 text-slate-300 max-w-xs truncate" title={item.description}>
+                      <td style={{ padding: '0.75rem', color: '#cbd5e1' }}>{item.category}</td>
+                      <td style={{ padding: '0.75rem', color: '#cbd5e1', maxWidth: '280px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={item.description}>
                         {item.description}
                       </td>
-                      <td className="py-3 px-3 text-right whitespace-nowrap font-bold">
-                        <span
-                          className={
+                      <td
+                        style={{
+                          padding: '0.75rem',
+                          textAlign: 'right',
+                          fontWeight: 700,
+                          whiteSpace: 'nowrap',
+                          color:
                             item.direction === FinancialTransactionDirection.INFLOW
-                              ? 'text-emerald-400'
+                              ? '#34d399'
                               : item.direction === FinancialTransactionDirection.OUTFLOW
-                              ? 'text-rose-400'
-                              : 'text-slate-200'
-                          }
-                        >
-                          {item.direction === FinancialTransactionDirection.INFLOW ? '+ ' : ''}
-                          {item.direction === FinancialTransactionDirection.OUTFLOW ? '- ' : ''}
-                          {formatCurrencyINR(item.amountInr)}
-                        </span>
+                              ? '#fb7185'
+                              : '#f8fafc',
+                        }}
+                      >
+                        {item.direction === FinancialTransactionDirection.INFLOW ? '+ ' : ''}
+                        {item.direction === FinancialTransactionDirection.OUTFLOW ? '- ' : ''}
+                        {formatCurrencyINR(item.amountInr)}
                       </td>
-                      <td className="py-3 px-3 whitespace-nowrap text-slate-400">
+                      <td style={{ padding: '0.75rem', color: '#94a3b8', whiteSpace: 'nowrap' }}>
                         {item.paymentMethod || '—'}
                       </td>
-                      <td className="py-3 px-3 whitespace-nowrap">
+                      <td style={{ padding: '0.75rem', whiteSpace: 'nowrap' }}>
                         <span
-                          className="px-2 py-0.5 rounded text-[10px] font-semibold"
                           style={{
+                            padding: '0.2rem 0.55rem',
+                            borderRadius: '4px',
+                            fontSize: '0.7rem',
+                            fontWeight: 600,
                             backgroundColor: statBadge.bg,
                             color: statBadge.color,
+                            border: `1px solid ${statBadge.border}`,
                           }}
                         >
                           {item.status}
                         </span>
                       </td>
-                      <td className="py-3 px-3 text-center whitespace-nowrap">
+                      <td style={{ padding: '0.75rem', textAlign: 'center', whiteSpace: 'nowrap' }}>
                         {item.sourceLink ? (
                           <Link
                             href={item.sourceLink}
-                            className="px-2 py-1 rounded bg-[#1e293b] hover:bg-[#334155] text-slate-300 hover:text-white text-[11px] font-semibold border border-slate-700 transition"
+                            style={{
+                              padding: '0.3rem 0.65rem',
+                              borderRadius: '6px',
+                              backgroundColor: '#1e293b',
+                              color: '#93c5fd',
+                              border: '1px solid #334155',
+                              textDecoration: 'none',
+                              fontSize: '0.75rem',
+                              fontWeight: 600,
+                            }}
                           >
                             View &rarr;
                           </Link>
                         ) : (
-                          <span className="text-slate-600">—</span>
+                          <span style={{ color: '#475569' }}>—</span>
                         )}
                       </td>
                     </tr>
@@ -762,23 +1076,54 @@ export default function FinancialControlCenterPage() {
 
         {/* Pagination Controls */}
         {ledgerData && ledgerData.totalPages > 1 && (
-          <div className="flex items-center justify-between pt-4 border-t border-slate-800 text-xs text-slate-400">
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              paddingTop: '1.25rem',
+              marginTop: '0.5rem',
+              borderTop: '1px solid #1e293b',
+              fontSize: '0.8rem',
+              color: '#94a3b8',
+            }}
+          >
             <div>
-              Showing page <span className="text-slate-200 font-bold">{ledgerData.page}</span> of{' '}
-              <span className="text-slate-200 font-bold">{ledgerData.totalPages}</span> ({ledgerData.total} total items)
+              Showing page <strong style={{ color: '#f8fafc' }}>{ledgerData.page}</strong> of{' '}
+              <strong style={{ color: '#f8fafc' }}>{ledgerData.totalPages}</strong> ({ledgerData.total} total items)
             </div>
-            <div className="flex items-center gap-2">
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
               <button
                 onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                 disabled={ledgerData.page <= 1}
-                className="px-3 py-1.5 rounded bg-[#1e293b] hover:bg-[#334155] text-slate-200 font-semibold disabled:opacity-40 transition"
+                style={{
+                  padding: '0.4rem 0.85rem',
+                  backgroundColor: '#1e293b',
+                  color: '#f8fafc',
+                  border: '1px solid #334155',
+                  borderRadius: '6px',
+                  fontSize: '0.8rem',
+                  fontWeight: 600,
+                  cursor: ledgerData.page <= 1 ? 'not-allowed' : 'pointer',
+                  opacity: ledgerData.page <= 1 ? 0.4 : 1,
+                }}
               >
                 &larr; Previous
               </button>
               <button
                 onClick={() => setCurrentPage((p) => Math.min(ledgerData.totalPages, p + 1))}
                 disabled={ledgerData.page >= ledgerData.totalPages}
-                className="px-3 py-1.5 rounded bg-[#1e293b] hover:bg-[#334155] text-slate-200 font-semibold disabled:opacity-40 transition"
+                style={{
+                  padding: '0.4rem 0.85rem',
+                  backgroundColor: '#1e293b',
+                  color: '#f8fafc',
+                  border: '1px solid #334155',
+                  borderRadius: '6px',
+                  fontSize: '0.8rem',
+                  fontWeight: 600,
+                  cursor: ledgerData.page >= ledgerData.totalPages ? 'not-allowed' : 'pointer',
+                  opacity: ledgerData.page >= ledgerData.totalPages ? 0.4 : 1,
+                }}
               >
                 Next &rarr;
               </button>
