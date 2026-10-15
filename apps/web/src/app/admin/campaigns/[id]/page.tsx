@@ -37,6 +37,19 @@ import {
 } from '@/lib/campaign-api';
 import { submitExpense } from '@/lib/expense-api';
 import { fetchDonors } from '@/lib/donor-api';
+import {
+  CampaignVolunteersResponse,
+  CampaignVolunteerAssignment,
+  Volunteer,
+  VolunteerRole,
+  VOLUNTEER_ROLE_LABELS,
+  fetchCampaignVolunteers,
+  assignVolunteerToCampaign,
+  registerAndAssignCampaignVolunteer,
+  updateVolunteerAttendance,
+  removeVolunteerFromCampaign,
+  fetchVolunteers,
+} from '@/lib/volunteer-api';
 
 export default function CampaignCommandCenterPage() {
   const params = useParams();
@@ -134,8 +147,32 @@ export default function CampaignCommandCenterPage() {
   // Action state for unit testing decision
   const [updatingUnitId, setUpdatingUnitId] = useState<string | null>(null);
 
+  // Volunteer Management States
+  const [campaignVolunteers, setCampaignVolunteers] = useState<CampaignVolunteersResponse | null>(null);
+  const [updatingAttendanceId, setUpdatingAttendanceId] = useState<string | null>(null);
+  const [isAssignVolunteerModalOpen, setIsAssignVolunteerModalOpen] = useState<boolean>(false);
+  const [availableVolunteers, setAvailableVolunteers] = useState<Volunteer[]>([]);
+  const [selectedAssignVolId, setSelectedAssignVolId] = useState<string>('');
+  const [selectedAssignRole, setSelectedAssignRole] = useState<VolunteerRole>('GENERAL');
+  const [assignSearchInitials, setAssignSearchInitials] = useState<string>('');
+  const [assigningVolunteer, setAssigningVolunteer] = useState<boolean>(false);
+  const [assignError, setAssignError] = useState<string | null>(null);
+
+  // Register New Volunteer On-Site Modal
+  const [isRegisterVolModalOpen, setIsRegisterVolModalOpen] = useState<boolean>(false);
+  const [newVolName, setNewVolName] = useState<string>('');
+  const [newVolPhone, setNewVolPhone] = useState<string>('');
+  const [newVolEmail, setNewVolEmail] = useState<string>('');
+  const [newVolBloodGroup, setNewVolBloodGroup] = useState<string>('O+');
+  const [newVolGender, setNewVolGender] = useState<string>('MALE');
+  const [newVolCity, setNewVolCity] = useState<string>('');
+  const [newVolRole, setNewVolRole] = useState<VolunteerRole>('GENERAL');
+  const [newVolNotes, setNewVolNotes] = useState<string>('');
+  const [registeringVol, setRegisteringVol] = useState<boolean>(false);
+  const [registerVolError, setRegisterVolError] = useState<string | null>(null);
+
   // Filter and View States
-  const [activeTab, setActiveTab] = useState<'all' | 'blood' | 'financials'>('all');
+  const [activeTab, setActiveTab] = useState<'all' | 'blood' | 'volunteers' | 'financials'>('all');
   const [bloodSearchTerm, setBloodSearchTerm] = useState<string>('');
   const [bloodFilterGroup, setBloodFilterGroup] = useState<string>('ALL');
   const [bloodFilterStatus, setBloodFilterStatus] = useState<string>('ALL');
@@ -158,11 +195,12 @@ export default function CampaignCommandCenterPage() {
       setCampaign(campData);
       setNewBudgetInput(String(campData.approvedBudget || 0));
 
-      // Fetch financials, revisions, and blood units report concurrently
-      const [finData, revData, bloodData] = await Promise.allSettled([
+      // Fetch financials, revisions, blood units, and volunteers report concurrently
+      const [finData, revData, bloodData, volData] = await Promise.allSettled([
         fetchCampaignFinancials(id),
         fetchCampaignBudgetRevisions(id),
         fetchCampaignBloodUnits(id),
+        fetchCampaignVolunteers(id),
       ]);
 
       if (finData.status === 'fulfilled') {
@@ -173,6 +211,9 @@ export default function CampaignCommandCenterPage() {
       }
       if (bloodData.status === 'fulfilled') {
         setBloodReport(bloodData.value);
+      }
+      if (volData.status === 'fulfilled') {
+        setCampaignVolunteers(volData.value);
       }
     } catch (err: any) {
       setError(err.message || 'Failed to load campaign command center.');
@@ -511,6 +552,175 @@ export default function CampaignCommandCenterPage() {
       setUpdatingUnitId(null);
     }
   };
+
+  // Volunteer Actions
+  const handleUpdateAttendance = async (assignmentId: string, status: 'PRESENT' | 'ABSENT') => {
+    if (!campaign) return;
+    try {
+      setUpdatingAttendanceId(assignmentId);
+
+      // 1. Optimistic instant UI update
+      setCampaignVolunteers((prev) => {
+        if (!prev) return prev;
+        const updatedList = prev.volunteers.map((v) =>
+          v._id === assignmentId
+            ? { ...v, attendanceStatus: status, attendanceMarkedAt: new Date().toISOString() }
+            : v,
+        );
+        return {
+          ...prev,
+          summary: {
+            ...prev.summary,
+            present: updatedList.filter((a) => a.attendanceStatus === 'PRESENT').length,
+            absent: updatedList.filter((a) => a.attendanceStatus === 'ABSENT').length,
+            pending: updatedList.filter((a) => a.attendanceStatus === 'PENDING').length,
+          },
+          volunteers: updatedList,
+        };
+      });
+
+      // 2. Persist to server
+      await updateVolunteerAttendance(campaign._id, assignmentId, {
+        attendanceStatus: status,
+      });
+
+      // 3. Sync authoritative server state
+      const updatedVolunteers = await fetchCampaignVolunteers(campaign._id);
+      setCampaignVolunteers(updatedVolunteers);
+    } catch (err: any) {
+      alert(`Failed to update attendance: ${err.message || 'Please check your connection and login status.'}`);
+      if (campaign) {
+        const revert = await fetchCampaignVolunteers(campaign._id);
+        setCampaignVolunteers(revert);
+      }
+    } finally {
+      setUpdatingAttendanceId(null);
+    }
+  };
+
+  const handleOpenAssignModal = async () => {
+    if (!campaign) return;
+    setIsAssignVolunteerModalOpen(true);
+    setAssignError(null);
+    setAssignSearchInitials('');
+    setSelectedAssignVolId('');
+    setSelectedAssignRole('GENERAL');
+
+    try {
+      const res = await fetchVolunteers({ status: 'APPROVED', limit: 100 });
+      // Exclude already assigned volunteers
+      const assignedIds = new Set((campaignVolunteers?.volunteers || []).map((v) => v.volunteerId));
+      const unassigned = res.volunteers.filter((v) => !assignedIds.has(v._id));
+      setAvailableVolunteers(unassigned);
+      if (unassigned.length > 0) {
+        setSelectedAssignVolId(unassigned[0]._id);
+      }
+    } catch (err: any) {
+      setAssignError(err.message || 'Failed to fetch active volunteers.');
+    }
+  };
+
+  const handleAssignVolunteerSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!campaign || !selectedAssignVolId) return;
+
+    try {
+      setAssigningVolunteer(true);
+      setAssignError(null);
+      await assignVolunteerToCampaign(campaign._id, {
+        volunteerId: selectedAssignVolId,
+        role: selectedAssignRole,
+      });
+
+      setIsAssignVolunteerModalOpen(false);
+      const updatedVolunteers = await fetchCampaignVolunteers(campaign._id);
+      setCampaignVolunteers(updatedVolunteers);
+    } catch (err: any) {
+      setAssignError(err.message || 'Failed to assign volunteer.');
+    } finally {
+      setAssigningVolunteer(false);
+    }
+  };
+
+  const handleRegisterAndAssignSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!campaign) return;
+
+    if (!newVolName.trim()) {
+      setRegisterVolError('Volunteer Name is required.');
+      return;
+    }
+    if (!newVolPhone.trim()) {
+      setRegisterVolError('Phone number is required.');
+      return;
+    }
+
+    try {
+      setRegisteringVol(true);
+      setRegisterVolError(null);
+      await registerAndAssignCampaignVolunteer(campaign._id, {
+        fullName: newVolName.trim(),
+        phone: newVolPhone.trim(),
+        email: newVolEmail.trim() || undefined,
+        bloodGroup: newVolBloodGroup,
+        gender: newVolGender,
+        city: newVolCity.trim() || campaign.city,
+        role: newVolRole,
+        notes: newVolNotes.trim() || undefined,
+      });
+
+      setIsRegisterVolModalOpen(false);
+      setNewVolName('');
+      setNewVolPhone('');
+      setNewVolEmail('');
+      setNewVolCity('');
+      setNewVolNotes('');
+      const updatedVolunteers = await fetchCampaignVolunteers(campaign._id);
+      setCampaignVolunteers(updatedVolunteers);
+    } catch (err: any) {
+      setRegisterVolError(err.message || 'Failed to register volunteer.');
+    } finally {
+      setRegisteringVol(false);
+    }
+  };
+
+  const handleUnassignVolunteer = async (assignmentId: string, volName: string) => {
+    if (!campaign) return;
+    if (!confirm(`Are you sure you want to unassign volunteer ${volName} from this campaign?`)) return;
+
+    try {
+      await removeVolunteerFromCampaign(campaign._id, assignmentId);
+      const updatedVolunteers = await fetchCampaignVolunteers(campaign._id);
+      setCampaignVolunteers(updatedVolunteers);
+    } catch (err: any) {
+      alert(`Failed to unassign volunteer: ${err.message}`);
+    }
+  };
+
+
+  const filteredAvailableVolunteers = useMemo(() => {
+    if (!assignSearchInitials.trim()) return availableVolunteers;
+    const term = assignSearchInitials.trim().toLowerCase();
+    return availableVolunteers.filter((v) => {
+      const name = v.fullName.toLowerCase();
+      const code = v.volunteerCode.toLowerCase();
+      const phone = v.phone || '';
+      const city = v.city.toLowerCase();
+      const initials = v.fullName
+        .split(/\s+/)
+        .map((p) => p[0])
+        .join('')
+        .toLowerCase();
+      return (
+        name.includes(term) ||
+        code.includes(term) ||
+        phone.includes(term) ||
+        city.includes(term) ||
+        initials.startsWith(term) ||
+        name.split(/\s+/).some((w) => w.startsWith(term))
+      );
+    });
+  }, [availableVolunteers, assignSearchInitials]);
 
   const filteredBloodUnits = useMemo(() => {
     if (!bloodReport?.units) return [];
@@ -858,6 +1068,40 @@ export default function CampaignCommandCenterPage() {
               }}
             >
               {bloodReport.summary.totalUnitsCollected} Collected • {bloodReport.summary.inInventoryCount} In Vault
+            </span>
+          )}
+        </button>
+
+        <button
+          onClick={() => setActiveTab('volunteers')}
+          style={{
+            backgroundColor: activeTab === 'volunteers' ? '#581c87' : 'transparent',
+            color: activeTab === 'volunteers' ? '#f5d0fe' : '#94a3b8',
+            border: activeTab === 'volunteers' ? '1px solid #c084fc' : '1px solid transparent',
+            borderRadius: '8px',
+            padding: '0.55rem 1.15rem',
+            fontSize: '0.875rem',
+            fontWeight: 600,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            transition: 'all 0.15s ease',
+          }}
+        >
+          <span>🤝</span> Volunteers & Attendance
+          {campaignVolunteers?.summary && (
+            <span
+              style={{
+                backgroundColor: '#9333ea',
+                color: '#ffffff',
+                fontSize: '0.725rem',
+                fontWeight: 700,
+                borderRadius: '9999px',
+                padding: '0.1rem 0.55rem',
+              }}
+            >
+              {campaignVolunteers.summary.totalAssigned} Team • {campaignVolunteers.summary.present} Present
             </span>
           )}
         </button>
@@ -1800,6 +2044,454 @@ export default function CampaignCommandCenterPage() {
                             ) : (
                               <span style={{ color: '#475569', fontSize: '0.75rem' }}>—</span>
                             )}
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 🤝 CAMPAIGN VOLUNTEER TEAM & ATTENDANCE MODULE */}
+      {(activeTab === 'all' || activeTab === 'volunteers') && (
+        <div style={{ marginBottom: '2.5rem' }}>
+          <div
+            style={{
+              backgroundColor: '#0f172a',
+              border: '1px solid #1e293b',
+              borderRadius: '12px',
+              padding: '1.5rem',
+              marginBottom: '1.25rem',
+            }}
+          >
+            {/* Header with Assign & Register Actions */}
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: '1rem',
+                marginBottom: '1.25rem',
+              }}
+            >
+              <div>
+                <h2
+                  style={{
+                    fontSize: '1.25rem',
+                    fontWeight: 800,
+                    margin: '0 0 0.25rem 0',
+                    color: '#f8fafc',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                  }}
+                >
+                  <span>🤝</span> Campaign Volunteer Team & Attendance
+                </h2>
+                <span style={{ color: '#94a3b8', fontSize: '0.825rem' }}>
+                  Manage campaign volunteers, track real-time attendance (Present / Absent), and register new volunteers directly on-site.
+                </span>
+              </div>
+
+              <div style={{ display: 'flex', gap: '0.65rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                {/* Assign Existing Volunteer */}
+                <button
+                  type="button"
+                  onClick={handleOpenAssignModal}
+                  style={{
+                    backgroundColor: '#0284c7',
+                    color: '#ffffff',
+                    border: 'none',
+                    borderRadius: '8px',
+                    padding: '0.55rem 1.15rem',
+                    fontSize: '0.825rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.45rem',
+                  }}
+                >
+                  <span>📋</span> Assign from Active Roster
+                </button>
+
+                {/* Register New Volunteer on Campaign Page */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsRegisterVolModalOpen(true);
+                    setRegisterVolError(null);
+                    setNewVolName('');
+                    setNewVolPhone('');
+                    setNewVolEmail('');
+                    setNewVolCity(campaign?.city || '');
+                    setNewVolNotes('');
+                  }}
+                  style={{
+                    backgroundColor: '#dc2626',
+                    color: '#ffffff',
+                    border: 'none',
+                    borderRadius: '8px',
+                    padding: '0.55rem 1.15rem',
+                    fontSize: '0.825rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.45rem',
+                    boxShadow: '0 4px 12px rgba(220, 38, 38, 0.3)',
+                  }}
+                >
+                  <span>+</span> Register New Volunteer
+                </button>
+              </div>
+            </div>
+
+            {/* Attendance & Participation Metric Cards */}
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                gap: '1rem',
+                marginBottom: '1.25rem',
+              }}
+            >
+              <div
+                style={{
+                  backgroundColor: '#1e293b',
+                  borderRadius: '10px',
+                  padding: '1rem',
+                  border: '1px solid #334155',
+                }}
+              >
+                <span style={{ fontSize: '0.725rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 600 }}>
+                  Assigned Team Size
+                </span>
+                <div style={{ fontSize: '1.65rem', fontWeight: 800, color: '#f8fafc', margin: '0.35rem 0 0.15rem 0' }}>
+                  {campaignVolunteers?.summary.totalAssigned ?? 0}
+                </div>
+                <span style={{ fontSize: '0.725rem', color: '#64748b' }}>
+                  Total volunteers deployed
+                </span>
+              </div>
+
+              <div
+                style={{
+                  backgroundColor: '#1e293b',
+                  borderRadius: '10px',
+                  padding: '1rem',
+                  border: '1px solid #334155',
+                }}
+              >
+                <span style={{ fontSize: '0.725rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 600 }}>
+                  Marked Present (Attended)
+                </span>
+                <div style={{ fontSize: '1.65rem', fontWeight: 800, color: '#34d399', margin: '0.35rem 0 0.15rem 0' }}>
+                  {campaignVolunteers?.summary.present ?? 0}
+                </div>
+                <span style={{ fontSize: '0.725rem', color: '#34d399' }}>
+                  ✓ On-duty in campaign drive
+                </span>
+              </div>
+
+              <div
+                style={{
+                  backgroundColor: '#1e293b',
+                  borderRadius: '10px',
+                  padding: '1rem',
+                  border: '1px solid #334155',
+                }}
+              >
+                <span style={{ fontSize: '0.725rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 600 }}>
+                  Marked Absent
+                </span>
+                <div style={{ fontSize: '1.65rem', fontWeight: 800, color: '#f87171', margin: '0.35rem 0 0.15rem 0' }}>
+                  {campaignVolunteers?.summary.absent ?? 0}
+                </div>
+                <span style={{ fontSize: '0.725rem', color: '#64748b' }}>
+                  Did not report to venue
+                </span>
+              </div>
+
+              <div
+                style={{
+                  backgroundColor: '#1e293b',
+                  borderRadius: '10px',
+                  padding: '1rem',
+                  border: '1px solid #334155',
+                }}
+              >
+                <span style={{ fontSize: '0.725rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 600 }}>
+                  Pending Attendance
+                </span>
+                <div style={{ fontSize: '1.65rem', fontWeight: 800, color: '#fbbf24', margin: '0.35rem 0 0.15rem 0' }}>
+                  {campaignVolunteers?.summary.pending ?? 0}
+                </div>
+                <span style={{ fontSize: '0.725rem', color: '#fbbf24' }}>
+                  ⏳ Awaiting check-in
+                </span>
+              </div>
+            </div>
+
+            {/* Campaign Volunteer Roster Table */}
+            <div style={{ overflowX: 'auto', border: '1px solid #334155', borderRadius: '8px' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.825rem' }}>
+                <thead>
+                  <tr style={{ backgroundColor: '#1e293b', color: '#94a3b8', borderBottom: '1px solid #334155' }}>
+                    <th style={{ padding: '0.75rem 0.85rem' }}>Volunteer</th>
+                    <th style={{ padding: '0.75rem 0.85rem' }}>Contact</th>
+                    <th style={{ padding: '0.75rem 0.85rem' }}>Assigned Camp Role</th>
+                    <th style={{ padding: '0.75rem 0.85rem' }}>Attendance Status</th>
+                    <th style={{ padding: '0.75rem 0.85rem' }}>Check-in Log</th>
+                    <th style={{ padding: '0.75rem 0.85rem', textAlign: 'right' }}>Mark Attendance / Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {!campaignVolunteers || campaignVolunteers.volunteers.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} style={{ padding: '2.5rem', textAlign: 'center', color: '#64748b' }}>
+                        No volunteers currently assigned to this campaign drive.
+                        <div style={{ marginTop: '0.5rem' }}>
+                          <button
+                            type="button"
+                            onClick={handleOpenAssignModal}
+                            style={{
+                              backgroundColor: '#0284c7',
+                              color: '#ffffff',
+                              border: 'none',
+                              borderRadius: '6px',
+                              padding: '0.4rem 0.85rem',
+                              fontSize: '0.8rem',
+                              cursor: 'pointer',
+                              fontWeight: 600,
+                              marginRight: '0.5rem',
+                            }}
+                          >
+                            + Assign Volunteer
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsRegisterVolModalOpen(true);
+                              setRegisterVolError(null);
+                              setNewVolName('');
+                              setNewVolPhone('');
+                              setNewVolCity(campaign?.city || '');
+                            }}
+                            style={{
+                              backgroundColor: '#dc2626',
+                              color: '#ffffff',
+                              border: 'none',
+                              borderRadius: '6px',
+                              padding: '0.4rem 0.85rem',
+                              fontSize: '0.8rem',
+                              cursor: 'pointer',
+                              fontWeight: 600,
+                            }}
+                          >
+                            + Register New Volunteer
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : (
+                    campaignVolunteers.volunteers.map((v) => {
+                      const isPresent = v.attendanceStatus === 'PRESENT';
+                      const isAbsent = v.attendanceStatus === 'ABSENT';
+
+                      return (
+                        <tr
+                          key={v._id}
+                          style={{
+                            borderBottom: '1px solid #1e293b',
+                            backgroundColor: isPresent ? '#064e3b15' : isAbsent ? '#450a0a15' : 'transparent',
+                          }}
+                        >
+                          {/* Volunteer Info */}
+                          <td style={{ padding: '0.75rem 0.85rem' }}>
+                            <div style={{ fontWeight: 700, color: '#f8fafc' }}>{v.volunteerName}</div>
+                            <div style={{ fontFamily: 'monospace', fontSize: '0.725rem', color: '#38bdf8' }}>
+                              {v.volunteerCode}
+                            </div>
+                            {v.volunteerBloodGroup && (
+                              <span
+                                style={{
+                                  display: 'inline-block',
+                                  backgroundColor: '#881337',
+                                  color: '#fecdd3',
+                                  borderRadius: '3px',
+                                  padding: '0.05rem 0.35rem',
+                                  fontSize: '0.675rem',
+                                  fontWeight: 700,
+                                  marginTop: '0.2rem',
+                                }}
+                              >
+                                {v.volunteerBloodGroup}
+                              </span>
+                            )}
+                          </td>
+
+                          {/* Contact */}
+                          <td style={{ padding: '0.75rem 0.85rem' }}>
+                            <div style={{ color: '#e2e8f0' }}>{v.volunteerPhone}</div>
+                          </td>
+
+                          {/* Role */}
+                          <td style={{ padding: '0.75rem 0.85rem' }}>
+                            <span
+                              style={{
+                                backgroundColor: '#1e293b',
+                                color: '#e2e8f0',
+                                border: '1px solid #334155',
+                                borderRadius: '4px',
+                                padding: '0.2rem 0.55rem',
+                                fontSize: '0.75rem',
+                                fontWeight: 600,
+                              }}
+                            >
+                              {VOLUNTEER_ROLE_LABELS[v.role] || v.role}
+                            </span>
+                            {v.notes && (
+                              <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: '0.25rem' }}>
+                                {v.notes}
+                              </div>
+                            )}
+                          </td>
+
+                          {/* Attendance Status */}
+                          <td style={{ padding: '0.75rem 0.85rem' }}>
+                            {isPresent ? (
+                              <span
+                                style={{
+                                  backgroundColor: '#064e3b',
+                                  color: '#34d399',
+                                  border: '1px solid #059669',
+                                  borderRadius: '9999px',
+                                  padding: '0.2rem 0.65rem',
+                                  fontSize: '0.725rem',
+                                  fontWeight: 700,
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '0.3rem',
+                                }}
+                              >
+                                <span>✓</span> PRESENT
+                              </span>
+                            ) : isAbsent ? (
+                              <span
+                                style={{
+                                  backgroundColor: '#450a0a',
+                                  color: '#f87171',
+                                  border: '1px solid #dc2626',
+                                  borderRadius: '9999px',
+                                  padding: '0.2rem 0.65rem',
+                                  fontSize: '0.725rem',
+                                  fontWeight: 700,
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '0.3rem',
+                                }}
+                              >
+                                <span>✕</span> ABSENT
+                              </span>
+                            ) : (
+                              <span
+                                style={{
+                                  backgroundColor: '#451a03',
+                                  color: '#fbbf24',
+                                  border: '1px solid #b45309',
+                                  borderRadius: '9999px',
+                                  padding: '0.2rem 0.65rem',
+                                  fontSize: '0.725rem',
+                                  fontWeight: 700,
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '0.3rem',
+                                }}
+                              >
+                                <span>⏳</span> PENDING
+                              </span>
+                            )}
+                          </td>
+
+                          {/* Check-in Log */}
+                          <td style={{ padding: '0.75rem 0.85rem' }}>
+                            {v.attendanceMarkedAt ? (
+                              <div>
+                                <div style={{ fontSize: '0.75rem', color: '#e2e8f0' }}>
+                                  {formatDateTime(v.attendanceMarkedAt)}
+                                </div>
+                                <span style={{ fontSize: '0.7rem', color: '#64748b' }}>
+                                  by {v.attendanceMarkedBy || 'Staff'}
+                                </span>
+                              </div>
+                            ) : (
+                              <span style={{ color: '#64748b', fontSize: '0.75rem' }}>Not marked yet</span>
+                            )}
+                          </td>
+
+                          {/* Actions */}
+                          <td style={{ padding: '0.75rem 0.85rem', textAlign: 'right' }}>
+                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.4rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                              {/* Attendance Toggle Buttons */}
+                              <button
+                                type="button"
+                                disabled={updatingAttendanceId === v._id}
+                                onClick={() => handleUpdateAttendance(v._id, 'PRESENT')}
+                                style={{
+                                  backgroundColor: isPresent ? '#064e3b' : 'transparent',
+                                  color: isPresent ? '#34d399' : '#10b981',
+                                  border: isPresent ? '1px solid #059669' : '1px solid #10b98160',
+                                  borderRadius: '4px',
+                                  padding: '0.25rem 0.55rem',
+                                  fontSize: '0.725rem',
+                                  fontWeight: 700,
+                                  cursor: updatingAttendanceId === v._id ? 'not-allowed' : 'pointer',
+                                }}
+                              >
+                                ✓ Present
+                              </button>
+
+                              <button
+                                type="button"
+                                disabled={updatingAttendanceId === v._id}
+                                onClick={() => handleUpdateAttendance(v._id, 'ABSENT')}
+                                style={{
+                                  backgroundColor: isAbsent ? '#450a0a' : 'transparent',
+                                  color: isAbsent ? '#f87171' : '#ef4444',
+                                  border: isAbsent ? '1px solid #dc2626' : '1px solid #ef444460',
+                                  borderRadius: '4px',
+                                  padding: '0.25rem 0.55rem',
+                                  fontSize: '0.725rem',
+                                  fontWeight: 700,
+                                  cursor: updatingAttendanceId === v._id ? 'not-allowed' : 'pointer',
+                                }}
+                              >
+                                ✕ Absent
+                              </button>
+
+                              {/* Unassign */}
+                              <button
+                                type="button"
+                                onClick={() => handleUnassignVolunteer(v._id, v.volunteerName)}
+                                title="Unassign volunteer"
+                                style={{
+                                  background: 'transparent',
+                                  border: 'none',
+                                  color: '#64748b',
+                                  cursor: 'pointer',
+                                  fontSize: '0.85rem',
+                                  padding: '0.2rem 0.35rem',
+                                }}
+                              >
+                                🗑️
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       );
@@ -3608,6 +4300,453 @@ export default function CampaignCommandCenterPage() {
                   }}
                 >
                   {recordingDonation ? 'Saving...' : 'Save'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+
+      {/* 2. Assign Volunteer from Active Roster Modal */}
+      {isAssignVolunteerModalOpen && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.75)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 100,
+            padding: '1rem',
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: '#0f172a',
+              border: '1px solid #1e293b',
+              borderRadius: '12px',
+              maxWidth: '540px',
+              width: '100%',
+              padding: '1.5rem',
+              color: '#f8fafc',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                <span>📋</span> Assign Volunteer to Campaign
+              </h3>
+              <button
+                onClick={() => setIsAssignVolunteerModalOpen(false)}
+                style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '1.25rem', cursor: 'pointer' }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {assignError && (
+              <div style={{ backgroundColor: '#450a0a', border: '1px solid #dc2626', color: '#fecaca', padding: '0.75rem', borderRadius: '6px', marginBottom: '1rem', fontSize: '0.825rem' }}>
+                {assignError}
+              </div>
+            )}
+
+            <form onSubmit={handleAssignVolunteerSubmit}>
+              {/* Quick Search / Initials Filter */}
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#38bdf8', marginBottom: '0.35rem' }}>
+                  🔍 Search by Name / Initials (e.g. &quot;An&quot;, &quot;AS&quot;, &quot;Rohit&quot;, &quot;VOL-&quot;)
+                </label>
+                <div style={{ position: 'relative' }}>
+                  <input
+                    type="text"
+                    placeholder="Type name or initials to quickly filter roster..."
+                    value={assignSearchInitials}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setAssignSearchInitials(val);
+                      const term = val.trim().toLowerCase();
+                      const matches = !term
+                        ? availableVolunteers
+                        : availableVolunteers.filter((v) => {
+                            const initials = v.fullName.split(/\s+/).map((p) => p[0]).join('').toLowerCase();
+                            return (
+                              v.fullName.toLowerCase().includes(term) ||
+                              v.volunteerCode.toLowerCase().includes(term) ||
+                              v.phone.includes(term) ||
+                              v.city.toLowerCase().includes(term) ||
+                              initials.startsWith(term) ||
+                              v.fullName.toLowerCase().split(/\s+/).some((w) => w.startsWith(term))
+                            );
+                          });
+                      if (matches.length > 0) {
+                        setSelectedAssignVolId(matches[0]._id);
+                      }
+                    }}
+                    style={{
+                      width: '100%',
+                      backgroundColor: '#1e293b',
+                      border: '1px solid #38bdf8',
+                      borderRadius: '6px',
+                      padding: '0.5rem 0.65rem',
+                      color: '#f8fafc',
+                      fontSize: '0.85rem',
+                      outline: 'none',
+                      boxSizing: 'border-box',
+                    }}
+                  />
+                  {assignSearchInitials && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAssignSearchInitials('');
+                        if (availableVolunteers.length > 0) {
+                          setSelectedAssignVolId(availableVolunteers[0]._id);
+                        }
+                      }}
+                      style={{
+                        position: 'absolute',
+                        right: '8px',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        background: 'transparent',
+                        border: 'none',
+                        color: '#94a3b8',
+                        cursor: 'pointer',
+                        fontSize: '0.85rem',
+                      }}
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+                {assignSearchInitials && (
+                  <div style={{ fontSize: '0.725rem', color: '#94a3b8', marginTop: '0.3rem' }}>
+                    Showing <strong style={{ color: '#38bdf8' }}>{filteredAvailableVolunteers.length}</strong> of {availableVolunteers.length} available approved volunteers
+                  </div>
+                )}
+              </div>
+
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', fontSize: '0.775rem', fontWeight: 600, color: '#94a3b8', marginBottom: '0.35rem' }}>
+                  Select Approved Volunteer *
+                </label>
+                {availableVolunteers.length === 0 ? (
+                  <div style={{ color: '#94a3b8', fontSize: '0.8rem', padding: '0.5rem 0' }}>
+                    No unassigned approved volunteers found. You can register a new volunteer below.
+                  </div>
+                ) : filteredAvailableVolunteers.length === 0 ? (
+                  <div style={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '6px', padding: '0.75rem', color: '#f87171', fontSize: '0.8rem' }}>
+                    No approved volunteers match &quot;{assignSearchInitials}&quot;. Try different initials or clear the filter.
+                  </div>
+                ) : (
+                  <select
+                    value={selectedAssignVolId}
+                    onChange={(e) => setSelectedAssignVolId(e.target.value)}
+                    style={{
+                      width: '100%',
+                      backgroundColor: '#1e293b',
+                      border: '1px solid #334155',
+                      borderRadius: '6px',
+                      padding: '0.5rem 0.65rem',
+                      color: '#f8fafc',
+                      fontSize: '0.85rem',
+                      outline: 'none',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {filteredAvailableVolunteers.map((vol) => (
+                      <option key={vol._id} value={vol._id}>
+                        {vol.fullName} ({vol.volunteerCode}) • {vol.city} • Blood: {vol.bloodGroup || 'N/A'} • Phone: {vol.phone}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+
+              <div style={{ marginBottom: '1.25rem' }}>
+                <label style={{ display: 'block', fontSize: '0.775rem', fontWeight: 600, color: '#94a3b8', marginBottom: '0.35rem' }}>
+                  Assigned Camp Role
+                </label>
+                <select
+                  value={selectedAssignRole}
+                  onChange={(e) => setSelectedAssignRole(e.target.value as VolunteerRole)}
+                  style={{
+                    width: '100%',
+                    backgroundColor: '#1e293b',
+                    border: '1px solid #334155',
+                    borderRadius: '6px',
+                    padding: '0.5rem 0.65rem',
+                    color: '#f8fafc',
+                    fontSize: '0.85rem',
+                    outline: 'none',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {Object.entries(VOLUNTEER_ROLE_LABELS).map(([k, label]) => (
+                    <option key={k} value={k}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
+                <button
+                  type="button"
+                  onClick={() => setIsAssignVolunteerModalOpen(false)}
+                  style={{
+                    backgroundColor: 'transparent',
+                    border: '1px solid #334155',
+                    color: '#94a3b8',
+                    borderRadius: '6px',
+                    padding: '0.5rem 1rem',
+                    fontSize: '0.85rem',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={assigningVolunteer || availableVolunteers.length === 0}
+                  style={{
+                    backgroundColor: '#0284c7',
+                    border: 'none',
+                    color: '#ffffff',
+                    borderRadius: '6px',
+                    padding: '0.5rem 1.25rem',
+                    fontSize: '0.85rem',
+                    fontWeight: 700,
+                    cursor: assigningVolunteer || availableVolunteers.length === 0 ? 'not-allowed' : 'pointer',
+                  }}
+                >
+                  {assigningVolunteer ? 'Assigning...' : 'Assign to Campaign'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 3. Register New Volunteer Directly on Campaign Page Modal */}
+      {isRegisterVolModalOpen && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.75)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 100,
+            padding: '1rem',
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: '#0f172a',
+              border: '1px solid #1e293b',
+              borderRadius: '12px',
+              maxWidth: '560px',
+              width: '100%',
+              padding: '1.5rem',
+              color: '#f8fafc',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <div>
+                <h3 style={{ margin: '0 0 0.25rem 0', fontSize: '1.15rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                  <span>🤝</span> Register & Assign Campaign Volunteer
+                </h3>
+                <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
+                  Registers volunteer in active roster and deploys them to this campaign drive.
+                </span>
+              </div>
+              <button
+                onClick={() => setIsRegisterVolModalOpen(false)}
+                style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '1.25rem', cursor: 'pointer' }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {registerVolError && (
+              <div style={{ backgroundColor: '#450a0a', border: '1px solid #dc2626', color: '#fecaca', padding: '0.75rem', borderRadius: '6px', marginBottom: '1rem', fontSize: '0.825rem' }}>
+                {registerVolError}
+              </div>
+            )}
+
+            <form onSubmit={handleRegisterAndAssignSubmit}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '0.75rem' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#94a3b8', marginBottom: '0.25rem' }}>
+                    Volunteer Full Name *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Priya Patil"
+                    value={newVolName}
+                    onChange={(e) => setNewVolName(e.target.value)}
+                    style={{
+                      width: '100%',
+                      backgroundColor: '#1e293b',
+                      border: '1px solid #334155',
+                      borderRadius: '6px',
+                      padding: '0.45rem 0.65rem',
+                      color: '#f8fafc',
+                      fontSize: '0.85rem',
+                      outline: 'none',
+                      boxSizing: 'border-box',
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#94a3b8', marginBottom: '0.25rem' }}>
+                    Phone Number *
+                  </label>
+                  <input
+                    type="tel"
+                    required
+                    placeholder="e.g. 9876543210"
+                    value={newVolPhone}
+                    onChange={(e) => setNewVolPhone(e.target.value)}
+                    style={{
+                      width: '100%',
+                      backgroundColor: '#1e293b',
+                      border: '1px solid #334155',
+                      borderRadius: '6px',
+                      padding: '0.45rem 0.65rem',
+                      color: '#f8fafc',
+                      fontSize: '0.85rem',
+                      outline: 'none',
+                      boxSizing: 'border-box',
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '0.75rem' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#94a3b8', marginBottom: '0.25rem' }}>
+                    Blood Group
+                  </label>
+                  <select
+                    value={newVolBloodGroup}
+                    onChange={(e) => setNewVolBloodGroup(e.target.value)}
+                    style={{
+                      width: '100%',
+                      backgroundColor: '#1e293b',
+                      border: '1px solid #334155',
+                      borderRadius: '6px',
+                      padding: '0.45rem 0.65rem',
+                      color: '#f8fafc',
+                      fontSize: '0.85rem',
+                      outline: 'none',
+                      boxSizing: 'border-box',
+                    }}
+                  >
+                    <option value="O+">O Positive (O+)</option>
+                    <option value="O-">O Negative (O-)</option>
+                    <option value="A+">A Positive (A+)</option>
+                    <option value="A-">A Negative (A-)</option>
+                    <option value="B+">B Positive (B+)</option>
+                    <option value="B-">B Negative (B-)</option>
+                    <option value="AB+">AB Positive (AB+)</option>
+                    <option value="AB-">AB Negative (AB-)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#94a3b8', marginBottom: '0.25rem' }}>
+                    Assigned Camp Role
+                  </label>
+                  <select
+                    value={newVolRole}
+                    onChange={(e) => setNewVolRole(e.target.value as VolunteerRole)}
+                    style={{
+                      width: '100%',
+                      backgroundColor: '#1e293b',
+                      border: '1px solid #334155',
+                      borderRadius: '6px',
+                      padding: '0.45rem 0.65rem',
+                      color: '#f8fafc',
+                      fontSize: '0.85rem',
+                      outline: 'none',
+                      boxSizing: 'border-box',
+                    }}
+                  >
+                    {Object.entries(VOLUNTEER_ROLE_LABELS).map(([k, label]) => (
+                      <option key={k} value={k}>
+                        {label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ marginBottom: '1.25rem' }}>
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#94a3b8', marginBottom: '0.25rem' }}>
+                  City
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Mumbai"
+                  value={newVolCity}
+                  onChange={(e) => setNewVolCity(e.target.value)}
+                  style={{
+                    width: '100%',
+                    backgroundColor: '#1e293b',
+                    border: '1px solid #334155',
+                    borderRadius: '6px',
+                    padding: '0.45rem 0.65rem',
+                    color: '#f8fafc',
+                    fontSize: '0.85rem',
+                    outline: 'none',
+                    boxSizing: 'border-box',
+                  }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
+                <button
+                  type="button"
+                  onClick={() => setIsRegisterVolModalOpen(false)}
+                  style={{
+                    backgroundColor: 'transparent',
+                    border: '1px solid #334155',
+                    color: '#94a3b8',
+                    borderRadius: '6px',
+                    padding: '0.5rem 1rem',
+                    fontSize: '0.85rem',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={registeringVol}
+                  style={{
+                    backgroundColor: '#dc2626',
+                    border: 'none',
+                    color: '#ffffff',
+                    borderRadius: '6px',
+                    padding: '0.5rem 1.25rem',
+                    fontSize: '0.85rem',
+                    fontWeight: 700,
+                    cursor: registeringVol ? 'not-allowed' : 'pointer',
+                  }}
+                >
+                  {registeringVol ? 'Registering...' : 'Save & Assign Volunteer'}
                 </button>
               </div>
             </form>

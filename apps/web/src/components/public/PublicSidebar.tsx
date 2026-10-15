@@ -16,6 +16,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/blood-availability', label: 'Blood Availability', icon: '🔎' },
   { href: '/donate-blood', label: 'Donate Blood', icon: '❤️' },
   { href: '/campaigns', label: 'Blood Donation Camps', icon: '📅' },
+  { href: '/volunteer', label: 'Volunteer With Us', icon: '🤝' },
   { href: '/about', label: 'About Blood Bank', icon: 'ℹ️' },
   { href: '/contact', label: 'Contact', icon: '📞' },
 ];

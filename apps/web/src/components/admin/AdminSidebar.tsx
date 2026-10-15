@@ -8,6 +8,7 @@ import { AdminRole } from '@/lib/auth-api';
 import { fetchExpenseSummary } from '@/lib/expense-api';
 import { fetchOutstandingDues } from '@/lib/payment-api';
 import { fetchCampaigns } from '@/lib/campaign-api';
+import { fetchPendingVolunteersCount } from '@/lib/volunteer-api';
 
 interface AdminSidebarProps {
   isOpen?: boolean;
@@ -44,17 +45,22 @@ export default function AdminSidebar({
   const [paymentBadgeCount, setPaymentBadgeCount] = React.useState<number>(0);
   // Real-time campaign notification badge count (for standard Admin & Super Admin)
   const [campaignBadgeCount, setCampaignBadgeCount] = React.useState<number>(0);
+  // Real-time pending volunteer application badge count
+  const [volunteerBadgeCount, setVolunteerBadgeCount] = React.useState<number>(0);
 
   React.useEffect(() => {
     let isMounted = true;
 
     const loadNotificationCounts = async () => {
       try {
+        const volCountPromise = fetchPendingVolunteersCount();
+
         if (currentRole === AdminRole.SUPER_ADMIN) {
-          const [summaryRes, duesRes, campaignRes] = await Promise.allSettled([
+          const [summaryRes, duesRes, campaignRes, volCountRes] = await Promise.allSettled([
             fetchExpenseSummary(),
             fetchOutstandingDues(),
             fetchCampaigns({ status: 'PLANNED', limit: 100 }),
+            volCountPromise,
           ]);
 
           if (!isMounted) return;
@@ -70,12 +76,24 @@ export default function AdminSidebar({
           if (campaignRes.status === 'fulfilled' && campaignRes.value) {
             setCampaignBadgeCount(campaignRes.value.total ?? campaignRes.value.campaigns.length);
           }
+
+          if (volCountRes.status === 'fulfilled') {
+            setVolunteerBadgeCount(volCountRes.value || 0);
+          }
         } else {
-          // Standard Admin notification: check for newly scheduled / planned campaigns
-          const campaignRes = await fetchCampaigns({ status: 'PLANNED', limit: 100 });
+          // Standard Admin notification: check for newly scheduled / planned campaigns & pending volunteers
+          const [campaignRes, volCount] = await Promise.allSettled([
+            fetchCampaigns({ status: 'PLANNED', limit: 100 }),
+            volCountPromise,
+          ]);
           if (!isMounted) return;
-          const count = campaignRes.total ?? campaignRes.campaigns.length;
-          setCampaignBadgeCount(count);
+          if (campaignRes.status === 'fulfilled') {
+            const count = campaignRes.value.total ?? campaignRes.value.campaigns.length;
+            setCampaignBadgeCount(count);
+          }
+          if (volCount.status === 'fulfilled') {
+            setVolunteerBadgeCount(volCount.value || 0);
+          }
         }
       } catch {
         // Silently catch network or permission errors
@@ -237,6 +255,14 @@ export default function AdminSidebar({
         <polyline points="12 6 12 12 14 14" />
       </svg>
     ),
+    volunteer: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+        <circle cx="9" cy="7" r="4" />
+        <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+      </svg>
+    ),
     queue: (
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
         <line x1="8" y1="6" x2="21" y2="6" />
@@ -267,6 +293,13 @@ export default function AdminSidebar({
           { name: 'Donor Management', href: '/admin/donors', icon: icons.donors },
           { name: 'Blood Acquisition', href: '/admin/blood-acquisition', icon: icons.acquisition },
           { name: 'Donations Collection', href: '/admin/donations', icon: icons.donations },
+          {
+            name: 'Volunteer Management',
+            href: '/super-admin/volunteers',
+            icon: icons.volunteer,
+            badge: volunteerBadgeCount > 0 ? String(volunteerBadgeCount) : undefined,
+            isNotification: volunteerBadgeCount > 0,
+          },
         ],
       },
       {
@@ -361,6 +394,13 @@ export default function AdminSidebar({
             icon: icons.campaigns,
             badge: campaignBadgeCount > 0 ? String(campaignBadgeCount) : undefined,
             isNotification: campaignBadgeCount > 0,
+          },
+          {
+            name: 'Volunteer Management',
+            href: '/admin/volunteers',
+            icon: icons.volunteer,
+            badge: volunteerBadgeCount > 0 ? String(volunteerBadgeCount) : undefined,
+            isNotification: volunteerBadgeCount > 0,
           },
         ],
       },
@@ -499,8 +539,14 @@ export default function AdminSidebar({
                     );
                   }
 
+                  const isVolunteerTab =
+                    (item.href === '/super-admin/volunteers' || item.href === '/admin/volunteers') &&
+                    (pathname === '/super-admin/volunteers' || pathname === '/admin/volunteers');
+
                   const isActive =
-                    item.href === '/admin/dashboard' || item.href === '/super-admin/dashboard' || item.href === '/lab/dashboard'
+                    isVolunteerTab
+                      ? true
+                      : item.href === '/admin/dashboard' || item.href === '/super-admin/dashboard' || item.href === '/lab/dashboard'
                       ? pathname === item.href
                       : pathname === item.href.split('?')[0];
 
