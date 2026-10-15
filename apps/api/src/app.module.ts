@@ -19,6 +19,7 @@ import { PaymentsModule } from './modules/payments/payments.module';
 import { BillingModule } from './modules/billing/billing.module';
 import { PayrollModule } from './modules/payroll/payroll.module';
 import { CampaignsModule } from './modules/campaigns/campaigns.module';
+import { FinancialControlCenterModule } from './modules/financial-control-center/financial-control-center.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { AdminAuthGuard } from './modules/auth/guards/admin-auth.guard';
 import { RolesGuard } from './modules/auth/guards/roles.guard';
@@ -52,6 +53,7 @@ import { RolesGuard } from './modules/auth/guards/roles.guard';
     BillingModule,
     PayrollModule,
     CampaignsModule,
+    FinancialControlCenterModule,
   ],
   controllers: [AppController],
   providers: [

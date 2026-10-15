@@ -288,7 +288,7 @@ export default function AdminSidebar({
           { name: 'Blood Issue Billing', href: '/super-admin/finance/billing', icon: icons.finance },
           { name: 'Fee Tariffs', href: '/super-admin/finance/billing/tariffs', icon: icons.settings },
           { name: 'Payroll & Salaries', href: '/super-admin/payroll', icon: icons.payroll },
-          { name: 'Financial Reports', icon: icons.analytics, isComingSoon: true, badge: 'Coming Soon' },
+          { name: 'Financial Control Center', href: '/super-admin/finance/control-center', icon: icons.analytics },
         ],
       },
       {
