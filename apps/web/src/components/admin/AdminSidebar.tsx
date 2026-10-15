@@ -7,6 +7,7 @@ import { useAdminAuth } from '@/context/AdminAuthContext';
 import { AdminRole } from '@/lib/auth-api';
 import { fetchExpenseSummary } from '@/lib/expense-api';
 import { fetchOutstandingDues } from '@/lib/payment-api';
+import { fetchCampaigns } from '@/lib/campaign-api';
 
 interface AdminSidebarProps {
   isOpen?: boolean;
@@ -41,36 +42,49 @@ export default function AdminSidebar({
   // Real-time finance notification badge counts for Super Admin
   const [expenseBadgeCount, setExpenseBadgeCount] = React.useState<number>(0);
   const [paymentBadgeCount, setPaymentBadgeCount] = React.useState<number>(0);
+  // Real-time campaign notification badge count (for standard Admin & Super Admin)
+  const [campaignBadgeCount, setCampaignBadgeCount] = React.useState<number>(0);
 
   React.useEffect(() => {
-    if (currentRole !== AdminRole.SUPER_ADMIN) return;
-
     let isMounted = true;
 
-    const loadFinanceNotificationCounts = async () => {
+    const loadNotificationCounts = async () => {
       try {
-        const [summaryRes, duesRes] = await Promise.allSettled([
-          fetchExpenseSummary(),
-          fetchOutstandingDues(),
-        ]);
+        if (currentRole === AdminRole.SUPER_ADMIN) {
+          const [summaryRes, duesRes, campaignRes] = await Promise.allSettled([
+            fetchExpenseSummary(),
+            fetchOutstandingDues(),
+            fetchCampaigns({ status: 'PLANNED', limit: 100 }),
+          ]);
 
-        if (!isMounted) return;
+          if (!isMounted) return;
 
-        if (summaryRes.status === 'fulfilled' && summaryRes.value) {
-          setExpenseBadgeCount(summaryRes.value.submittedCount || 0);
-        }
+          if (summaryRes.status === 'fulfilled' && summaryRes.value) {
+            setExpenseBadgeCount(summaryRes.value.submittedCount || 0);
+          }
 
-        if (duesRes.status === 'fulfilled' && duesRes.value?.summary) {
-          setPaymentBadgeCount(duesRes.value.summary.pendingExpensesCount || 0);
+          if (duesRes.status === 'fulfilled' && duesRes.value?.summary) {
+            setPaymentBadgeCount(duesRes.value.summary.pendingExpensesCount || 0);
+          }
+
+          if (campaignRes.status === 'fulfilled' && campaignRes.value) {
+            setCampaignBadgeCount(campaignRes.value.total ?? campaignRes.value.campaigns.length);
+          }
+        } else {
+          // Standard Admin notification: check for newly scheduled / planned campaigns
+          const campaignRes = await fetchCampaigns({ status: 'PLANNED', limit: 100 });
+          if (!isMounted) return;
+          const count = campaignRes.total ?? campaignRes.campaigns.length;
+          setCampaignBadgeCount(count);
         }
       } catch {
         // Silently catch network or permission errors
       }
     };
 
-    loadFinanceNotificationCounts();
+    loadNotificationCounts();
 
-    const interval = setInterval(loadFinanceNotificationCounts, 30000);
+    const interval = setInterval(loadNotificationCounts, 15000);
     return () => {
       isMounted = false;
       clearInterval(interval);
@@ -253,7 +267,6 @@ export default function AdminSidebar({
           { name: 'Donor Management', href: '/admin/donors', icon: icons.donors },
           { name: 'Blood Acquisition', href: '/admin/blood-acquisition', icon: icons.acquisition },
           { name: 'Donations Collection', href: '/admin/donations', icon: icons.donations },
-          { name: 'Campaigns & Budgets', href: '/admin/campaigns', icon: icons.campaigns },
         ],
       },
       {
@@ -289,6 +302,14 @@ export default function AdminSidebar({
           { name: 'Fee Tariffs', href: '/super-admin/finance/billing/tariffs', icon: icons.settings },
           { name: 'Payroll & Salaries', href: '/super-admin/payroll', icon: icons.payroll },
           { name: 'Financial Control Center', href: '/super-admin/finance/control-center', icon: icons.analytics },
+          {
+            name: 'Campaigns & Budgets',
+            href: '/admin/campaigns',
+            icon: icons.campaigns,
+            badge: campaignBadgeCount > 0 ? String(campaignBadgeCount) : undefined,
+            isNotification: campaignBadgeCount > 0,
+          },
+
         ],
       },
       {
@@ -334,7 +355,13 @@ export default function AdminSidebar({
           { name: 'Donor Management', href: '/admin/donors', icon: icons.donors },
           { name: 'Blood Acquisition', href: '/admin/blood-acquisition', icon: icons.acquisition },
           { name: 'Donations Collection', href: '/admin/donations', icon: icons.donations },
-          { name: 'Campaigns', href: '/admin/campaigns', icon: icons.campaigns },
+          {
+            name: 'Campaigns',
+            href: '/admin/campaigns',
+            icon: icons.campaigns,
+            badge: campaignBadgeCount > 0 ? String(campaignBadgeCount) : undefined,
+            isNotification: campaignBadgeCount > 0,
+          },
         ],
       },
       {

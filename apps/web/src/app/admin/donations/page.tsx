@@ -20,6 +20,7 @@ import {
   fetchBloodUnitByDonationId,
 } from '@/lib/blood-unit-api';
 import { evaluateDonationInterval } from '@/lib/eligibility';
+import { fetchCampaigns, CampaignItem } from '@/lib/campaign-api';
 
 const BLOOD_GROUPS = [
   BloodGroup.A_POSITIVE,
@@ -119,6 +120,10 @@ export default function AdminDonationsPage() {
   );
   const [quantity, setQuantity] = useState<number>(1);
   const [notes, setNotes] = useState('');
+
+  // Campaign tagging state for donations
+  const [availableCampaigns, setAvailableCampaigns] = useState<CampaignItem[]>([]);
+  const [selectedCampaignId, setSelectedCampaignId] = useState<string>('');
 
   // Downstream Blood Unit state
   const [associatedBloodUnit, setAssociatedBloodUnit] =
@@ -281,6 +286,14 @@ export default function AdminDonationsPage() {
     loadActiveDonors();
   }, [loadActiveDonors]);
 
+  useEffect(() => {
+    fetchCampaigns({ limit: 50 })
+      .then((res) => {
+        setAvailableCampaigns(res.campaigns || []);
+      })
+      .catch(() => {});
+  }, []);
+
   // Preselect active donor and open Record Donation modal
   const handleSelectDonorForDonation = (donor: Donor) => {
     setSelectedDonorForDonation(donor);
@@ -360,17 +373,21 @@ export default function AdminDonationsPage() {
     setRecordErrorDetails(null);
 
     try {
+      const selCamp = availableCampaigns.find((c) => c._id === selectedCampaignId);
       const created = await createDonation({
         donorId: selectedDonorForDonation._id,
         donationDate: new Date(donationDate).toISOString(),
         donationType,
         quantity: Number(quantity) || 1,
+        campaignId: selectedCampaignId || undefined,
+        campaignCode: selCamp?.campaignCode || undefined,
         notes: notes.trim() || undefined,
       });
 
       // Reset modal state
       setShowRecordModal(false);
       setSelectedDonorForDonation(null);
+      setSelectedCampaignId('');
       setModalDonorSearch('');
       setSearchedDonors([]);
       setNotes('');
@@ -2123,6 +2140,43 @@ export default function AdminDonationsPage() {
                     }}
                   />
                 </div>
+              </div>
+
+              {/* Campaign Drive Linkage */}
+              <div style={{ marginBottom: '1rem' }}>
+                <label
+                  style={{
+                    display: 'block',
+                    fontSize: '0.875rem',
+                    fontWeight: 600,
+                    color: '#334155',
+                    marginBottom: '0.35rem',
+                  }}
+                >
+                  Campaign Drive (Optional)
+                </label>
+                <select
+                  value={selectedCampaignId}
+                  onChange={(e) => setSelectedCampaignId(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '0.45rem 0.65rem',
+                    border: '1px solid #cbd5e1',
+                    borderRadius: '6px',
+                    fontSize: '0.85rem',
+                    backgroundColor: '#fff',
+                  }}
+                >
+                  <option value="">— General Blood Bank Intake (No Campaign) —</option>
+                  {availableCampaigns.map((c) => (
+                    <option key={c._id} value={c._id}>
+                      {c.name} ({c.campaignCode}) • {c.venue}, {c.city}
+                    </option>
+                  ))}
+                </select>
+                <span style={{ fontSize: '0.75rem', color: '#64748b', display: 'block', marginTop: '0.2rem' }}>
+                  If collected during an active mobile blood drive, selecting the campaign links units and updates pipeline metrics automatically.
+                </span>
               </div>
 
               <div style={{ marginBottom: '1.25rem' }}>

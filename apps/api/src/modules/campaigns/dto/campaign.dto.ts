@@ -140,3 +140,77 @@ export class QueryCampaignsDto {
   @Type(() => Number)
   limit?: number;
 }
+
+export class RecordCampaignDonationDto {
+  @IsString()
+  @IsOptional()
+  donorId?: string;
+
+  @IsString()
+  @IsOptional()
+  donorFullName?: string;
+
+  @IsString()
+  @IsOptional()
+  donorBloodGroup?: string;
+
+  @IsString()
+  @IsOptional()
+  donorGender?: string;
+
+  @IsString()
+  @IsOptional()
+  donorPhone?: string;
+
+  @IsString()
+  @IsOptional()
+  donorEmail?: string;
+
+  @IsDateString()
+  @IsOptional()
+  donationDate?: string;
+
+  @IsString()
+  @IsOptional()
+  donationType?: string;
+
+  @IsNumber()
+  @IsOptional()
+  @Type(() => Number)
+  quantity?: number;
+
+  @IsNumber()
+  @IsOptional()
+  @Type(() => Number)
+  volume?: number;
+
+  @IsString()
+  @IsOptional()
+  componentType?: string;
+
+  @IsString()
+  @IsOptional()
+  storageLocation?: string;
+
+  @IsString()
+  @IsOptional()
+  notes?: string;
+
+  @IsString()
+  @IsOptional()
+  immediateScreeningDecision?: string; // 'PENDING' | 'APPROVED' | 'REJECTED'
+}
+
+export class UpdateCampaignUnitTestingDecisionDto {
+  @IsString()
+  @IsNotEmpty()
+  decision: 'APPROVED' | 'REJECTED';
+
+  @IsString()
+  @IsOptional()
+  remarks?: string;
+
+  @IsString()
+  @IsOptional()
+  performedBy?: string;
+}

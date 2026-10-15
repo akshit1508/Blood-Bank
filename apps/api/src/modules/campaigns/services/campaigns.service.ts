@@ -3,6 +3,7 @@ import {
   NotFoundException,
   BadRequestException,
   ConflictException,
+  Optional,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types, isValidObjectId } from 'mongoose';
@@ -13,11 +14,25 @@ import {
 } from '../schemas/campaign-budget-revision.schema';
 import { Expense, ExpenseDocument } from '../../expenses/schemas/expense.schema';
 import { Donation, DonationDocument } from '../../donations/schemas/donation.schema';
+import { BloodUnit, BloodUnitDocument } from '../../blood-units/schemas/blood-unit.schema';
+import { BloodTesting, BloodTestingDocument } from '../../testing/schemas/blood-testing.schema';
+import { Inventory, InventoryDocument } from '../../inventory/schemas/inventory.schema';
+import { Donor, DonorDocument } from '../../donors/schemas/donor.schema';
+import { BloodUnitStatus, BloodUnitComponent } from '../../blood-units/constants/blood-unit.constants';
+import { BloodGroup } from '../../donors/constants/donor.constants';
+import {
+  TestingDecision,
+  TestingStatus,
+  TestResultStatus,
+} from '../../testing/constants/testing.constants';
+import { InventoryStatus } from '../../inventory/constants/inventory.constants';
 import {
   CreateCampaignDto,
   UpdateCampaignDto,
   ReviseCampaignBudgetDto,
   QueryCampaignsDto,
+  RecordCampaignDonationDto,
+  UpdateCampaignUnitTestingDecisionDto,
 } from '../dto/campaign.dto';
 import {
   CampaignStatus,
@@ -43,6 +58,18 @@ export class CampaignsService {
     private readonly expenseModel: Model<ExpenseDocument>,
     @InjectModel(Donation.name)
     private readonly donationModel: Model<DonationDocument>,
+    @Optional()
+    @InjectModel(BloodUnit.name)
+    private readonly bloodUnitModel?: Model<BloodUnitDocument>,
+    @Optional()
+    @InjectModel(BloodTesting.name)
+    private readonly bloodTestingModel?: Model<BloodTestingDocument>,
+    @Optional()
+    @InjectModel(Inventory.name)
+    private readonly inventoryModel?: Model<InventoryDocument>,
+    @Optional()
+    @InjectModel(Donor.name)
+    private readonly donorModel?: Model<DonorDocument>,
   ) {}
 
   /**
@@ -385,9 +412,17 @@ export class CampaignsService {
     }
 
     // 1. Fetch linked expenses
+    const campaignObjId = isValidObjectId(campaign._id) ? new Types.ObjectId(campaign._id.toString()) : campaign._id;
     const linkedExpenses = await this.expenseModel
-      .find({ campaignId: campaign._id, isDeleted: false })
-      .sort({ expenseDate: -1 })
+      .find({
+        $or: [
+          { campaignId: campaignObjId },
+          { campaignId: campaign._id.toString() },
+          { campaignCode: campaign.campaignCode },
+        ],
+        isDeleted: false,
+      })
+      .sort({ expenseDate: -1, createdAt: -1 })
       .lean()
       .exec();
 
@@ -677,5 +712,551 @@ export class CampaignsService {
       .sort({ revisionNumber: -1 })
       .lean()
       .exec();
+  }
+
+  /**
+   * Generates a unique unit code.
+   */
+  private generateUnitCode(): string {
+    const now = new Date();
+    const datePart = now.toISOString().slice(0, 10).replace(/-/g, '');
+    const randomPart = Math.random().toString(36).substring(2, 6).toUpperCase();
+    return `UNIT-${datePart}-${randomPart}`;
+  }
+
+  /**
+   * Retrieves blood units collected during this campaign, testing pipeline outcomes,
+   * safe blood units remaining, and central inventory intake status.
+   */
+  async getCampaignBloodUnits(campaignId: string) {
+    if (!isValidObjectId(campaignId)) {
+      throw new BadRequestException('Invalid campaign ID format.');
+    }
+
+    const campaign = await this.campaignModel.findById(campaignId).exec();
+    if (!campaign) {
+      throw new NotFoundException(`Campaign with ID '${campaignId}' not found.`);
+    }
+
+    // 1. Find all donations linked to this campaign
+    const donations = await this.donationModel
+      .find({
+        $or: [
+          { campaignId: campaign._id },
+          { campaignCode: campaign.campaignCode },
+        ],
+      })
+      .populate('donorId', 'donorCode fullName bloodGroup gender phone')
+      .sort({ createdAt: -1 })
+      .lean()
+      .exec();
+
+    const donationIds = donations.map((d: any) => d._id);
+
+    // 2. Find blood units corresponding to these donations
+    let bloodUnits: any[] = [];
+    if (this.bloodUnitModel && donationIds.length > 0) {
+      bloodUnits = await this.bloodUnitModel
+        .find({ donationId: { $in: donationIds } })
+        .populate('donorId', 'donorCode fullName bloodGroup')
+        .sort({ createdAt: -1 })
+        .lean()
+        .exec();
+
+      // If any COMPLETED donations do not yet have a physical blood unit created, create them now
+      const existingDonationIds = new Set(bloodUnits.map((u: any) => u.donationId?.toString()));
+      for (const don of donations) {
+        if (
+          don.status === DonationStatus.COMPLETED &&
+          !existingDonationIds.has(don._id.toString())
+        ) {
+          try {
+            const unitCode = this.generateUnitCode();
+            const donorObj = don.donorId as any;
+            const bloodGroup = donorObj?.bloodGroup || 'O_POSITIVE';
+            const newUnit = new this.bloodUnitModel({
+              unitCode,
+              donationId: don._id,
+              donorId: donorObj?._id || donorObj,
+              bloodGroup,
+              componentType: 'WHOLE_BLOOD',
+              collectionDate: don.donationDate || new Date(),
+              status: BloodUnitStatus.TESTING,
+            });
+            const savedUnit = await newUnit.save();
+            bloodUnits.push(savedUnit.toObject ? savedUnit.toObject() : savedUnit);
+            existingDonationIds.add(don._id.toString());
+          } catch {
+            // Silently continue if concurrent creation occurred
+          }
+        }
+      }
+    }
+
+    const unitIds = bloodUnits.map((u: any) => u._id);
+
+    // 3. Find testing records for these blood units
+    let testings: any[] = [];
+    if (this.bloodTestingModel && unitIds.length > 0) {
+      testings = await this.bloodTestingModel
+        .find({ bloodUnitId: { $in: unitIds } })
+        .lean()
+        .exec();
+    }
+    const testingMap = new Map<string, any>();
+    for (const t of testings) {
+      testingMap.set(t.bloodUnitId.toString(), t);
+    }
+
+    // 4. Find inventory records for these blood units
+    let inventories: any[] = [];
+    if (this.inventoryModel && unitIds.length > 0) {
+      inventories = await this.inventoryModel
+        .find({ bloodUnitId: { $in: unitIds } })
+        .lean()
+        .exec();
+    }
+    const inventoryMap = new Map<string, any>();
+    for (const inv of inventories) {
+      inventoryMap.set(inv.bloodUnitId.toString(), inv);
+    }
+
+    let totalUnitsCollected = bloodUnits.length;
+    let testingPassed = 0; // Remaining safe units after testing
+    let testingFailed = 0; // Contaminated / rejected units discarded
+    let testingInProgress = 0; // Pending or in-testing
+    let inInventoryCount = 0; // Successfully added to inventory
+
+    const groupCounts: Record<string, number> = {};
+
+    const detailedUnits = bloodUnits.map((unit: any) => {
+      const testing = testingMap.get(unit._id.toString());
+      const inventory = inventoryMap.get(unit._id.toString());
+
+      const bg = unit.bloodGroup || 'UNKNOWN';
+      groupCounts[bg] = (groupCounts[bg] || 0) + 1;
+
+      let testStatus = 'PENDING';
+      let testDecision = 'PENDING';
+
+      if (testing) {
+        testStatus = testing.status;
+        testDecision = testing.decision;
+      } else if (unit.status === BloodUnitStatus.APPROVED) {
+        testStatus = 'COMPLETED';
+        testDecision = 'APPROVED';
+      } else if (unit.status === BloodUnitStatus.REJECTED) {
+        testStatus = 'COMPLETED';
+        testDecision = 'REJECTED';
+      }
+
+      if (testDecision === 'APPROVED') {
+        testingPassed++;
+      } else if (testDecision === 'REJECTED') {
+        testingFailed++;
+      } else {
+        testingInProgress++;
+      }
+
+      const isInInventory = !!inventory && inventory.status === InventoryStatus.AVAILABLE;
+      if (isInInventory) {
+        inInventoryCount++;
+      }
+
+      const donation = donations.find((d: any) => d._id.toString() === unit.donationId?.toString());
+
+      return {
+        _id: unit._id.toString(),
+        unitCode: unit.unitCode,
+        bloodGroup: unit.bloodGroup,
+        componentType: unit.componentType,
+        collectionDate: unit.collectionDate,
+        expiryDate: unit.expiryDate,
+        volume: unit.volume,
+        storageLocation: unit.storageLocation,
+        donationId: unit.donationId?.toString(),
+        donationCode: donation?.donationCode || 'N/A',
+        donorName: (unit.donorId as any)?.fullName || (donation?.donorId as any)?.fullName || 'Anonymous Donor',
+        donorCode: (unit.donorId as any)?.donorCode || (donation?.donorId as any)?.donorCode || 'N/A',
+        testingStatus: testStatus,
+        testingDecision: testDecision,
+        testingCode: testing?.testingCode,
+        isInInventory,
+        inventoryStatus: inventory ? inventory.status : null,
+        inventoryId: inventory ? inventory._id.toString() : null,
+      };
+    });
+
+    const safeYieldRate = totalUnitsCollected > 0
+      ? Math.round((testingPassed / totalUnitsCollected) * 1000) / 10
+      : 0;
+
+    return {
+      campaign: {
+        _id: campaign._id.toString(),
+        campaignCode: campaign.campaignCode,
+        name: campaign.name,
+        targetDonations: campaign.targetDonations,
+      },
+      summary: {
+        totalDonations: donations.length,
+        totalUnitsCollected,
+        testingPassed, // "how many got remaining"
+        testingFailed,
+        testingInProgress,
+        inInventoryCount, // "added to inventory with their unit code"
+        safeYieldRate,
+        bloodGroupBreakdown: groupCounts,
+      },
+      units: detailedUnits,
+    };
+  }
+
+  /**
+   * Intakes all laboratory-approved blood units from this campaign into Central Inventory with their unit codes.
+   */
+  async intakePassedUnitsToInventory(campaignId: string) {
+    if (!isValidObjectId(campaignId)) {
+      throw new BadRequestException('Invalid campaign ID format.');
+    }
+
+    const campaign = await this.campaignModel.findById(campaignId).exec();
+    if (!campaign) {
+      throw new NotFoundException(`Campaign with ID '${campaignId}' not found.`);
+    }
+
+    if (!this.bloodUnitModel || !this.inventoryModel) {
+      throw new BadRequestException('Inventory models are not available.');
+    }
+
+    // 1. Get donations
+    const donations = await this.donationModel
+      .find({
+        $or: [
+          { campaignId: campaign._id },
+          { campaignCode: campaign.campaignCode },
+        ],
+      })
+      .lean()
+      .exec();
+
+    const donationIds = donations.map((d: any) => d._id);
+
+    // 2. Get approved blood units
+    const approvedUnits = await this.bloodUnitModel
+      .find({
+        donationId: { $in: donationIds },
+        status: BloodUnitStatus.APPROVED,
+      })
+      .exec();
+
+    let newlyIntaken = 0;
+    const intakenCodes: string[] = [];
+
+    for (const unit of approvedUnits) {
+      const existing = await this.inventoryModel.findOne({ bloodUnitId: unit._id }).exec();
+      if (!existing) {
+        await this.inventoryModel.create({
+          bloodUnitId: unit._id,
+          status: InventoryStatus.AVAILABLE,
+        });
+        newlyIntaken++;
+        intakenCodes.push(unit.unitCode);
+      }
+    }
+
+    const totalInInventory = await this.inventoryModel.countDocuments({
+      bloodUnitId: { $in: approvedUnits.map((u: any) => u._id) },
+      status: InventoryStatus.AVAILABLE,
+    });
+
+    return {
+      campaignId: campaign._id.toString(),
+      campaignCode: campaign.campaignCode,
+      newlyIntakenCount: newlyIntaken,
+      intakenUnitCodes: intakenCodes,
+      totalApprovedUnits: approvedUnits.length,
+      totalInInventory,
+      message: newlyIntaken > 0
+        ? `Successfully enrolled ${newlyIntaken} approved blood unit(s) into Central Inventory with their unit codes.`
+        : 'All approved blood units from this campaign are already enrolled in Central Inventory.',
+    };
+  }
+
+  private normalizeBloodGroup(raw?: string): BloodGroup {
+    if (!raw) return BloodGroup.O_POSITIVE;
+    const trimmed = raw.trim().toUpperCase();
+    const map: Record<string, BloodGroup> = {
+      'A+': BloodGroup.A_POSITIVE,
+      'A_POSITIVE': BloodGroup.A_POSITIVE,
+      'A-': BloodGroup.A_NEGATIVE,
+      'A_NEGATIVE': BloodGroup.A_NEGATIVE,
+      'B+': BloodGroup.B_POSITIVE,
+      'B_POSITIVE': BloodGroup.B_POSITIVE,
+      'B-': BloodGroup.B_NEGATIVE,
+      'B_NEGATIVE': BloodGroup.B_NEGATIVE,
+      'AB+': BloodGroup.AB_POSITIVE,
+      'AB_POSITIVE': BloodGroup.AB_POSITIVE,
+      'AB-': BloodGroup.AB_NEGATIVE,
+      'AB_NEGATIVE': BloodGroup.AB_NEGATIVE,
+      'O+': BloodGroup.O_POSITIVE,
+      'O_POSITIVE': BloodGroup.O_POSITIVE,
+      'O-': BloodGroup.O_NEGATIVE,
+      'O_NEGATIVE': BloodGroup.O_NEGATIVE,
+    };
+    return map[trimmed] || (trimmed as BloodGroup);
+  }
+
+  private normalizeComponentType(raw?: string): BloodUnitComponent {
+    if (!raw) return BloodUnitComponent.WHOLE_BLOOD;
+    const trimmed = raw.trim().toUpperCase();
+    const map: Record<string, BloodUnitComponent> = {
+      'WHOLE_BLOOD': BloodUnitComponent.WHOLE_BLOOD,
+      'PRBC': BloodUnitComponent.PRBC,
+      'RED_BLOOD_CELLS': BloodUnitComponent.PRBC,
+      'PACKED_RED_BLOOD_CELLS': BloodUnitComponent.PRBC,
+      'FFP': BloodUnitComponent.FFP,
+      'PLASMA': BloodUnitComponent.FFP,
+      'FRESH_FROZEN_PLASMA': BloodUnitComponent.FFP,
+      'PLATELETS': BloodUnitComponent.PLATELETS,
+    };
+    return map[trimmed] || BloodUnitComponent.WHOLE_BLOOD;
+  }
+
+  /**
+   * Records a blood donation and physical blood unit directly for a campaign drive.
+   * Auto-issues unique unitCode, creates or links donor, and initializes lab testing pipeline.
+   */
+  async recordCampaignDonation(
+    campaignId: string,
+    dto: RecordCampaignDonationDto,
+  ) {
+    if (!isValidObjectId(campaignId)) {
+      throw new BadRequestException('Invalid campaign ID format.');
+    }
+
+    const campaign = await this.campaignModel.findById(campaignId).exec();
+    if (!campaign) {
+      throw new NotFoundException(`Campaign with ID '${campaignId}' not found.`);
+    }
+
+    // 1. Resolve Donor
+    let donor: any = null;
+    if (dto.donorId) {
+      if (!isValidObjectId(dto.donorId)) {
+        throw new BadRequestException('Invalid donor ID format.');
+      }
+      if (this.donorModel) {
+        donor = await this.donorModel.findById(dto.donorId).exec();
+      }
+      if (!donor) {
+        throw new NotFoundException(`Donor with ID '${dto.donorId}' not found.`);
+      }
+    } else if (dto.donorFullName && dto.donorBloodGroup && dto.donorPhone) {
+      if (!this.donorModel) {
+        throw new BadRequestException('Donor model is not available.');
+      }
+      const bloodGroup = this.normalizeBloodGroup(dto.donorBloodGroup);
+      // Check existing by phone
+      donor = await this.donorModel.findOne({ phone: dto.donorPhone.trim() }).exec();
+      if (!donor) {
+        const randCode = Math.random().toString(36).substring(2, 7).toUpperCase();
+        donor = new this.donorModel({
+          donorCode: `DNR-${randCode}`,
+          fullName: dto.donorFullName.trim(),
+          bloodGroup: bloodGroup,
+          gender: dto.donorGender || 'MALE',
+          phone: dto.donorPhone.trim(),
+          email: dto.donorEmail?.trim().toLowerCase() || undefined,
+          status: 'ACTIVE',
+        });
+        donor = await donor.save();
+      }
+    } else {
+      throw new BadRequestException(
+        'Please select an existing registered donor or enter campaign donor details (Name, Blood Group, Phone).',
+      );
+    }
+
+    // 2. Create Donation
+    const now = new Date();
+    const datePart = now.toISOString().slice(0, 10).replace(/-/g, '');
+    const randPart = Math.random().toString(36).substring(2, 6).toUpperCase();
+    const donationCode = `DONATION-${datePart}-${randPart}`;
+    const donationDate = dto.donationDate ? new Date(dto.donationDate) : now;
+
+    const donation = new this.donationModel({
+      donationCode,
+      donorId: donor._id,
+      campaignId: campaign._id,
+      campaignCode: campaign.campaignCode,
+      donationDate,
+      donationType: dto.donationType || 'WHOLE_BLOOD',
+      quantity: dto.quantity || 1,
+      status: DonationStatus.COMPLETED,
+      notes: dto.notes?.trim() || undefined,
+    });
+    const savedDonation = await donation.save();
+
+    // 3. Create Blood Unit with unique unitCode
+    if (!this.bloodUnitModel) {
+      throw new BadRequestException('BloodUnit model is not available.');
+    }
+
+    const unitCode = this.generateUnitCode();
+    let unitStatus = BloodUnitStatus.TESTING;
+    if (dto.immediateScreeningDecision === 'APPROVED') {
+      unitStatus = BloodUnitStatus.APPROVED;
+    } else if (dto.immediateScreeningDecision === 'REJECTED') {
+      unitStatus = BloodUnitStatus.REJECTED;
+    }
+
+    const resolvedBloodGroup = this.normalizeBloodGroup(donor.bloodGroup || dto.donorBloodGroup);
+    const resolvedComponentType = this.normalizeComponentType(dto.componentType);
+
+    const bloodUnit = new this.bloodUnitModel({
+      unitCode,
+      donationId: savedDonation._id,
+      donorId: donor._id,
+      bloodGroup: resolvedBloodGroup,
+      componentType: resolvedComponentType,
+      volume: dto.volume || 450,
+      collectionDate: donationDate,
+      expiryDate: new Date(donationDate.getTime() + 35 * 24 * 60 * 60 * 1000),
+      storageLocation: dto.storageLocation || 'MOBILE_CAMP_TRANSPORT_COOLER',
+      status: unitStatus,
+    });
+    const savedUnit = await bloodUnit.save();
+
+    // 4. Initialize Blood Testing Record
+    let savedTesting: any = null;
+    if (this.bloodTestingModel) {
+      const testCode = `TEST-${datePart}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+      const isApproved = dto.immediateScreeningDecision === 'APPROVED';
+      const isRejected = dto.immediateScreeningDecision === 'REJECTED';
+
+      const initialTestResults = [
+        { testCode: 'HIV', testName: 'HIV 1 & 2 Antibody / Antigen Screen' },
+        { testCode: 'HBV', testName: 'Hepatitis B Surface Antigen (HBsAg)' },
+        { testCode: 'HCV', testName: 'Hepatitis C Antibody Screen (Anti-HCV)' },
+        { testCode: 'SYPHILIS', testName: 'Syphilis Serology (VDRL / RPR / TPHA)' },
+        { testCode: 'MALARIA', testName: 'Malaria Antigen / Smear Screen' },
+      ].map((def) => ({
+        testCode: def.testCode,
+        testName: def.testName,
+        status: isApproved
+          ? TestResultStatus.PASS
+          : isRejected
+          ? TestResultStatus.FAIL
+          : TestResultStatus.PENDING,
+        testedAt: isApproved || isRejected ? now : undefined,
+      }));
+
+      const testingRecord = new this.bloodTestingModel({
+        testingCode: testCode,
+        bloodUnitId: savedUnit._id,
+        donationId: savedDonation._id,
+        donorId: donor._id,
+        testResults: initialTestResults,
+        status: isApproved || isRejected ? TestingStatus.COMPLETED : TestingStatus.IN_PROGRESS,
+        decision: isApproved
+          ? TestingDecision.APPROVED
+          : isRejected
+          ? TestingDecision.REJECTED
+          : TestingDecision.PENDING,
+        startedAt: now,
+        completedAt: isApproved || isRejected ? now : undefined,
+        remarks: isApproved
+          ? 'Passed on-site rapid screening at campaign'
+          : isRejected
+          ? 'Contaminated / failed screening at campaign'
+          : 'Enrolled in central laboratory testing pipeline',
+      });
+      savedTesting = await testingRecord.save();
+    }
+
+    return {
+      message: `Blood donation successfully logged for campaign ${campaign.campaignCode}. Unit ${unitCode} issued.`,
+      donation: savedDonation,
+      unit: savedUnit,
+      donor: {
+        _id: donor._id,
+        donorCode: donor.donorCode,
+        fullName: donor.fullName,
+        bloodGroup: donor.bloodGroup,
+        phone: donor.phone,
+      },
+      testing: savedTesting,
+    };
+  }
+
+  /**
+   * Updates testing screening decision for a blood unit in this campaign.
+   */
+  async updateCampaignUnitTestingDecision(
+    campaignId: string,
+    unitId: string,
+    dto: UpdateCampaignUnitTestingDecisionDto,
+  ) {
+    if (!isValidObjectId(campaignId) || !isValidObjectId(unitId)) {
+      throw new BadRequestException('Invalid campaign or unit ID format.');
+    }
+
+    if (!this.bloodUnitModel) {
+      throw new BadRequestException('BloodUnit model is not available.');
+    }
+
+    const bloodUnit = await this.bloodUnitModel.findById(unitId).exec();
+    if (!bloodUnit) {
+      throw new NotFoundException(`Blood unit with ID '${unitId}' not found.`);
+    }
+
+    const targetStatus = dto.decision === 'APPROVED' ? BloodUnitStatus.APPROVED : BloodUnitStatus.REJECTED;
+    bloodUnit.status = targetStatus;
+    await bloodUnit.save();
+
+    // Update testing record if present
+    let updatedTesting: any = null;
+    if (this.bloodTestingModel) {
+      let testing = await this.bloodTestingModel.findOne({ bloodUnitId: bloodUnit._id }).exec();
+      const now = new Date();
+      if (!testing) {
+        const testCode = `TEST-${now.toISOString().slice(0, 10).replace(/-/g, '')}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+        testing = new this.bloodTestingModel({
+          testingCode: testCode,
+          bloodUnitId: bloodUnit._id,
+          donationId: bloodUnit.donationId,
+          donorId: bloodUnit.donorId,
+          startedAt: now,
+        });
+      }
+
+      testing.status = TestingStatus.COMPLETED;
+      testing.decision = dto.decision === 'APPROVED' ? TestingDecision.APPROVED : TestingDecision.REJECTED;
+      testing.completedAt = now;
+      if (dto.performedBy) testing.performedBy = dto.performedBy;
+      if (dto.remarks) testing.remarks = dto.remarks;
+      if (dto.decision === 'REJECTED') {
+        testing.rejectionReason = dto.remarks || 'Contaminated / Positive screen (Discarded)';
+      }
+
+      if (testing.testResults && testing.testResults.length > 0) {
+        testing.testResults = testing.testResults.map((t: any) => ({
+          ...t,
+          status: dto.decision === 'APPROVED' ? TestResultStatus.PASS : TestResultStatus.FAIL,
+          testedAt: now,
+        }));
+      }
+
+      updatedTesting = await testing.save();
+    }
+
+    return {
+      message: dto.decision === 'APPROVED'
+        ? `Blood unit ${bloodUnit.unitCode} passed laboratory screening and is safe for inventory intake.`
+        : `Blood unit ${bloodUnit.unitCode} marked as failed / contaminated and discarded.`,
+      unit: bloodUnit,
+      testing: updatedTesting,
+    };
   }
 }

@@ -3,6 +3,7 @@ import {
   NotFoundException,
   BadRequestException,
   ConflictException,
+  Optional,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, isValidObjectId, Types } from 'mongoose';
@@ -14,6 +15,11 @@ import {
   BloodUnit,
   BloodUnitDocument,
 } from '../blood-units/schemas/blood-unit.schema';
+import {
+  Inventory,
+  InventoryDocument,
+} from '../inventory/schemas/inventory.schema';
+import { InventoryStatus } from '../inventory/constants/inventory.constants';
 import { CreateTestingDto } from './dto/create-testing.dto';
 import { UpdateTestResultDto } from './dto/update-test-result.dto';
 import { CompleteTestingDto } from './dto/complete-testing.dto';
@@ -42,6 +48,9 @@ export class TestingService {
     private readonly bloodTestingModel: Model<BloodTestingDocument>,
     @InjectModel(BloodUnit.name)
     private readonly bloodUnitModel: Model<BloodUnitDocument>,
+    @Optional()
+    @InjectModel(Inventory.name)
+    private readonly inventoryModel?: Model<InventoryDocument>,
   ) {}
 
   /**
@@ -364,6 +373,23 @@ export class TestingService {
     }
 
     const saved = await testing.save();
+
+    // If all tests pass and unit is APPROVED, automatically add to central Inventory with its unit code
+    if (finalDecision === TestingDecision.APPROVED && this.inventoryModel) {
+      try {
+        const existingInv = await this.inventoryModel
+          .findOne({ bloodUnitId: testing.bloodUnitId })
+          .exec();
+        if (!existingInv) {
+          await this.inventoryModel.create({
+            bloodUnitId: testing.bloodUnitId,
+            status: InventoryStatus.AVAILABLE,
+          });
+        }
+      } catch {
+        // Silently catch to avoid blocking testing completion
+      }
+    }
     return (await saved.populate([
       {
         path: 'bloodUnitId',

@@ -7,6 +7,10 @@ import {
 } from './schemas/campaign-budget-revision.schema';
 import { Expense, ExpenseSchema } from '../expenses/schemas/expense.schema';
 import { Donation, DonationSchema } from '../donations/schemas/donation.schema';
+import { BloodUnit, BloodUnitSchema } from '../blood-units/schemas/blood-unit.schema';
+import { BloodTesting, BloodTestingSchema } from '../testing/schemas/blood-testing.schema';
+import { Inventory, InventorySchema } from '../inventory/schemas/inventory.schema';
+import { Donor, DonorSchema } from '../donors/schemas/donor.schema';
 import { CampaignsService } from './services/campaigns.service';
 import { CampaignsController } from './controllers/campaigns.controller';
 
@@ -17,6 +21,10 @@ import { CampaignsController } from './controllers/campaigns.controller';
       { name: CampaignBudgetRevision.name, schema: CampaignBudgetRevisionSchema },
       { name: Expense.name, schema: ExpenseSchema },
       { name: Donation.name, schema: DonationSchema },
+      { name: BloodUnit.name, schema: BloodUnitSchema },
+      { name: BloodTesting.name, schema: BloodTestingSchema },
+      { name: Inventory.name, schema: InventorySchema },
+      { name: Donor.name, schema: DonorSchema },
     ]),
   ],
   controllers: [CampaignsController],

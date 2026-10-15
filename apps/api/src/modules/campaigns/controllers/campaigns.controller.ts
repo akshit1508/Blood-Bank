@@ -16,6 +16,8 @@ import {
   ReviseCampaignBudgetDto,
   LinkExpenseDto,
   QueryCampaignsDto,
+  RecordCampaignDonationDto,
+  UpdateCampaignUnitTestingDecisionDto,
 } from '../dto/campaign.dto';
 import { Roles } from '../../auth/decorators/roles.decorator';
 import { CurrentAdmin } from '../../auth/decorators/current-admin.decorator';
@@ -29,7 +31,7 @@ export class CampaignsController {
    * Schedules a new blood donation campaign.
    * POST /api/campaigns
    */
-  @Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN)
+  @Roles(AdminRole.SUPER_ADMIN)
   @Post()
   @HttpCode(HttpStatus.CREATED)
   async create(
@@ -144,7 +146,7 @@ export class CampaignsController {
    * Restricted strictly to SUPER_ADMIN authority.
    * GET /api/campaigns/:id/financials
    */
-  @Roles(AdminRole.SUPER_ADMIN)
+  @Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN)
   @Get(':id/financials')
   async getFinancials(@Param('id') id: string) {
     const data = await this.campaignsService.getCampaignFinancials(id);
@@ -206,7 +208,82 @@ export class CampaignsController {
     );
     return {
       statusCode: HttpStatus.OK,
-      message: 'Expense unlinked from campaign',
+      message: 'Expense successfully unlinked from campaign',
+      data,
+    };
+  }
+
+  /**
+   * Retrieves blood units collected during this campaign, testing pipeline outcomes,
+   * safe blood units remaining, and central inventory intake status.
+   * GET /api/campaigns/:id/blood-units
+   */
+  @Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN)
+  @Get(':id/blood-units')
+  async getCampaignBloodUnits(@Param('id') id: string) {
+    const data = await this.campaignsService.getCampaignBloodUnits(id);
+    return {
+      statusCode: HttpStatus.OK,
+      message: 'Campaign blood units, testing pipeline, and inventory status retrieved successfully',
+      data,
+    };
+  }
+
+  /**
+   * Intakes all laboratory-approved blood units from this campaign into Central Inventory with their unit codes.
+   * POST /api/campaigns/:id/intake-inventory
+   */
+  @Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN)
+  @Post(':id/intake-inventory')
+  @HttpCode(HttpStatus.OK)
+  async intakeCampaignInventory(@Param('id') id: string) {
+    const data = await this.campaignsService.intakePassedUnitsToInventory(id);
+    return {
+      statusCode: HttpStatus.OK,
+      message: data.message,
+      data,
+    };
+  }
+
+  /**
+   * Records a blood donation and issues a blood unit directly for this campaign drive.
+   * POST /api/campaigns/:id/donations
+   */
+  @Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN)
+  @Post(':id/donations')
+  @HttpCode(HttpStatus.CREATED)
+  async recordDonation(
+    @Param('id') id: string,
+    @Body() dto: RecordCampaignDonationDto,
+  ) {
+    const data = await this.campaignsService.recordCampaignDonation(id, dto);
+    return {
+      statusCode: HttpStatus.CREATED,
+      message: data.message,
+      data,
+    };
+  }
+
+  /**
+   * Updates testing screening decision for a blood unit in this campaign.
+   * POST /api/campaigns/:id/units/:unitId/test-decision
+   */
+  @Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN)
+  @Post(':id/units/:unitId/test-decision')
+  @HttpCode(HttpStatus.OK)
+  async updateUnitTestingDecision(
+    @Param('id') id: string,
+    @Param('unitId') unitId: string,
+    @Body() dto: UpdateCampaignUnitTestingDecisionDto,
+    @CurrentAdmin() admin: any,
+  ) {
+    if (!dto.performedBy) {
+      dto.performedBy = admin.fullName || admin.email || 'Lab / Camp Staff';
+    }
+    const data = await this.campaignsService.updateCampaignUnitTestingDecision(id, unitId, dto);
+    return {
+      statusCode: HttpStatus.OK,
+      message: data.message,
       data,
     };
   }

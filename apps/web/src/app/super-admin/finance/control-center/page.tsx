@@ -15,6 +15,16 @@ import {
   downloadFinancialCsv,
   formatCurrencyINR,
 } from '@/lib/financial-control-center-api';
+import {
+  ExpenseItem,
+  ExpenseStatus,
+  fetchExpenses,
+  approveExpense,
+  rejectExpense,
+  openExpenseReceiptInNewTab,
+  downloadExpenseReceipt,
+  EXPENSE_CATEGORY_LABELS,
+} from '@/lib/expense-api';
 
 export default function FinancialControlCenterPage() {
   // Period state
@@ -27,6 +37,13 @@ export default function FinancialControlCenterPage() {
   const [kpiData, setKpiData] = useState<FinancialKpiData | null>(null);
   const [trendsData, setTrendsData] = useState<FinancialTrendsResponse | null>(null);
   const [ledgerData, setLedgerData] = useState<FinancialLedgerResponse | null>(null);
+
+  // Unapproved bills / expenditures state
+  const [pendingExpenses, setPendingExpenses] = useState<ExpenseItem[]>([]);
+  const [loadingPending, setLoadingPending] = useState<boolean>(true);
+  const [actionExpenseId, setActionExpenseId] = useState<string | null>(null);
+  const [approvalFeedbackMessage, setApprovalFeedbackMessage] = useState<string | null>(null);
+  const [approvalFeedbackType, setApprovalFeedbackType] = useState<'success' | 'error' | null>(null);
 
   // Loading states
   const [loadingKpi, setLoadingKpi] = useState<boolean>(true);
@@ -91,6 +108,19 @@ export default function FinancialControlCenterPage() {
     }
   }, [period, appliedCustom, typeFilter, directionFilter, searchQuery, currentPage]);
 
+  // Load unapproved bills queue (status: SUBMITTED)
+  const loadPendingExpenses = useCallback(async () => {
+    try {
+      setLoadingPending(true);
+      const res = await fetchExpenses({ status: ExpenseStatus.SUBMITTED, limit: 50 });
+      setPendingExpenses(res.items || []);
+    } catch {
+      // Ignore or set empty
+    } finally {
+      setLoadingPending(false);
+    }
+  }, []);
+
   useEffect(() => {
     loadKpisAndTrends();
   }, [loadKpisAndTrends]);
@@ -98,6 +128,65 @@ export default function FinancialControlCenterPage() {
   useEffect(() => {
     loadLedger();
   }, [loadLedger]);
+
+  useEffect(() => {
+    loadPendingExpenses();
+  }, [loadPendingExpenses]);
+
+  const handleApproveBill = async (expense: ExpenseItem) => {
+    try {
+      setActionExpenseId(expense._id);
+      setApprovalFeedbackMessage(null);
+      await approveExpense(expense._id, 'Approved via Super Admin Financial Control Center');
+
+      setApprovalFeedbackType('success');
+      setApprovalFeedbackMessage(
+        `✓ Successfully approved bill #${expense.invoiceNumber || expense.expenseCode} for ${formatCurrencyINR(expense.amount)}! Total recognized expenditure and payables have been updated on the dashboard.`
+      );
+
+      // Instantly reload pending list, KPIs and Ledger so the dashboard money increases/decreases immediately!
+      await Promise.all([
+        loadPendingExpenses(),
+        loadKpisAndTrends(),
+        loadLedger(),
+      ]);
+    } catch (err: any) {
+      setApprovalFeedbackType('error');
+      setApprovalFeedbackMessage(`Approval failed: ${err.message}`);
+    } finally {
+      setActionExpenseId(null);
+    }
+  };
+
+  const handleRejectBill = async (expense: ExpenseItem) => {
+    const reason = prompt(
+      `Enter rejection reason for bill #${expense.invoiceNumber || expense.expenseCode}:`,
+      'Disallowed expenditure / invalid invoice attachment'
+    );
+    if (!reason || !reason.trim()) return;
+
+    try {
+      setActionExpenseId(expense._id);
+      setApprovalFeedbackMessage(null);
+      await rejectExpense(expense._id, reason.trim());
+
+      setApprovalFeedbackType('success');
+      setApprovalFeedbackMessage(
+        `Bill #${expense.invoiceNumber || expense.expenseCode} rejected and returned to submitter.`
+      );
+
+      await Promise.all([
+        loadPendingExpenses(),
+        loadKpisAndTrends(),
+        loadLedger(),
+      ]);
+    } catch (err: any) {
+      setApprovalFeedbackType('error');
+      setApprovalFeedbackMessage(`Rejection failed: ${err.message}`);
+    } finally {
+      setActionExpenseId(null);
+    }
+  };
 
   const handleApplyCustomDates = () => {
     if (!customStart || !customEnd) return;
@@ -814,6 +903,385 @@ export default function FinancialControlCenterPage() {
           </div>
         </div>
       )}
+
+      {/* 🛡️ UNAPPROVED VENDOR BILLS & EXPENDITURES QUEUE */}
+      <div
+        style={{
+          backgroundColor: '#0f172a',
+          border: pendingExpenses.length > 0 ? '1px solid #d97706' : '1px solid #1e293b',
+          borderRadius: '14px',
+          padding: '1.5rem',
+          marginBottom: '2rem',
+          boxShadow: '0 4px 16px rgba(0, 0, 0, 0.25)',
+        }}
+      >
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: '1rem',
+            borderBottom: '1px solid #1e293b',
+            paddingBottom: '1.25rem',
+            marginBottom: '1.25rem',
+          }}
+        >
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+              <span style={{ fontSize: '1.35rem' }}>🛡️</span>
+              <h2
+                style={{
+                  margin: 0,
+                  fontSize: '1.2rem',
+                  fontWeight: 800,
+                  textTransform: 'uppercase',
+                  color: '#ffffff',
+                  letterSpacing: '0.02em',
+                }}
+              >
+                Unapproved Bills & Expenditure Approvals Queue
+              </h2>
+              {pendingExpenses.length > 0 ? (
+                <span
+                  style={{
+                    backgroundColor: '#78350f',
+                    color: '#fef3c7',
+                    border: '1px solid #d97706',
+                    padding: '0.2rem 0.65rem',
+                    borderRadius: '9999px',
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                  }}
+                >
+                  ⚠️ {pendingExpenses.length} Bill{pendingExpenses.length > 1 ? 's' : ''} Awaiting Approval
+                </span>
+              ) : (
+                <span
+                  style={{
+                    backgroundColor: '#064e3b',
+                    color: '#a7f3d0',
+                    border: '1px solid #059669',
+                    padding: '0.2rem 0.65rem',
+                    borderRadius: '9999px',
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                  }}
+                >
+                  ✓ Zero Unapproved Backlog
+                </span>
+              )}
+            </div>
+            <p style={{ margin: '0.35rem 0 0 0', color: '#94a3b8', fontSize: '0.825rem' }}>
+              Admin officers upload bills, merchant invoices, and field expenses here. Once approved by Super Admin, the status switches to APPROVED, and the dashboard automatically updates actual expenditures and payables.
+            </p>
+          </div>
+
+          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+            <button
+              onClick={loadPendingExpenses}
+              disabled={loadingPending}
+              style={{
+                backgroundColor: '#1e293b',
+                color: '#94a3b8',
+                border: '1px solid #334155',
+                borderRadius: '8px',
+                padding: '0.45rem 0.85rem',
+                fontSize: '0.8rem',
+                fontWeight: 600,
+                cursor: loadingPending ? 'not-allowed' : 'pointer',
+              }}
+            >
+              🔄 Refresh Queue
+            </button>
+            <Link
+              href="/super-admin/finance/approvals"
+              style={{
+                color: '#38bdf8',
+                fontSize: '0.825rem',
+                fontWeight: 700,
+                textDecoration: 'none',
+              }}
+            >
+              Approvals Center &rarr;
+            </Link>
+          </div>
+        </div>
+
+        {/* Feedback message banner */}
+        {approvalFeedbackMessage && (
+          <div
+            style={{
+              backgroundColor: approvalFeedbackType === 'success' ? '#064e3b' : '#450a0a',
+              border: approvalFeedbackType === 'success' ? '1px solid #059669' : '1px solid #dc2626',
+              color: approvalFeedbackType === 'success' ? '#a7f3d0' : '#fecaca',
+              borderRadius: '8px',
+              padding: '0.85rem 1.25rem',
+              marginBottom: '1.25rem',
+              fontSize: '0.85rem',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+            }}
+          >
+            <span>{approvalFeedbackMessage}</span>
+            <button
+              onClick={() => setApprovalFeedbackMessage(null)}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: 'inherit',
+                cursor: 'pointer',
+                fontWeight: 700,
+                fontSize: '1rem',
+              }}
+            >
+              ✕
+            </button>
+          </div>
+        )}
+
+        {/* Table of Unapproved Bills */}
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.825rem' }}>
+            <thead>
+              <tr
+                style={{
+                  backgroundColor: '#1e293b',
+                  borderBottom: '1px solid #334155',
+                  color: '#94a3b8',
+                  fontSize: '0.75rem',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em',
+                }}
+              >
+                <th style={{ padding: '0.75rem 0.85rem' }}>Invoice & Voucher #</th>
+                <th style={{ padding: '0.75rem 0.85rem' }}>Title & Description</th>
+                <th style={{ padding: '0.75rem 0.85rem' }}>Category & Cost Center</th>
+                <th style={{ padding: '0.75rem 0.85rem' }}>Source / Campaign</th>
+                <th style={{ padding: '0.75rem 0.85rem' }}>Vendor / Merchant</th>
+                <th style={{ padding: '0.75rem 0.85rem' }}>Incurred Date</th>
+                <th style={{ padding: '0.75rem 0.85rem' }}>Amount (₹)</th>
+                <th style={{ padding: '0.75rem 0.85rem' }}>Status</th>
+                <th style={{ padding: '0.75rem 0.85rem', textAlign: 'right' }}>Super Admin Decision</th>
+              </tr>
+            </thead>
+            <tbody>
+              {pendingExpenses.length === 0 ? (
+                <tr>
+                  <td colSpan={9} style={{ textAlign: 'center', padding: '2.5rem', color: '#64748b' }}>
+                    <div style={{ fontSize: '1.75rem', marginBottom: '0.5rem' }}>✓</div>
+                    <strong style={{ color: '#94a3b8', display: 'block', fontSize: '0.95rem' }}>
+                      No bills or expenditures awaiting approval
+                    </strong>
+                    <span style={{ fontSize: '0.8rem' }}>
+                      All operator bills, invoices, and field claims have been reviewed and reconciled.
+                    </span>
+                  </td>
+                </tr>
+              ) : (
+                pendingExpenses.map((exp) => (
+                  <tr
+                    key={exp._id}
+                    style={{
+                      borderBottom: '1px solid #1e293b',
+                      backgroundColor: '#17120a',
+                    }}
+                  >
+                    {/* Invoice & Voucher # */}
+                    <td style={{ padding: '0.75rem 0.85rem' }}>
+                      <div
+                        style={{
+                          fontFamily: 'monospace',
+                          color: '#f59e0b',
+                          fontWeight: 700,
+                          fontSize: '0.85rem',
+                        }}
+                      >
+                        {exp.invoiceNumber ? `#${exp.invoiceNumber}` : 'NO-INVOICE'}
+                      </div>
+                      <div style={{ color: '#64748b', fontSize: '0.725rem', fontFamily: 'monospace' }}>
+                        {exp.expenseCode}
+                      </div>
+                      {exp.receipt?.fileId && (
+                        <div style={{ marginTop: '0.35rem', display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
+                          <button
+                            onClick={() => openExpenseReceiptInNewTab(exp._id)}
+                            style={{
+                              backgroundColor: '#0369a130',
+                              border: '1px solid #0284c7',
+                              color: '#38bdf8',
+                              borderRadius: '4px',
+                              padding: '0.15rem 0.45rem',
+                              fontSize: '0.7rem',
+                              fontWeight: 600,
+                              cursor: 'pointer',
+                            }}
+                          >
+                            📄 View Bill
+                          </button>
+                          <button
+                            onClick={() => downloadExpenseReceipt(exp._id, exp.receipt?.originalName)}
+                            style={{
+                              backgroundColor: '#1e293b',
+                              border: '1px solid #475569',
+                              color: '#cbd5e1',
+                              borderRadius: '4px',
+                              padding: '0.15rem 0.45rem',
+                              fontSize: '0.7rem',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            💾 Download
+                          </button>
+                        </div>
+                      )}
+                    </td>
+
+                    {/* Title & Description */}
+                    <td style={{ padding: '0.75rem 0.85rem' }}>
+                      <div style={{ color: '#f8fafc', fontWeight: 600 }}>{exp.title}</div>
+                      {exp.description && (
+                        <div style={{ color: '#94a3b8', fontSize: '0.75rem', marginTop: '0.2rem', maxWidth: '240px' }}>
+                          {exp.description}
+                        </div>
+                      )}
+                    </td>
+
+                    {/* Category & Cost Center */}
+                    <td style={{ padding: '0.75rem 0.85rem' }}>
+                      <div style={{ color: '#e2e8f0', fontWeight: 500 }}>
+                        {(EXPENSE_CATEGORY_LABELS as Record<string, string>)[exp.category] || exp.category}
+                      </div>
+                      <div style={{ color: '#64748b', fontSize: '0.725rem' }}>
+                        {exp.costCenter?.replace(/_/g, ' ') || 'General Ops'}
+                      </div>
+                    </td>
+
+                    {/* Source / Campaign */}
+                    <td style={{ padding: '0.75rem 0.85rem' }}>
+                      {exp.campaignId ? (
+                        <span
+                          style={{
+                            backgroundColor: '#88133730',
+                            border: '1px solid #be123c',
+                            color: '#fda4af',
+                            borderRadius: '4px',
+                            padding: '0.2rem 0.5rem',
+                            fontSize: '0.725rem',
+                            fontWeight: 700,
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.25rem',
+                          }}
+                        >
+                          <span>🎪</span> Campaign Drive
+                        </span>
+                      ) : (
+                        <span
+                          style={{
+                            backgroundColor: '#1e293b',
+                            color: '#94a3b8',
+                            borderRadius: '4px',
+                            padding: '0.2rem 0.5rem',
+                            fontSize: '0.725rem',
+                          }}
+                        >
+                          🏥 Central Ops
+                        </span>
+                      )}
+                    </td>
+
+                    {/* Vendor / Merchant */}
+                    <td style={{ padding: '0.75rem 0.85rem', color: '#cbd5e1' }}>
+                      {exp.vendorName || 'N/A'}
+                    </td>
+
+                    {/* Incurred Date */}
+                    <td style={{ padding: '0.75rem 0.85rem', color: '#94a3b8' }}>
+                      {new Date(exp.expenseDate).toLocaleDateString('en-IN', {
+                        day: 'numeric',
+                        month: 'short',
+                        year: 'numeric',
+                      })}
+                    </td>
+
+                    {/* Amount */}
+                    <td style={{ padding: '0.75rem 0.85rem' }}>
+                      <span style={{ color: '#f59e0b', fontWeight: 800, fontSize: '0.925rem' }}>
+                        {formatCurrencyINR(exp.amount)}
+                      </span>
+                    </td>
+
+                    {/* Status: NOT APPROVED */}
+                    <td style={{ padding: '0.75rem 0.85rem' }}>
+                      <span
+                        style={{
+                          backgroundColor: '#451a03',
+                          border: '1px solid #d97706',
+                          color: '#fef3c7',
+                          padding: '0.25rem 0.55rem',
+                          borderRadius: '4px',
+                          fontSize: '0.75rem',
+                          fontWeight: 700,
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.35rem',
+                        }}
+                      >
+                        <span>⏳</span> NOT APPROVED
+                      </span>
+                    </td>
+
+                    {/* Actions */}
+                    <td style={{ padding: '0.75rem 0.85rem', textAlign: 'right' }}>
+                      <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                        <button
+                          disabled={actionExpenseId === exp._id}
+                          onClick={() => handleApproveBill(exp)}
+                          style={{
+                            backgroundColor: '#059669',
+                            color: '#ffffff',
+                            border: 'none',
+                            borderRadius: '6px',
+                            padding: '0.4rem 0.85rem',
+                            fontSize: '0.8rem',
+                            fontWeight: 700,
+                            cursor: actionExpenseId === exp._id ? 'not-allowed' : 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.3rem',
+                            boxShadow: '0 2px 8px rgba(5, 150, 105, 0.3)',
+                          }}
+                        >
+                          <span>✓</span> {actionExpenseId === exp._id ? 'Approving...' : 'Approve Bill'}
+                        </button>
+
+                        <button
+                          disabled={actionExpenseId === exp._id}
+                          onClick={() => handleRejectBill(exp)}
+                          style={{
+                            backgroundColor: 'transparent',
+                            color: '#f87171',
+                            border: '1px solid #7f1d1d',
+                            borderRadius: '6px',
+                            padding: '0.4rem 0.75rem',
+                            fontSize: '0.8rem',
+                            fontWeight: 600,
+                            cursor: actionExpenseId === exp._id ? 'not-allowed' : 'pointer',
+                          }}
+                        >
+                          ✕ Reject
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
 
       {/* Central Financial Transaction Ledger */}
       <div

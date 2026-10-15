@@ -131,6 +131,18 @@ export class ExpensesService implements OnModuleInit {
       linkedVendorId = vendor._id;
     }
 
+    let linkedCampaignId: Types.ObjectId | undefined = undefined;
+    let linkedCampaignCode: string | undefined = undefined;
+    if (dto.campaignId && isValidObjectId(dto.campaignId)) {
+      linkedCampaignId = new Types.ObjectId(dto.campaignId);
+      try {
+        const camp = await this.expenseModel.db.model('Campaign').findById(linkedCampaignId).lean().exec();
+        if (camp) {
+          linkedCampaignCode = (camp as any).campaignCode;
+        }
+      } catch {}
+    }
+
     const expense = await this.expenseModel.create({
       expenseCode,
       title: dto.title.trim(),
@@ -149,7 +161,8 @@ export class ExpensesService implements OnModuleInit {
       gstinNumber: dto.gstinNumber ? dto.gstinNumber.trim().toUpperCase() : undefined,
       taxAmount: dto.taxAmount ? Math.round(dto.taxAmount * 100) / 100 : 0,
       description: dto.description ? dto.description.trim() : undefined,
-      campaignId: dto.campaignId && isValidObjectId(dto.campaignId) ? new Types.ObjectId(dto.campaignId) : undefined,
+      campaignId: linkedCampaignId,
+      campaignCode: linkedCampaignCode,
       status: ExpenseStatus.DRAFT,
       creatorId: new Types.ObjectId(currentAdmin.id || currentAdmin._id),
       creatorEmail: currentAdmin.email,
@@ -585,7 +598,7 @@ export class ExpensesService implements OnModuleInit {
       });
     }
 
-    if ((!expense.receipt || !expense.receipt.fileId) && !expense.acquisitionId) {
+    if ((!expense.receipt || !expense.receipt.fileId) && !expense.acquisitionId && !expense.campaignId) {
       throw new BadRequestException({
         message: 'A digital bill or receipt attachment is mandatory before submitting for approval.',
         code: 'RECEIPT_REQUIRED',

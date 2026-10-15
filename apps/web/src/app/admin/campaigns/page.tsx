@@ -25,6 +25,7 @@ export default function AdminCampaignsPage() {
   const [campaigns, setCampaigns] = useState<CampaignItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   // Filters
   const [statusFilter, setStatusFilter] = useState<string>('');
@@ -213,6 +214,8 @@ export default function AdminCampaignsPage() {
       });
 
       setIsAddExpenseModalOpen(false);
+      const campName = selectedCampaignForExpense.name;
+      const invNum = expenseFormData.invoiceNumber.trim();
       setSelectedCampaignForExpense(null);
       setExpenseFormData({
         title: '',
@@ -226,6 +229,9 @@ export default function AdminCampaignsPage() {
         gstinNumber: '',
         receiptFile: null,
       });
+      setSuccessMessage(
+        `Expenditure of ₹${numAmount.toLocaleString('en-IN')} for "${campName}" (Invoice #${invNum}) recorded successfully and queued for Super Admin approval.`
+      );
       await loadData();
     } catch (err: any) {
       setAddExpenseError(err.message || 'Failed to record campaign expenditure.');
@@ -296,29 +302,81 @@ export default function AdminCampaignsPage() {
           </p>
         </div>
 
-        <button
-          onClick={() => setIsModalOpen(true)}
-          style={{
-            backgroundColor: '#dc2626',
-            color: '#ffffff',
-            border: 'none',
-            borderRadius: '8px',
-            padding: '0.65rem 1.25rem',
-            fontWeight: 600,
-            fontSize: '0.9rem',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-            boxShadow: '0 4px 12px rgba(220, 38, 38, 0.3)',
-            transition: 'all 0.2s',
-          }}
-          onMouseOver={(e) => ((e.currentTarget as HTMLButtonElement).style.backgroundColor = '#b91c1c')}
-          onMouseOut={(e) => ((e.currentTarget as HTMLButtonElement).style.backgroundColor = '#dc2626')}
-        >
-          <span>+</span> Schedule Campaign
-        </button>
+        {isSuperAdmin ? (
+          <button
+            onClick={() => setIsModalOpen(true)}
+            style={{
+              backgroundColor: '#dc2626',
+              color: '#ffffff',
+              border: 'none',
+              borderRadius: '8px',
+              padding: '0.65rem 1.25rem',
+              fontWeight: 600,
+              fontSize: '0.9rem',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              boxShadow: '0 4px 12px rgba(220, 38, 38, 0.3)',
+              transition: 'all 0.2s',
+            }}
+            onMouseOver={(e) => ((e.currentTarget as HTMLButtonElement).style.backgroundColor = '#b91c1c')}
+            onMouseOut={(e) => ((e.currentTarget as HTMLButtonElement).style.backgroundColor = '#dc2626')}
+          >
+            <span>+</span> Schedule Campaign & Add Budget
+          </button>
+        ) : (
+          <div
+            style={{
+              backgroundColor: '#0f172a',
+              border: '1px solid #334155',
+              borderRadius: '8px',
+              padding: '0.65rem 1rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.75rem',
+              maxWidth: '440px',
+            }}
+          >
+            <span style={{ fontSize: '1.25rem' }}>🛡️</span>
+            <div>
+              <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#f8fafc' }}>
+                Admin Operations Portal
+              </div>
+              <div style={{ fontSize: '0.75rem', color: '#94a3b8', lineHeight: 1.3 }}>
+                Campaigns scheduled by Super Admin. Click <strong>+ Add Expense</strong> on any campaign below to log field bills.
+              </div>
+            </div>
+          </div>
+        )}
       </div>
+
+      {/* Success Notification Alert */}
+      {successMessage && (
+        <div
+          style={{
+            backgroundColor: '#064e3b',
+            border: '1px solid #059669',
+            color: '#a7f3d0',
+            borderRadius: '8px',
+            padding: '0.85rem 1.25rem',
+            marginBottom: '1.5rem',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            fontSize: '0.9rem',
+            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.2)',
+          }}
+        >
+          <span>✅ {successMessage}</span>
+          <button
+            onClick={() => setSuccessMessage(null)}
+            style={{ background: 'none', border: 'none', color: '#a7f3d0', cursor: 'pointer', fontSize: '1.1rem', fontWeight: 700 }}
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {/* KPI Ribbon */}
       <div
@@ -513,6 +571,154 @@ export default function AdminCampaignsPage() {
           }}
         >
           <strong>Error:</strong> {error}
+        </div>
+      )}
+
+      {/* Newly Scheduled Campaigns Banner & Cards for Admin Field Operations */}
+      {campaigns.filter((c) => c.status === CampaignStatus.PLANNED).length > 0 && (
+        <div
+          style={{
+            backgroundColor: '#0f172a',
+            border: '1px solid #d97706',
+            borderRadius: '10px',
+            padding: '1.25rem',
+            marginBottom: '1.75rem',
+            boxShadow: '0 4px 12px rgba(217, 119, 6, 0.15)',
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+              <span style={{ fontSize: '1.25rem' }}>📢</span>
+              <div>
+                <h2 style={{ fontSize: '1.05rem', fontWeight: 700, color: '#fbbf24', margin: 0 }}>
+                  Newly Scheduled Campaigns Awaiting Field Execution & Expense Logging ({campaigns.filter((c) => c.status === CampaignStatus.PLANNED).length})
+                </h2>
+                <span style={{ fontSize: '0.775rem', color: '#94a3b8' }}>
+                  Campaigns scheduled and budgeted by Super Admin. Field officers can record all operational bills & invoices below.
+                </span>
+              </div>
+            </div>
+            <span
+              style={{
+                fontSize: '0.7rem',
+                fontWeight: 700,
+                padding: '0.2rem 0.6rem',
+                borderRadius: '9999px',
+                backgroundColor: '#78350f',
+                color: '#fef3c7',
+                border: '1px solid #b45309',
+              }}
+            >
+              Action Required: Record Incurred Expenses
+            </span>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1rem' }}>
+            {campaigns
+              .filter((c) => c.status === CampaignStatus.PLANNED)
+              .map((camp) => (
+                <div
+                  key={camp._id}
+                  style={{
+                    backgroundColor: '#1e293b',
+                    border: '1px solid #334155',
+                    borderRadius: '8px',
+                    padding: '1.1rem',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                    gap: '0.85rem',
+                  }}
+                >
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.4rem' }}>
+                      <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#38bdf8', fontFamily: 'monospace' }}>
+                        {camp.campaignCode}
+                      </span>
+                      <span
+                        style={{
+                          fontSize: '0.675rem',
+                          fontWeight: 700,
+                          padding: '0.15rem 0.5rem',
+                          borderRadius: '9999px',
+                          backgroundColor: '#78350f',
+                          color: '#fef3c7',
+                          border: '1px solid #b45309',
+                        }}
+                      >
+                        Planned & Scheduled
+                      </span>
+                    </div>
+                    <h3 style={{ fontSize: '1rem', fontWeight: 700, color: '#f8fafc', margin: '0 0 0.4rem 0' }}>
+                      {camp.name}
+                    </h3>
+                    <div style={{ fontSize: '0.8rem', color: '#94a3b8', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                      <div>📍 <strong>Venue:</strong> {camp.venue}, {camp.city}</div>
+                      <div>📅 <strong>Dates:</strong> {new Date(camp.startDate).toLocaleDateString()} &ndash; {new Date(camp.endDate).toLocaleDateString()}</div>
+                      <div>🎯 <strong>Target:</strong> {camp.targetDonations || 0} Donation Units</div>
+                    </div>
+                  </div>
+
+                  <div style={{ borderTop: '1px solid #334155', paddingTop: '0.75rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <div style={{ fontSize: '0.675rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 600 }}>
+                        Approved Budget
+                      </div>
+                      <div style={{ fontSize: '1.15rem', fontWeight: 800, color: '#10b981' }}>
+                        ₹{(camp.approvedBudget || 0).toLocaleString('en-IN')}
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                      <button
+                        onClick={() => {
+                          setSelectedCampaignForExpense(camp);
+                          setAddExpenseError(null);
+                          setIsAddExpenseModalOpen(true);
+                        }}
+                        style={{
+                          backgroundColor: '#10b981',
+                          color: '#ffffff',
+                          border: 'none',
+                          padding: '0.5rem 0.95rem',
+                          borderRadius: '6px',
+                          fontSize: '0.825rem',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.35rem',
+                          boxShadow: '0 2px 8px rgba(16, 185, 129, 0.3)',
+                          transition: 'all 0.15s',
+                        }}
+                        onMouseOver={(e) => ((e.currentTarget as HTMLButtonElement).style.backgroundColor = '#059669')}
+                        onMouseOut={(e) => ((e.currentTarget as HTMLButtonElement).style.backgroundColor = '#10b981')}
+                      >
+                        <span>+</span> Add Expense
+                      </button>
+
+                      <Link
+                        href={`/admin/campaigns/${camp._id}`}
+                        style={{
+                          backgroundColor: '#334155',
+                          color: '#38bdf8',
+                          textDecoration: 'none',
+                          padding: '0.5rem 0.85rem',
+                          borderRadius: '6px',
+                          fontSize: '0.8rem',
+                          fontWeight: 600,
+                          transition: 'all 0.15s',
+                        }}
+                        onMouseOver={(e) => ((e.currentTarget as HTMLAnchorElement).style.backgroundColor = '#475569')}
+                        onMouseOut={(e) => ((e.currentTarget as HTMLAnchorElement).style.backgroundColor = '#334155')}
+                      >
+                        Details →
+                      </Link>
+                    </div>
+                  </div>
+                </div>
+              ))}
+          </div>
         </div>
       )}
 
@@ -815,9 +1021,14 @@ export default function AdminCampaignsPage() {
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
-              <h2 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0, color: '#f8fafc' }}>
-                Schedule Blood Donation Campaign
-              </h2>
+              <div>
+                <h2 style={{ fontSize: '1.25rem', fontWeight: 700, margin: '0 0 0.25rem 0', color: '#f8fafc' }}>
+                  Schedule Campaign & Allocate Budget
+                </h2>
+                <span style={{ fontSize: '0.75rem', color: '#38bdf8', fontWeight: 600 }}>
+                  🛡️ Super Admin Exclusive Authority
+                </span>
+              </div>
               <button
                 onClick={() => setIsModalOpen(false)}
                 style={{
@@ -994,11 +1205,12 @@ export default function AdminCampaignsPage() {
 
                   <div>
                     <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#94a3b8', marginBottom: '0.35rem' }}>
-                      Initial Approved Budget (₹)
+                      Approved Initial Budget (₹) *
                     </label>
                     <input
                       type="number"
                       min={0}
+                      required
                       value={formData.initialBudget}
                       onChange={(e) => setFormData({ ...formData, initialBudget: Number(e.target.value) })}
                       style={{
@@ -1012,8 +1224,8 @@ export default function AdminCampaignsPage() {
                         outline: 'none',
                       }}
                     />
-                    <span style={{ fontSize: '0.7rem', color: '#64748b' }}>
-                      Stores baseline revision #1 in integer paise
+                    <span style={{ fontSize: '0.7rem', color: '#38bdf8' }}>
+                      Super Admin allocated baseline budget (stored in integer paise)
                     </span>
                   </div>
                 </div>
@@ -1073,7 +1285,7 @@ export default function AdminCampaignsPage() {
                     opacity: submitting ? 0.7 : 1,
                   }}
                 >
-                  {submitting ? 'Scheduling...' : 'Confirm & Schedule'}
+                  {submitting ? 'Scheduling...' : 'Schedule Campaign & Allocate Budget'}
                 </button>
               </div>
             </form>

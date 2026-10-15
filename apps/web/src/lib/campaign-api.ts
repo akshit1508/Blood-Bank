@@ -168,6 +168,7 @@ export interface CampaignFinancials {
     invoiceNumber?: string;
     description?: string;
     creatorName?: string;
+    rejectionReason?: string;
     receipt?: {
       fileId: string;
       originalName: string;
@@ -594,3 +595,172 @@ export async function fetchAvailableExpensesForLinking(): Promise<any[]> {
 export function getReceiptStreamUrl(expenseId: string): string {
   return `${API_BASE_URL}/expenses/${encodeURIComponent(expenseId)}/receipt`;
 }
+
+export interface CampaignBloodUnitItem {
+  _id: string;
+  unitCode: string;
+  bloodGroup: string;
+  componentType: string;
+  collectionDate: string;
+  expiryDate?: string;
+  volume?: number;
+  storageLocation?: string;
+  donationId?: string;
+  donationCode?: string;
+  donorName: string;
+  donorCode: string;
+  testingStatus: string;
+  testingDecision: 'APPROVED' | 'REJECTED' | 'PENDING' | string;
+  testingCode?: string;
+  isInInventory: boolean;
+  inventoryStatus?: string | null;
+  inventoryId?: string | null;
+}
+
+export interface CampaignBloodUnitsReport {
+  campaign: {
+    _id: string;
+    campaignCode: string;
+    name: string;
+    targetDonations: number;
+  };
+  summary: {
+    totalDonations: number;
+    totalUnitsCollected: number;
+    testingPassed: number;
+    testingFailed: number;
+    testingInProgress: number;
+    inInventoryCount: number;
+    safeYieldRate: number;
+    bloodGroupBreakdown: Record<string, number>;
+  };
+  units: CampaignBloodUnitItem[];
+}
+
+export interface IntakeInventoryResponse {
+  campaignId: string;
+  campaignCode: string;
+  newlyIntakenCount: number;
+  intakenUnitCodes: string[];
+  totalApprovedUnits: number;
+  totalInInventory: number;
+  message: string;
+}
+
+/**
+ * Fetch campaign blood collection, testing pipeline outcomes, safe units, and inventory enrollment.
+ */
+export async function fetchCampaignBloodUnits(campaignId: string): Promise<CampaignBloodUnitsReport> {
+  const res = await fetch(`${API_BASE_URL}/campaigns/${encodeURIComponent(campaignId)}/blood-units`, {
+    headers: {
+      Accept: 'application/json',
+      ...getAuthHeaders(),
+    },
+    cache: 'no-store',
+  });
+
+  const json = await res.json();
+  if (!res.ok) {
+    throw new Error(json.message || 'Failed to fetch campaign blood units report.');
+  }
+
+  return json.data;
+}
+
+/**
+ * Enroll all laboratory-approved units from this campaign into Central Inventory with their unit codes.
+ */
+export async function intakeCampaignUnitsToInventory(campaignId: string): Promise<IntakeInventoryResponse> {
+  const res = await fetch(`${API_BASE_URL}/campaigns/${encodeURIComponent(campaignId)}/intake-inventory`, {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json',
+      ...getAuthHeaders(),
+    },
+  });
+
+  const json = await res.json();
+  if (!res.ok) {
+    throw new Error(json.message || 'Failed to intake campaign units to inventory.');
+  }
+
+  return json.data;
+}
+
+export interface RecordCampaignDonationPayload {
+  donorId?: string;
+  donorFullName?: string;
+  donorBloodGroup?: string;
+  donorGender?: string;
+  donorPhone?: string;
+  donorEmail?: string;
+  donationDate?: string;
+  donationType?: string;
+  quantity?: number;
+  volume?: number;
+  componentType?: string;
+  storageLocation?: string;
+  notes?: string;
+  immediateScreeningDecision?: string; // 'PENDING' | 'APPROVED' | 'REJECTED'
+}
+
+export interface UpdateUnitTestingDecisionPayload {
+  decision: 'APPROVED' | 'REJECTED';
+  remarks?: string;
+  performedBy?: string;
+}
+
+/**
+ * Record a blood donation and issue a physical blood unit for this campaign.
+ */
+export async function recordCampaignDonation(
+  campaignId: string,
+  payload: RecordCampaignDonationPayload,
+): Promise<any> {
+  const res = await fetch(`${API_BASE_URL}/campaigns/${encodeURIComponent(campaignId)}/donations`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+      ...getAuthHeaders(),
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const json = await res.json();
+  if (!res.ok) {
+    throw new Error(json.message || 'Failed to record campaign blood donation.');
+  }
+
+  return json.data;
+}
+
+/**
+ * Update testing screening outcome for a campaign blood unit.
+ */
+export async function updateCampaignUnitTestingDecision(
+  campaignId: string,
+  unitId: string,
+  payload: UpdateUnitTestingDecisionPayload,
+): Promise<any> {
+  const res = await fetch(
+    `${API_BASE_URL}/campaigns/${encodeURIComponent(campaignId)}/units/${encodeURIComponent(unitId)}/test-decision`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+        ...getAuthHeaders(),
+      },
+      body: JSON.stringify(payload),
+    },
+  );
+
+  const json = await res.json();
+  if (!res.ok) {
+    throw new Error(json.message || 'Failed to update testing decision.');
+  }
+
+  return json.data;
+}
+

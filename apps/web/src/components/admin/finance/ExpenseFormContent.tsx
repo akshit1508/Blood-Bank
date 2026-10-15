@@ -20,6 +20,7 @@ import {
   ExpenseStatus,
   formatINR,
 } from '@/lib/expense-api';
+import { fetchCampaigns } from '@/lib/campaign-api';
 
 interface ExpenseFormProps {
   portalRole: 'ADMIN' | 'SUPER_ADMIN';
@@ -40,6 +41,8 @@ export default function ExpenseFormContent({ portalRole, expenseId }: ExpenseFor
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState<ExpenseCategory>(ExpenseCategory.MEDICAL_SUPPLIES);
   const [costCenter, setCostCenter] = useState<CostCenter>(CostCenter.BLOOD_BANK_OPERATIONS);
+  const [campaignId, setCampaignId] = useState<string>('');
+  const [campaignsList, setCampaignsList] = useState<Array<{ _id: string; name: string; campaignCode: string; status: string }>>([]);
   const [expenseDate, setExpenseDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [amount, setAmount] = useState<string>('');
   const [vendorName, setVendorName] = useState('');
@@ -67,6 +70,17 @@ export default function ExpenseFormContent({ portalRole, expenseId }: ExpenseFor
     submittedAt: string;
   } | null>(null);
 
+  // Load campaigns list for campaign linking
+  useEffect(() => {
+    fetchCampaigns({ limit: 100 })
+      .then((res) => {
+        if (res && res.campaigns) {
+          setCampaignsList(res.campaigns);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   // Load existing expense if edit mode
   useEffect(() => {
     if (!expenseId) return;
@@ -78,6 +92,9 @@ export default function ExpenseFormContent({ portalRole, expenseId }: ExpenseFor
         setTitle(data.title);
         setCategory(data.category);
         setCostCenter(data.costCenter);
+        if ((data as any).campaignId) {
+          setCampaignId(String((data as any).campaignId));
+        }
         setExpenseDate(new Date(data.expenseDate).toISOString().slice(0, 10));
         setAmount(String(data.amount));
         setVendorName(data.vendorName);
@@ -160,6 +177,7 @@ export default function ExpenseFormContent({ portalRole, expenseId }: ExpenseFor
         taxAmount: taxAmount ? parseFloat(taxAmount) : undefined,
         description: description.trim() || undefined,
         correctionNotes: correctionNotes.trim() || undefined,
+        campaignId: campaignId || undefined,
       };
 
       let activeId = expenseId;
@@ -220,6 +238,7 @@ export default function ExpenseFormContent({ portalRole, expenseId }: ExpenseFor
         taxAmount: taxAmount ? parseFloat(taxAmount) : undefined,
         description: description.trim() || undefined,
         correctionNotes: correctionNotes.trim() || undefined,
+        campaignId: campaignId || undefined,
       };
 
       let activeId = expenseId;
@@ -490,6 +509,36 @@ export default function ExpenseFormContent({ portalRole, expenseId }: ExpenseFor
               </select>
             </div>
           </div>
+
+          {/* Campaign Selector if Mobile Donation Camps or campaigns exist */}
+          {(costCenter === CostCenter.MOBILE_DONATION_CAMPS || campaignsList.length > 0) && (
+            <div style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '0.85rem' }}>
+              <label style={{ display: 'block', fontSize: '0.775rem', fontWeight: 700, color: '#1e293b', marginBottom: '0.35rem' }}>
+                🎪 Link to Scheduled Campaign (Optional)
+              </label>
+              <select
+                value={campaignId}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setCampaignId(val);
+                  if (val) {
+                    setCostCenter(CostCenter.MOBILE_DONATION_CAMPS);
+                  }
+                }}
+                style={{ width: '100%', padding: '0.55rem', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '0.825rem', backgroundColor: '#ffffff' }}
+              >
+                <option value="">-- No Campaign Linked (General Operational Expense) --</option>
+                {campaignsList.map((c) => (
+                  <option key={c._id} value={c._id}>
+                    {c.campaignCode} &ndash; {c.name} ({c.status})
+                  </option>
+                ))}
+              </select>
+              <span style={{ fontSize: '0.725rem', color: '#64748b', display: 'block', marginTop: '0.35rem' }}>
+                Select a scheduled campaign to link this expenditure directly to its budget.
+              </span>
+            </div>
+          )}
 
           <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '1rem' }}>
             <div>

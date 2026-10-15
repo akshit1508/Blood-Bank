@@ -36,6 +36,8 @@ export interface Donation {
   donationType: DonationType;
   quantity: number;
   status: DonationStatus;
+  campaignId?: string;
+  campaignCode?: string;
   notes?: string;
   createdAt: string;
   updatedAt: string;
@@ -46,6 +48,8 @@ export interface CreateDonationInput {
   donationDate: string;
   donationType?: DonationType;
   quantity: number;
+  campaignId?: string;
+  campaignCode?: string;
   notes?: string;
 }
 

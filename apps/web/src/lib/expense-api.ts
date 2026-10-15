@@ -98,6 +98,8 @@ export interface ExpenseItem {
   creatorId: string;
   creatorEmail: string;
   creatorRole: string;
+  campaignId?: string;
+  acquisitionId?: string;
   submittedAt?: string;
   reviewedBy?: string;
   reviewedByEmail?: string;
