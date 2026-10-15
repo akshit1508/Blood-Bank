@@ -373,6 +373,37 @@ export default function AdminSidebar({
         ],
       },
     ];
+  } else if (currentRole === AdminRole.FINANCE_RECEPTIONIST) {
+    navigationGroups = [
+      {
+        label: 'OVERVIEW',
+        items: [
+          { name: 'Receptionist Dashboard', href: '/receptionist/dashboard', icon: icons.dashboard },
+        ],
+      },
+      {
+        label: 'PATIENT & REGISTRATION',
+        items: [
+          { name: 'Register Patient & Request', href: '/receptionist/patients/new', icon: icons.donors },
+          { name: 'Patient Directory', href: '/receptionist/patients', icon: icons.staff },
+        ],
+      },
+      {
+        label: 'BLOOD OPERATIONS',
+        items: [
+          { name: 'Blood Availability', href: '/receptionist/availability', icon: icons.inventory },
+          { name: 'Blood Issue Desk', href: '/receptionist/requests', icon: icons.requests },
+        ],
+      },
+      {
+        label: 'BILLING & COLLECTIONS',
+        items: [
+          { name: 'Billing Desk', href: '/receptionist/billing', icon: icons.finance },
+          { name: 'Receipts & Transactions', href: '/receptionist/transactions', icon: icons.receipt },
+          { name: 'Finance Reports', href: '/receptionist/reports', icon: icons.analytics },
+        ],
+      },
+    ];
   } else {
     // Standard ADMIN (Default Day-to-Day Operations)
     navigationGroups = [
@@ -427,6 +458,8 @@ export default function AdminSidebar({
       ? 'SUPER ADMIN'
       : currentRole === AdminRole.LAB_TECHNICIAN
       ? 'LAB TECHNICIAN'
+      : currentRole === AdminRole.FINANCE_RECEPTIONIST
+      ? 'RECEPTIONIST'
       : 'ADMIN';
 
   const roleBadgeStyle =
@@ -434,6 +467,8 @@ export default function AdminSidebar({
       ? { bg: '#fef3c7', text: '#d97706', border: '#fde68a' }
       : currentRole === AdminRole.LAB_TECHNICIAN
       ? { bg: '#ede9fe', text: '#7c3aed', border: '#ddd6fe' }
+      : currentRole === AdminRole.FINANCE_RECEPTIONIST
+      ? { bg: '#ecfdf5', text: '#059669', border: '#a7f3d0' }
       : { bg: '#fef2f2', text: '#dc2626', border: '#fecaca' };
 
   return (
@@ -546,7 +581,7 @@ export default function AdminSidebar({
                   const isActive =
                     isVolunteerTab
                       ? true
-                      : item.href === '/admin/dashboard' || item.href === '/super-admin/dashboard' || item.href === '/lab/dashboard'
+                      : item.href === '/admin/dashboard' || item.href === '/super-admin/dashboard' || item.href === '/lab/dashboard' || item.href === '/receptionist/dashboard'
                       ? pathname === item.href
                       : pathname === item.href.split('?')[0];
 

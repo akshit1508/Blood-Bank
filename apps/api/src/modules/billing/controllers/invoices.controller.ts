@@ -16,7 +16,7 @@ import { Roles } from '../../auth/decorators/roles.decorator';
 import { AdminRole } from '../../auth/schemas/admin-user.schema';
 import { CurrentAdmin } from '../../auth/decorators/current-admin.decorator';
 
-@Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN)
+@Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN, AdminRole.FINANCE_RECEPTIONIST)
 @Controller('billing/invoices')
 export class InvoicesController {
   constructor(private readonly invoicesService: InvoicesService) {}
@@ -102,6 +102,7 @@ export class InvoicesController {
    * POST /api/billing/invoices/:id/waiver
    */
   @Post(':id/waiver')
+  @Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN)
   @HttpCode(HttpStatus.OK)
   async applyWaiver(
     @Param('id') id: string,

@@ -160,6 +160,34 @@ export class AuthService implements OnModuleInit {
           this.logger.log(`Initial Lab Technician provisioned: ${labEmail}`);
         }
       }
+
+      // 4. Initial Finance Receptionist Provisioning (if configured or default in dev)
+      const receptionistEmail = (
+        this.configService.get<string>('INITIAL_RECEPTIONIST_EMAIL') ||
+        (!isProd ? 'receptionist@bloodbank.org' : undefined)
+      )?.toLowerCase().trim();
+      const receptionistPassword = (
+        this.configService.get<string>('INITIAL_RECEPTIONIST_PASSWORD') ||
+        (!isProd ? 'Receptionist@123' : undefined)
+      )?.trim();
+
+      if (receptionistEmail && receptionistPassword) {
+        const existingReceptionist = await this.adminModel.findOne({ email: receptionistEmail });
+        if (!existingReceptionist) {
+          const { hash, salt } = this.hashPassword(receptionistPassword);
+          await this.adminModel.create({
+            email: receptionistEmail,
+            passwordHash: hash,
+            passwordSalt: salt,
+            fullName: 'Front Desk Finance Receptionist',
+            designation: 'Patient Reception & Billing Officer',
+            role: AdminRole.FINANCE_RECEPTIONIST,
+            isActive: true,
+            lastLoginAt: null,
+          });
+          this.logger.log(`Initial Finance Receptionist provisioned: ${receptionistEmail}`);
+        }
+      }
     } catch (err: any) {
       this.logger.error(`Administrator initialization failed: ${err.message}`);
       if (this.configService.get<string>('NODE_ENV') === 'production') {

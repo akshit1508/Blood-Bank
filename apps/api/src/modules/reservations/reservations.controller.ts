@@ -18,7 +18,7 @@ import { CreateBloodIssueDto } from '../blood-issues/dto/create-blood-issue.dto'
 import { Roles } from '../auth/decorators/roles.decorator';
 import { AdminRole } from '../auth/schemas/admin-user.schema';
 
-@Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN)
+@Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN, AdminRole.FINANCE_RECEPTIONIST)
 @Controller('reservations')
 export class ReservationsController {
   constructor(
@@ -57,6 +57,7 @@ export class ReservationsController {
    * PATCH /api/reservations/:id/cancel
    */
   @Patch(':id/cancel')
+  @Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN)
   @HttpCode(HttpStatus.OK)
   async cancel(
     @Param('id') id: string,

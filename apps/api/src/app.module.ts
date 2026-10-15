@@ -21,6 +21,7 @@ import { PayrollModule } from './modules/payroll/payroll.module';
 import { CampaignsModule } from './modules/campaigns/campaigns.module';
 import { FinancialControlCenterModule } from './modules/financial-control-center/financial-control-center.module';
 import { VolunteersModule } from './modules/volunteers/volunteers.module';
+import { ReceptionistModule } from './modules/receptionist/receptionist.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { AdminAuthGuard } from './modules/auth/guards/admin-auth.guard';
 import { RolesGuard } from './modules/auth/guards/roles.guard';
@@ -56,6 +57,7 @@ import { RolesGuard } from './modules/auth/guards/roles.guard';
     CampaignsModule,
     FinancialControlCenterModule,
     VolunteersModule,
+    ReceptionistModule,
   ],
   controllers: [AppController],
   providers: [

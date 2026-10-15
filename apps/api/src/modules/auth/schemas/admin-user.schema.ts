@@ -7,6 +7,7 @@ export enum AdminRole {
   SUPER_ADMIN = 'SUPER_ADMIN',
   ADMIN = 'ADMIN',
   LAB_TECHNICIAN = 'LAB_TECHNICIAN',
+  FINANCE_RECEPTIONIST = 'FINANCE_RECEPTIONIST',
 }
 
 @Schema({ collection: 'admins', timestamps: true })

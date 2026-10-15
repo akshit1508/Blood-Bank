@@ -18,7 +18,7 @@ import { AdminRole } from '../auth/schemas/admin-user.schema';
 /**
  * Controller for managing operational inventory.
  */
-@Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN)
+@Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN, AdminRole.FINANCE_RECEPTIONIST)
 @Controller('inventory')
 export class InventoryController {
   constructor(private readonly inventoryService: InventoryService) {}
@@ -28,6 +28,7 @@ export class InventoryController {
    * POST /api/inventory/from-blood-unit/:bloodUnitId
    */
   @Post('from-blood-unit/:bloodUnitId')
+  @Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN)
   @HttpCode(HttpStatus.CREATED)
   async createFromBloodUnit(@Param('bloodUnitId') bloodUnitId: string) {
     const item = await this.inventoryService.createFromBloodUnit(bloodUnitId);
@@ -59,6 +60,7 @@ export class InventoryController {
    * POST /api/inventory/evaluate-expiry
    */
   @Post('evaluate-expiry')
+  @Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN)
   @HttpCode(HttpStatus.OK)
   async evaluateExpiry() {
     const result = await this.inventoryService.evaluateExpiry();
@@ -123,6 +125,7 @@ export class InventoryController {
    * PATCH /api/inventory/:id/discard
    */
   @Patch(':id/discard')
+  @Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN)
   async discardItem(
     @Param('id') id: string,
     @Body() dto: DiscardInventoryDto,
@@ -140,6 +143,7 @@ export class InventoryController {
    * POST /api/inventory/:id/discard
    */
   @Post(':id/discard')
+  @Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN)
   @HttpCode(HttpStatus.OK)
   async discardItemPost(
     @Param('id') id: string,

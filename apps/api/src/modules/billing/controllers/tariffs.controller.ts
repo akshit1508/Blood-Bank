@@ -21,7 +21,7 @@ export class TariffsController {
    * Accessible by both SUPER_ADMIN and ADMIN.
    */
   @Get()
-  @Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN)
+  @Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN, AdminRole.FINANCE_RECEPTIONIST)
   async findAll() {
     const data = await this.tariffsService.findAll();
     return {

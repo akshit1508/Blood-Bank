@@ -14,7 +14,7 @@ import { QueryBloodIssuesDto } from './dto/query-blood-issues.dto';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { AdminRole } from '../auth/schemas/admin-user.schema';
 
-@Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN)
+@Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN, AdminRole.FINANCE_RECEPTIONIST)
 @Controller('blood-issues')
 export class BloodIssuesController {
   constructor(private readonly bloodIssuesService: BloodIssuesService) {}

@@ -106,18 +106,24 @@ export default function AdminNavbar({
                       ? '#fef3c7'
                       : admin?.role === 'LAB_TECHNICIAN'
                       ? '#ede9fe'
+                      : admin?.role === 'FINANCE_RECEPTIONIST'
+                      ? '#ecfdf5'
                       : '#fef2f2',
                   color:
                     admin?.role === 'SUPER_ADMIN'
                       ? '#d97706'
                       : admin?.role === 'LAB_TECHNICIAN'
                       ? '#7c3aed'
+                      : admin?.role === 'FINANCE_RECEPTIONIST'
+                      ? '#059669'
                       : '#dc2626',
                   border: `1px solid ${
                     admin?.role === 'SUPER_ADMIN'
                       ? '#fde68a'
                       : admin?.role === 'LAB_TECHNICIAN'
                       ? '#ddd6fe'
+                      : admin?.role === 'FINANCE_RECEPTIONIST'
+                      ? '#a7f3d0'
                       : '#fecaca'
                   }`,
                   padding: '0.1rem 0.35rem',
@@ -130,6 +136,8 @@ export default function AdminNavbar({
                   ? 'SUPER ADMIN'
                   : admin?.role === 'LAB_TECHNICIAN'
                   ? 'LAB TECH'
+                  : admin?.role === 'FINANCE_RECEPTIONIST'
+                  ? 'RECEPTIONIST'
                   : 'ADMIN'}
               </span>
             </div>
@@ -146,6 +154,8 @@ export default function AdminNavbar({
                 ? 'Platform Governance'
                 : admin?.role === 'LAB_TECHNICIAN'
                 ? 'Screening Workstation'
+                : admin?.role === 'FINANCE_RECEPTIONIST'
+                ? 'Front Desk & Billing'
                 : 'Management Console'}
             </span>
           </div>

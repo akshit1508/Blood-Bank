@@ -14,7 +14,7 @@ import {
 interface AdminAuthContextType {
   admin: AdminUser | null;
   loading: boolean;
-  login: (email: string, pass: string, targetRole?: 'SUPER_ADMIN' | 'ADMIN' | 'LAB_TECHNICIAN') => Promise<void>;
+  login: (email: string, pass: string, targetRole?: 'SUPER_ADMIN' | 'ADMIN' | 'LAB_TECHNICIAN' | 'FINANCE_RECEPTIONIST') => Promise<void>;
   logout: () => void;
   isAuthenticated: boolean;
 }
@@ -63,6 +63,8 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
                 router.replace('/super-admin/dashboard');
               } else if (verified.role === 'LAB_TECHNICIAN') {
                 router.replace('/lab/dashboard');
+              } else if (verified.role === 'FINANCE_RECEPTIONIST') {
+                router.replace('/receptionist/dashboard');
               } else {
                 router.replace('/admin/dashboard');
               }
@@ -102,23 +104,41 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
       if (admin.role !== 'SUPER_ADMIN') {
         if (admin.role === 'LAB_TECHNICIAN') {
           router.replace('/lab/dashboard');
+        } else if (admin.role === 'FINANCE_RECEPTIONIST') {
+          router.replace('/receptionist/dashboard');
         } else {
           router.replace('/admin/dashboard');
         }
       }
     } else if (pathname.startsWith('/admin')) {
-      if (!isLoginPage && admin.role === 'LAB_TECHNICIAN') {
-        router.replace('/lab/dashboard');
+      if (!isLoginPage) {
+        if (admin.role === 'LAB_TECHNICIAN') {
+          router.replace('/lab/dashboard');
+        } else if (admin.role === 'FINANCE_RECEPTIONIST') {
+          router.replace('/receptionist/dashboard');
+        }
       }
     } else if (pathname.startsWith('/lab')) {
-      if (admin.role === 'ADMIN') {
-        router.replace('/admin/dashboard');
+      if (admin.role !== 'LAB_TECHNICIAN' && admin.role !== 'SUPER_ADMIN') {
+        if (admin.role === 'FINANCE_RECEPTIONIST') {
+          router.replace('/receptionist/dashboard');
+        } else {
+          router.replace('/admin/dashboard');
+        }
+      }
+    } else if (pathname.startsWith('/receptionist')) {
+      if (admin.role !== 'FINANCE_RECEPTIONIST' && admin.role !== 'SUPER_ADMIN') {
+        if (admin.role === 'LAB_TECHNICIAN') {
+          router.replace('/lab/dashboard');
+        } else {
+          router.replace('/admin/dashboard');
+        }
       }
     }
   }, [pathname, admin, loading, isLoginPage, router]);
 
   const login = useCallback(
-    async (email: string, pass: string, targetRole?: 'SUPER_ADMIN' | 'ADMIN' | 'LAB_TECHNICIAN') => {
+    async (email: string, pass: string, targetRole?: 'SUPER_ADMIN' | 'ADMIN' | 'LAB_TECHNICIAN' | 'FINANCE_RECEPTIONIST') => {
       const res = await apiAdminLogin(email, pass);
       const userRole = res.admin.role;
 
@@ -134,6 +154,8 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
         router.push('/super-admin/dashboard');
       } else if (userRole === 'LAB_TECHNICIAN') {
         router.push('/lab/dashboard');
+      } else if (userRole === 'FINANCE_RECEPTIONIST') {
+        router.push('/receptionist/dashboard');
       } else {
         router.push('/admin/dashboard');
       }

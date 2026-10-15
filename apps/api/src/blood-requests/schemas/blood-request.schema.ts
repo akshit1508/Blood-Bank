@@ -36,6 +36,35 @@ export class PatientDetails {
   phone?: string;
 }
 
+@Schema({ _id: false })
+export class SupportingDocument {
+  @Prop({ required: true, trim: true })
+  documentType: string;
+
+  @Prop({ required: true, trim: true })
+  fileName: string;
+
+  @Prop({ required: true, trim: true })
+  fileUrl: string;
+
+  @Prop({ type: Number })
+  fileSize?: number;
+
+  @Prop({ default: true })
+  isVerified: boolean;
+
+  @Prop({ trim: true })
+  verifiedBy?: string;
+
+  @Prop()
+  verifiedAt?: Date;
+
+  @Prop({ trim: true })
+  notes?: string;
+}
+
+export const SupportingDocumentSchema = SchemaFactory.createForClass(SupportingDocument);
+
 @Schema({
   collection: 'blood_requests',
   timestamps: true,
@@ -108,6 +137,18 @@ export class BloodRequest {
 
   @Prop()
   statusUpdatedAt?: Date;
+
+  @Prop({ type: [SupportingDocumentSchema], default: [] })
+  documents: SupportingDocument[];
+
+  @Prop({ enum: ['PENDING', 'VERIFIED', 'REJECTED'], default: 'PENDING' })
+  documentVerificationStatus: string;
+
+  @Prop({ trim: true })
+  documentVerifiedBy?: string;
+
+  @Prop()
+  documentVerifiedAt?: Date;
 
   createdAt: Date;
   updatedAt: Date;

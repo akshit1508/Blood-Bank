@@ -32,10 +32,10 @@ export class CreateAdminDto {
 
   @IsString()
   @IsNotEmpty({ message: 'Role is required' })
-  @IsIn([AdminRole.ADMIN, AdminRole.LAB_TECHNICIAN], {
-    message: 'Role must be either ADMIN or LAB_TECHNICIAN',
+  @IsIn([AdminRole.ADMIN, AdminRole.LAB_TECHNICIAN, AdminRole.FINANCE_RECEPTIONIST], {
+    message: 'Role must be either ADMIN, LAB_TECHNICIAN, or FINANCE_RECEPTIONIST',
   })
-  role: AdminRole.ADMIN | AdminRole.LAB_TECHNICIAN;
+  role: AdminRole.ADMIN | AdminRole.LAB_TECHNICIAN | AdminRole.FINANCE_RECEPTIONIST;
 }
 
 export class UpdateAdminStatusDto {

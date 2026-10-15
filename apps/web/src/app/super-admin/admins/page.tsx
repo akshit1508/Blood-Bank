@@ -98,6 +98,8 @@ export default function SuperAdminStaffManagementPage() {
         return { backgroundColor: '#451a03', color: '#f59e0b', border: '1px solid #78350f' };
       case 'LAB_TECHNICIAN':
         return { backgroundColor: '#3b0764', color: '#c084fc', border: '1px solid #581c87' };
+      case 'FINANCE_RECEPTIONIST':
+        return { backgroundColor: '#064e3b', color: '#34d399', border: '1px solid #059669' };
       default:
         return { backgroundColor: '#082f49', color: '#38bdf8', border: '1px solid #075985' };
     }
@@ -391,7 +393,7 @@ export default function SuperAdminStaffManagementPage() {
                 </label>
                 <select
                   value={createForm.role}
-                  onChange={(e) => setCreateForm({ ...createForm, role: e.target.value as 'ADMIN' | 'LAB_TECHNICIAN' })}
+                  onChange={(e) => setCreateForm({ ...createForm, role: e.target.value as 'ADMIN' | 'LAB_TECHNICIAN' | 'FINANCE_RECEPTIONIST' })}
                   style={{
                     width: '100%',
                     padding: '0.65rem 0.85rem',
@@ -405,6 +407,7 @@ export default function SuperAdminStaffManagementPage() {
                 >
                   <option value="ADMIN">ADMIN — Clinical & Operational Management</option>
                   <option value="LAB_TECHNICIAN">LAB_TECHNICIAN — Dedicated Testing Workstation</option>
+                  <option value="FINANCE_RECEPTIONIST">FINANCE_RECEPTIONIST — Front Desk Patient & Billing</option>
                 </select>
                 <div style={{ fontSize: '0.7rem', color: '#64748b', marginTop: '0.35rem' }}>
                   Note: Super Admin role assignment cannot be granted via this form to prevent privilege escalation.

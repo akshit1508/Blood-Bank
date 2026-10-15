@@ -5,13 +5,13 @@ import { useAdminAuth } from '@/context/AdminAuthContext';
 
 export default function AdminLoginPage() {
   const { login } = useAdminAuth();
-  const [role, setRole] = useState<'SUPER_ADMIN' | 'ADMIN' | 'LAB_TECHNICIAN'>('SUPER_ADMIN');
+  const [role, setRole] = useState<'SUPER_ADMIN' | 'ADMIN' | 'LAB_TECHNICIAN' | 'FINANCE_RECEPTIONIST'>('SUPER_ADMIN');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleRoleChange = (newRole: 'SUPER_ADMIN' | 'ADMIN' | 'LAB_TECHNICIAN') => {
+  const handleRoleChange = (newRole: 'SUPER_ADMIN' | 'ADMIN' | 'LAB_TECHNICIAN' | 'FINANCE_RECEPTIONIST') => {
     setRole(newRole);
     setError(null);
   };
@@ -154,6 +154,7 @@ export default function AdminLoginPage() {
                 <option value="SUPER_ADMIN">👑 Super Admin Portal (/super-admin/dashboard)</option>
                 <option value="ADMIN">🛡️ Operations Admin Portal (/admin/dashboard)</option>
                 <option value="LAB_TECHNICIAN">🧪 Testing / Lab Technician Portal (/lab/dashboard)</option>
+                <option value="FINANCE_RECEPTIONIST">🧾 Finance Receptionist Portal (/receptionist/dashboard)</option>
               </select>
             </div>
             <div>

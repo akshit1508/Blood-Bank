@@ -8,7 +8,7 @@ import { BillingReportsService } from '../services/billing-reports.service';
 import { Roles } from '../../auth/decorators/roles.decorator';
 import { AdminRole } from '../../auth/schemas/admin-user.schema';
 
-@Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN)
+@Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN, AdminRole.FINANCE_RECEPTIONIST)
 @Controller('billing/reports')
 export class BillingReportsController {
   constructor(private readonly reportsService: BillingReportsService) {}

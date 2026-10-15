@@ -4,6 +4,7 @@ export enum AdminRole {
   SUPER_ADMIN = 'SUPER_ADMIN',
   ADMIN = 'ADMIN',
   LAB_TECHNICIAN = 'LAB_TECHNICIAN',
+  FINANCE_RECEPTIONIST = 'FINANCE_RECEPTIONIST',
 }
 
 export interface AdminUser {
@@ -127,7 +128,7 @@ export interface CreateStaffInput {
   password: string;
   fullName: string;
   designation?: string;
-  role: 'ADMIN' | 'LAB_TECHNICIAN';
+  role: 'ADMIN' | 'LAB_TECHNICIAN' | 'FINANCE_RECEPTIONIST';
 }
 
 /**

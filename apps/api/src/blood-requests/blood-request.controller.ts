@@ -21,7 +21,7 @@ import { Public } from '../modules/auth/decorators/public.decorator';
 import { Roles } from '../modules/auth/decorators/roles.decorator';
 import { AdminRole } from '../modules/auth/schemas/admin-user.schema';
 
-@Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN)
+@Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN, AdminRole.FINANCE_RECEPTIONIST)
 @Controller('blood-requests')
 export class BloodRequestController {
   constructor(

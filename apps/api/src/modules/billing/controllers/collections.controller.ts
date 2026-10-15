@@ -15,7 +15,7 @@ import { Roles } from '../../auth/decorators/roles.decorator';
 import { AdminRole } from '../../auth/schemas/admin-user.schema';
 import { CurrentAdmin } from '../../auth/decorators/current-admin.decorator';
 
-@Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN)
+@Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN, AdminRole.FINANCE_RECEPTIONIST)
 @Controller('billing/collections')
 export class CollectionsController {
   constructor(private readonly collectionsService: CollectionsService) {}
