@@ -149,6 +149,13 @@ export class Expense {
   @Prop({ type: Types.ObjectId, ref: 'BloodAcquisition', required: false, index: true, sparse: true })
   acquisitionId?: Types.ObjectId;
 
+  /** Reference to linked Campaign if expense was incurred for a specific blood donation drive */
+  @Prop({ type: Types.ObjectId, ref: 'Campaign', required: false, index: true, sparse: true })
+  campaignId?: Types.ObjectId;
+
+  @Prop({ required: false, trim: true, uppercase: true })
+  campaignCode?: string;
+
   @Prop({ required: true, trim: true, index: true })
   invoiceNumber: string;
 
@@ -221,3 +228,4 @@ ExpenseSchema.index({ category: 1, expenseDate: -1 });
 ExpenseSchema.index({ vendorName: 1, invoiceNumber: 1 });
 ExpenseSchema.index({ isDeleted: 1, status: 1, createdAt: -1 });
 ExpenseSchema.index({ creatorId: 1, status: 1 });
+ExpenseSchema.index({ campaignId: 1, status: 1 });

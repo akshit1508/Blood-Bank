@@ -18,6 +18,7 @@ import { VendorsModule } from './modules/vendors/vendors.module';
 import { PaymentsModule } from './modules/payments/payments.module';
 import { BillingModule } from './modules/billing/billing.module';
 import { PayrollModule } from './modules/payroll/payroll.module';
+import { CampaignsModule } from './modules/campaigns/campaigns.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { AdminAuthGuard } from './modules/auth/guards/admin-auth.guard';
 import { RolesGuard } from './modules/auth/guards/roles.guard';
@@ -50,6 +51,7 @@ import { RolesGuard } from './modules/auth/guards/roles.guard';
     PaymentsModule,
     BillingModule,
     PayrollModule,
+    CampaignsModule,
   ],
   controllers: [AppController],
   providers: [

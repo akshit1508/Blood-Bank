@@ -63,6 +63,10 @@ export class CreateExpenseDto {
   @IsOptional()
   @MaxLength(1000)
   description?: string;
+
+  @IsString()
+  @IsOptional()
+  campaignId?: string;
 }
 
 export class UpdateExpenseDto {
@@ -124,6 +128,10 @@ export class UpdateExpenseDto {
   @IsOptional()
   @MaxLength(500)
   correctionNotes?: string;
+
+  @IsString()
+  @IsOptional()
+  campaignId?: string;
 }
 
 export class SubmitExpenseDto {

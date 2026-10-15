@@ -32,4 +32,12 @@ export class CreateDonationDto {
   @IsString()
   @IsOptional()
   notes?: string;
+
+  @IsMongoId({ message: 'campaignId must be a valid MongoDB ObjectId' })
+  @IsOptional()
+  campaignId?: string;
+
+  @IsString()
+  @IsOptional()
+  campaignCode?: string;
 }

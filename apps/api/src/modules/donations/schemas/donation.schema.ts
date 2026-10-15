@@ -39,6 +39,12 @@ export class Donation {
   })
   status: DonationStatus;
 
+  @Prop({ type: Types.ObjectId, ref: 'Campaign', required: false, index: true, sparse: true })
+  campaignId?: Types.ObjectId;
+
+  @Prop({ required: false, trim: true, uppercase: true })
+  campaignCode?: string;
+
   @Prop({ trim: true })
   notes?: string;
 
@@ -51,3 +57,4 @@ export const DonationSchema = SchemaFactory.createForClass(Donation);
 DonationSchema.index({ createdAt: -1 });
 DonationSchema.index({ donorId: 1, createdAt: -1 });
 DonationSchema.index({ status: 1, donationDate: -1 });
+DonationSchema.index({ campaignId: 1, status: 1 });

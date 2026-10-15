@@ -253,7 +253,7 @@ export default function AdminSidebar({
           { name: 'Donor Management', href: '/admin/donors', icon: icons.donors },
           { name: 'Blood Acquisition', href: '/admin/blood-acquisition', icon: icons.acquisition },
           { name: 'Donations Collection', href: '/admin/donations', icon: icons.donations },
-          { name: 'Campaigns', href: '/campaigns', icon: icons.campaigns },
+          { name: 'Campaigns & Budgets', href: '/admin/campaigns', icon: icons.campaigns },
         ],
       },
       {
@@ -334,6 +334,7 @@ export default function AdminSidebar({
           { name: 'Donor Management', href: '/admin/donors', icon: icons.donors },
           { name: 'Blood Acquisition', href: '/admin/blood-acquisition', icon: icons.acquisition },
           { name: 'Donations Collection', href: '/admin/donations', icon: icons.donations },
+          { name: 'Campaigns', href: '/admin/campaigns', icon: icons.campaigns },
         ],
       },
       {

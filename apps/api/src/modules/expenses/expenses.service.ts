@@ -149,6 +149,7 @@ export class ExpensesService implements OnModuleInit {
       gstinNumber: dto.gstinNumber ? dto.gstinNumber.trim().toUpperCase() : undefined,
       taxAmount: dto.taxAmount ? Math.round(dto.taxAmount * 100) / 100 : 0,
       description: dto.description ? dto.description.trim() : undefined,
+      campaignId: dto.campaignId && isValidObjectId(dto.campaignId) ? new Types.ObjectId(dto.campaignId) : undefined,
       status: ExpenseStatus.DRAFT,
       creatorId: new Types.ObjectId(currentAdmin.id || currentAdmin._id),
       creatorEmail: currentAdmin.email,

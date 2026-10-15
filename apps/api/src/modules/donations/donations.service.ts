@@ -141,6 +141,8 @@ export class DonationsService {
       donationType: createDto.donationType || DonationType.WHOLE_BLOOD,
       quantity: createDto.quantity,
       status: DonationStatus.RECORDED,
+      campaignId: createDto.campaignId ? new Types.ObjectId(createDto.campaignId) : undefined,
+      campaignCode: createDto.campaignCode?.trim() || undefined,
       notes: createDto.notes?.trim() || undefined,
     });
 
