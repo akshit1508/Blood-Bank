@@ -53,6 +53,10 @@ export default function AdminSidebar({
 
     const loadNotificationCounts = async () => {
       try {
+        if (currentRole === AdminRole.FINANCE_RECEPTIONIST || currentRole === AdminRole.LAB_TECHNICIAN) {
+          return;
+        }
+
         const volCountPromise = fetchPendingVolunteersCount();
 
         if (currentRole === AdminRole.SUPER_ADMIN) {

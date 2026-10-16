@@ -98,6 +98,59 @@ export default function ReceptionistDashboardPage() {
     window.print();
   };
 
+  if (loading && !data) {
+    return (
+      <div style={{ padding: '4rem 2rem', textAlign: 'center', color: '#94a3b8' }}>
+        <div
+          style={{
+            width: '42px',
+            height: '42px',
+            borderRadius: '50%',
+            border: '3px solid #334155',
+            borderTopColor: '#dc2626',
+            margin: '0 auto 1.5rem',
+            animation: 'spin 0.8s linear infinite',
+          }}
+        />
+        <style dangerouslySetInnerHTML={{ __html: '@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }' }} />
+        <h3 style={{ color: '#f8fafc', fontSize: '1.1rem', margin: '0 0 0.5rem 0' }}>
+          Loading Receptionist Command & Billing Dashboard...
+        </h3>
+        <p style={{ color: '#64748b', fontSize: '0.85rem', margin: 0 }}>
+          Fetching real-time blood issues, collections, and billing records
+        </p>
+      </div>
+    );
+  }
+
+  if (error && !data) {
+    return (
+      <div style={{ padding: '3rem 2rem', maxWidth: '600px', margin: '2rem auto', textAlign: 'center' }}>
+        <div style={{ backgroundColor: '#450a0a', border: '1px solid #dc2626', borderRadius: '12px', padding: '2rem', color: '#fca5a5' }}>
+          <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>⚠️</div>
+          <h3 style={{ color: '#fecaca', fontSize: '1.1rem', margin: '0 0 0.75rem 0' }}>Failed to Load Dashboard Metrics</h3>
+          <p style={{ fontSize: '0.85rem', color: '#fca5a5', marginBottom: '1.25rem' }}>{error}</p>
+          <button
+            type="button"
+            onClick={loadDashboard}
+            style={{
+              backgroundColor: '#dc2626',
+              color: '#ffffff',
+              border: 'none',
+              borderRadius: '8px',
+              padding: '0.6rem 1.25rem',
+              fontSize: '0.85rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+            }}
+          >
+            Retry Loading Dashboard
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={{ maxWidth: '1440px', margin: '0 auto', paddingBottom: '3rem' }}>
       {/* Top Header */}
@@ -300,7 +353,7 @@ export default function ReceptionistDashboardPage() {
             1. Completed Blood Issues
           </span>
           <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#38bdf8', margin: '0.35rem 0 0.15rem 0' }}>
-            {data?.summary.totalBloodIssues ?? 0}
+            {data?.summary?.totalBloodIssues ?? 0}
           </div>
           <span style={{ fontSize: '0.725rem', color: '#64748b' }}>Successfully released across period</span>
         </div>
@@ -311,7 +364,7 @@ export default function ReceptionistDashboardPage() {
             2. Total Units Issued
           </span>
           <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#a78bfa', margin: '0.35rem 0 0.15rem 0' }}>
-            {data?.summary.totalUnitsIssued ?? 0} Units
+            {data?.summary?.totalUnitsIssued ?? 0} Units
           </div>
           <span style={{ fontSize: '0.725rem', color: '#64748b' }}>PRBC, FFP, Platelets, Whole Blood</span>
         </div>
@@ -322,10 +375,10 @@ export default function ReceptionistDashboardPage() {
             3. Invoices Generated
           </span>
           <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#fbbf24', margin: '0.35rem 0 0.15rem 0' }}>
-            {data?.summary.totalInvoicesGenerated ?? 0}
+            {data?.summary?.totalInvoicesGenerated ?? 0}
           </div>
           <span style={{ fontSize: '0.725rem', color: '#64748b' }}>
-            Billed: {formatCurrency(data?.summary.totalInvoiceAmount ?? 0)}
+            Billed: {formatCurrency(data?.summary?.totalInvoiceAmount ?? 0)}
           </span>
         </div>
 
@@ -335,7 +388,7 @@ export default function ReceptionistDashboardPage() {
             4. Total Payments Collected
           </span>
           <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#34d399', margin: '0.35rem 0 0.15rem 0' }}>
-            {formatCurrency(data?.summary.totalPaymentsCollected ?? 0)}
+            {formatCurrency(data?.summary?.totalPaymentsCollected ?? 0)}
           </div>
           <span style={{ fontSize: '0.725rem', color: '#6ee7b7' }}>✓ Verified collections recorded</span>
         </div>
@@ -346,7 +399,7 @@ export default function ReceptionistDashboardPage() {
             5. Cash Collected
           </span>
           <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#4ade80', margin: '0.35rem 0 0.15rem 0' }}>
-            {formatCurrency(data?.summary.totalCashCollected ?? 0)}
+            {formatCurrency(data?.summary?.totalCashCollected ?? 0)}
           </div>
           <span style={{ fontSize: '0.725rem', color: '#64748b' }}>Direct counter currency</span>
         </div>
@@ -357,7 +410,7 @@ export default function ReceptionistDashboardPage() {
             6. Digital Payments Collected
           </span>
           <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#60a5fa', margin: '0.35rem 0 0.15rem 0' }}>
-            {formatCurrency(data?.summary.totalDigitalCollected ?? 0)}
+            {formatCurrency(data?.summary?.totalDigitalCollected ?? 0)}
           </div>
           <span style={{ fontSize: '0.725rem', color: '#64748b' }}>UPI, Card, Hospital Credit</span>
         </div>
@@ -367,8 +420,8 @@ export default function ReceptionistDashboardPage() {
           <span style={{ fontSize: '0.725rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
             7. Outstanding Balance
           </span>
-          <div style={{ fontSize: '1.8rem', fontWeight: 800, color: (data?.summary.totalOutstanding ?? 0) > 0 ? '#f87171' : '#34d399', margin: '0.35rem 0 0.15rem 0' }}>
-            {formatCurrency(data?.summary.totalOutstanding ?? 0)}
+          <div style={{ fontSize: '1.8rem', fontWeight: 800, color: (data?.summary?.totalOutstanding ?? 0) > 0 ? '#f87171' : '#34d399', margin: '0.35rem 0 0.15rem 0' }}>
+            {formatCurrency(data?.summary?.totalOutstanding ?? 0)}
           </div>
           <span style={{ fontSize: '0.725rem', color: '#64748b' }}>Pending collection receivables</span>
         </div>
@@ -378,8 +431,8 @@ export default function ReceptionistDashboardPage() {
           <span style={{ fontSize: '0.725rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
             8. Follow-up Incomplete Tx
           </span>
-          <div style={{ fontSize: '1.8rem', fontWeight: 800, color: (data?.summary.pendingTransactionsCount ?? 0) > 0 ? '#fb923c' : '#f8fafc', margin: '0.35rem 0 0.15rem 0' }}>
-            {data?.summary.pendingTransactionsCount ?? 0}
+          <div style={{ fontSize: '1.8rem', fontWeight: 800, color: (data?.summary?.pendingTransactionsCount ?? 0) > 0 ? '#fb923c' : '#f8fafc', margin: '0.35rem 0 0.15rem 0' }}>
+            {data?.summary?.pendingTransactionsCount ?? 0}
           </div>
           <span style={{ fontSize: '0.725rem', color: '#64748b' }}>Pending payment or verification</span>
         </div>
@@ -411,8 +464,8 @@ export default function ReceptionistDashboardPage() {
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
-            {data?.charts.paymentMethodDistribution.map((item) => {
-              const total = data.summary.totalPaymentsCollected || 1;
+            {data?.charts?.paymentMethodDistribution?.map((item) => {
+              const total = data?.summary?.totalPaymentsCollected || 1;
               const pct = Math.round((item.amount / total) * 100);
               return (
                 <div key={item.method}>
@@ -460,12 +513,12 @@ export default function ReceptionistDashboardPage() {
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.75rem' }}>
-            {data?.charts.componentDistribution.length === 0 ? (
+            {(!data?.charts?.componentDistribution || data.charts.componentDistribution.length === 0) ? (
               <div style={{ color: '#64748b', fontSize: '0.8rem', gridColumn: 'span 2', textAlign: 'center', padding: '1.5rem' }}>
                 No units issued in selected date range.
               </div>
             ) : (
-              data?.charts.componentDistribution.map((item) => (
+              data?.charts?.componentDistribution?.map((item) => (
                 <div
                   key={item.component}
                   style={{

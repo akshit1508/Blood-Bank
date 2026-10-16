@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAdminAuth } from '@/context/AdminAuthContext';
 
 export default function AdminLoginPage() {
@@ -11,9 +11,21 @@ export default function AdminLoginPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('bb_last_login_role') as any;
+      if (saved && ['SUPER_ADMIN', 'ADMIN', 'LAB_TECHNICIAN', 'FINANCE_RECEPTIONIST'].includes(saved)) {
+        setRole(saved);
+      }
+    }
+  }, []);
+
   const handleRoleChange = (newRole: 'SUPER_ADMIN' | 'ADMIN' | 'LAB_TECHNICIAN' | 'FINANCE_RECEPTIONIST') => {
     setRole(newRole);
     setError(null);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('bb_last_login_role', newRole);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -235,15 +247,108 @@ export default function AdminLoginPage() {
                 boxShadow: '0 2px 4px rgba(220, 38, 38, 0.25)',
               }}
             >
-              {submitting ? 'Verifying Credentials...' : 'Sign In to Admin Portal'}
+              {submitting ? 'Verifying Credentials...' : 'Sign In to Portal'}
             </button>
           </form>
+
+          {/* Quick Demo Role Fillers */}
+          <div style={{ marginTop: '1.25rem', paddingTop: '1rem', borderTop: '1px solid #f1f5f9' }}>
+            <div style={{ fontSize: '0.75rem', fontWeight: 600, color: '#64748b', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              Quick Fill Credentials:
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+              <button
+                type="button"
+                onClick={() => {
+                  handleRoleChange('FINANCE_RECEPTIONIST');
+                  setEmail('receptionist@bloodbank.org');
+                  setPassword('Receptionist@123');
+                }}
+                style={{
+                  padding: '0.45rem 0.6rem',
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  backgroundColor: '#f0fdf4',
+                  color: '#166534',
+                  border: '1px solid #bbf7d0',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                }}
+              >
+                🧾 Receptionist
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  handleRoleChange('SUPER_ADMIN');
+                  setEmail('admin@bloodbank.org');
+                  setPassword('Admin@123');
+                }}
+                style={{
+                  padding: '0.45rem 0.6rem',
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  backgroundColor: '#eff6ff',
+                  color: '#1e40af',
+                  border: '1px solid #bfdbfe',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                }}
+              >
+                👑 Super Admin
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  handleRoleChange('LAB_TECHNICIAN');
+                  setEmail('labtech@bloodbank.org');
+                  setPassword('LabTech@123');
+                }}
+                style={{
+                  padding: '0.45rem 0.6rem',
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  backgroundColor: '#fdf4ff',
+                  color: '#86198f',
+                  border: '1px solid #f5d0fe',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                }}
+              >
+                🧪 Lab Tech
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  handleRoleChange('ADMIN');
+                  setEmail('opsadmin@bloodbank.org');
+                  setPassword('Admin@123');
+                }}
+                style={{
+                  padding: '0.45rem 0.6rem',
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  backgroundColor: '#fafaf9',
+                  color: '#44403c',
+                  border: '1px solid #e7e5e4',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                }}
+              >
+                🛡️ Ops Admin
+              </button>
+            </div>
+          </div>
 
           {/* Security note */}
           <div
             style={{
-              marginTop: '1.75rem',
-              paddingTop: '1.25rem',
+              marginTop: '1rem',
+              paddingTop: '0.75rem',
               borderTop: '1px solid #f1f5f9',
               fontSize: '0.75rem',
               color: '#94a3b8',

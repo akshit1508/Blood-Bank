@@ -41,7 +41,7 @@ export class AuthController {
    * Validates active admin session and returns administrator profile.
    * GET /api/auth/me
    */
-  @Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN, AdminRole.LAB_TECHNICIAN)
+  @Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN, AdminRole.LAB_TECHNICIAN, AdminRole.FINANCE_RECEPTIONIST)
   @Get('me')
   async getMe(
     @CurrentAdmin() currentAdmin?: any,

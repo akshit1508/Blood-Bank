@@ -14,8 +14,6 @@ import {
   FileText,
   DollarSign,
   ChevronRight,
-  ShieldCheck,
-  Building,
 } from 'lucide-react';
 import {
   fetchInvoices,
@@ -45,6 +43,45 @@ export default function ReceptionistBillingPage() {
   // Generated Receipt Modal State
   const [receiptData, setReceiptData] = useState<any | null>(null);
 
+  const getInvoiceTotal = (inv: any) => {
+    if (!inv) return 0;
+    return inv.netPayable ?? inv.totalAmount ?? inv.subtotal ?? 0;
+  };
+
+  const getInvoiceBalance = (inv: any) => {
+    if (!inv) return 0;
+    if (inv.outstandingAmount !== undefined && inv.outstandingAmount !== null) {
+      return Number(inv.outstandingAmount);
+    }
+    const total = getInvoiceTotal(inv);
+    const collected = Number(inv.collectedAmount || 0);
+    return Math.max(0, total - collected);
+  };
+
+  const getPatientName = (inv: any) => {
+    return inv?.patient?.name || inv?.patientSnapshot?.name || inv?.patientName || 'Walk-in Patient';
+  };
+
+  const getPatientAgeGender = (inv: any) => {
+    const age = inv?.patient?.age ?? inv?.patientSnapshot?.age;
+    const gender = inv?.patient?.gender ?? inv?.patientSnapshot?.gender;
+    if (age && gender) return `${age} yrs • ${gender}`;
+    if (age) return `${age} yrs`;
+    return 'Age N/A';
+  };
+
+  const getPatientBloodGroup = (inv: any) => {
+    return inv?.patient?.bloodGroup || inv?.patientSnapshot?.bloodGroup || inv?.bloodGroup || 'Blood Group N/A';
+  };
+
+  const getHospitalName = (inv: any) => {
+    return inv?.hospitalName || inv?.hospitalSnapshot?.name || 'Hospital Clinic';
+  };
+
+  const getCaseNumber = (inv: any) => {
+    return inv?.patient?.hospitalCaseNumber || inv?.patientSnapshot?.hospitalCaseNumber || 'N/A';
+  };
+
   const loadInvoices = async () => {
     setLoading(true);
     setErrorMsg(null);
@@ -56,6 +93,9 @@ export default function ReceptionistBillingPage() {
       setInvoices(data);
       if (data.length > 0 && !selectedInvoice) {
         setSelectedInvoice(data[0]);
+      } else if (data.length > 0 && selectedInvoice) {
+        const found = data.find((i: any) => (i._id || i.id) === (selectedInvoice._id || selectedInvoice.id));
+        if (found) setSelectedInvoice(found);
       }
     } catch (err: any) {
       setErrorMsg(err.message || 'Failed to load invoices.');
@@ -70,8 +110,8 @@ export default function ReceptionistBillingPage() {
 
   const handleOpenCollect = (inv: any) => {
     setSelectedInvoice(inv);
-    const balance = (inv.totalAmount || 0) - (inv.collectedAmount || 0);
-    setCollectAmount(balance > 0 ? balance : inv.totalAmount || 0);
+    const balance = getInvoiceBalance(inv);
+    setCollectAmount(balance > 0 ? balance : getInvoiceTotal(inv));
     setReferenceNumber(
       paymentMethod === 'CASH'
         ? `CASH-${Date.now().toString().slice(-6)}`
@@ -97,14 +137,13 @@ export default function ReceptionistBillingPage() {
         notes: paymentNotes || 'Counter payment collected by Finance Receptionist',
       });
 
-      setSuccessMsg(`Payment of ₹${collectAmount.toLocaleString()} recorded successfully!`);
+      setSuccessMsg(`Payment of ₹${Number(collectAmount).toLocaleString()} recorded successfully!`);
       setIsCollectModalOpen(false);
       setReceiptData({
         collection: collectionResult,
         invoice: selectedInvoice,
       });
 
-      // Reload invoices
       await loadInvoices();
     } catch (err: any) {
       setErrorMsg(err.message || 'Failed to record payment collection.');
@@ -117,34 +156,97 @@ export default function ReceptionistBillingPage() {
     switch (status?.toUpperCase()) {
       case 'PAID':
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-950 text-emerald-300 border border-emerald-800">
-            <CheckCircle2 className="w-3 h-3" />
+          <span
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.25rem',
+              padding: '0.2rem 0.6rem',
+              borderRadius: '9999px',
+              fontSize: '0.7rem',
+              fontWeight: 700,
+              backgroundColor: '#064e3b',
+              color: '#6ee7b7',
+              border: '1px solid #059669',
+            }}
+          >
+            <CheckCircle2 style={{ width: '12px', height: '12px' }} />
             Paid in Full
           </span>
         );
       case 'PARTIALLY_COLLECTED':
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-950 text-blue-300 border border-blue-800">
-            <Clock className="w-3 h-3" />
+          <span
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.25rem',
+              padding: '0.2rem 0.6rem',
+              borderRadius: '9999px',
+              fontSize: '0.7rem',
+              fontWeight: 700,
+              backgroundColor: '#172554',
+              color: '#93c5fd',
+              border: '1px solid #1d4ed8',
+            }}
+          >
+            <Clock style={{ width: '12px', height: '12px' }} />
             Partially Collected
           </span>
         );
       case 'PENDING':
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-950 text-amber-300 border border-amber-800">
-            <AlertTriangle className="w-3 h-3" />
+          <span
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.25rem',
+              padding: '0.2rem 0.6rem',
+              borderRadius: '9999px',
+              fontSize: '0.7rem',
+              fontWeight: 700,
+              backgroundColor: '#451a03',
+              color: '#fde68a',
+              border: '1px solid #b45309',
+            }}
+          >
+            <AlertTriangle style={{ width: '12px', height: '12px' }} />
             Unpaid / Pending
           </span>
         );
       case 'WAIVED':
         return (
-          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-purple-950 text-purple-300 border border-purple-800">
-            Waived by Admin
+          <span
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              padding: '0.2rem 0.6rem',
+              borderRadius: '9999px',
+              fontSize: '0.7rem',
+              fontWeight: 700,
+              backgroundColor: '#3b0764',
+              color: '#d8b4fe',
+              border: '1px solid #7e22ce',
+            }}
+          >
+            Waived / Exempt
           </span>
         );
       default:
         return (
-          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-slate-800 text-slate-300 border border-slate-700">
+          <span
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              padding: '0.2rem 0.55rem',
+              borderRadius: '9999px',
+              fontSize: '0.7rem',
+              fontWeight: 600,
+              backgroundColor: '#1e293b',
+              color: '#94a3b8',
+              border: '1px solid #334155',
+            }}
+          >
             {status}
           </span>
         );
@@ -152,15 +254,36 @@ export default function ReceptionistBillingPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div style={{ maxWidth: '1440px', margin: '0 auto', paddingBottom: '3rem', color: '#f8fafc' }}>
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-800 pb-5">
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: '1rem',
+          borderBottom: '1px solid #1e293b',
+          paddingBottom: '1.25rem',
+          marginBottom: '1.5rem',
+        }}
+      >
         <div>
-          <h1 className="text-2xl font-bold text-white flex items-center gap-2.5">
-            <CreditCard className="w-7 h-7 text-rose-500" />
+          <h1
+            style={{
+              fontSize: '1.65rem',
+              fontWeight: 800,
+              color: '#f8fafc',
+              margin: 0,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.75rem',
+            }}
+          >
+            <CreditCard style={{ width: '28px', height: '28px', color: '#f43f5e' }} />
             Billing & Payment Desk
           </h1>
-          <p className="text-sm text-slate-400 mt-1">
+          <p style={{ color: '#94a3b8', fontSize: '0.85rem', margin: '0.35rem 0 0 0' }}>
             Review blood issue invoices, collect customer counter payments, and generate official stamped receipts.
           </p>
         </div>
@@ -168,50 +291,121 @@ export default function ReceptionistBillingPage() {
 
       {/* Alert Messages */}
       {errorMsg && (
-        <div className="p-4 bg-rose-950/40 border border-rose-800 rounded-lg flex items-center gap-3 text-rose-300 text-sm">
-          <AlertTriangle className="w-5 h-5 flex-shrink-0" />
+        <div
+          style={{
+            padding: '1rem',
+            backgroundColor: '#450a0a',
+            border: '1px solid #dc2626',
+            borderRadius: '8px',
+            color: '#fca5a5',
+            fontSize: '0.85rem',
+            marginBottom: '1.5rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.75rem',
+          }}
+        >
+          <AlertTriangle style={{ width: '20px', height: '20px', flexShrink: 0 }} />
           <span>{errorMsg}</span>
         </div>
       )}
       {successMsg && (
-        <div className="p-4 bg-emerald-950/40 border border-emerald-800 rounded-lg flex items-center gap-3 text-emerald-300 text-sm">
-          <CheckCircle2 className="w-5 h-5 flex-shrink-0" />
+        <div
+          style={{
+            padding: '1rem',
+            backgroundColor: '#064e3b',
+            border: '1px solid #059669',
+            borderRadius: '8px',
+            color: '#6ee7b7',
+            fontSize: '0.85rem',
+            marginBottom: '1.5rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.75rem',
+          }}
+        >
+          <CheckCircle2 style={{ width: '20px', height: '20px', flexShrink: 0 }} />
           <span>{successMsg}</span>
         </div>
       )}
 
       {/* Main Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))',
+          gap: '1.5rem',
+          alignItems: 'start',
+        }}
+      >
         {/* Left List: Invoices */}
-        <div className="lg:col-span-5 space-y-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-xl p-3.5 space-y-3">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+          <div
+            style={{
+              backgroundColor: '#0f172a',
+              border: '1px solid #1e293b',
+              borderRadius: '12px',
+              padding: '1rem',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '0.75rem',
+            }}
+          >
             <form
               onSubmit={(e) => {
                 e.preventDefault();
                 loadInvoices();
               }}
-              className="relative"
+              style={{ position: 'relative' }}
             >
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <Search
+                style={{
+                  width: '16px',
+                  height: '16px',
+                  color: '#64748b',
+                  position: 'absolute',
+                  left: '12px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                }}
+              />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search invoice number, patient, case #..."
-                className="w-full pl-9 pr-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-xs text-white placeholder-slate-500 focus:outline-none focus:border-rose-500"
+                style={{
+                  width: '100%',
+                  backgroundColor: '#020617',
+                  border: '1px solid #334155',
+                  borderRadius: '8px',
+                  padding: '0.55rem 0.75rem 0.55rem 2.25rem',
+                  fontSize: '0.8rem',
+                  color: '#f8fafc',
+                  outline: 'none',
+                  boxSizing: 'border-box',
+                }}
               />
             </form>
 
-            <div className="flex items-center gap-1 overflow-x-auto pb-1 text-xs">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', overflowX: 'auto', paddingBottom: '0.25rem' }}>
               {['ALL', 'PENDING', 'PARTIALLY_COLLECTED', 'PAID'].map((st) => (
                 <button
                   key={st}
+                  type="button"
                   onClick={() => setStatusFilter(st)}
-                  className={`px-2.5 py-1 rounded-md font-medium whitespace-nowrap transition-colors ${
-                    statusFilter === st
-                      ? 'bg-rose-600 text-white'
-                      : 'bg-slate-950 text-slate-400 hover:text-slate-200 border border-slate-800'
-                  }`}
+                  style={{
+                    padding: '0.3rem 0.65rem',
+                    borderRadius: '6px',
+                    fontSize: '0.75rem',
+                    fontWeight: 600,
+                    whiteSpace: 'nowrap',
+                    cursor: 'pointer',
+                    border: '1px solid',
+                    backgroundColor: statusFilter === st ? '#dc2626' : '#020617',
+                    color: statusFilter === st ? '#ffffff' : '#94a3b8',
+                    borderColor: statusFilter === st ? '#dc2626' : '#1e293b',
+                  }}
                 >
                   {st === 'PARTIALLY_COLLECTED' ? 'PARTIAL' : st}
                 </button>
@@ -221,60 +415,97 @@ export default function ReceptionistBillingPage() {
 
           {/* Invoices List */}
           {loading ? (
-            <div className="p-8 text-center text-slate-400 bg-slate-900 border border-slate-800 rounded-xl">
-              <Clock className="w-6 h-6 animate-spin mx-auto mb-2 text-rose-500" />
+            <div
+              style={{
+                padding: '2.5rem',
+                textAlign: 'center',
+                color: '#94a3b8',
+                backgroundColor: '#0f172a',
+                border: '1px solid #1e293b',
+                borderRadius: '12px',
+              }}
+            >
+              <Clock style={{ width: '24px', height: '24px', margin: '0 auto 0.5rem auto', color: '#f43f5e' }} />
               Loading invoices...
             </div>
           ) : invoices.length === 0 ? (
-            <div className="p-8 text-center bg-slate-900 border border-slate-800 rounded-xl text-slate-500 text-sm">
+            <div
+              style={{
+                padding: '2.5rem',
+                textAlign: 'center',
+                backgroundColor: '#0f172a',
+                border: '1px solid #1e293b',
+                borderRadius: '12px',
+                color: '#64748b',
+                fontSize: '0.85rem',
+              }}
+            >
               No matching invoices found.
             </div>
           ) : (
-            <div className="space-y-2 max-h-[650px] overflow-y-auto pr-1">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '650px', overflowY: 'auto' }}>
               {invoices.map((inv) => {
                 const isSelected = (selectedInvoice?._id || selectedInvoice?.id) === (inv._id || inv.id);
-                const balance = (inv.totalAmount || 0) - (inv.collectedAmount || 0);
+                const total = getInvoiceTotal(inv);
+                const balance = getInvoiceBalance(inv);
 
                 return (
                   <div
                     key={inv._id || inv.id}
                     onClick={() => setSelectedInvoice(inv)}
-                    className={`p-4 rounded-xl border transition-all cursor-pointer ${
-                      isSelected
-                        ? 'bg-rose-950/20 border-rose-600/60 ring-1 ring-rose-500/40 shadow-sm'
-                        : 'bg-slate-900 border-slate-800 hover:border-slate-700 hover:bg-slate-800/60'
-                    }`}
+                    style={{
+                      padding: '1rem',
+                      borderRadius: '10px',
+                      border: isSelected ? '1px solid #f43f5e' : '1px solid #1e293b',
+                      backgroundColor: isSelected ? 'rgba(244, 63, 94, 0.08)' : '#0f172a',
+                      cursor: 'pointer',
+                      boxShadow: isSelected ? '0 0 0 1px rgba(244, 63, 94, 0.4)' : 'none',
+                      transition: 'all 0.15s ease',
+                    }}
                   >
-                    <div className="flex items-start justify-between gap-2">
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem' }}>
                       <div>
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono text-xs font-bold text-rose-400">
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <span style={{ fontFamily: 'monospace', fontSize: '0.8rem', fontWeight: 700, color: '#f43f5e' }}>
                             {inv.invoiceNumber}
                           </span>
                           {getStatusBadge(inv.status)}
                         </div>
-                        <h4 className="font-semibold text-white text-sm mt-1.5">
-                          {inv.patientSnapshot?.name || inv.patientName || 'Walk-in Patient'}
+                        <h4 style={{ fontWeight: 700, color: '#ffffff', fontSize: '0.9rem', margin: '0.4rem 0 0 0' }}>
+                          {getPatientName(inv)}
                         </h4>
-                        <p className="text-xs text-slate-400 mt-0.5">
-                          Case #{inv.patientSnapshot?.hospitalCaseNumber || 'N/A'} • {inv.hospitalSnapshot?.name || inv.hospitalName || 'Hospital'}
+                        <p style={{ fontSize: '0.75rem', color: '#94a3b8', margin: '0.2rem 0 0 0' }}>
+                          Case #{getCaseNumber(inv)} • {getHospitalName(inv)}
                         </p>
                       </div>
                       <ChevronRight
-                        className={`w-4 h-4 text-slate-500 transition-transform ${
-                          isSelected ? 'translate-x-1 text-rose-400' : ''
-                        }`}
+                        style={{
+                          width: '16px',
+                          height: '16px',
+                          color: isSelected ? '#f43f5e' : '#475569',
+                          transform: isSelected ? 'translateX(2px)' : 'none',
+                        }}
                       />
                     </div>
 
-                    <div className="mt-3 pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs">
+                    <div
+                      style={{
+                        marginTop: '0.75rem',
+                        paddingTop: '0.75rem',
+                        borderTop: '1px solid #1e293b',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        fontSize: '0.75rem',
+                      }}
+                    >
                       <div>
-                        <span className="text-slate-400">Total: </span>
-                        <span className="font-bold text-white">₹{(inv.totalAmount || 0).toLocaleString()}</span>
+                        <span style={{ color: '#94a3b8' }}>Total: </span>
+                        <span style={{ fontWeight: 700, color: '#ffffff' }}>₹{total.toLocaleString()}</span>
                       </div>
                       <div>
-                        <span className="text-slate-400">Due: </span>
-                        <span className={`font-bold ${balance > 0 ? 'text-amber-400' : 'text-emerald-400'}`}>
+                        <span style={{ color: '#94a3b8' }}>Due: </span>
+                        <span style={{ fontWeight: 700, color: balance > 0 ? '#fbbf24' : '#6ee7b7' }}>
                           ₹{balance.toLocaleString()}
                         </span>
                       </div>
@@ -287,105 +518,181 @@ export default function ReceptionistBillingPage() {
         </div>
 
         {/* Right Detail Pane */}
-        <div className="lg:col-span-7">
+        <div>
           {selectedInvoice ? (
-            <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-sm space-y-6">
+            <div
+              style={{
+                backgroundColor: '#0f172a',
+                border: '1px solid #1e293b',
+                borderRadius: '12px',
+                padding: '1.5rem',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '1.5rem',
+              }}
+            >
               {/* Invoice Banner */}
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between pb-5 border-b border-slate-800 gap-4">
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  flexWrap: 'wrap',
+                  gap: '1rem',
+                  paddingBottom: '1.25rem',
+                  borderBottom: '1px solid #1e293b',
+                }}
+              >
                 <div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono font-bold text-lg text-white">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <span style={{ fontFamily: 'monospace', fontWeight: 800, fontSize: '1.15rem', color: '#ffffff' }}>
                       {selectedInvoice.invoiceNumber}
                     </span>
                     {getStatusBadge(selectedInvoice.status)}
                   </div>
-                  <h2 className="text-xl font-bold text-white mt-1">
-                    {selectedInvoice.patientSnapshot?.name || selectedInvoice.patientName}
+                  <h2 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#ffffff', margin: '0.35rem 0 0 0' }}>
+                    {getPatientName(selectedInvoice)}
                   </h2>
-                  <p className="text-xs text-slate-400">
-                    Hospital: {selectedInvoice.hospitalSnapshot?.name || selectedInvoice.hospitalName} • Date: {new Date(selectedInvoice.createdAt || Date.now()).toLocaleDateString()}
+                  <p style={{ fontSize: '0.75rem', color: '#94a3b8', margin: '0.2rem 0 0 0' }}>
+                    Hospital: {getHospitalName(selectedInvoice)} • Date: {new Date(selectedInvoice.invoiceDate || selectedInvoice.createdAt || Date.now()).toLocaleDateString()}
                   </p>
                 </div>
 
-                <div className="text-right">
-                  <div className="text-xs text-slate-400">Net Payable Amount</div>
-                  <div className="text-2xl font-bold text-emerald-400 font-mono">
-                    ₹{(selectedInvoice.totalAmount || 0).toLocaleString()}
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Net Payable Amount</div>
+                  <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#6ee7b7', fontFamily: 'monospace' }}>
+                    ₹{getInvoiceTotal(selectedInvoice).toLocaleString()}
                   </div>
                 </div>
               </div>
 
               {/* Patient Meta Cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div className="p-3 rounded-lg bg-slate-950 border border-slate-800 text-xs">
-                  <span className="text-slate-400 block mb-0.5">Patient Details</span>
-                  <p className="font-semibold text-white">
-                    {selectedInvoice.patientSnapshot?.name || 'N/A'} ({selectedInvoice.patientSnapshot?.age || '-'} yrs)
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+                  gap: '0.75rem',
+                }}
+              >
+                <div
+                  style={{
+                    padding: '0.85rem',
+                    borderRadius: '8px',
+                    backgroundColor: '#020617',
+                    border: '1px solid #1e293b',
+                    fontSize: '0.75rem',
+                  }}
+                >
+                  <span style={{ color: '#94a3b8', display: 'block', marginBottom: '0.25rem' }}>Patient Details</span>
+                  <p style={{ fontWeight: 700, color: '#ffffff', margin: '0 0 0.2rem 0' }}>
+                    {getPatientName(selectedInvoice)} ({getPatientAgeGender(selectedInvoice)})
                   </p>
-                  <p className="text-slate-400">Blood Group: {selectedInvoice.patientSnapshot?.bloodGroup || 'N/A'}</p>
+                  <p style={{ color: '#94a3b8', margin: 0 }}>Blood Group: {getPatientBloodGroup(selectedInvoice)}</p>
                 </div>
 
-                <div className="p-3 rounded-lg bg-slate-950 border border-slate-800 text-xs">
-                  <span className="text-slate-400 block mb-0.5">Hospital & Case</span>
-                  <p className="font-semibold text-white">
-                    {selectedInvoice.hospitalSnapshot?.name || 'N/A'}
+                <div
+                  style={{
+                    padding: '0.85rem',
+                    borderRadius: '8px',
+                    backgroundColor: '#020617',
+                    border: '1px solid #1e293b',
+                    fontSize: '0.75rem',
+                  }}
+                >
+                  <span style={{ color: '#94a3b8', display: 'block', marginBottom: '0.25rem' }}>Hospital & Case</span>
+                  <p style={{ fontWeight: 700, color: '#ffffff', margin: '0 0 0.2rem 0' }}>
+                    {getHospitalName(selectedInvoice)}
                   </p>
-                  <p className="text-slate-400">Case #{selectedInvoice.patientSnapshot?.hospitalCaseNumber || 'N/A'}</p>
+                  <p style={{ color: '#94a3b8', margin: 0 }}>Case #{getCaseNumber(selectedInvoice)}</p>
                 </div>
 
-                <div className="p-3 rounded-lg bg-slate-950 border border-slate-800 text-xs">
-                  <span className="text-slate-400 block mb-0.5">Payment Ledger</span>
-                  <p className="font-semibold text-emerald-400">
-                    Paid: ₹{(selectedInvoice.collectedAmount || 0).toLocaleString()}
+                <div
+                  style={{
+                    padding: '0.85rem',
+                    borderRadius: '8px',
+                    backgroundColor: '#020617',
+                    border: '1px solid #1e293b',
+                    fontSize: '0.75rem',
+                  }}
+                >
+                  <span style={{ color: '#94a3b8', display: 'block', marginBottom: '0.25rem' }}>Payment Ledger</span>
+                  <p style={{ fontWeight: 700, color: '#6ee7b7', margin: '0 0 0.2rem 0' }}>
+                    Paid: ₹{Number(selectedInvoice.collectedAmount || 0).toLocaleString()}
                   </p>
-                  <p className="text-amber-400 font-medium">
-                    Balance: ₹{((selectedInvoice.totalAmount || 0) - (selectedInvoice.collectedAmount || 0)).toLocaleString()}
+                  <p style={{ color: '#fbbf24', fontWeight: 600, margin: 0 }}>
+                    Balance: ₹{getInvoiceBalance(selectedInvoice).toLocaleString()}
                   </p>
                 </div>
               </div>
 
               {/* Line Items Breakdown */}
-              <div className="space-y-3">
-                <h3 className="text-sm font-semibold text-white flex items-center gap-2">
-                  <FileText className="w-4 h-4 text-rose-500" />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                <h3
+                  style={{
+                    fontSize: '0.9rem',
+                    fontWeight: 700,
+                    color: '#ffffff',
+                    margin: 0,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                  }}
+                >
+                  <FileText style={{ width: '16px', height: '16px', color: '#f43f5e' }} />
                   Itemized Tariff Charges
                 </h3>
 
-                <div className="border border-slate-800 rounded-lg overflow-hidden">
-                  <table className="w-full text-left text-xs">
+                <div style={{ border: '1px solid #1e293b', borderRadius: '8px', overflow: 'hidden' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.8rem' }}>
                     <thead>
-                      <tr className="bg-slate-950 border-b border-slate-800 text-slate-400">
-                        <th className="px-4 py-2.5">Item Description</th>
-                        <th className="px-4 py-2.5 text-center">Qty</th>
-                        <th className="px-4 py-2.5 text-right">Unit Rate</th>
-                        <th className="px-4 py-2.5 text-right">Amount</th>
+                      <tr style={{ backgroundColor: '#020617', borderBottom: '1px solid #1e293b', color: '#94a3b8' }}>
+                        <th style={{ padding: '0.65rem 0.85rem' }}>Item Description</th>
+                        <th style={{ padding: '0.65rem 0.85rem', textAlign: 'center' }}>Qty</th>
+                        <th style={{ padding: '0.65rem 0.85rem', textAlign: 'right' }}>Unit Rate</th>
+                        <th style={{ padding: '0.65rem 0.85rem', textAlign: 'right' }}>Amount</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-800/60">
-                      {(selectedInvoice.items || []).map((item: any, idx: number) => (
-                        <tr key={idx} className="hover:bg-slate-950/40">
-                          <td className="px-4 py-2.5 text-white font-medium">
-                            {item.description || item.componentType?.replace(/_/g, ' ') || 'Blood Service Charge'}
+                    <tbody>
+                      {(selectedInvoice.items || []).map((item: any, idx: number) => {
+                        const rate = Number(item.unitRate ?? item.rate ?? item.unitPrice ?? item.basePrice ?? 0);
+                        const qty = Number(item.quantity ?? 1);
+                        const lineTotal = Number(item.totalPrice ?? item.totalAmount ?? item.amount ?? (rate * qty));
+
+                        return (
+                          <tr key={idx} style={{ borderBottom: '1px solid #1e293b', backgroundColor: '#0f172a' }}>
+                            <td style={{ padding: '0.65rem 0.85rem', color: '#ffffff', fontWeight: 600 }}>
+                              {item.description || (item.bloodGroup && item.componentType ? `${item.bloodGroup} ${item.componentType.replace(/_/g, ' ')} (${item.unitCode || 'Unit'})` : 'Blood Service Charge')}
+                            </td>
+                            <td style={{ padding: '0.65rem 0.85rem', textAlign: 'center', color: '#cbd5e1', fontFamily: 'monospace' }}>
+                              {qty}
+                            </td>
+                            <td style={{ padding: '0.65rem 0.85rem', textAlign: 'right', color: '#cbd5e1', fontFamily: 'monospace' }}>
+                              ₹{rate.toLocaleString()}
+                            </td>
+                            <td style={{ padding: '0.65rem 0.85rem', textAlign: 'right', color: '#ffffff', fontFamily: 'monospace', fontWeight: 700 }}>
+                              ₹{lineTotal.toLocaleString()}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                    <tfoot>
+                      {selectedInvoice.waiverAmount > 0 && (
+                        <tr style={{ backgroundColor: '#020617', borderTop: '1px solid #1e293b' }}>
+                          <td colSpan={3} style={{ padding: '0.45rem 0.85rem', textAlign: 'right', color: '#6ee7b7' }}>
+                            Approved Medical Waiver:
                           </td>
-                          <td className="px-4 py-2.5 text-center text-slate-300 font-mono">
-                            {item.quantity || 1}
-                          </td>
-                          <td className="px-4 py-2.5 text-right text-slate-300 font-mono">
-                            ₹{(item.unitPrice || item.rate || 0).toLocaleString()}
-                          </td>
-                          <td className="px-4 py-2.5 text-right text-white font-mono font-semibold">
-                            ₹{(item.totalAmount || item.amount || 0).toLocaleString()}
+                          <td style={{ padding: '0.45rem 0.85rem', textAlign: 'right', fontFamily: 'monospace', fontWeight: 600, color: '#6ee7b7' }}>
+                            -₹{Number(selectedInvoice.waiverAmount).toLocaleString()}
                           </td>
                         </tr>
-                      ))}
-                    </tbody>
-                    <tfoot className="bg-slate-950 border-t border-slate-800 text-xs">
-                      <tr>
-                        <td colSpan={3} className="px-4 py-2 text-right text-slate-400 font-medium">
-                          Total Invoice Value:
+                      )}
+                      <tr style={{ backgroundColor: '#020617', borderTop: '1px solid #1e293b' }}>
+                        <td colSpan={3} style={{ padding: '0.65rem 0.85rem', textAlign: 'right', color: '#94a3b8', fontWeight: 600 }}>
+                          Net Payable Amount:
                         </td>
-                        <td className="px-4 py-2 text-right font-mono font-bold text-white">
-                          ₹{(selectedInvoice.totalAmount || 0).toLocaleString()}
+                        <td style={{ padding: '0.65rem 0.85rem', textAlign: 'right', fontFamily: 'monospace', fontWeight: 800, color: '#ffffff' }}>
+                          ₹{getInvoiceTotal(selectedInvoice).toLocaleString()}
                         </td>
                       </tr>
                     </tfoot>
@@ -394,30 +701,54 @@ export default function ReceptionistBillingPage() {
               </div>
 
               {/* Action Buttons */}
-              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t border-slate-800">
-                <div className="text-xs text-slate-400">
-                  {selectedInvoice.status === 'PAID' ? (
-                    <span className="text-emerald-400 font-medium flex items-center gap-1.5">
-                      <CheckCircle2 className="w-4 h-4" />
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  flexWrap: 'wrap',
+                  gap: '0.75rem',
+                  paddingTop: '1rem',
+                  borderTop: '1px solid #1e293b',
+                }}
+              >
+                <div style={{ fontSize: '0.8rem', color: '#94a3b8' }}>
+                  {getInvoiceBalance(selectedInvoice) === 0 ? (
+                    <span style={{ color: '#6ee7b7', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                      <CheckCircle2 style={{ width: '16px', height: '16px' }} />
                       Invoice is fully settled.
                     </span>
                   ) : (
                     <span>
                       Outstanding balance:{' '}
-                      <strong className="text-amber-400">
-                        ₹{((selectedInvoice.totalAmount || 0) - (selectedInvoice.collectedAmount || 0)).toLocaleString()}
+                      <strong style={{ color: '#fbbf24' }}>
+                        ₹{getInvoiceBalance(selectedInvoice).toLocaleString()}
                       </strong>
                     </span>
                   )}
                 </div>
 
-                <div className="flex items-center gap-3 w-full sm:w-auto">
-                  {selectedInvoice.status !== 'PAID' && (
+                <div>
+                  {getInvoiceBalance(selectedInvoice) > 0 && (
                     <button
+                      type="button"
                       onClick={() => handleOpenCollect(selectedInvoice)}
-                      className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-lg shadow-sm transition-colors"
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        padding: '0.65rem 1.25rem',
+                        backgroundColor: '#059669',
+                        color: '#ffffff',
+                        fontWeight: 700,
+                        fontSize: '0.85rem',
+                        borderRadius: '8px',
+                        border: 'none',
+                        cursor: 'pointer',
+                        boxShadow: '0 4px 12px rgba(5, 150, 105, 0.35)',
+                      }}
                     >
-                      <DollarSign className="w-4 h-4" />
+                      <DollarSign style={{ width: '16px', height: '16px' }} />
                       Receive & Record Payment
                     </button>
                   )}
@@ -425,11 +756,20 @@ export default function ReceptionistBillingPage() {
               </div>
             </div>
           ) : (
-            <div className="bg-slate-900 border border-slate-800 rounded-xl p-12 text-center text-slate-500">
-              <Receipt className="w-12 h-12 text-slate-700 mx-auto mb-3" />
-              <h3 className="text-base font-medium text-slate-300">Select an invoice</h3>
-              <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
-                Pick an invoice from the queue to inspect charges, review patient insurance/case codes, and record counter payment collections.
+            <div
+              style={{
+                backgroundColor: '#0f172a',
+                border: '1px solid #1e293b',
+                borderRadius: '12px',
+                padding: '3rem 1.5rem',
+                textAlign: 'center',
+                color: '#64748b',
+              }}
+            >
+              <Receipt style={{ width: '42px', height: '42px', margin: '0 auto 0.75rem auto', color: '#334155' }} />
+              <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#cbd5e1', margin: 0 }}>Select an invoice</h3>
+              <p style={{ fontSize: '0.8rem', color: '#64748b', margin: '0.35rem auto 0 auto', maxWidth: '380px' }}>
+                Pick an invoice from the queue to inspect charges, review patient case details, and record counter payment collections.
               </p>
             </div>
           )}
@@ -438,81 +778,148 @@ export default function ReceptionistBillingPage() {
 
       {/* Collect Payment Modal */}
       {isCollectModalOpen && selectedInvoice && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
-          <div className="w-full max-w-lg bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-2xl space-y-5">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-800">
-              <div className="flex items-center gap-2">
-                <DollarSign className="w-5 h-5 text-emerald-400" />
-                <h3 className="font-bold text-white text-base">Collect Payment</h3>
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '1rem',
+            backgroundColor: 'rgba(2, 6, 23, 0.85)',
+            backdropFilter: 'blur(4px)',
+          }}
+        >
+          <div
+            style={{
+              width: '100%',
+              maxWidth: '520px',
+              backgroundColor: '#0f172a',
+              border: '1px solid #1e293b',
+              borderRadius: '16px',
+              padding: '1.5rem',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.7)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '1.25rem',
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                paddingBottom: '0.85rem',
+                borderBottom: '1px solid #1e293b',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <DollarSign style={{ width: '20px', height: '20px', color: '#6ee7b7' }} />
+                <h3 style={{ fontWeight: 800, color: '#ffffff', fontSize: '1.1rem', margin: 0 }}>Collect Payment</h3>
               </div>
               <button
+                type="button"
                 onClick={() => setIsCollectModalOpen(false)}
-                className="text-slate-400 hover:text-white"
+                style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}
               >
-                <X className="w-5 h-5" />
+                <X style={{ width: '20px', height: '20px' }} />
               </button>
             </div>
 
-            <form onSubmit={handleRecordPayment} className="space-y-4">
-              <div className="p-3.5 rounded-lg bg-slate-950 border border-slate-800 text-xs flex justify-between items-center">
+            <form onSubmit={handleRecordPayment} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div
+                style={{
+                  padding: '0.85rem',
+                  borderRadius: '8px',
+                  backgroundColor: '#020617',
+                  border: '1px solid #1e293b',
+                  fontSize: '0.8rem',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                }}
+              >
                 <div>
-                  <span className="text-slate-400">Invoice: </span>
-                  <span className="font-mono font-bold text-white">{selectedInvoice.invoiceNumber}</span>
+                  <span style={{ color: '#94a3b8' }}>Invoice: </span>
+                  <span style={{ fontFamily: 'monospace', fontWeight: 700, color: '#ffffff' }}>
+                    {selectedInvoice.invoiceNumber}
+                  </span>
                 </div>
                 <div>
-                  <span className="text-slate-400">Total Due: </span>
-                  <span className="font-mono font-bold text-amber-400">
-                    ₹{((selectedInvoice.totalAmount || 0) - (selectedInvoice.collectedAmount || 0)).toLocaleString()}
+                  <span style={{ color: '#94a3b8' }}>Total Due: </span>
+                  <span style={{ fontFamily: 'monospace', fontWeight: 700, color: '#fbbf24' }}>
+                    ₹{getInvoiceBalance(selectedInvoice).toLocaleString()}
                   </span>
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#cbd5e1', marginBottom: '0.4rem' }}>
                   Amount to Collect (₹)
                 </label>
                 <input
                   type="number"
                   required
                   min={1}
-                  max={(selectedInvoice.totalAmount || 0) - (selectedInvoice.collectedAmount || 0)}
+                  max={getInvoiceBalance(selectedInvoice)}
                   value={collectAmount}
                   onChange={(e) => setCollectAmount(Number(e.target.value))}
-                  className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white font-mono focus:outline-none focus:border-emerald-500"
+                  style={{
+                    width: '100%',
+                    padding: '0.65rem 0.85rem',
+                    backgroundColor: '#020617',
+                    border: '1px solid #334155',
+                    borderRadius: '8px',
+                    fontSize: '0.9rem',
+                    color: '#ffffff',
+                    fontFamily: 'monospace',
+                    outline: 'none',
+                    boxSizing: 'border-box',
+                  }}
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#cbd5e1', marginBottom: '0.4rem' }}>
                   Payment Method
                 </label>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  {(['CASH', 'UPI', 'CARD', 'HOSPITAL_CREDIT'] as const).map((m) => (
-                    <button
-                      key={m}
-                      type="button"
-                      onClick={() => {
-                        setPaymentMethod(m);
-                        setReferenceNumber(
-                          m === 'CASH'
-                            ? `CASH-${Date.now().toString().slice(-6)}`
-                            : `${m}-${Date.now().toString().slice(-8)}`,
-                        );
-                      }}
-                      className={`py-2 text-xs font-semibold rounded-lg border transition-all ${
-                        paymentMethod === m
-                          ? 'bg-emerald-950 text-emerald-300 border-emerald-500 ring-1 ring-emerald-500'
-                          : 'bg-slate-950 text-slate-400 border-slate-800 hover:text-white'
-                      }`}
-                    >
-                      {m.replace(/_/g, ' ')}
-                    </button>
-                  ))}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: '0.5rem' }}>
+                  {(['CASH', 'UPI', 'CARD', 'HOSPITAL_CREDIT'] as const).map((m) => {
+                    const isSelected = paymentMethod === m;
+                    return (
+                      <button
+                        key={m}
+                        type="button"
+                        onClick={() => {
+                          setPaymentMethod(m);
+                          setReferenceNumber(
+                            m === 'CASH'
+                              ? `CASH-${Date.now().toString().slice(-6)}`
+                              : `${m}-${Date.now().toString().slice(-8)}`,
+                          );
+                        }}
+                        style={{
+                          padding: '0.55rem',
+                          fontSize: '0.75rem',
+                          fontWeight: 700,
+                          borderRadius: '8px',
+                          cursor: 'pointer',
+                          border: isSelected ? '1px solid #10b981' : '1px solid #1e293b',
+                          backgroundColor: isSelected ? '#064e3b' : '#020617',
+                          color: isSelected ? '#6ee7b7' : '#94a3b8',
+                          transition: 'all 0.15s ease',
+                        }}
+                      >
+                        {m.replace(/_/g, ' ')}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#cbd5e1', marginBottom: '0.4rem' }}>
                   Transaction / UTR / Reference Number
                 </label>
                 <input
@@ -521,12 +928,23 @@ export default function ReceptionistBillingPage() {
                   value={referenceNumber}
                   onChange={(e) => setReferenceNumber(e.target.value)}
                   placeholder="e.g. UTR12389472 / CARD-AUTH-8821"
-                  className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-xs text-white font-mono focus:outline-none focus:border-emerald-500"
+                  style={{
+                    width: '100%',
+                    padding: '0.65rem 0.85rem',
+                    backgroundColor: '#020617',
+                    border: '1px solid #334155',
+                    borderRadius: '8px',
+                    fontSize: '0.8rem',
+                    color: '#ffffff',
+                    fontFamily: 'monospace',
+                    outline: 'none',
+                    boxSizing: 'border-box',
+                  }}
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#cbd5e1', marginBottom: '0.4rem' }}>
                   Collection Notes
                 </label>
                 <textarea
@@ -534,22 +952,61 @@ export default function ReceptionistBillingPage() {
                   value={paymentNotes}
                   onChange={(e) => setPaymentNotes(e.target.value)}
                   placeholder="Counter remarks or cashier shift note..."
-                  className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+                  style={{
+                    width: '100%',
+                    padding: '0.65rem 0.85rem',
+                    backgroundColor: '#020617',
+                    border: '1px solid #334155',
+                    borderRadius: '8px',
+                    fontSize: '0.8rem',
+                    color: '#ffffff',
+                    outline: 'none',
+                    boxSizing: 'border-box',
+                  }}
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-800">
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'flex-end',
+                  alignItems: 'center',
+                  gap: '0.75rem',
+                  paddingTop: '0.75rem',
+                  borderTop: '1px solid #1e293b',
+                }}
+              >
                 <button
                   type="button"
                   onClick={() => setIsCollectModalOpen(false)}
-                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium rounded-lg"
+                  style={{
+                    padding: '0.55rem 1rem',
+                    backgroundColor: '#1e293b',
+                    color: '#cbd5e1',
+                    fontSize: '0.8rem',
+                    fontWeight: 600,
+                    borderRadius: '8px',
+                    border: '1px solid #334155',
+                    cursor: 'pointer',
+                  }}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={submittingPayment}
-                  className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg shadow-sm transition-colors disabled:opacity-50"
+                  style={{
+                    padding: '0.55rem 1.25rem',
+                    backgroundColor: '#059669',
+                    color: '#ffffff',
+                    fontSize: '0.8rem',
+                    fontWeight: 700,
+                    borderRadius: '8px',
+                    border: 'none',
+                    cursor: submittingPayment ? 'not-allowed' : 'pointer',
+                    boxShadow: '0 4px 12px rgba(5, 150, 105, 0.35)',
+                    opacity: submittingPayment ? 0.6 : 1,
+                  }}
                 >
                   {submittingPayment ? 'Recording Collection...' : 'Confirm Payment & Generate Receipt'}
                 </button>
@@ -561,88 +1018,182 @@ export default function ReceptionistBillingPage() {
 
       {/* Printable Receipt Modal */}
       {receiptData && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
-          <div className="w-full max-w-lg bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-2xl space-y-6">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-800">
-              <div className="flex items-center gap-2">
-                <Receipt className="w-5 h-5 text-emerald-400" />
-                <h3 className="font-bold text-white text-base">Payment Receipt Generated</h3>
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '1rem',
+            backgroundColor: 'rgba(2, 6, 23, 0.85)',
+            backdropFilter: 'blur(4px)',
+          }}
+        >
+          <div
+            style={{
+              width: '100%',
+              maxWidth: '520px',
+              backgroundColor: '#0f172a',
+              border: '1px solid #1e293b',
+              borderRadius: '16px',
+              padding: '1.5rem',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.7)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '1.25rem',
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                paddingBottom: '0.75rem',
+                borderBottom: '1px solid #1e293b',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Receipt style={{ width: '20px', height: '20px', color: '#6ee7b7' }} />
+                <h3 style={{ fontWeight: 800, color: '#ffffff', fontSize: '1.1rem', margin: 0 }}>Payment Receipt Generated</h3>
               </div>
               <button
+                type="button"
                 onClick={() => setReceiptData(null)}
-                className="text-slate-400 hover:text-white"
+                style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}
               >
-                <X className="w-5 h-5" />
+                <X style={{ width: '20px', height: '20px' }} />
               </button>
             </div>
 
             {/* Receipt Paper Card */}
-            <div id="receptionist-receipt-print" className="p-5 bg-white text-slate-900 rounded-xl space-y-4 font-sans text-xs shadow-inner">
-              <div className="text-center pb-3 border-b border-slate-300">
-                <h4 className="font-bold text-base uppercase tracking-wider text-rose-700">
+            <div
+              id="receptionist-receipt-print"
+              style={{
+                padding: '1.25rem',
+                backgroundColor: '#ffffff',
+                color: '#0f172a',
+                borderRadius: '10px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '1rem',
+                fontFamily: 'system-ui, -apple-system, sans-serif',
+                fontSize: '0.75rem',
+                boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.06)',
+              }}
+            >
+              <div style={{ textAlign: 'center', paddingBottom: '0.75rem', borderBottom: '1px solid #cbd5e1' }}>
+                <h4
+                  style={{
+                    fontWeight: 800,
+                    fontSize: '1rem',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                    color: '#be123c',
+                    margin: 0,
+                  }}
+                >
                   Blood Bank Management System
                 </h4>
-                <p className="text-[11px] text-slate-600">Official Payment & Collection Receipt</p>
-                <p className="text-[10px] text-slate-500 mt-0.5">
+                <p style={{ fontSize: '0.75rem', color: '#475569', margin: '0.2rem 0 0 0' }}>Official Payment & Collection Receipt</p>
+                <p style={{ fontSize: '0.7rem', color: '#64748b', margin: '0.15rem 0 0 0' }}>
                   Receipt #{receiptData.collection?.receiptNumber || receiptData.collection?._id?.slice(-8) || 'RCP-001'}
                 </p>
               </div>
 
-              <div className="grid grid-cols-2 gap-2 text-[11px]">
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', fontSize: '0.75rem' }}>
                 <div>
-                  <span className="text-slate-500 block">Patient Name:</span>
-                  <strong className="text-slate-900">{receiptData.invoice?.patientSnapshot?.name || 'Walk-in'}</strong>
+                  <span style={{ color: '#64748b', display: 'block' }}>Patient Name:</span>
+                  <strong style={{ color: '#0f172a' }}>{getPatientName(receiptData.invoice)}</strong>
                 </div>
-                <div className="text-right">
-                  <span className="text-slate-500 block">Date & Time:</span>
-                  <span className="text-slate-900 font-mono">
+                <div style={{ textAlign: 'right' }}>
+                  <span style={{ color: '#64748b', display: 'block' }}>Date & Time:</span>
+                  <span style={{ color: '#0f172a', fontFamily: 'monospace' }}>
                     {new Date().toLocaleString()}
                   </span>
                 </div>
                 <div>
-                  <span className="text-slate-500 block">Invoice Number:</span>
-                  <span className="font-mono text-slate-900 font-semibold">{receiptData.invoice?.invoiceNumber}</span>
+                  <span style={{ color: '#64748b', display: 'block' }}>Invoice Number:</span>
+                  <span style={{ fontFamily: 'monospace', color: '#0f172a', fontWeight: 600 }}>{receiptData.invoice?.invoiceNumber}</span>
                 </div>
-                <div className="text-right">
-                  <span className="text-slate-500 block">Payment Mode:</span>
-                  <span className="font-semibold text-slate-900">{receiptData.collection?.paymentMethod}</span>
+                <div style={{ textAlign: 'right' }}>
+                  <span style={{ color: '#64748b', display: 'block' }}>Payment Mode:</span>
+                  <span style={{ fontWeight: 600, color: '#0f172a' }}>{receiptData.collection?.paymentMethod}</span>
                 </div>
                 <div>
-                  <span className="text-slate-500 block">Reference / UTR:</span>
-                  <span className="font-mono text-slate-800 text-[10px]">{receiptData.collection?.referenceNumber || 'N/A'}</span>
+                  <span style={{ color: '#64748b', display: 'block' }}>Reference / UTR:</span>
+                  <span style={{ fontFamily: 'monospace', color: '#334155', fontSize: '0.7rem' }}>{receiptData.collection?.referenceNumber || 'N/A'}</span>
                 </div>
-                <div className="text-right">
-                  <span className="text-slate-500 block">Cashier Desk:</span>
-                  <span className="text-slate-800">Finance Receptionist</span>
+                <div style={{ textAlign: 'right' }}>
+                  <span style={{ color: '#64748b', display: 'block' }}>Cashier Desk:</span>
+                  <span style={{ color: '#334155' }}>Finance Receptionist</span>
                 </div>
               </div>
 
-              <div className="pt-3 border-t border-slate-300 flex items-center justify-between font-bold text-sm bg-slate-50 p-2.5 rounded">
+              <div
+                style={{
+                  paddingTop: '0.75rem',
+                  borderTop: '1px solid #cbd5e1',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  fontWeight: 700,
+                  fontSize: '0.85rem',
+                  backgroundColor: '#f8fafc',
+                  padding: '0.65rem',
+                  borderRadius: '6px',
+                }}
+              >
                 <span>Total Amount Paid:</span>
-                <span className="font-mono text-emerald-700 text-base">
-                  ₹{(receiptData.collection?.amount || collectAmount).toLocaleString()}
+                <span style={{ fontFamily: 'monospace', color: '#047857', fontSize: '1rem' }}>
+                  ₹{Number(receiptData.collection?.amount || collectAmount).toLocaleString()}
                 </span>
               </div>
 
-              <div className="text-center text-[10px] text-slate-500 pt-2 border-t border-dashed border-slate-300">
-                <p className="font-medium text-slate-700">Thank you for your payment.</p>
-                <p>This is a computer-generated transaction receipt. No physical signature required.</p>
+              <div style={{ textAlign: 'center', fontSize: '0.7rem', color: '#64748b', paddingTop: '0.5rem', borderTop: '1px dashed #cbd5e1' }}>
+                <p style={{ fontWeight: 600, color: '#334155', margin: 0 }}>Thank you for your payment.</p>
+                <p style={{ margin: '0.2rem 0 0 0' }}>This is a computer-generated transaction receipt. No physical signature required.</p>
               </div>
             </div>
 
             {/* Actions */}
-            <div className="flex items-center justify-end gap-3 pt-2">
+            <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '0.75rem', paddingTop: '0.5rem' }}>
               <button
+                type="button"
                 onClick={() => setReceiptData(null)}
-                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium rounded-lg"
+                style={{
+                  padding: '0.55rem 1rem',
+                  backgroundColor: '#1e293b',
+                  color: '#cbd5e1',
+                  fontSize: '0.8rem',
+                  fontWeight: 600,
+                  borderRadius: '8px',
+                  border: '1px solid #334155',
+                  cursor: 'pointer',
+                }}
               >
                 Close
               </button>
               <button
+                type="button"
                 onClick={() => window.print()}
-                className="inline-flex items-center gap-2 px-5 py-2 bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold rounded-lg shadow-sm transition-colors"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.4rem',
+                  padding: '0.55rem 1.25rem',
+                  backgroundColor: '#dc2626',
+                  color: '#ffffff',
+                  fontSize: '0.8rem',
+                  fontWeight: 700,
+                  borderRadius: '8px',
+                  border: 'none',
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 12px rgba(220, 38, 38, 0.35)',
+                }}
               >
-                <Printer className="w-4 h-4" />
+                <Printer style={{ width: '16px', height: '16px' }} />
                 Print Official Receipt
               </button>
             </div>

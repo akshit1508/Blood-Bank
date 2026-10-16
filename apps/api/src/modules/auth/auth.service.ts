@@ -161,15 +161,9 @@ export class AuthService implements OnModuleInit {
         }
       }
 
-      // 4. Initial Finance Receptionist Provisioning (if configured or default in dev)
-      const receptionistEmail = (
-        this.configService.get<string>('INITIAL_RECEPTIONIST_EMAIL') ||
-        (!isProd ? 'receptionist@bloodbank.org' : undefined)
-      )?.toLowerCase().trim();
-      const receptionistPassword = (
-        this.configService.get<string>('INITIAL_RECEPTIONIST_PASSWORD') ||
-        (!isProd ? 'Receptionist@123' : undefined)
-      )?.trim();
+      // 4. Initial Finance Receptionist Provisioning (if configured and not already existing)
+      const receptionistEmail = this.configService.get<string>('INITIAL_RECEPTIONIST_EMAIL')?.toLowerCase().trim();
+      const receptionistPassword = this.configService.get<string>('INITIAL_RECEPTIONIST_PASSWORD')?.trim();
 
       if (receptionistEmail && receptionistPassword) {
         const existingReceptionist = await this.adminModel.findOne({ email: receptionistEmail });

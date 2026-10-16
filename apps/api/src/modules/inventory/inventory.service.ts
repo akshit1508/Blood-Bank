@@ -71,8 +71,14 @@ export class InventoryService {
     history?: any[],
   ) {
     const rawUnit = bloodUnit || {};
-    const rawDonation = typeof rawUnit.donationId === 'object' ? rawUnit.donationId : {};
-    const rawDonor = typeof rawUnit.donorId === 'object' ? rawUnit.donorId : {};
+    const rawDonation =
+      rawUnit.donationId && typeof rawUnit.donationId === 'object'
+        ? rawUnit.donationId
+        : null;
+    const rawDonor =
+      rawUnit.donorId && typeof rawUnit.donorId === 'object'
+        ? rawUnit.donorId
+        : null;
 
     const now = new Date();
     const expiryDate = rawUnit.expiryDate ? new Date(rawUnit.expiryDate) : null;
@@ -111,7 +117,7 @@ export class InventoryService {
         storageLocation: rawUnit.storageLocation,
         status: rawUnit.status,
       },
-      donation: rawDonation._id
+      donation: rawDonation?._id
         ? {
             _id: rawDonation._id,
             donationCode: rawDonation.donationCode,
@@ -120,7 +126,7 @@ export class InventoryService {
             status: rawDonation.status,
           }
         : null,
-      donor: rawDonor._id
+      donor: rawDonor?._id
         ? {
             _id: rawDonor._id,
             donorCode: rawDonor.donorCode,

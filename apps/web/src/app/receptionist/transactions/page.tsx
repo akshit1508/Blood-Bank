@@ -4,21 +4,16 @@ import React, { useState, useEffect } from 'react';
 import {
   Receipt,
   Search,
-  Filter,
   Printer,
   Calendar,
-  CheckCircle2,
   Clock,
   ChevronLeft,
   ChevronRight,
   Eye,
   X,
   CreditCard,
-  Building,
-  User,
-  ArrowDownRight,
 } from 'lucide-react';
-import { fetchCollections, fetchInvoices } from '@/lib/receptionist-api';
+import { fetchCollections } from '@/lib/receptionist-api';
 
 export default function ReceptionistTransactionsHistoryPage() {
   const [collections, setCollections] = useState<any[]>([]);
@@ -37,7 +32,7 @@ export default function ReceptionistTransactionsHistoryPage() {
         search: searchQuery,
       });
       setCollections(data);
-    } catch (err) {
+    } catch {
       // Soft error
     } finally {
       setLoading(false);
@@ -65,53 +60,122 @@ export default function ReceptionistTransactionsHistoryPage() {
   );
 
   return (
-    <div className="space-y-6">
+    <div style={{ maxWidth: '1440px', margin: '0 auto', paddingBottom: '3rem', color: '#f8fafc' }}>
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-800 pb-5">
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: '1rem',
+          borderBottom: '1px solid #1e293b',
+          paddingBottom: '1.25rem',
+          marginBottom: '1.5rem',
+        }}
+      >
         <div>
-          <h1 className="text-2xl font-bold text-white flex items-center gap-2.5">
-            <Receipt className="w-7 h-7 text-rose-500" />
+          <h1
+            style={{
+              fontSize: '1.65rem',
+              fontWeight: 800,
+              color: '#f8fafc',
+              margin: 0,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.75rem',
+            }}
+          >
+            <Receipt style={{ width: '28px', height: '28px', color: '#f43f5e' }} />
             Receipts & Transaction Ledger
           </h1>
-          <p className="text-sm text-slate-400 mt-1">
+          <p style={{ color: '#94a3b8', fontSize: '0.85rem', margin: '0.35rem 0 0 0' }}>
             Complete cashier journal of payments received, payment modes, and official stamped receipts.
           </p>
         </div>
 
         <button
           onClick={() => window.print()}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg border border-slate-700 transition-colors"
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            padding: '0.65rem 1.25rem',
+            backgroundColor: '#1e293b',
+            color: '#f8fafc',
+            fontWeight: 600,
+            fontSize: '0.85rem',
+            borderRadius: '8px',
+            border: '1px solid #334155',
+            cursor: 'pointer',
+          }}
         >
-          <Printer className="w-4 h-4" />
+          <Printer style={{ width: '16px', height: '16px' }} />
           Print Transaction Ledger
         </button>
       </div>
 
       {/* Filter and Search Bar */}
-      <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
-        <div className="flex flex-col md:flex-row gap-3">
+      <div
+        style={{
+          backgroundColor: '#0f172a',
+          border: '1px solid #1e293b',
+          borderRadius: '12px',
+          padding: '1rem',
+          marginBottom: '1.5rem',
+        }}
+      >
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', alignItems: 'center' }}>
           <form
             onSubmit={(e) => {
               e.preventDefault();
               loadCollections();
             }}
-            className="relative flex-1"
+            style={{ position: 'relative', flex: 1, minWidth: '260px' }}
           >
-            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+            <Search
+              style={{
+                width: '18px',
+                height: '18px',
+                color: '#64748b',
+                position: 'absolute',
+                left: '12px',
+                top: '50%',
+                transform: 'translateY(-50%)',
+              }}
+            />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search by receipt number, reference, or payment notes..."
-              className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white placeholder-slate-500 focus:outline-none focus:border-rose-500"
+              style={{
+                width: '100%',
+                backgroundColor: '#020617',
+                border: '1px solid #334155',
+                borderRadius: '8px',
+                padding: '0.65rem 0.85rem 0.65rem 2.5rem',
+                fontSize: '0.85rem',
+                color: '#f8fafc',
+                outline: 'none',
+                boxSizing: 'border-box',
+              }}
             />
           </form>
 
-          <div className="flex items-center gap-2">
+          <div>
             <select
               value={paymentMethodFilter}
               onChange={(e) => setPaymentMethodFilter(e.target.value)}
-              className="px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:border-rose-500"
+              style={{
+                padding: '0.65rem 0.85rem',
+                backgroundColor: '#020617',
+                border: '1px solid #334155',
+                borderRadius: '8px',
+                fontSize: '0.85rem',
+                color: '#f8fafc',
+                outline: 'none',
+              }}
             >
               <option value="ALL">All Payment Methods</option>
               <option value="CASH">Cash Only</option>
@@ -124,89 +188,156 @@ export default function ReceptionistTransactionsHistoryPage() {
       </div>
 
       {/* Transactions Table */}
-      <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-sm">
-        <div className="p-4 border-b border-slate-800 flex items-center justify-between">
-          <h2 className="font-semibold text-white text-sm">
+      <div
+        style={{
+          backgroundColor: '#0f172a',
+          border: '1px solid #1e293b',
+          borderRadius: '12px',
+          overflow: 'hidden',
+        }}
+      >
+        <div
+          style={{
+            padding: '1rem',
+            borderBottom: '1px solid #1e293b',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+          }}
+        >
+          <h2 style={{ fontWeight: 700, color: '#ffffff', fontSize: '0.9rem', margin: 0 }}>
             Cashier Journal ({filteredCollections.length} Records)
           </h2>
-          <span className="text-xs text-slate-400">Strictly immutable ledger entries</span>
+          <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Strictly immutable ledger entries</span>
         </div>
 
         {loading ? (
-          <div className="p-12 text-center text-slate-400">
-            <Clock className="w-8 h-8 animate-spin mx-auto mb-2 text-rose-500" />
+          <div style={{ padding: '3rem', textAlign: 'center', color: '#94a3b8' }}>
+            <Clock style={{ width: '28px', height: '28px', margin: '0 auto 0.75rem auto', color: '#f43f5e' }} />
             Loading transaction entries...
           </div>
         ) : paginatedCollections.length === 0 ? (
-          <div className="p-12 text-center text-slate-400">
-            <Receipt className="w-10 h-10 text-slate-600 mx-auto mb-3" />
-            <p className="font-medium text-slate-300">No transactions recorded</p>
-            <p className="text-xs text-slate-500 mt-1">
+          <div style={{ padding: '3rem', textAlign: 'center', color: '#94a3b8' }}>
+            <Receipt style={{ width: '36px', height: '36px', margin: '0 auto 0.75rem auto', color: '#475569' }} />
+            <p style={{ fontWeight: 600, color: '#e2e8f0', margin: 0 }}>No transactions recorded</p>
+            <p style={{ fontSize: '0.8rem', color: '#64748b', margin: '0.35rem 0 0 0' }}>
               Collected counter payments will automatically post here with generated receipt numbers.
             </p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
               <thead>
-                <tr className="border-b border-slate-800 bg-slate-950 text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                  <th className="px-5 py-3.5">Receipt #</th>
-                  <th className="px-5 py-3.5">Date & Time</th>
-                  <th className="px-5 py-3.5">Payment Method</th>
-                  <th className="px-5 py-3.5">Reference / UTR</th>
-                  <th className="px-5 py-3.5 text-right">Amount Collected</th>
-                  <th className="px-5 py-3.5 text-center">Receipt Action</th>
+                <tr
+                  style={{
+                    borderBottom: '1px solid #1e293b',
+                    backgroundColor: '#020617',
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    color: '#94a3b8',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                  }}
+                >
+                  <th style={{ padding: '0.75rem 1rem' }}>Receipt #</th>
+                  <th style={{ padding: '0.75rem 1rem' }}>Date & Time</th>
+                  <th style={{ padding: '0.75rem 1rem' }}>Payment Method</th>
+                  <th style={{ padding: '0.75rem 1rem' }}>Reference / UTR</th>
+                  <th style={{ padding: '0.75rem 1rem', textAlign: 'right' }}>Amount Collected</th>
+                  <th style={{ padding: '0.75rem 1rem', textAlign: 'center' }}>Receipt Action</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800/60">
-                {paginatedCollections.map((col) => (
-                  <tr key={col._id || col.id} className="hover:bg-slate-850 transition-colors">
-                    <td className="px-5 py-3.5 font-mono text-xs font-semibold text-rose-400">
-                      {col.receiptNumber || col._id?.slice(-8)}
-                    </td>
-                    <td className="px-5 py-3.5 text-xs text-slate-300">
-                      <span className="flex items-center gap-1.5">
-                        <Calendar className="w-3.5 h-3.5 text-slate-500" />
-                        {new Date(col.createdAt || Date.now()).toLocaleDateString()} at{' '}
-                        {new Date(col.createdAt || Date.now()).toLocaleTimeString([], {
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })}
-                      </span>
-                    </td>
-                    <td className="px-5 py-3.5">
-                      <span
-                        className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold ${
-                          col.paymentMethod === 'CASH'
-                            ? 'bg-amber-950 text-amber-300 border border-amber-800'
-                            : col.paymentMethod === 'UPI'
-                            ? 'bg-blue-950 text-blue-300 border border-blue-800'
-                            : col.paymentMethod === 'CARD'
-                            ? 'bg-purple-950 text-purple-300 border border-purple-800'
-                            : 'bg-emerald-950 text-emerald-300 border border-emerald-800'
-                        }`}
-                      >
-                        <CreditCard className="w-3 h-3" />
-                        {col.paymentMethod?.replace(/_/g, ' ')}
-                      </span>
-                    </td>
-                    <td className="px-5 py-3.5 font-mono text-xs text-slate-400">
-                      {col.referenceNumber || 'N/A'}
-                    </td>
-                    <td className="px-5 py-3.5 text-right font-mono font-bold text-emerald-400 text-sm">
-                      ₹{(col.amount || 0).toLocaleString()}
-                    </td>
-                    <td className="px-5 py-3.5 text-center">
-                      <button
-                        onClick={() => setSelectedReceipt(col)}
-                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-medium border border-slate-700 transition-colors"
-                      >
-                        <Eye className="w-3.5 h-3.5" />
-                        View Receipt
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+              <tbody>
+                {paginatedCollections.map((col) => {
+                  let badgeBg = '#064e3b';
+                  let badgeColor = '#6ee7b7';
+                  let badgeBorder = '#059669';
+
+                  if (col.paymentMethod === 'CASH') {
+                    badgeBg = '#451a03';
+                    badgeColor = '#fde68a';
+                    badgeBorder = '#b45309';
+                  } else if (col.paymentMethod === 'UPI') {
+                    badgeBg = '#172554';
+                    badgeColor = '#93c5fd';
+                    badgeBorder = '#1d4ed8';
+                  } else if (col.paymentMethod === 'CARD') {
+                    badgeBg = '#3b0764';
+                    badgeColor = '#d8b4fe';
+                    badgeBorder = '#7e22ce';
+                  }
+
+                  return (
+                    <tr
+                      key={col._id || col.id}
+                      style={{
+                        borderBottom: '1px solid #1e293b',
+                        backgroundColor: '#0f172a',
+                      }}
+                    >
+                      <td style={{ padding: '0.75rem 1rem', fontFamily: 'monospace', fontWeight: 700, color: '#f43f5e' }}>
+                        {col.receiptNumber || col._id?.slice(-8)}
+                      </td>
+                      <td style={{ padding: '0.75rem 1rem', fontSize: '0.8rem', color: '#cbd5e1' }}>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                          <Calendar style={{ width: '14px', height: '14px', color: '#64748b' }} />
+                          {new Date(col.createdAt || Date.now()).toLocaleDateString()} at{' '}
+                          {new Date(col.createdAt || Date.now()).toLocaleTimeString([], {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </span>
+                      </td>
+                      <td style={{ padding: '0.75rem 1rem' }}>
+                        <span
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.3rem',
+                            padding: '0.2rem 0.55rem',
+                            borderRadius: '9999px',
+                            fontSize: '0.7rem',
+                            fontWeight: 700,
+                            backgroundColor: badgeBg,
+                            color: badgeColor,
+                            border: `1px solid ${badgeBorder}`,
+                          }}
+                        >
+                          <CreditCard style={{ width: '12px', height: '12px' }} />
+                          {col.paymentMethod?.replace(/_/g, ' ')}
+                        </span>
+                      </td>
+                      <td style={{ padding: '0.75rem 1rem', fontFamily: 'monospace', fontSize: '0.75rem', color: '#94a3b8' }}>
+                        {col.referenceNumber || 'N/A'}
+                      </td>
+                      <td style={{ padding: '0.75rem 1rem', textAlign: 'right', fontFamily: 'monospace', fontWeight: 800, color: '#6ee7b7', fontSize: '0.9rem' }}>
+                        ₹{(col.amount || 0).toLocaleString()}
+                      </td>
+                      <td style={{ padding: '0.75rem 1rem', textAlign: 'center' }}>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedReceipt(col)}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.3rem',
+                            padding: '0.4rem 0.75rem',
+                            borderRadius: '6px',
+                            backgroundColor: '#1e293b',
+                            color: '#e2e8f0',
+                            fontSize: '0.75rem',
+                            fontWeight: 600,
+                            border: '1px solid #334155',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          <Eye style={{ width: '14px', height: '14px' }} />
+                          View Receipt
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -214,29 +345,58 @@ export default function ReceptionistTransactionsHistoryPage() {
 
         {/* Pagination Footer */}
         {totalPages > 1 && (
-          <div className="p-4 border-t border-slate-800 bg-slate-950 flex items-center justify-between text-xs text-slate-400">
+          <div
+            style={{
+              padding: '0.85rem 1rem',
+              borderTop: '1px solid #1e293b',
+              backgroundColor: '#020617',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              fontSize: '0.75rem',
+              color: '#94a3b8',
+            }}
+          >
             <span>
               Showing {(page - 1) * pageSize + 1} to{' '}
               {Math.min(page * pageSize, filteredCollections.length)} of{' '}
               {filteredCollections.length} entries
             </span>
-            <div className="flex items-center gap-2">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <button
+                type="button"
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                 disabled={page === 1}
-                className="p-1.5 rounded bg-slate-900 border border-slate-800 hover:bg-slate-800 disabled:opacity-50"
+                style={{
+                  padding: '0.35rem 0.5rem',
+                  borderRadius: '6px',
+                  backgroundColor: '#0f172a',
+                  border: '1px solid #1e293b',
+                  color: '#f8fafc',
+                  cursor: page === 1 ? 'not-allowed' : 'pointer',
+                  opacity: page === 1 ? 0.5 : 1,
+                }}
               >
-                <ChevronLeft className="w-4 h-4" />
+                <ChevronLeft style={{ width: '14px', height: '14px' }} />
               </button>
               <span>
                 Page {page} of {totalPages}
               </span>
               <button
+                type="button"
                 onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                 disabled={page === totalPages}
-                className="p-1.5 rounded bg-slate-900 border border-slate-800 hover:bg-slate-800 disabled:opacity-50"
+                style={{
+                  padding: '0.35rem 0.5rem',
+                  borderRadius: '6px',
+                  backgroundColor: '#0f172a',
+                  border: '1px solid #1e293b',
+                  color: '#f8fafc',
+                  cursor: page === totalPages ? 'not-allowed' : 'pointer',
+                  opacity: page === totalPages ? 0.5 : 1,
+                }}
               >
-                <ChevronRight className="w-4 h-4" />
+                <ChevronRight style={{ width: '14px', height: '14px' }} />
               </button>
             </div>
           </div>
@@ -245,89 +405,184 @@ export default function ReceptionistTransactionsHistoryPage() {
 
       {/* Receipt View Modal */}
       {selectedReceipt && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
-          <div className="w-full max-w-lg bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-2xl space-y-6">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-800">
-              <div className="flex items-center gap-2">
-                <Receipt className="w-5 h-5 text-emerald-400" />
-                <h3 className="font-bold text-white text-base">Payment Receipt Details</h3>
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '1rem',
+            backgroundColor: 'rgba(2, 6, 23, 0.85)',
+            backdropFilter: 'blur(4px)',
+          }}
+        >
+          <div
+            style={{
+              width: '100%',
+              maxWidth: '520px',
+              backgroundColor: '#0f172a',
+              border: '1px solid #1e293b',
+              borderRadius: '16px',
+              padding: '1.5rem',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.7)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '1.25rem',
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                paddingBottom: '0.75rem',
+                borderBottom: '1px solid #1e293b',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Receipt style={{ width: '20px', height: '20px', color: '#6ee7b7' }} />
+                <h3 style={{ fontWeight: 800, color: '#ffffff', fontSize: '1.1rem', margin: 0 }}>
+                  Payment Receipt Details
+                </h3>
               </div>
               <button
+                type="button"
                 onClick={() => setSelectedReceipt(null)}
-                className="text-slate-400 hover:text-white"
+                style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}
               >
-                <X className="w-5 h-5" />
+                <X style={{ width: '20px', height: '20px' }} />
               </button>
             </div>
 
             {/* Printable Receipt Paper */}
-            <div className="p-5 bg-white text-slate-900 rounded-xl space-y-4 font-sans text-xs shadow-inner">
-              <div className="text-center pb-3 border-b border-slate-300">
-                <h4 className="font-bold text-base uppercase tracking-wider text-rose-700">
+            <div
+              style={{
+                padding: '1.25rem',
+                backgroundColor: '#ffffff',
+                color: '#0f172a',
+                borderRadius: '10px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '1rem',
+                fontFamily: 'system-ui, -apple-system, sans-serif',
+                fontSize: '0.75rem',
+                boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.06)',
+              }}
+            >
+              <div style={{ textAlign: 'center', paddingBottom: '0.75rem', borderBottom: '1px solid #cbd5e1' }}>
+                <h4
+                  style={{
+                    fontWeight: 800,
+                    fontSize: '1rem',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                    color: '#be123c',
+                    margin: 0,
+                  }}
+                >
                   Blood Bank Management System
                 </h4>
-                <p className="text-[11px] text-slate-600">Official Payment & Collection Receipt</p>
-                <p className="text-[10px] text-slate-500 mt-0.5 font-mono">
+                <p style={{ fontSize: '0.75rem', color: '#475569', margin: '0.2rem 0 0 0' }}>Official Payment & Collection Receipt</p>
+                <p style={{ fontSize: '0.7rem', color: '#64748b', margin: '0.15rem 0 0 0', fontFamily: 'monospace' }}>
                   Receipt #{selectedReceipt.receiptNumber || selectedReceipt._id?.slice(-8)}
                 </p>
               </div>
 
-              <div className="grid grid-cols-2 gap-2 text-[11px]">
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', fontSize: '0.75rem' }}>
                 <div>
-                  <span className="text-slate-500 block">Date & Time:</span>
-                  <span className="text-slate-900 font-mono">
+                  <span style={{ color: '#64748b', display: 'block' }}>Date & Time:</span>
+                  <span style={{ color: '#0f172a', fontFamily: 'monospace' }}>
                     {new Date(selectedReceipt.createdAt || Date.now()).toLocaleString()}
                   </span>
                 </div>
-                <div className="text-right">
-                  <span className="text-slate-500 block">Payment Mode:</span>
-                  <span className="font-semibold text-slate-900">{selectedReceipt.paymentMethod}</span>
+                <div style={{ textAlign: 'right' }}>
+                  <span style={{ color: '#64748b', display: 'block' }}>Payment Mode:</span>
+                  <span style={{ fontWeight: 600, color: '#0f172a' }}>{selectedReceipt.paymentMethod}</span>
                 </div>
                 <div>
-                  <span className="text-slate-500 block">Reference / UTR:</span>
-                  <span className="font-mono text-slate-800 text-[10px]">
+                  <span style={{ color: '#64748b', display: 'block' }}>Reference / UTR:</span>
+                  <span style={{ fontFamily: 'monospace', color: '#334155', fontSize: '0.7rem' }}>
                     {selectedReceipt.referenceNumber || 'N/A'}
                   </span>
                 </div>
-                <div className="text-right">
-                  <span className="text-slate-500 block">Desk:</span>
-                  <span className="text-slate-800">Finance Reception Desk</span>
+                <div style={{ textAlign: 'right' }}>
+                  <span style={{ color: '#64748b', display: 'block' }}>Desk:</span>
+                  <span style={{ color: '#334155' }}>Finance Reception Desk</span>
                 </div>
               </div>
 
-              <div className="pt-3 border-t border-slate-300 flex items-center justify-between font-bold text-sm bg-slate-50 p-2.5 rounded">
+              <div
+                style={{
+                  paddingTop: '0.75rem',
+                  borderTop: '1px solid #cbd5e1',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  fontWeight: 700,
+                  fontSize: '0.85rem',
+                  backgroundColor: '#f8fafc',
+                  padding: '0.65rem',
+                  borderRadius: '6px',
+                }}
+              >
                 <span>Amount Paid:</span>
-                <span className="font-mono text-emerald-700 text-base">
+                <span style={{ fontFamily: 'monospace', color: '#047857', fontSize: '1rem' }}>
                   ₹{(selectedReceipt.amount || 0).toLocaleString()}
                 </span>
               </div>
 
               {selectedReceipt.notes && (
-                <div className="p-2 bg-slate-100 rounded text-[11px] text-slate-600">
-                  <span className="font-semibold text-slate-700">Remarks: </span>
+                <div style={{ padding: '0.5rem', backgroundColor: '#f1f5f9', borderRadius: '6px', fontSize: '0.7rem', color: '#475569' }}>
+                  <span style={{ fontWeight: 600, color: '#334155' }}>Remarks: </span>
                   {selectedReceipt.notes}
                 </div>
               )}
 
-              <div className="text-center text-[10px] text-slate-500 pt-2 border-t border-dashed border-slate-300">
-                <p className="font-medium text-slate-700">Thank you for your payment.</p>
-                <p>Computer-generated transaction record.</p>
+              <div style={{ textAlign: 'center', fontSize: '0.7rem', color: '#64748b', paddingTop: '0.5rem', borderTop: '1px dashed #cbd5e1' }}>
+                <p style={{ fontWeight: 600, color: '#334155', margin: 0 }}>Thank you for your payment.</p>
+                <p style={{ margin: '0.2rem 0 0 0' }}>Computer-generated transaction record.</p>
               </div>
             </div>
 
             {/* Actions */}
-            <div className="flex items-center justify-end gap-3 pt-2">
+            <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '0.75rem', paddingTop: '0.5rem' }}>
               <button
+                type="button"
                 onClick={() => setSelectedReceipt(null)}
-                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium rounded-lg"
+                style={{
+                  padding: '0.55rem 1rem',
+                  backgroundColor: '#1e293b',
+                  color: '#cbd5e1',
+                  fontSize: '0.8rem',
+                  fontWeight: 600,
+                  borderRadius: '8px',
+                  border: '1px solid #334155',
+                  cursor: 'pointer',
+                }}
               >
                 Close
               </button>
               <button
+                type="button"
                 onClick={() => window.print()}
-                className="inline-flex items-center gap-2 px-5 py-2 bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold rounded-lg shadow-sm transition-colors"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.4rem',
+                  padding: '0.55rem 1.25rem',
+                  backgroundColor: '#dc2626',
+                  color: '#ffffff',
+                  fontSize: '0.8rem',
+                  fontWeight: 700,
+                  borderRadius: '8px',
+                  border: 'none',
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 12px rgba(220, 38, 38, 0.35)',
+                }}
               >
-                <Printer className="w-4 h-4" />
+                <Printer style={{ width: '16px', height: '16px' }} />
                 Print Receipt
               </button>
             </div>

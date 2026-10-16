@@ -138,15 +138,12 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
   }, [pathname, admin, loading, isLoginPage, router]);
 
   const login = useCallback(
-    async (email: string, pass: string, targetRole?: 'SUPER_ADMIN' | 'ADMIN' | 'LAB_TECHNICIAN' | 'FINANCE_RECEPTIONIST') => {
+    async (email: string, pass: string, _targetRole?: 'SUPER_ADMIN' | 'ADMIN' | 'LAB_TECHNICIAN' | 'FINANCE_RECEPTIONIST') => {
       const res = await apiAdminLogin(email, pass);
       const userRole = res.admin.role;
 
-      if (targetRole && userRole !== targetRole) {
-        clearAdminSession();
-        throw new Error(
-          `Role mismatch: This account has role '${userRole}' but you selected '${targetRole}'. Please select '${userRole}' to continue.`
-        );
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('bb_last_login_role', userRole);
       }
 
       setAdmin(res.admin);
