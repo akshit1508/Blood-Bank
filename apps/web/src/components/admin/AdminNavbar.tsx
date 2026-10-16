@@ -11,6 +11,8 @@ export default function AdminNavbar({
   onToggleSidebar,
 }: AdminNavbarProps) {
   const { admin } = useAdminAuth();
+  const isSuperAdmin = admin?.role === 'SUPER_ADMIN';
+
   return (
     <header
       style={{
@@ -18,13 +20,13 @@ export default function AdminNavbar({
         top: 0,
         zIndex: 40,
         backgroundColor: '#ffffff',
-        borderBottom: '1px solid #e2e8f0',
+        borderBottom: isSuperAdmin ? '1px solid #fde68a' : '1px solid #e2e8f0',
         height: '64px',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
         padding: '0 1rem',
-        boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.02)',
+        boxShadow: isSuperAdmin ? '0 1px 3px rgba(217, 119, 6, 0.08)' : '0 1px 2px 0 rgba(0, 0, 0, 0.02)',
       }}
     >
       {/* Left: Brand & Mobile Toggle */}
@@ -39,10 +41,10 @@ export default function AdminNavbar({
             justifyContent: 'center',
             width: '38px',
             height: '38px',
-            backgroundColor: '#f8fafc',
-            border: '1px solid #e2e8f0',
+            backgroundColor: isSuperAdmin ? '#fef3c7' : '#f8fafc',
+            border: isSuperAdmin ? '1px solid #fde68a' : '1px solid #e2e8f0',
             borderRadius: '8px',
-            color: '#334155',
+            color: isSuperAdmin ? '#92400e' : '#334155',
             cursor: 'pointer',
           }}
           className="admin-mobile-toggle"
@@ -64,18 +66,18 @@ export default function AdminNavbar({
             textDecoration: 'none',
           }}
         >
-          {/* Medical Red Droplet SVG Emblem */}
+          {/* Medical Droplet SVG Emblem */}
           <div
             style={{
               width: '36px',
               height: '36px',
               borderRadius: '9px',
-              backgroundColor: '#dc2626',
+              backgroundColor: isSuperAdmin ? '#d97706' : '#dc2626',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               color: '#ffffff',
-              boxShadow: '0 2px 4px rgba(220, 38, 38, 0.25)',
+              boxShadow: isSuperAdmin ? '0 2px 4px rgba(217, 119, 6, 0.3)' : '0 2px 4px rgba(220, 38, 38, 0.25)',
               flexShrink: 0,
             }}
           >

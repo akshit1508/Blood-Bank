@@ -296,7 +296,7 @@ export default function EmployeesDirectoryPage() {
         display: 'flex',
         flexDirection: 'column',
         gap: '1.5rem',
-        color: '#f8fafc',
+        color: '#0f172a',
       }}
     >
       {/* 1. Header with Authority Badge & Register Button (NO Payroll buttons) */}
@@ -307,7 +307,7 @@ export default function EmployeesDirectoryPage() {
           alignItems: 'center',
           flexWrap: 'wrap',
           gap: '1rem',
-          borderBottom: '1px solid #1e293b',
+          borderBottom: '1px solid #fef3c7',
           paddingBottom: '1.25rem',
         }}
       >
@@ -317,11 +317,11 @@ export default function EmployeesDirectoryPage() {
               style={{
                 fontSize: '0.75rem',
                 fontWeight: 700,
-                backgroundColor: '#1e293b',
-                color: '#f59e0b',
+                backgroundColor: '#fef3c7',
+                color: '#92400e',
                 padding: '0.2rem 0.6rem',
                 borderRadius: '6px',
-                border: '1px solid #334155',
+                border: '1px solid #fde68a',
                 textTransform: 'uppercase',
                 letterSpacing: '0.05em',
               }}
@@ -333,7 +333,7 @@ export default function EmployeesDirectoryPage() {
             style={{
               fontSize: '1.85rem',
               fontWeight: 800,
-              color: '#f8fafc',
+              color: '#0f172a',
               margin: '0.35rem 0 0 0',
               letterSpacing: '-0.02em',
             }}
@@ -355,7 +355,7 @@ export default function EmployeesDirectoryPage() {
               display: 'inline-flex',
               alignItems: 'center',
               gap: '0.5rem',
-              backgroundColor: '#dc2626',
+              backgroundColor: '#d97706',
               color: '#ffffff',
               padding: '0.65rem 1.25rem',
               borderRadius: '8px',
@@ -382,8 +382,8 @@ export default function EmployeesDirectoryPage() {
       >
         <div
           style={{
-            backgroundColor: '#0f172a',
-            border: '1px solid #1e293b',
+            backgroundColor: '#ffffff',
+            border: '1px solid #fde68a',
             borderRadius: '12px',
             padding: '1.1rem 1.25rem',
           }}
@@ -391,7 +391,7 @@ export default function EmployeesDirectoryPage() {
           <div style={{ color: '#94a3b8', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase' }}>
             Total Registered Staff
           </div>
-          <div style={{ color: '#f8fafc', fontSize: '1.75rem', fontWeight: 800, marginTop: '0.35rem' }}>
+          <div style={{ color: '#0f172a', fontSize: '1.75rem', fontWeight: 800, marginTop: '0.35rem' }}>
             {stats.total}
           </div>
           <div style={{ color: '#64748b', fontSize: '0.75rem', marginTop: '0.2rem' }}>
@@ -401,8 +401,8 @@ export default function EmployeesDirectoryPage() {
 
         <div
           style={{
-            backgroundColor: '#0f172a',
-            border: '1px solid #1e293b',
+            backgroundColor: '#ffffff',
+            border: '1px solid #fde68a',
             borderRadius: '12px',
             padding: '1.1rem 1.25rem',
           }}
@@ -420,8 +420,8 @@ export default function EmployeesDirectoryPage() {
 
         <div
           style={{
-            backgroundColor: '#0f172a',
-            border: '1px solid #1e293b',
+            backgroundColor: '#ffffff',
+            border: '1px solid #fde68a',
             borderRadius: '12px',
             padding: '1.1rem 1.25rem',
           }}
@@ -439,8 +439,8 @@ export default function EmployeesDirectoryPage() {
 
         <div
           style={{
-            backgroundColor: '#0f172a',
-            border: '1px solid #1e293b',
+            backgroundColor: '#ffffff',
+            border: '1px solid #fde68a',
             borderRadius: '12px',
             padding: '1.1rem 1.25rem',
           }}
@@ -465,10 +465,10 @@ export default function EmployeesDirectoryPage() {
           alignItems: 'center',
           flexWrap: 'wrap',
           gap: '0.75rem',
-          backgroundColor: '#0f172a',
+          backgroundColor: '#ffffff',
           padding: '0.75rem 1rem',
           borderRadius: '10px',
-          border: '1px solid #1e293b',
+          border: '1px solid #fde68a',
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
@@ -478,11 +478,11 @@ export default function EmployeesDirectoryPage() {
             value={searchFilter}
             onChange={(e) => setSearchFilter(e.target.value)}
             style={{
-              backgroundColor: '#1e293b',
-              border: '1px solid #334155',
+              backgroundColor: '#ffffff',
+              border: '1px solid #fde68a',
               borderRadius: '8px',
               padding: '0.5rem 0.85rem',
-              color: '#f8fafc',
+              color: '#0f172a',
               fontSize: '0.85rem',
               outline: 'none',
               width: '280px',
@@ -492,11 +492,11 @@ export default function EmployeesDirectoryPage() {
             value={departmentFilter}
             onChange={(e) => setDepartmentFilter(e.target.value)}
             style={{
-              backgroundColor: '#1e293b',
-              border: '1px solid #334155',
+              backgroundColor: '#ffffff',
+              border: '1px solid #fde68a',
               borderRadius: '8px',
               padding: '0.5rem 0.85rem',
-              color: '#f8fafc',
+              color: '#0f172a',
               fontSize: '0.85rem',
               outline: 'none',
               cursor: 'pointer',
@@ -513,11 +513,11 @@ export default function EmployeesDirectoryPage() {
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
             style={{
-              backgroundColor: '#1e293b',
-              border: '1px solid #334155',
+              backgroundColor: '#ffffff',
+              border: '1px solid #fde68a',
               borderRadius: '8px',
               padding: '0.5rem 0.85rem',
-              color: '#f8fafc',
+              color: '#0f172a',
               fontSize: '0.85rem',
               outline: 'none',
               cursor: 'pointer',
@@ -560,11 +560,11 @@ export default function EmployeesDirectoryPage() {
             display: 'inline-flex',
             alignItems: 'center',
             gap: '0.35rem',
-            backgroundColor: '#1e293b',
-            border: '1px solid #334155',
+            backgroundColor: '#ffffff',
+            border: '1px solid #fde68a',
             padding: '0.5rem 0.95rem',
             borderRadius: '8px',
-            color: '#f8fafc',
+            color: '#0f172a',
             fontSize: '0.825rem',
             cursor: loading ? 'not-allowed' : 'pointer',
           }}
@@ -593,8 +593,8 @@ export default function EmployeesDirectoryPage() {
       {/* 4. Complete Employee Directory Table */}
       <div
         style={{
-          backgroundColor: '#0f172a',
-          border: '1px solid #1e293b',
+          backgroundColor: '#ffffff',
+          border: '1px solid #fde68a',
           borderRadius: '12px',
           overflow: 'hidden',
         }}
@@ -602,14 +602,14 @@ export default function EmployeesDirectoryPage() {
         <div
           style={{
             padding: '1rem 1.25rem',
-            borderBottom: '1px solid #1e293b',
+            borderBottom: '1px solid #fef3c7',
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
           }}
         >
           <div>
-            <div style={{ fontSize: '1rem', fontWeight: 700, color: '#f8fafc' }}>
+            <div style={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a' }}>
               Staff & Employee Dossier Table
             </div>
             <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.15rem' }}>
@@ -628,7 +628,7 @@ export default function EmployeesDirectoryPage() {
         ) : employees.length === 0 ? (
           <div style={{ padding: '4rem 1rem', textAlign: 'center' }}>
             <div style={{ fontSize: '2.5rem', marginBottom: '0.75rem' }}>👥</div>
-            <div style={{ fontSize: '1.15rem', fontWeight: 700, color: '#f8fafc' }}>
+            <div style={{ fontSize: '1.15rem', fontWeight: 700, color: '#0f172a' }}>
               No employees registered
             </div>
             <p style={{ color: '#64748b', fontSize: '0.85rem', maxWidth: '420px', margin: '0.5rem auto 1.25rem' }}>
@@ -637,7 +637,7 @@ export default function EmployeesDirectoryPage() {
             <button
               onClick={() => setShowModal(true)}
               style={{
-                backgroundColor: '#dc2626',
+                backgroundColor: '#d97706',
                 color: '#ffffff',
                 padding: '0.65rem 1.35rem',
                 borderRadius: '8px',
@@ -654,32 +654,32 @@ export default function EmployeesDirectoryPage() {
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
               <thead>
-                <tr style={{ backgroundColor: '#1e293b', borderBottom: '1px solid #334155' }}>
-                  <th style={{ padding: '0.8rem 1rem', color: '#94a3b8', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                <tr style={{ backgroundColor: '#fef3c7', borderBottom: '1px solid #fde68a' }}>
+                  <th style={{ padding: '0.8rem 1rem', color: '#92400e', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                     Code
                   </th>
-                  <th style={{ padding: '0.8rem 1rem', color: '#94a3b8', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  <th style={{ padding: '0.8rem 1rem', color: '#92400e', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                     Staff Member
                   </th>
-                  <th style={{ padding: '0.8rem 1rem', color: '#94a3b8', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  <th style={{ padding: '0.8rem 1rem', color: '#92400e', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                     Role & Department
                   </th>
-                  <th style={{ padding: '0.8rem 1rem', color: '#94a3b8', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  <th style={{ padding: '0.8rem 1rem', color: '#92400e', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                     Contact Details
                   </th>
-                  <th style={{ padding: '0.8rem 1rem', color: '#94a3b8', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  <th style={{ padding: '0.8rem 1rem', color: '#92400e', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                     Date Joined
                   </th>
-                  <th style={{ padding: '0.8rem 1rem', color: '#94a3b8', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  <th style={{ padding: '0.8rem 1rem', color: '#92400e', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                     Decided Salary
                   </th>
-                  <th style={{ padding: '0.8rem 1rem', color: '#94a3b8', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  <th style={{ padding: '0.8rem 1rem', color: '#92400e', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                     Bank Coordinates
                   </th>
-                  <th style={{ padding: '0.8rem 1rem', color: '#94a3b8', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'center' }}>
+                  <th style={{ padding: '0.8rem 1rem', color: '#92400e', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'center' }}>
                     Status
                   </th>
-                  <th style={{ padding: '0.8rem 1rem', color: '#94a3b8', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'right' }}>
+                  <th style={{ padding: '0.8rem 1rem', color: '#92400e', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'right' }}>
                     Actions
                   </th>
                 </tr>
@@ -690,7 +690,7 @@ export default function EmployeesDirectoryPage() {
                     key={emp._id}
                     onClick={() => router.push(`/super-admin/employees/${emp._id}`)}
                     style={{
-                      borderBottom: '1px solid #1e293b',
+                      borderBottom: '1px solid #fef3c7',
                       transition: 'background-color 0.15s ease',
                       cursor: 'pointer',
                     }}
@@ -725,7 +725,7 @@ export default function EmployeesDirectoryPage() {
                           {emp.lastName[0]}
                         </div>
                         <div>
-                          <div style={{ fontWeight: 700, color: '#f8fafc', fontSize: '0.9rem' }}>{emp.fullName}</div>
+                          <div style={{ fontWeight: 700, color: '#0f172a', fontSize: '0.9rem' }}>{emp.fullName}</div>
                           <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
                             {EMPLOYMENT_TYPE_LABELS[emp.employmentType] || emp.employmentType}
                           </div>
@@ -733,13 +733,13 @@ export default function EmployeesDirectoryPage() {
                       </div>
                     </td>
                     <td style={{ padding: '0.95rem 1rem' }}>
-                      <div style={{ fontWeight: 600, color: '#f8fafc' }}>{emp.designation}</div>
+                      <div style={{ fontWeight: 600, color: '#0f172a' }}>{emp.designation}</div>
                       <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
                         {DEPARTMENT_LABELS[emp.department] || emp.department}
                       </div>
                     </td>
                     <td style={{ padding: '0.95rem 1rem' }}>
-                      <div style={{ fontSize: '0.825rem', color: '#f8fafc' }}>{emp.email}</div>
+                      <div style={{ fontSize: '0.825rem', color: '#0f172a' }}>{emp.email}</div>
                       <div style={{ fontSize: '0.75rem', color: '#64748b' }}>{emp.phone}</div>
                     </td>
                     <td style={{ padding: '0.95rem 1rem' }}>
@@ -778,11 +778,11 @@ export default function EmployeesDirectoryPage() {
                         <span
                           style={{
                             fontSize: '0.725rem',
-                            backgroundColor: '#1e293b',
+                            backgroundColor: '#ffffff',
                             color: '#94a3b8',
                             padding: '0.2rem 0.5rem',
                             borderRadius: '6px',
-                            border: '1px solid #334155',
+                            border: '1px solid #fde68a',
                           }}
                         >
                           Not Decided
@@ -818,9 +818,9 @@ export default function EmployeesDirectoryPage() {
                           display: 'inline-flex',
                           alignItems: 'center',
                           gap: '0.35rem',
-                          backgroundColor: '#1e293b',
-                          color: '#f8fafc',
-                          border: '1px solid #334155',
+                          backgroundColor: '#ffffff',
+                          color: '#0f172a',
+                          border: '1px solid #fde68a',
                           padding: '0.45rem 0.85rem',
                           borderRadius: '6px',
                           fontSize: '0.8rem',
@@ -850,7 +850,7 @@ export default function EmployeesDirectoryPage() {
             left: 0,
             right: 0,
             bottom: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.75)',
+            backgroundColor: 'rgba(0, 0, 0, 0.6)',
             backdropFilter: 'blur(4px)',
             display: 'flex',
             alignItems: 'center',
@@ -862,14 +862,14 @@ export default function EmployeesDirectoryPage() {
         >
           <div
             style={{
-              backgroundColor: '#0f172a',
-              border: '1px solid #334155',
+              backgroundColor: '#ffffff',
+              border: '1px solid #fde68a',
               borderRadius: '16px',
               width: '100%',
               maxWidth: '640px',
               padding: '1.75rem',
-              color: '#f8fafc',
-              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)',
+              color: '#0f172a',
+              boxShadow: '0 20px 25px -5px rgba(180, 83, 9, 0.15)',
               margin: '2rem auto',
             }}
           >
@@ -878,12 +878,12 @@ export default function EmployeesDirectoryPage() {
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
-                borderBottom: '1px solid #1e293b',
+                borderBottom: '1px solid #fef3c7',
                 paddingBottom: '0.75rem',
               }}
             >
               <div>
-                <h3 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0, color: '#f8fafc' }}>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0, color: '#0f172a' }}>
                   Register New Blood Bank Staff
                 </h3>
                 <p style={{ color: '#94a3b8', fontSize: '0.75rem', margin: '0.2rem 0 0 0' }}>
@@ -917,11 +917,11 @@ export default function EmployeesDirectoryPage() {
                     onChange={(e) => handleInputChange('firstName', e.target.value)}
                     style={{
                       width: '100%',
-                      backgroundColor: '#1e293b',
-                      border: '1px solid #334155',
+                      backgroundColor: '#ffffff',
+                      border: '1px solid #fde68a',
                       borderRadius: '8px',
                       padding: '0.6rem 0.85rem',
-                      color: '#f8fafc',
+                      color: '#0f172a',
                       fontSize: '0.875rem',
                       outline: 'none',
                       boxSizing: 'border-box',
@@ -939,11 +939,11 @@ export default function EmployeesDirectoryPage() {
                     onChange={(e) => handleInputChange('lastName', e.target.value)}
                     style={{
                       width: '100%',
-                      backgroundColor: '#1e293b',
-                      border: '1px solid #334155',
+                      backgroundColor: '#ffffff',
+                      border: '1px solid #fde68a',
                       borderRadius: '8px',
                       padding: '0.6rem 0.85rem',
-                      color: '#f8fafc',
+                      color: '#0f172a',
                       fontSize: '0.875rem',
                       outline: 'none',
                       boxSizing: 'border-box',
@@ -964,11 +964,11 @@ export default function EmployeesDirectoryPage() {
                     onChange={(e) => handleInputChange('email', e.target.value)}
                     style={{
                       width: '100%',
-                      backgroundColor: '#1e293b',
-                      border: '1px solid #334155',
+                      backgroundColor: '#ffffff',
+                      border: '1px solid #fde68a',
                       borderRadius: '8px',
                       padding: '0.6rem 0.85rem',
-                      color: '#f8fafc',
+                      color: '#0f172a',
                       fontSize: '0.875rem',
                       outline: 'none',
                       boxSizing: 'border-box',
@@ -986,11 +986,11 @@ export default function EmployeesDirectoryPage() {
                     onChange={(e) => handleInputChange('phone', e.target.value)}
                     style={{
                       width: '100%',
-                      backgroundColor: '#1e293b',
-                      border: '1px solid #334155',
+                      backgroundColor: '#ffffff',
+                      border: '1px solid #fde68a',
                       borderRadius: '8px',
                       padding: '0.6rem 0.85rem',
-                      color: '#f8fafc',
+                      color: '#0f172a',
                       fontSize: '0.875rem',
                       outline: 'none',
                       boxSizing: 'border-box',
@@ -1012,11 +1012,11 @@ export default function EmployeesDirectoryPage() {
                     onChange={(e) => handleInputChange('designation', e.target.value)}
                     style={{
                       width: '100%',
-                      backgroundColor: '#1e293b',
-                      border: '1px solid #334155',
+                      backgroundColor: '#ffffff',
+                      border: '1px solid #fde68a',
                       borderRadius: '8px',
                       padding: '0.6rem 0.85rem',
-                      color: '#f8fafc',
+                      color: '#0f172a',
                       fontSize: '0.875rem',
                       outline: 'none',
                       boxSizing: 'border-box',
@@ -1032,11 +1032,11 @@ export default function EmployeesDirectoryPage() {
                     onChange={(e) => handleInputChange('department', e.target.value)}
                     style={{
                       width: '100%',
-                      backgroundColor: '#1e293b',
-                      border: '1px solid #334155',
+                      backgroundColor: '#ffffff',
+                      border: '1px solid #fde68a',
                       borderRadius: '8px',
                       padding: '0.6rem 0.85rem',
-                      color: '#f8fafc',
+                      color: '#0f172a',
                       fontSize: '0.85rem',
                       outline: 'none',
                       boxSizing: 'border-box',
@@ -1058,11 +1058,11 @@ export default function EmployeesDirectoryPage() {
                     onChange={(e) => handleInputChange('employmentType', e.target.value)}
                     style={{
                       width: '100%',
-                      backgroundColor: '#1e293b',
-                      border: '1px solid #334155',
+                      backgroundColor: '#ffffff',
+                      border: '1px solid #fde68a',
                       borderRadius: '8px',
                       padding: '0.6rem 0.85rem',
-                      color: '#f8fafc',
+                      color: '#0f172a',
                       fontSize: '0.85rem',
                       outline: 'none',
                       boxSizing: 'border-box',
@@ -1088,11 +1088,11 @@ export default function EmployeesDirectoryPage() {
                   onChange={(e) => handleInputChange('dateOfJoining', e.target.value)}
                   style={{
                     width: '100%',
-                    backgroundColor: '#1e293b',
-                    border: '1px solid #334155',
+                    backgroundColor: '#ffffff',
+                    border: '1px solid #fde68a',
                     borderRadius: '8px',
                     padding: '0.6rem 0.85rem',
-                    color: '#f8fafc',
+                    color: '#0f172a',
                     fontSize: '0.875rem',
                     outline: 'none',
                     boxSizing: 'border-box',
@@ -1103,8 +1103,8 @@ export default function EmployeesDirectoryPage() {
               {/* Bank Details Container */}
               <div
                 style={{
-                  backgroundColor: '#1e293b',
-                  border: '1px solid #334155',
+                  backgroundColor: '#ffffff',
+                  border: '1px solid #fde68a',
                   borderRadius: '12px',
                   padding: '1rem',
                   display: 'flex',
@@ -1128,11 +1128,11 @@ export default function EmployeesDirectoryPage() {
                       onChange={(e) => handleBankChange('bankName', e.target.value)}
                       style={{
                         width: '100%',
-                        backgroundColor: '#0f172a',
-                        border: '1px solid #334155',
+                        backgroundColor: '#ffffff',
+                        border: '1px solid #fde68a',
                         borderRadius: '6px',
                         padding: '0.5rem 0.75rem',
-                        color: '#f8fafc',
+                        color: '#0f172a',
                         fontSize: '0.85rem',
                         outline: 'none',
                         boxSizing: 'border-box',
@@ -1151,11 +1151,11 @@ export default function EmployeesDirectoryPage() {
                       onChange={(e) => handleBankChange('accountNumber', e.target.value)}
                       style={{
                         width: '100%',
-                        backgroundColor: '#0f172a',
-                        border: '1px solid #334155',
+                        backgroundColor: '#ffffff',
+                        border: '1px solid #fde68a',
                         borderRadius: '6px',
                         padding: '0.5rem 0.75rem',
-                        color: '#f8fafc',
+                        color: '#0f172a',
                         fontSize: '0.85rem',
                         outline: 'none',
                         boxSizing: 'border-box',
@@ -1177,11 +1177,11 @@ export default function EmployeesDirectoryPage() {
                       onChange={(e) => handleBankChange('ifscCode', e.target.value.toUpperCase())}
                       style={{
                         width: '100%',
-                        backgroundColor: '#0f172a',
-                        border: '1px solid #334155',
+                        backgroundColor: '#ffffff',
+                        border: '1px solid #fde68a',
                         borderRadius: '6px',
                         padding: '0.5rem 0.75rem',
-                        color: '#f8fafc',
+                        color: '#0f172a',
                         fontSize: '0.85rem',
                         outline: 'none',
                         textTransform: 'uppercase',
@@ -1201,11 +1201,11 @@ export default function EmployeesDirectoryPage() {
                       onChange={(e) => handleBankChange('accountHolderName', e.target.value)}
                       style={{
                         width: '100%',
-                        backgroundColor: '#0f172a',
-                        border: '1px solid #334155',
+                        backgroundColor: '#ffffff',
+                        border: '1px solid #fde68a',
                         borderRadius: '6px',
                         padding: '0.5rem 0.75rem',
-                        color: '#f8fafc',
+                        color: '#0f172a',
                         fontSize: '0.85rem',
                         outline: 'none',
                         boxSizing: 'border-box',
@@ -1223,11 +1223,11 @@ export default function EmployeesDirectoryPage() {
                       onChange={(e) => handleBankChange('panNumber', e.target.value.toUpperCase())}
                       style={{
                         width: '100%',
-                        backgroundColor: '#0f172a',
-                        border: '1px solid #334155',
+                        backgroundColor: '#ffffff',
+                        border: '1px solid #fde68a',
                         borderRadius: '6px',
                         padding: '0.5rem 0.75rem',
-                        color: '#f8fafc',
+                        color: '#0f172a',
                         fontSize: '0.85rem',
                         outline: 'none',
                         textTransform: 'uppercase',
@@ -1241,8 +1241,8 @@ export default function EmployeesDirectoryPage() {
               {/* Optional Emergency Contact Container */}
               <div
                 style={{
-                  backgroundColor: '#1e293b',
-                  border: '1px solid #334155',
+                  backgroundColor: '#ffffff',
+                  border: '1px solid #fde68a',
                   borderRadius: '12px',
                   padding: '1rem',
                   display: 'flex',
@@ -1265,11 +1265,11 @@ export default function EmployeesDirectoryPage() {
                       onChange={(e) => handleEmergencyChange('name', e.target.value)}
                       style={{
                         width: '100%',
-                        backgroundColor: '#0f172a',
-                        border: '1px solid #334155',
+                        backgroundColor: '#ffffff',
+                        border: '1px solid #fde68a',
                         borderRadius: '6px',
                         padding: '0.5rem 0.75rem',
-                        color: '#f8fafc',
+                        color: '#0f172a',
                         fontSize: '0.85rem',
                         outline: 'none',
                         boxSizing: 'border-box',
@@ -1287,11 +1287,11 @@ export default function EmployeesDirectoryPage() {
                       onChange={(e) => handleEmergencyChange('phone', e.target.value)}
                       style={{
                         width: '100%',
-                        backgroundColor: '#0f172a',
-                        border: '1px solid #334155',
+                        backgroundColor: '#ffffff',
+                        border: '1px solid #fde68a',
                         borderRadius: '6px',
                         padding: '0.5rem 0.75rem',
-                        color: '#f8fafc',
+                        color: '#0f172a',
                         fontSize: '0.85rem',
                         outline: 'none',
                         boxSizing: 'border-box',
@@ -1309,11 +1309,11 @@ export default function EmployeesDirectoryPage() {
                       onChange={(e) => handleEmergencyChange('relationship', e.target.value)}
                       style={{
                         width: '100%',
-                        backgroundColor: '#0f172a',
-                        border: '1px solid #334155',
+                        backgroundColor: '#ffffff',
+                        border: '1px solid #fde68a',
                         borderRadius: '6px',
                         padding: '0.5rem 0.75rem',
-                        color: '#f8fafc',
+                        color: '#0f172a',
                         fontSize: '0.85rem',
                         outline: 'none',
                         boxSizing: 'border-box',
@@ -1352,9 +1352,9 @@ export default function EmployeesDirectoryPage() {
                   type="button"
                   onClick={() => setShowModal(false)}
                   style={{
-                    backgroundColor: '#1e293b',
-                    border: '1px solid #334155',
-                    color: '#f8fafc',
+                    backgroundColor: '#ffffff',
+                    border: '1px solid #fde68a',
+                    color: '#0f172a',
                     padding: '0.55rem 1rem',
                     borderRadius: '8px',
                     fontSize: '0.85rem',
@@ -1367,7 +1367,7 @@ export default function EmployeesDirectoryPage() {
                   type="submit"
                   disabled={isSubmitting}
                   style={{
-                    backgroundColor: '#dc2626',
+                    backgroundColor: '#d97706',
                     color: '#ffffff',
                     border: 'none',
                     padding: '0.55rem 1.25rem',

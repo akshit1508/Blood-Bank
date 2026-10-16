@@ -114,7 +114,7 @@ export default function SuperAdminStaffManagementPage() {
               &larr; Super Admin Portal
             </Link>
           </div>
-          <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#f8fafc', margin: 0 }}>
+          <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>
             Staff & Role Management
           </h1>
           <p style={{ color: '#94a3b8', margin: '0.35rem 0 0 0', fontSize: '0.875rem' }}>
@@ -125,7 +125,7 @@ export default function SuperAdminStaffManagementPage() {
           <button
             onClick={() => setShowCreateModal(true)}
             style={{
-              backgroundColor: '#dc2626',
+              backgroundColor: '#d97706',
               color: '#ffffff',
               padding: '0.65rem 1.25rem',
               borderRadius: '8px',
@@ -155,9 +155,9 @@ export default function SuperAdminStaffManagementPage() {
         </div>
       )}
 
-      <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', overflow: 'hidden' }}>
-        <div style={{ padding: '1rem 1.5rem', borderBottom: '1px solid #1e293b', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span style={{ fontSize: '0.9rem', fontWeight: 700, color: '#f8fafc' }}>
+      <div style={{ backgroundColor: '#ffffff', border: '1px solid #fde68a', borderRadius: '12px', overflow: 'hidden' }}>
+        <div style={{ padding: '1rem 1.5rem', borderBottom: '1px solid #fef3c7', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span style={{ fontSize: '0.9rem', fontWeight: 700, color: '#0f172a' }}>
             Authorized Personnel Directory ({admins.length})
           </span>
           <button
@@ -165,7 +165,7 @@ export default function SuperAdminStaffManagementPage() {
             disabled={loading}
             style={{
               backgroundColor: 'transparent',
-              border: '1px solid #334155',
+              border: '1px solid #fde68a',
               borderRadius: '6px',
               color: '#94a3b8',
               fontSize: '0.75rem',
@@ -179,7 +179,7 @@ export default function SuperAdminStaffManagementPage() {
 
         <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
           <thead>
-            <tr style={{ backgroundColor: '#090d16', color: '#64748b', borderBottom: '1px solid #1e293b' }}>
+            <tr style={{ backgroundColor: '#fef3c7', color: '#92400e', borderBottom: '1px solid #fde68a' }}>
               <th style={{ padding: '0.85rem 1.5rem', fontWeight: 600 }}>Staff Member</th>
               <th style={{ padding: '0.85rem 1.5rem', fontWeight: 600 }}>Assigned Role</th>
               <th style={{ padding: '0.85rem 1.5rem', fontWeight: 600 }}>Status</th>
@@ -206,9 +206,9 @@ export default function SuperAdminStaffManagementPage() {
                 const badge = roleBadgeStyle(acc.role);
 
                 return (
-                  <tr key={acc._id} style={{ borderBottom: '1px solid #1e293b' }}>
+                  <tr key={acc._id} style={{ borderBottom: '1px solid #fef3c7' }}>
                     <td style={{ padding: '1rem 1.5rem' }}>
-                      <div style={{ fontWeight: 600, color: '#f8fafc' }}>
+                      <div style={{ fontWeight: 600, color: '#0f172a' }}>
                         {acc.fullName} {isSelf && <span style={{ fontSize: '0.7rem', color: '#f59e0b', marginLeft: '0.25rem' }}>(You)</span>}
                       </div>
                       <div style={{ fontSize: '0.75rem', color: '#64748b' }}>{acc.email}</div>
@@ -286,7 +286,7 @@ export default function SuperAdminStaffManagementPage() {
           style={{
             position: 'fixed',
             inset: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.7)',
+            backgroundColor: 'rgba(0, 0, 0, 0.6)',
             backdropFilter: 'blur(3px)',
             display: 'flex',
             alignItems: 'center',
@@ -297,13 +297,13 @@ export default function SuperAdminStaffManagementPage() {
         >
           <div
             style={{
-              backgroundColor: '#0f172a',
-              border: '1px solid #1e293b',
+              backgroundColor: '#ffffff',
+              border: '1px solid #fde68a',
               borderRadius: '12px',
               maxWidth: '480px',
               width: '100%',
               padding: '2rem',
-              color: '#f8fafc',
+              color: '#0f172a',
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
@@ -329,10 +329,10 @@ export default function SuperAdminStaffManagementPage() {
                   style={{
                     width: '100%',
                     padding: '0.65rem 0.85rem',
-                    backgroundColor: '#1e293b',
-                    border: '1px solid #334155',
+                    backgroundColor: '#ffffff',
+                    border: '1px solid #fde68a',
                     borderRadius: '8px',
-                    color: '#ffffff',
+                    color: '#0f172a',
                     fontSize: '0.85rem',
                     boxSizing: 'border-box',
                   }}
@@ -352,10 +352,10 @@ export default function SuperAdminStaffManagementPage() {
                   style={{
                     width: '100%',
                     padding: '0.65rem 0.85rem',
-                    backgroundColor: '#1e293b',
-                    border: '1px solid #334155',
+                    backgroundColor: '#ffffff',
+                    border: '1px solid #fde68a',
                     borderRadius: '8px',
-                    color: '#ffffff',
+                    color: '#0f172a',
                     fontSize: '0.85rem',
                     boxSizing: 'border-box',
                   }}
@@ -376,10 +376,10 @@ export default function SuperAdminStaffManagementPage() {
                   style={{
                     width: '100%',
                     padding: '0.65rem 0.85rem',
-                    backgroundColor: '#1e293b',
-                    border: '1px solid #334155',
+                    backgroundColor: '#ffffff',
+                    border: '1px solid #fde68a',
                     borderRadius: '8px',
-                    color: '#ffffff',
+                    color: '#0f172a',
                     fontSize: '0.85rem',
                     boxSizing: 'border-box',
                   }}
@@ -397,10 +397,10 @@ export default function SuperAdminStaffManagementPage() {
                   style={{
                     width: '100%',
                     padding: '0.65rem 0.85rem',
-                    backgroundColor: '#1e293b',
-                    border: '1px solid #334155',
+                    backgroundColor: '#ffffff',
+                    border: '1px solid #fde68a',
                     borderRadius: '8px',
-                    color: '#ffffff',
+                    color: '#0f172a',
                     fontSize: '0.85rem',
                     boxSizing: 'border-box',
                   }}
@@ -421,7 +421,7 @@ export default function SuperAdminStaffManagementPage() {
                   style={{
                     padding: '0.6rem 1rem',
                     backgroundColor: 'transparent',
-                    border: '1px solid #334155',
+                    border: '1px solid #fde68a',
                     borderRadius: '8px',
                     color: '#94a3b8',
                     cursor: 'pointer',
@@ -438,7 +438,7 @@ export default function SuperAdminStaffManagementPage() {
                     backgroundColor: '#dc2626',
                     border: 'none',
                     borderRadius: '8px',
-                    color: '#ffffff',
+                    color: '#0f172a',
                     fontWeight: 600,
                     cursor: 'pointer',
                     fontSize: '0.85rem',

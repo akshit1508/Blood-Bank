@@ -29,27 +29,27 @@ export default function SuperAdminLayout({ children }: { children: React.ReactNo
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
-          backgroundColor: '#0f172a',
-          color: '#ffffff',
+          backgroundColor: '#fffbeb',
+          color: '#78350f',
           fontFamily: 'system-ui, -apple-system, sans-serif',
         }}
       >
         <div
           style={{
-            width: '42px',
-            height: '42px',
+            width: '44px',
+            height: '44px',
             borderRadius: '50%',
-            border: '3px solid #334155',
-            borderTopColor: '#f59e0b',
+            border: '3px solid #fde68a',
+            borderTopColor: '#d97706',
             animation: 'spin 0.8s linear infinite',
             marginBottom: '1rem',
           }}
         />
         <style dangerouslySetInnerHTML={{ __html: '@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }' }} />
-        <div style={{ fontSize: '1rem', fontWeight: 600, letterSpacing: '-0.01em' }}>
+        <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#92400e', letterSpacing: '-0.01em' }}>
           Verifying Super Admin Authorization...
         </div>
-        <div style={{ fontSize: '0.8rem', color: '#94a3b8', marginTop: '0.25rem' }}>
+        <div style={{ fontSize: '0.85rem', color: '#b45309', marginTop: '0.35rem' }}>
           Confirming privileged platform security credentials
         </div>
       </div>
@@ -66,8 +66,8 @@ export default function SuperAdminLayout({ children }: { children: React.ReactNo
         display: 'flex',
         flexDirection: 'column',
         minHeight: '100vh',
-        backgroundColor: '#0b1120',
-        color: '#f8fafc',
+        backgroundColor: '#fffbeb',
+        color: '#0f172a',
         fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
       }}
     >
@@ -79,8 +79,8 @@ export default function SuperAdminLayout({ children }: { children: React.ReactNo
               display: none !important;
             }
             .admin-nav-item:hover {
-              background-color: #f8fafc !important;
-              color: #0f172a !important;
+              background-color: #fef3c7 !important;
+              color: #92400e !important;
             }
             @media (max-width: 992px) {
               .admin-mobile-toggle {
@@ -92,7 +92,7 @@ export default function SuperAdminLayout({ children }: { children: React.ReactNo
                 left: 0 !important;
                 bottom: 0 !important;
                 transform: translateX(-100%);
-                box-shadow: 8px 0 24px rgba(0, 0, 0, 0.15) !important;
+                box-shadow: 8px 0 24px rgba(217, 119, 6, 0.12) !important;
               }
               .admin-sidebar.sidebar-open {
                 transform: translateX(0) !important;
@@ -140,7 +140,7 @@ export default function SuperAdminLayout({ children }: { children: React.ReactNo
             minWidth: 0,
             padding: '2rem',
             boxSizing: 'border-box',
-            backgroundColor: '#0b1120',
+            backgroundColor: '#fffbeb',
             overflowY: 'auto',
           }}
           className="super-admin-main-container"

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, Suspense } from 'react';
+import React, { useEffect, useState, useMemo, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -14,6 +14,7 @@ import {
   cancelPayment,
 } from '@/lib/payment-api';
 import { fetchExpenses, fetchExpenseById, ExpenseItem, ExpenseStatus, formatINR } from '@/lib/expense-api';
+import StatCard from '@/components/admin/StatCard';
 
 function generateUUID(): string {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
@@ -33,8 +34,14 @@ function PaymentsContent() {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [statusFilter, setStatusFilter] = useState('');
+
+  // Filters (Image 2 style)
+  const [statusTab, setStatusTab] = useState<'all' | 'COMPLETED' | 'CANCELLED'>('all');
   const [methodFilter, setMethodFilter] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [datePreset, setDatePreset] = useState<'all' | 'today' | '7days' | '15days' | '30days' | 'this_month' | 'custom'>('all');
+  const [customStartDate, setCustomStartDate] = useState('');
+  const [customEndDate, setCustomEndDate] = useState('');
 
   // Bills Awaiting Disbursement states
   const [pendingExpenses, setPendingExpenses] = useState<ExpenseItem[]>([]);
@@ -64,12 +71,41 @@ function PaymentsContent() {
   const [selectedPaymentDetail, setSelectedPaymentDetail] = useState<any | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
 
+  // Calculate actual ISO date boundaries for server-side queries
+  const { queryStartDate, queryEndDate } = useMemo(() => {
+    const now = new Date();
+    if (datePreset === 'today') {
+      const todayStr = now.toISOString().slice(0, 10);
+      return { queryStartDate: todayStr, queryEndDate: todayStr };
+    }
+    if (datePreset === '7days') {
+      const past = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      return { queryStartDate: past.toISOString().slice(0, 10), queryEndDate: now.toISOString().slice(0, 10) };
+    }
+    if (datePreset === '15days') {
+      const past = new Date(now.getTime() - 15 * 24 * 60 * 60 * 1000);
+      return { queryStartDate: past.toISOString().slice(0, 10), queryEndDate: now.toISOString().slice(0, 10) };
+    }
+    if (datePreset === '30days') {
+      const past = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      return { queryStartDate: past.toISOString().slice(0, 10), queryEndDate: now.toISOString().slice(0, 10) };
+    }
+    if (datePreset === 'this_month') {
+      const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+      return { queryStartDate: firstDay.toISOString().slice(0, 10), queryEndDate: now.toISOString().slice(0, 10) };
+    }
+    if (datePreset === 'custom' && customStartDate && customEndDate) {
+      return { queryStartDate: customStartDate, queryEndDate: customEndDate };
+    }
+    return { queryStartDate: undefined, queryEndDate: undefined };
+  }, [datePreset, customStartDate, customEndDate]);
+
   const loadPendingExpenses = async () => {
     try {
       setPendingLoading(true);
       const [appRes, subRes] = await Promise.all([
-        fetchExpenses({ status: ExpenseStatus.APPROVED, limit: 50 }),
-        fetchExpenses({ status: ExpenseStatus.SUBMITTED, limit: 50 }),
+        fetchExpenses({ status: ExpenseStatus.APPROVED, limit: 100 }),
+        fetchExpenses({ status: ExpenseStatus.SUBMITTED, limit: 100 }),
       ]);
       const map = new Map<string, ExpenseItem>();
       [...appRes.items, ...subRes.items].forEach((e) => map.set(e._id, e));
@@ -90,10 +126,13 @@ function PaymentsContent() {
       setLoading(true);
       setErrorMessage(null);
       const res = await fetchPayments({
-        status: statusFilter || undefined,
+        status: statusTab !== 'all' ? statusTab : undefined,
         paymentMethod: methodFilter || undefined,
+        startDate: queryStartDate,
+        endDate: queryEndDate,
+        limit: 1000,
       });
-      setPayments(res.payments);
+      setPayments(res.payments || []);
     } catch (err: any) {
       setErrorMessage(err?.message || 'Failed to load payments');
     } finally {
@@ -103,9 +142,66 @@ function PaymentsContent() {
 
   useEffect(() => {
     loadPayments();
-    loadPendingExpenses();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [statusFilter, methodFilter]);
+  }, [statusTab, methodFilter, queryStartDate, queryEndDate]);
+
+  useEffect(() => {
+    loadPendingExpenses();
+  }, []);
+
+  // Filtered Payments matching Search Term
+  const filteredPayments = useMemo(() => {
+    if (!searchTerm.trim()) return payments;
+    const term = searchTerm.toLowerCase();
+    return payments.filter((p) => {
+      const ref = (p.referenceNumber || '').toLowerCase();
+      const vendor = (p.vendorName || '').toLowerCase();
+      const code = (p.expense?.expenseCode || '').toLowerCase();
+      const title = (p.expense?.title || '').toLowerCase();
+      const inv = (p.expense?.invoiceNumber || '').toLowerCase();
+      const notes = (p.notes || '').toLowerCase();
+      return (
+        ref.includes(term) ||
+        vendor.includes(term) ||
+        code.includes(term) ||
+        title.includes(term) ||
+        inv.includes(term) ||
+        notes.includes(term)
+      );
+    });
+  }, [payments, searchTerm]);
+
+  // Aggregate KPI stats
+  const totalPaidCompleted = useMemo(() => {
+    return payments
+      .filter((p) => p.status === PaymentStatus.COMPLETED)
+      .reduce((sum, p) => sum + (p.amount || 0), 0);
+  }, [payments]);
+
+  const completedCount = useMemo(() => {
+    return payments.filter((p) => p.status === PaymentStatus.COMPLETED).length;
+  }, [payments]);
+
+  const totalCancelled = useMemo(() => {
+    return payments
+      .filter((p) => p.status === PaymentStatus.CANCELLED)
+      .reduce((sum, p) => sum + (p.amount || 0), 0);
+  }, [payments]);
+
+  const cancelledCount = useMemo(() => {
+    return payments.filter((p) => p.status === PaymentStatus.CANCELLED).length;
+  }, [payments]);
+
+  const totalPendingToPay = useMemo(() => {
+    return pendingExpenses.reduce((sum, e) => {
+      const rem = Math.max(0, e.amount - (e.paidAmount || 0));
+      return sum + rem;
+    }, 0);
+  }, [pendingExpenses]);
+
+  const totalCommitments = useMemo(() => {
+    return totalPaidCompleted + totalPendingToPay;
+  }, [totalPaidCompleted, totalPendingToPay]);
 
   const openRecordModal = async (targetExpenseId?: string) => {
     setModalError(null);
@@ -273,35 +369,105 @@ function PaymentsContent() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', maxWidth: '1400px', margin: '0 auto' }}>
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
-          <h1 style={{ fontSize: '1.65rem', fontWeight: 800, color: '#f8fafc', margin: 0 }}>
+          <h1 style={{ fontSize: '1.65rem', fontWeight: 800, color: '#0f172a', margin: 0, letterSpacing: '-0.02em' }}>
             Disbursements &amp; Payments
           </h1>
-          <p style={{ margin: '0.25rem 0 0 0', color: '#94a3b8', fontSize: '0.85rem' }}>
+          <p style={{ margin: '0.25rem 0 0 0', color: '#64748b', fontSize: '0.85rem' }}>
             Track supplier disbursements, payment vouchers, banking references, and atomic reversals.
           </p>
         </div>
-          <button
-            onClick={() => openRecordModal()}
-            style={{
-              backgroundColor: '#dc2626',
-              color: '#ffffff',
-              border: 'none',
-              padding: '0.65rem 1.25rem',
-              borderRadius: '6px',
-              fontSize: '0.85rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-              boxShadow: '0 1px 2px rgba(220,38,38,0.2)',
-            }}
-          >
-            <span>+</span> Record Disbursement
-          </button>
-        </div>
+        <button
+          onClick={() => openRecordModal()}
+          style={{
+            backgroundColor: '#dc2626',
+            color: '#ffffff',
+            border: 'none',
+            padding: '0.65rem 1.25rem',
+            borderRadius: '8px',
+            fontSize: '0.85rem',
+            fontWeight: 700,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            boxShadow: '0 1px 3px rgba(220,38,38,0.25)',
+          }}
+        >
+          <span>+</span> Record Disbursement
+        </button>
+      </div>
+
+      {/* Scoped Grid Styles for Clean 4-Column Layout */}
+      <style
+        dangerouslySetInnerHTML={{
+          __html: `
+            .payments-kpi-grid {
+              display: grid;
+              grid-template-columns: repeat(4, minmax(0, 1fr));
+              gap: 1.15rem;
+            }
+            @media (max-width: 1100px) {
+              .payments-kpi-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+              }
+            }
+            @media (max-width: 640px) {
+              .payments-kpi-grid {
+                grid-template-columns: 1fr;
+              }
+            }
+          `,
+        }}
+      />
+
+      {/* KPI Cards Grid */}
+      <div className="payments-kpi-grid">
+        <StatCard
+          title="Money Paid (Disbursed)"
+          value={formatINR(totalPaidCompleted)}
+          subtitle={`${completedCount} settled disbursements`}
+          accentColor="#059669"
+          badge="Settled"
+          badgeType="success"
+          loading={loading}
+          icon={<span>💳</span>}
+        />
+
+        <StatCard
+          title="Money to be Paid (Pending)"
+          value={formatINR(totalPendingToPay)}
+          subtitle={`${pendingExpenses.length} bills awaiting disbursement`}
+          accentColor="#d97706"
+          badge={pendingExpenses.length > 0 ? 'Action Req' : 'Clear'}
+          badgeType={pendingExpenses.length > 0 ? 'warning' : 'success'}
+          loading={pendingLoading}
+          icon={<span>⏳</span>}
+        />
+
+        <StatCard
+          title="Total Commitments (Approved)"
+          value={formatINR(totalCommitments)}
+          subtitle="Approved center & procurement liabilities"
+          accentColor="#2563eb"
+          badge="Purview"
+          badgeType="info"
+          loading={loading || pendingLoading}
+          icon={<span>📋</span>}
+        />
+
+        <StatCard
+          title="Cancelled / Voided"
+          value={formatINR(totalCancelled)}
+          subtitle={`${cancelledCount} reversed disbursements`}
+          accentColor="#dc2626"
+          badge={cancelledCount > 0 ? 'Reversed' : 'None'}
+          badgeType={cancelledCount > 0 ? 'danger' : 'info'}
+          loading={loading}
+          icon={<span>✕</span>}
+        />
+      </div>
 
         {/* Bills & Consignments Awaiting Disbursement */}
         <div style={{ backgroundColor: '#ffffff', borderRadius: '8px', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
@@ -426,52 +592,182 @@ function PaymentsContent() {
           </h2>
         </div>
 
-        {/* Filters */}
+        {/* Filter Toolbar (Image 2 style) */}
         <div
           style={{
-            display: 'flex',
-            gap: '1rem',
             backgroundColor: '#ffffff',
-            padding: '1rem',
-            borderRadius: '8px',
             border: '1px solid #e2e8f0',
-            alignItems: 'center',
+            borderRadius: '10px',
+            padding: '1rem 1.25rem',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '1rem',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
           }}
         >
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            style={{
-              padding: '0.5rem 0.75rem',
-              border: '1px solid #cbd5e1',
-              borderRadius: '6px',
-              fontSize: '0.85rem',
-              color: '#334155',
-            }}
-          >
-            <option value="">All Statuses</option>
-            <option value={PaymentStatus.COMPLETED}>Completed</option>
-            <option value={PaymentStatus.CANCELLED}>Cancelled</option>
-          </select>
+          {/* Status Tabs and Search + Method Dropdown */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
+            {/* Status Tabs */}
+            <div style={{ display: 'inline-flex', backgroundColor: '#f1f5f9', padding: '3px', borderRadius: '8px', border: '1px solid #e2e8f0', gap: '2px', flexWrap: 'wrap' }}>
+              {[
+                { id: 'all', label: `All (${payments.length})` },
+                { id: PaymentStatus.COMPLETED, label: `Completed (${completedCount})` },
+                { id: PaymentStatus.CANCELLED, label: `Cancelled (${cancelledCount})` },
+              ].map((tab) => {
+                const active = statusTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setStatusTab(tab.id as any)}
+                    style={{
+                      border: 'none',
+                      backgroundColor: active ? '#ffffff' : 'transparent',
+                      color: active ? '#dc2626' : '#64748b',
+                      fontWeight: active ? 700 : 500,
+                      fontSize: '0.8rem',
+                      padding: '0.35rem 0.75rem',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      boxShadow: active ? '0 1px 2px rgba(0,0,0,0.06)' : 'none',
+                    }}
+                  >
+                    {tab.label}
+                  </button>
+                );
+              })}
+            </div>
 
-          <select
-            value={methodFilter}
-            onChange={(e) => setMethodFilter(e.target.value)}
-            style={{
-              padding: '0.5rem 0.75rem',
-              border: '1px solid #cbd5e1',
-              borderRadius: '6px',
-              fontSize: '0.85rem',
-              color: '#334155',
-            }}
-          >
-            <option value="">All Payment Methods</option>
-            {Object.entries(PAYMENT_METHOD_LABELS).map(([k, v]) => (
-              <option key={k} value={k}>
-                {v}
-              </option>
-            ))}
-          </select>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+              {/* Search Input */}
+              <input
+                type="text"
+                placeholder="Search reference #, payee / vendor, invoice, notes..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                style={{
+                  padding: '0.45rem 0.75rem',
+                  fontSize: '0.8rem',
+                  border: '1px solid #cbd5e1',
+                  borderRadius: '6px',
+                  outline: 'none',
+                  minWidth: '260px',
+                }}
+              />
+
+              {/* Payment Method Dropdown */}
+              <select
+                value={methodFilter}
+                onChange={(e) => setMethodFilter(e.target.value)}
+                style={{
+                  padding: '0.45rem 0.65rem',
+                  fontSize: '0.8rem',
+                  border: '1px solid #cbd5e1',
+                  borderRadius: '6px',
+                  outline: 'none',
+                  backgroundColor: '#ffffff',
+                  color: '#334155',
+                }}
+              >
+                <option value="">All Payment Methods</option>
+                {Object.entries(PAYMENT_METHOD_LABELS).map(([k, v]) => (
+                  <option key={k} value={k}>
+                    {v}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Date Filter Row */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem', paddingTop: '0.65rem', borderTop: '1px solid #f1f5f9' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b', marginRight: '0.25rem' }}>
+                📅 Disbursement Date:
+              </span>
+              {[
+                { id: 'all', label: 'All Time' },
+                { id: 'today', label: 'Today' },
+                { id: '7days', label: 'Last 7 Days' },
+                { id: '15days', label: 'Last 15 Days' },
+                { id: '30days', label: 'Last 30 Days' },
+                { id: 'this_month', label: 'This Month' },
+                { id: 'custom', label: 'Custom' },
+              ].map((p) => {
+                const active = datePreset === p.id;
+                return (
+                  <button
+                    key={p.id}
+                    onClick={() => setDatePreset(p.id as any)}
+                    style={{
+                      border: active ? '1px solid #ef4444' : '1px solid #e2e8f0',
+                      backgroundColor: active ? '#fee2e2' : '#ffffff',
+                      color: active ? '#dc2626' : '#475569',
+                      fontSize: '0.75rem',
+                      fontWeight: active ? 700 : 500,
+                      padding: '0.25rem 0.65rem',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {p.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            {datePreset === 'custom' && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                  <span style={{ fontSize: '0.75rem', color: '#64748b' }}>From:</span>
+                  <input
+                    type="date"
+                    value={customStartDate}
+                    onChange={(e) => setCustomStartDate(e.target.value)}
+                    style={{
+                      padding: '0.25rem 0.5rem',
+                      fontSize: '0.75rem',
+                      border: '1px solid #cbd5e1',
+                      borderRadius: '4px',
+                      outline: 'none',
+                    }}
+                  />
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                  <span style={{ fontSize: '0.75rem', color: '#64748b' }}>To:</span>
+                  <input
+                    type="date"
+                    value={customEndDate}
+                    onChange={(e) => setCustomEndDate(e.target.value)}
+                    style={{
+                      padding: '0.25rem 0.5rem',
+                      fontSize: '0.75rem',
+                      border: '1px solid #cbd5e1',
+                      borderRadius: '4px',
+                      outline: 'none',
+                    }}
+                  />
+                </div>
+                {(customStartDate || customEndDate) && (
+                  <button
+                    onClick={() => {
+                      setCustomStartDate('');
+                      setCustomEndDate('');
+                    }}
+                    style={{
+                      fontSize: '0.75rem',
+                      color: '#dc2626',
+                      backgroundColor: 'transparent',
+                      border: 'none',
+                      cursor: 'pointer',
+                      fontWeight: 600,
+                    }}
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
         </div>
 
         {errorMessage && (
@@ -486,11 +782,11 @@ function PaymentsContent() {
             <div style={{ padding: '3rem', textAlign: 'center', color: '#64748b', fontSize: '0.9rem' }}>
               Loading disbursements...
             </div>
-          ) : payments.length === 0 ? (
+          ) : filteredPayments.length === 0 ? (
             <div style={{ padding: '3rem', textAlign: 'center', color: '#64748b' }}>
-              <p style={{ margin: 0, fontWeight: 600 }}>No payment disbursements recorded.</p>
+              <p style={{ margin: 0, fontWeight: 600 }}>No payment disbursements match the selected filter criteria.</p>
               <p style={{ margin: '0.35rem 0 0 0', fontSize: '0.825rem' }}>
-                Click &ldquo;Record Disbursement&rdquo; above to settle an approved medical or facilities invoice.
+                Try adjusting the status tabs, search terms, or date horizon above.
               </p>
             </div>
           ) : (
@@ -507,7 +803,7 @@ function PaymentsContent() {
                 </tr>
               </thead>
               <tbody>
-                {payments.map((p) => (
+                {filteredPayments.map((p) => (
                   <tr key={p._id} style={{ borderBottom: '1px solid #f1f5f9' }}>
                     <td style={{ padding: '0.85rem 1rem', color: '#64748b' }}>
                       {new Date(p.paymentDate).toLocaleDateString('en-IN')}
@@ -880,69 +1176,120 @@ function PaymentsContent() {
             <div
               style={{
                 backgroundColor: '#ffffff',
-                borderRadius: '10px',
+                borderRadius: '12px',
                 width: '100%',
                 maxWidth: '560px',
-                boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)',
+                boxShadow: '0 20px 25px -5px rgba(0,0,0,0.15)',
                 padding: '1.75rem',
+                border: '1px solid #fde68a',
               }}
             >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>
-                  Disbursement Voucher Details
-                </h2>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                  <div
+                    style={{
+                      width: '36px',
+                      height: '36px',
+                      borderRadius: '8px',
+                      backgroundColor: '#fef3c7',
+                      color: '#b45309',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '1.1rem',
+                      fontWeight: 800,
+                      border: '1px solid #fde68a',
+                    }}
+                  >
+                    ₹
+                  </div>
+                  <div>
+                    <h2 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>
+                      Disbursement Voucher Details
+                    </h2>
+                    <span style={{ fontSize: '0.75rem', color: '#64748b' }}>
+                      Settlement &amp; Verification Record
+                    </span>
+                  </div>
+                </div>
                 <button
                   onClick={() => setShowDetailModal(false)}
-                  style={{ border: 'none', background: 'none', fontSize: '1.5rem', color: '#64748b', cursor: 'pointer' }}
+                  style={{ border: 'none', background: 'none', fontSize: '1.5rem', color: '#64748b', cursor: 'pointer', lineHeight: 1 }}
                 >
                   &times;
                 </button>
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem', fontSize: '0.85rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '0.5rem', borderBottom: '1px solid #f1f5f9' }}>
-                  <span style={{ color: '#64748b' }}>Payment ID:</span>
-                  <span style={{ fontFamily: 'monospace', fontWeight: 600 }}>{selectedPaymentDetail._id}</span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem', fontSize: '0.875rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '0.6rem', borderBottom: '1px solid #f1f5f9' }}>
+                  <span style={{ color: '#64748b', fontWeight: 500 }}>Payment ID:</span>
+                  <span style={{ fontFamily: 'monospace', fontWeight: 700, color: '#0f172a', backgroundColor: '#f8fafc', padding: '0.15rem 0.5rem', borderRadius: '4px', border: '1px solid #e2e8f0' }}>
+                    {selectedPaymentDetail._id}
+                  </span>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '0.5rem', borderBottom: '1px solid #f1f5f9' }}>
-                  <span style={{ color: '#64748b' }}>Vendor:</span>
-                  <strong style={{ color: '#0f172a' }}>{selectedPaymentDetail.vendorName}</strong>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '0.6rem', borderBottom: '1px solid #f1f5f9' }}>
+                  <span style={{ color: '#64748b', fontWeight: 500 }}>Vendor / Payee:</span>
+                  <strong style={{ color: '#0f172a', fontWeight: 700 }}>{selectedPaymentDetail.vendorName}</strong>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '0.5rem', borderBottom: '1px solid #f1f5f9' }}>
-                  <span style={{ color: '#64748b' }}>Amount Disbursed:</span>
-                  <strong style={{ color: '#166534', fontSize: '1rem' }}>{formatINR(selectedPaymentDetail.amount)}</strong>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '0.6rem', borderBottom: '1px solid #f1f5f9' }}>
+                  <span style={{ color: '#64748b', fontWeight: 500 }}>Amount Disbursed:</span>
+                  <strong style={{ color: '#15803d', fontSize: '1.1rem', fontWeight: 800 }}>
+                    {formatINR(selectedPaymentDetail.amount)}
+                  </strong>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '0.5rem', borderBottom: '1px solid #f1f5f9' }}>
-                  <span style={{ color: '#64748b' }}>Payment Method:</span>
-                  <span>{selectedPaymentDetail.paymentMethod}</span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '0.6rem', borderBottom: '1px solid #f1f5f9' }}>
+                  <span style={{ color: '#64748b', fontWeight: 500 }}>Payment Method:</span>
+                  <span style={{ color: '#0f172a', fontWeight: 700, backgroundColor: '#fef3c7', padding: '0.2rem 0.6rem', borderRadius: '6px', border: '1px solid #fde68a', fontSize: '0.8rem' }}>
+                    {selectedPaymentDetail.paymentMethod}
+                  </span>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '0.5rem', borderBottom: '1px solid #f1f5f9' }}>
-                  <span style={{ color: '#64748b' }}>Reference / UTR:</span>
-                  <span style={{ fontFamily: 'monospace' }}>{selectedPaymentDetail.referenceNumber}</span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '0.6rem', borderBottom: '1px solid #f1f5f9' }}>
+                  <span style={{ color: '#64748b', fontWeight: 500 }}>Reference / UTR:</span>
+                  <span style={{ fontFamily: 'monospace', color: '#0f172a', fontWeight: 700, backgroundColor: '#f1f5f9', padding: '0.2rem 0.5rem', borderRadius: '4px', border: '1px solid #cbd5e1' }}>
+                    {selectedPaymentDetail.referenceNumber}
+                  </span>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '0.5rem', borderBottom: '1px solid #f1f5f9' }}>
-                  <span style={{ color: '#64748b' }}>Disbursement Date:</span>
-                  <span>{new Date(selectedPaymentDetail.paymentDate).toLocaleDateString('en-IN')}</span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '0.6rem', borderBottom: '1px solid #f1f5f9' }}>
+                  <span style={{ color: '#64748b', fontWeight: 500 }}>Disbursement Date:</span>
+                  <span style={{ color: '#0f172a', fontWeight: 600 }}>
+                    {new Date(selectedPaymentDetail.paymentDate).toLocaleDateString('en-IN', {
+                      day: '2-digit',
+                      month: 'short',
+                      year: 'numeric',
+                    })}
+                  </span>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '0.5rem', borderBottom: '1px solid #f1f5f9' }}>
-                  <span style={{ color: '#64748b' }}>Recorded By:</span>
-                  <span>{selectedPaymentDetail.createdByName}</span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '0.6rem', borderBottom: '1px solid #f1f5f9' }}>
+                  <span style={{ color: '#64748b', fontWeight: 500 }}>Recorded By:</span>
+                  <span style={{ color: '#0f172a', fontWeight: 600 }}>{selectedPaymentDetail.createdByName}</span>
                 </div>
 
                 {selectedPaymentDetail.status === 'CANCELLED' && (
-                  <div style={{ backgroundColor: '#fff1f2', padding: '0.75rem', borderRadius: '6px', border: '1px solid #fecdd3' }}>
-                    <div style={{ color: '#9f1239', fontWeight: 700, fontSize: '0.8rem' }}>⚠️ CANCELLATION AUDIT</div>
-                    <div style={{ color: '#be123c', fontSize: '0.8rem', marginTop: '0.25rem' }}>
+                  <div style={{ backgroundColor: '#fff1f2', padding: '0.75rem 1rem', borderRadius: '8px', border: '1px solid #fecdd3' }}>
+                    <div style={{ color: '#9f1239', fontWeight: 800, fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                      <span>⚠️</span> CANCELLATION AUDIT
+                    </div>
+                    <div style={{ color: '#be123c', fontSize: '0.825rem', marginTop: '0.35rem' }}>
                       Reason: {selectedPaymentDetail.cancellationReason}
                     </div>
                   </div>
                 )}
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1.5rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid #f1f5f9' }}>
                 <button
                   onClick={() => setShowDetailModal(false)}
-                  style={{ padding: '0.5rem 1rem', border: '1px solid #cbd5e1', borderRadius: '6px', backgroundColor: '#ffffff', color: '#475569', fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer' }}
+                  style={{
+                    padding: '0.55rem 1.25rem',
+                    border: '1px solid #fde68a',
+                    borderRadius: '8px',
+                    backgroundColor: '#fef3c7',
+                    color: '#92400e',
+                    fontSize: '0.85rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                  }}
                 >
                   Close
                 </button>

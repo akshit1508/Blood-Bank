@@ -328,11 +328,11 @@ export default function TariffsConfigPage() {
                   disabled={isSaving}
                   style={{
                     padding: '0.6rem 1.25rem',
-                    background: '#0f172a',
+                    background: '#d97706',
                     color: '#ffffff',
                     border: 'none',
                     borderRadius: '0.375rem',
-                    fontWeight: 600,
+                    fontWeight: 700,
                     cursor: isSaving ? 'not-allowed' : 'pointer',
                   }}
                 >

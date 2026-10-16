@@ -32,6 +32,10 @@ import {
   SalaryDisbursementSchema,
 } from '../payroll/schemas/salary-disbursement.schema';
 import {
+  SalarySlip,
+  SalarySlipSchema,
+} from '../payroll/schemas/salary-slip.schema';
+import {
   Campaign,
   CampaignSchema,
 } from '../campaigns/schemas/campaign.schema';
@@ -46,6 +50,7 @@ import {
       { name: BloodAcquisition.name, schema: BloodAcquisitionSchema },
       { name: MonthlyPayrollRun.name, schema: MonthlyPayrollRunSchema },
       { name: SalaryDisbursement.name, schema: SalaryDisbursementSchema },
+      { name: SalarySlip.name, schema: SalarySlipSchema },
       { name: Campaign.name, schema: CampaignSchema },
     ]),
   ],

@@ -114,6 +114,10 @@ export interface ExpenseItem {
 export interface ExpenseSummaryStats {
   approvedAmount: number;
   approvedCount: number;
+  paidAmount?: number;
+  paidCount?: number;
+  unpaidAmount?: number;
+  unpaidCount?: number;
   submittedAmount: number;
   submittedCount: number;
   rejectedAmount: number;

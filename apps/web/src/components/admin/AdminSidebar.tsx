@@ -288,7 +288,6 @@ export default function AdminSidebar({
         label: 'OVERVIEW',
         items: [
           { name: 'Dashboard', href: '/super-admin/dashboard', icon: icons.dashboard },
-          { name: 'Analytics & Reports', href: '/admin/dashboard', icon: icons.analytics },
         ],
       },
       {
@@ -312,8 +311,7 @@ export default function AdminSidebar({
           { name: 'Blood Requests', href: '/admin/blood-requests', icon: icons.requests },
           { name: 'Laboratory Testing', href: '/admin/testing', icon: icons.testing },
           { name: 'Inventory Management', href: '/admin/inventory', icon: icons.inventory },
-          { name: 'Reservations', href: '/admin/blood-requests', icon: icons.reservations, badge: 'In Requests' },
-          { name: 'Blood Issue', href: '/admin/blood-requests', icon: icons.bloodIssue, badge: 'In Requests' },
+         
         ],
       },
       {
@@ -466,6 +464,8 @@ export default function AdminSidebar({
       ? 'RECEPTIONIST'
       : 'ADMIN';
 
+  const isSuperAdmin = currentRole === AdminRole.SUPER_ADMIN || pathname.startsWith('/super-admin');
+
   const roleBadgeStyle =
     currentRole === AdminRole.SUPER_ADMIN
       ? { bg: '#fef3c7', text: '#d97706', border: '#fde68a' }
@@ -501,7 +501,7 @@ export default function AdminSidebar({
           width: '260px',
           minWidth: '260px',
           backgroundColor: '#ffffff',
-          borderRight: '1px solid #e2e8f0',
+          borderRight: isSuperAdmin ? '1px solid #fde68a' : '1px solid #e2e8f0',
           display: 'flex',
           flexDirection: 'column',
           position: 'sticky',
@@ -603,9 +603,9 @@ export default function AdminSidebar({
                         textDecoration: 'none',
                         fontSize: '0.85rem',
                         fontWeight: isActive ? 600 : 500,
-                        color: isActive ? '#b91c1c' : '#475569',
-                        backgroundColor: isActive ? '#fef2f2' : 'transparent',
-                        border: isActive ? '1px solid #fecaca' : '1px solid transparent',
+                        color: isActive ? (isSuperAdmin ? '#b45309' : '#b91c1c') : '#475569',
+                        backgroundColor: isActive ? (isSuperAdmin ? '#fef3c7' : '#fef2f2') : 'transparent',
+                        border: isActive ? (isSuperAdmin ? '1px solid #fde68a' : '1px solid #fecaca') : '1px solid transparent',
                         transition: 'all 0.15s ease',
                       }}
                       className="admin-nav-item"
@@ -613,7 +613,7 @@ export default function AdminSidebar({
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                         <span
                           style={{
-                            color: isActive ? '#dc2626' : '#64748b',
+                            color: isActive ? (isSuperAdmin ? '#d97706' : '#dc2626') : '#64748b',
                             display: 'flex',
                             alignItems: 'center',
                           }}
@@ -634,12 +634,12 @@ export default function AdminSidebar({
                                   height: '20px',
                                   padding: '0 6px',
                                   borderRadius: '9999px',
-                                  backgroundColor: '#dc2626',
+                                  backgroundColor: isSuperAdmin ? '#d97706' : '#dc2626',
                                   color: '#ffffff',
                                   display: 'inline-flex',
                                   alignItems: 'center',
                                   justifyContent: 'center',
-                                  boxShadow: '0 1px 3px rgba(220, 38, 38, 0.4)',
+                                  boxShadow: isSuperAdmin ? '0 1px 3px rgba(217, 119, 6, 0.4)' : '0 1px 3px rgba(220, 38, 38, 0.4)',
                                   lineHeight: 1,
                                 }
                               : {
@@ -647,9 +647,9 @@ export default function AdminSidebar({
                                   fontWeight: 700,
                                   padding: '0.1rem 0.35rem',
                                   borderRadius: '4px',
-                                  backgroundColor: isActive ? '#dc2626' : '#f1f5f9',
-                                  color: isActive ? '#ffffff' : '#64748b',
-                                  border: isActive ? '1px solid #dc2626' : '1px solid #e2e8f0',
+                                  backgroundColor: isActive ? (isSuperAdmin ? '#d97706' : '#dc2626') : (isSuperAdmin ? '#fef3c7' : '#f1f5f9'),
+                                  color: isActive ? '#ffffff' : (isSuperAdmin ? '#b45309' : '#64748b'),
+                                  border: isActive ? (isSuperAdmin ? '1px solid #d97706' : '1px solid #dc2626') : (isSuperAdmin ? '1px solid #fde68a' : '1px solid #e2e8f0'),
                                 }
                           }
                         >
@@ -668,8 +668,8 @@ export default function AdminSidebar({
         <div
           style={{
             padding: '1rem',
-            borderTop: '1px solid #f1f5f9',
-            backgroundColor: '#f8fafc',
+            borderTop: isSuperAdmin ? '1px solid #fde68a' : '1px solid #f1f5f9',
+            backgroundColor: isSuperAdmin ? '#fffbeb' : '#f8fafc',
             display: 'flex',
             flexDirection: 'column',
             gap: '0.85rem',
@@ -708,10 +708,10 @@ export default function AdminSidebar({
               gap: '0.5rem',
               width: '100%',
               padding: '0.55rem 1rem',
-              backgroundColor: '#fee2e2',
-              border: '1px solid #fca5a5',
+              backgroundColor: isSuperAdmin ? '#fef3c7' : '#fee2e2',
+              border: isSuperAdmin ? '1px solid #fde68a' : '1px solid #fca5a5',
               borderRadius: '8px',
-              color: '#dc2626',
+              color: isSuperAdmin ? '#b45309' : '#dc2626',
               fontSize: '0.825rem',
               fontWeight: 700,
               cursor: 'pointer',
@@ -719,10 +719,10 @@ export default function AdminSidebar({
               boxSizing: 'border-box',
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = '#fecaca';
+              e.currentTarget.style.backgroundColor = isSuperAdmin ? '#fde68a' : '#fecaca';
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = '#fee2e2';
+              e.currentTarget.style.backgroundColor = isSuperAdmin ? '#fef3c7' : '#fee2e2';
             }}
           >
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">

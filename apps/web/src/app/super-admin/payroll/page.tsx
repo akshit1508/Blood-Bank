@@ -408,7 +408,7 @@ export default function PayrollDashboardPage() {
   const calculatedNet = calculatedGross - calculatedDeductions;
 
   return (
-    <div style={{ padding: '1.5rem', maxWidth: '1440px', margin: '0 auto', color: '#f8fafc' }}>
+    <div style={{ padding: '1.5rem', maxWidth: '1440px', margin: '0 auto', color: '#0f172a' }}>
       {/* Top Banner & Header */}
       <div
         style={{
@@ -424,8 +424,9 @@ export default function PayrollDashboardPage() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
             <span
               style={{
-                backgroundColor: '#dc2626',
-                color: '#ffffff',
+                backgroundColor: '#fef3c7',
+                color: '#92400e',
+                border: '1px solid #fde68a',
                 fontSize: '0.7rem',
                 fontWeight: 700,
                 textTransform: 'uppercase',
@@ -438,10 +439,10 @@ export default function PayrollDashboardPage() {
             </span>
             <span style={{ color: '#64748b', fontSize: '0.8rem' }}>• Direct Payout Control</span>
           </div>
-          <h1 style={{ fontSize: '1.875rem', fontWeight: 800, color: '#f8fafc', margin: 0 }}>
-            Payroll & Employee Command Center
+          <h1 style={{ fontSize: '1.875rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>
+            Payroll &amp; Employee Command Center
           </h1>
-          <p style={{ color: '#94a3b8', fontSize: '0.9rem', margin: '0.25rem 0 0 0' }}>
+          <p style={{ color: '#64748b', fontSize: '0.9rem', margin: '0.25rem 0 0 0' }}>
             Decide employee salaries, disburse payments directly, and track real-time payout totals.
           </p>
         </div>
@@ -454,18 +455,18 @@ export default function PayrollDashboardPage() {
               setShowAddEmployeeModal(true);
             }}
             style={{
-              backgroundColor: '#dc2626',
+              backgroundColor: '#d97706',
               color: '#ffffff',
               border: 'none',
               padding: '0.65rem 1.25rem',
               borderRadius: '8px',
-              fontWeight: 600,
+              fontWeight: 700,
               fontSize: '0.875rem',
               cursor: 'pointer',
               display: 'inline-flex',
               alignItems: 'center',
               gap: '0.5rem',
-              boxShadow: '0 4px 12px rgba(220, 38, 38, 0.25)',
+              boxShadow: '0 4px 12px rgba(217, 119, 6, 0.25)',
               transition: 'all 0.15s ease',
             }}
           >
@@ -476,17 +477,18 @@ export default function PayrollDashboardPage() {
           <button
             onClick={() => setShowGenerateRunModal(true)}
             style={{
-              backgroundColor: '#1e293b',
-              color: '#f8fafc',
-              border: '1px solid #334155',
+              backgroundColor: '#fef3c7',
+              color: '#92400e',
+              border: '1px solid #fde68a',
               padding: '0.65rem 1rem',
               borderRadius: '8px',
-              fontWeight: 500,
+              fontWeight: 700,
               fontSize: '0.875rem',
               cursor: 'pointer',
               display: 'inline-flex',
               alignItems: 'center',
               gap: '0.4rem',
+              transition: 'all 0.15s ease',
             }}
           >
             <span>Generate Monthly Batch</span>
@@ -500,7 +502,7 @@ export default function PayrollDashboardPage() {
           style={{
             backgroundColor: 'rgba(16, 185, 129, 0.12)',
             border: '1px solid #10b981',
-            color: '#34d399',
+            color: '#065f46',
             padding: '0.85rem 1.25rem',
             borderRadius: '8px',
             marginBottom: '1.5rem',
@@ -516,7 +518,7 @@ export default function PayrollDashboardPage() {
           </div>
           <button
             onClick={() => setActionSuccess(null)}
-            style={{ background: 'transparent', border: 'none', color: '#34d399', cursor: 'pointer', fontSize: '1rem' }}
+            style={{ background: 'transparent', border: 'none', color: '#065f46', cursor: 'pointer', fontSize: '1rem' }}
           >
             ✕
           </button>
@@ -529,7 +531,7 @@ export default function PayrollDashboardPage() {
           style={{
             backgroundColor: 'rgba(239, 68, 68, 0.12)',
             border: '1px solid #ef4444',
-            color: '#f87171',
+            color: '#991b1b',
             padding: '0.85rem 1.25rem',
             borderRadius: '8px',
             marginBottom: '1.5rem',
@@ -545,7 +547,7 @@ export default function PayrollDashboardPage() {
           </div>
           <button
             onClick={() => setError(null)}
-            style={{ background: 'transparent', border: 'none', color: '#f87171', cursor: 'pointer', fontSize: '1rem' }}
+            style={{ background: 'transparent', border: 'none', color: '#991b1b', cursor: 'pointer', fontSize: '1rem' }}
           >
             ✕
           </button>
@@ -564,23 +566,24 @@ export default function PayrollDashboardPage() {
         {/* Card 1: Active Staff */}
         <div
           style={{
-            backgroundColor: '#0f172a',
-            border: '1px solid #1e293b',
+            backgroundColor: '#ffffff',
+            border: '1px solid #fde68a',
             borderRadius: '12px',
             padding: '1.25rem',
             display: 'flex',
             flexDirection: 'column',
             justifyContent: 'space-between',
+            boxShadow: '0 1px 3px rgba(217, 119, 6, 0.05)',
           }}
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ color: '#94a3b8', fontSize: '0.8rem', fontWeight: 600, textTransform: 'uppercase' }}>
+            <span style={{ color: '#64748b', fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase' }}>
               Total Active Staff
             </span>
             <span style={{ fontSize: '1.25rem' }}>👥</span>
           </div>
           <div style={{ marginTop: '0.75rem' }}>
-            <div style={{ fontSize: '1.875rem', fontWeight: 800, color: '#f8fafc' }}>
+            <div style={{ fontSize: '1.875rem', fontWeight: 800, color: '#0f172a' }}>
               {rosterSummary ? rosterSummary.totalEmployees : '...'}
             </div>
             <div style={{ color: '#64748b', fontSize: '0.75rem', marginTop: '0.2rem' }}>
@@ -589,11 +592,11 @@ export default function PayrollDashboardPage() {
           </div>
         </div>
 
-        {/* Card 2: People Paid This Month (Crucial Metric requested by User) */}
+        {/* Card 2: People Paid This Month */}
         <div
           style={{
-            backgroundColor: '#0f172a',
-            border: '1px solid #10b981',
+            backgroundColor: '#ffffff',
+            border: '1px solid #a7f3d0',
             borderRadius: '12px',
             padding: '1.25rem',
             display: 'flex',
@@ -601,6 +604,7 @@ export default function PayrollDashboardPage() {
             justifyContent: 'space-between',
             position: 'relative',
             overflow: 'hidden',
+            boxShadow: '0 1px 3px rgba(16, 185, 129, 0.05)',
           }}
         >
           <div
@@ -614,18 +618,18 @@ export default function PayrollDashboardPage() {
             }}
           />
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ color: '#34d399', fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase' }}>
+            <span style={{ color: '#059669', fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase' }}>
               People Paid This Month
             </span>
             <span style={{ fontSize: '1.25rem' }}>✅</span>
           </div>
           <div style={{ marginTop: '0.75rem' }}>
-            <div style={{ fontSize: '1.875rem', fontWeight: 800, color: '#34d399' }}>
+            <div style={{ fontSize: '1.875rem', fontWeight: 800, color: '#059669' }}>
               {rosterSummary
                 ? `${rosterSummary.employeesPaidCount} of ${rosterSummary.totalEmployees}`
                 : '...'}
             </div>
-            <div style={{ color: '#94a3b8', fontSize: '0.75rem', marginTop: '0.2rem' }}>
+            <div style={{ color: '#64748b', fontSize: '0.75rem', marginTop: '0.2rem' }}>
               {rosterSummary && rosterSummary.totalEmployees > 0
                 ? `${Math.round((rosterSummary.employeesPaidCount / rosterSummary.totalEmployees) * 100)}% staff paid for ${selectedPeriod}`
                 : `Payout period: ${selectedPeriod}`}
@@ -633,26 +637,27 @@ export default function PayrollDashboardPage() {
           </div>
         </div>
 
-        {/* Card 3: Total Salary Paid Out (Crucial Metric requested by User) */}
+        {/* Card 3: Total Salary Paid Out */}
         <div
           style={{
-            backgroundColor: '#0f172a',
-            border: '1px solid #1e293b',
+            backgroundColor: '#ffffff',
+            border: '1px solid #fde68a',
             borderRadius: '12px',
             padding: '1.25rem',
             display: 'flex',
             flexDirection: 'column',
             justifyContent: 'space-between',
+            boxShadow: '0 1px 3px rgba(217, 119, 6, 0.05)',
           }}
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ color: '#94a3b8', fontSize: '0.8rem', fontWeight: 600, textTransform: 'uppercase' }}>
+            <span style={{ color: '#64748b', fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase' }}>
               Total Salary Paid ({selectedPeriod})
             </span>
             <span style={{ fontSize: '1.25rem' }}>💸</span>
           </div>
           <div style={{ marginTop: '0.75rem' }}>
-            <div style={{ fontSize: '1.875rem', fontWeight: 800, color: '#10b981' }}>
+            <div style={{ fontSize: '1.875rem', fontWeight: 800, color: '#059669' }}>
               {rosterSummary ? formatINR(rosterSummary.totalPaidAmount) : '₹0.00'}
             </div>
             <div style={{ color: '#64748b', fontSize: '0.75rem', marginTop: '0.2rem' }}>
@@ -664,17 +669,18 @@ export default function PayrollDashboardPage() {
         {/* Card 4: Pending Salary To Pay */}
         <div
           style={{
-            backgroundColor: '#0f172a',
-            border: '1px solid #1e293b',
+            backgroundColor: '#ffffff',
+            border: '1px solid #fde68a',
             borderRadius: '12px',
             padding: '1.25rem',
             display: 'flex',
             flexDirection: 'column',
             justifyContent: 'space-between',
+            boxShadow: '0 1px 3px rgba(217, 119, 6, 0.05)',
           }}
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ color: '#94a3b8', fontSize: '0.8rem', fontWeight: 600, textTransform: 'uppercase' }}>
+            <span style={{ color: '#64748b', fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase' }}>
               Pending Salary To Pay
             </span>
             <span style={{ fontSize: '1.25rem' }}>⏳</span>
@@ -716,10 +722,10 @@ export default function PayrollDashboardPage() {
             style={{
               background: 'none',
               border: 'none',
-              borderBottom: activeTab === 'roster' ? '2px solid #dc2626' : '2px solid transparent',
-              color: activeTab === 'roster' ? '#ffffff' : '#94a3b8',
+              borderBottom: activeTab === 'roster' ? '2px solid #d97706' : '2px solid transparent',
+              color: activeTab === 'roster' ? '#92400e' : '#64748b',
               padding: '0.75rem 1.25rem',
-              fontWeight: 600,
+              fontWeight: 700,
               fontSize: '0.95rem',
               cursor: 'pointer',
               display: 'flex',
@@ -727,14 +733,15 @@ export default function PayrollDashboardPage() {
               gap: '0.5rem',
             }}
           >
-            <span>Staff Direct Payouts & Roster</span>
+            <span>Staff Direct Payouts &amp; Roster</span>
             <span
               style={{
-                backgroundColor: activeTab === 'roster' ? '#dc2626' : '#1e293b',
-                color: '#ffffff',
+                backgroundColor: activeTab === 'roster' ? '#d97706' : '#fef3c7',
+                color: activeTab === 'roster' ? '#ffffff' : '#92400e',
                 fontSize: '0.75rem',
                 padding: '0.1rem 0.5rem',
                 borderRadius: '12px',
+                fontWeight: 700,
               }}
             >
               {roster.length}
@@ -746,10 +753,10 @@ export default function PayrollDashboardPage() {
             style={{
               background: 'none',
               border: 'none',
-              borderBottom: activeTab === 'runs' ? '2px solid #dc2626' : '2px solid transparent',
-              color: activeTab === 'runs' ? '#ffffff' : '#94a3b8',
+              borderBottom: activeTab === 'runs' ? '2px solid #d97706' : '2px solid transparent',
+              color: activeTab === 'runs' ? '#92400e' : '#64748b',
               padding: '0.75rem 1.25rem',
-              fontWeight: 600,
+              fontWeight: 700,
               fontSize: '0.95rem',
               cursor: 'pointer',
               display: 'flex',
@@ -757,14 +764,15 @@ export default function PayrollDashboardPage() {
               gap: '0.5rem',
             }}
           >
-            <span>Monthly Batch Runs & Audit</span>
+            <span>Monthly Batch Runs &amp; Audit</span>
             <span
               style={{
-                backgroundColor: '#1e293b',
-                color: '#94a3b8',
+                backgroundColor: activeTab === 'runs' ? '#d97706' : '#fef3c7',
+                color: activeTab === 'runs' ? '#ffffff' : '#92400e',
                 fontSize: '0.75rem',
                 padding: '0.1rem 0.5rem',
                 borderRadius: '12px',
+                fontWeight: 700,
               }}
             >
               {runs.length}
@@ -774,7 +782,7 @@ export default function PayrollDashboardPage() {
 
         {/* Month Selector & Refresh */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', paddingBottom: '0.5rem' }}>
-          <label style={{ color: '#94a3b8', fontSize: '0.85rem', fontWeight: 500 }}>
+          <label style={{ color: '#78350f', fontSize: '0.85rem', fontWeight: 600 }}>
             Payroll Period:
           </label>
           <input
@@ -782,9 +790,9 @@ export default function PayrollDashboardPage() {
             value={selectedPeriod}
             onChange={(e) => setSelectedPeriod(e.target.value)}
             style={{
-              backgroundColor: '#0f172a',
-              border: '1px solid #334155',
-              color: '#f8fafc',
+              backgroundColor: '#ffffff',
+              border: '1px solid #fde68a',
+              color: '#0f172a',
               padding: '0.45rem 0.75rem',
               borderRadius: '6px',
               fontSize: '0.875rem',
@@ -795,12 +803,13 @@ export default function PayrollDashboardPage() {
             onClick={() => (activeTab === 'roster' ? loadRosterData() : loadRunsData())}
             title="Refresh Data"
             style={{
-              backgroundColor: '#1e293b',
-              border: '1px solid #334155',
-              color: '#f8fafc',
+              backgroundColor: '#fffbeb',
+              border: '1px solid #fde68a',
+              color: '#92400e',
               padding: '0.45rem 0.75rem',
               borderRadius: '6px',
               fontSize: '0.875rem',
+              fontWeight: 600,
               cursor: 'pointer',
             }}
           >
@@ -815,9 +824,9 @@ export default function PayrollDashboardPage() {
           {/* Filters Bar */}
           <div
             style={{
-              backgroundColor: '#0f172a',
-              border: '1px solid #1e293b',
-              borderRadius: '8px',
+              backgroundColor: '#ffffff',
+              border: '1px solid #fde68a',
+              borderRadius: '10px',
               padding: '1rem',
               marginBottom: '1rem',
               display: 'flex',
@@ -825,6 +834,7 @@ export default function PayrollDashboardPage() {
               gap: '1rem',
               alignItems: 'center',
               justifyContent: 'space-between',
+              boxShadow: '0 1px 3px rgba(180, 83, 9, 0.05)',
             }}
           >
             {/* Search & Department Filters */}
@@ -835,9 +845,9 @@ export default function PayrollDashboardPage() {
                 value={searchFilter}
                 onChange={(e) => setSearchFilter(e.target.value)}
                 style={{
-                  backgroundColor: '#0b1120',
-                  border: '1px solid #334155',
-                  color: '#f8fafc',
+                  backgroundColor: '#ffffff',
+                  border: '1px solid #fde68a',
+                  color: '#0f172a',
                   padding: '0.5rem 0.85rem',
                   borderRadius: '6px',
                   fontSize: '0.85rem',
@@ -851,13 +861,14 @@ export default function PayrollDashboardPage() {
                 value={departmentFilter}
                 onChange={(e) => setDepartmentFilter(e.target.value)}
                 style={{
-                  backgroundColor: '#0b1120',
-                  border: '1px solid #334155',
-                  color: '#f8fafc',
+                  backgroundColor: '#ffffff',
+                  border: '1px solid #fde68a',
+                  color: '#0f172a',
                   padding: '0.5rem 0.85rem',
                   borderRadius: '6px',
                   fontSize: '0.85rem',
                   outline: 'none',
+                  cursor: 'pointer',
                 }}
               >
                 <option value="">All Departments</option>
@@ -883,13 +894,13 @@ export default function PayrollDashboardPage() {
                   key={tab.key}
                   onClick={() => setPaymentStatusFilter(tab.key)}
                   style={{
-                    backgroundColor: paymentStatusFilter === tab.key ? '#dc2626' : '#1e293b',
-                    color: paymentStatusFilter === tab.key ? '#ffffff' : '#94a3b8',
-                    border: 'none',
+                    backgroundColor: paymentStatusFilter === tab.key ? '#d97706' : '#fffbeb',
+                    color: paymentStatusFilter === tab.key ? '#ffffff' : '#92400e',
+                    border: paymentStatusFilter === tab.key ? '1px solid #b45309' : '1px solid #fde68a',
                     padding: '0.45rem 0.75rem',
                     borderRadius: '6px',
                     fontSize: '0.75rem',
-                    fontWeight: 600,
+                    fontWeight: 700,
                     cursor: 'pointer',
                   }}
                 >
@@ -902,21 +913,22 @@ export default function PayrollDashboardPage() {
           {/* Roster Table */}
           <div
             style={{
-              backgroundColor: '#0f172a',
-              border: '1px solid #1e293b',
+              backgroundColor: '#ffffff',
+              border: '1px solid #fde68a',
               borderRadius: '12px',
               overflow: 'hidden',
+              boxShadow: '0 1px 3px rgba(180, 83, 9, 0.05)',
             }}
           >
             {loading ? (
-              <div style={{ padding: '3rem', textAlign: 'center', color: '#94a3b8' }}>
+              <div style={{ padding: '3rem', textAlign: 'center', color: '#64748b' }}>
                 <div style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>⏳</div>
                 Loading staff roster and payout balances...
               </div>
             ) : filteredRoster.length === 0 ? (
-              <div style={{ padding: '3.5rem', textAlign: 'center', color: '#94a3b8' }}>
+              <div style={{ padding: '3.5rem', textAlign: 'center', color: '#64748b' }}>
                 <div style={{ fontSize: '2rem', marginBottom: '0.75rem' }}>👥</div>
-                <div style={{ fontSize: '1.1rem', fontWeight: 600, color: '#f8fafc' }}>
+                <div style={{ fontSize: '1.1rem', fontWeight: 700, color: '#0f172a' }}>
                   No employees matched the filters
                 </div>
                 <p style={{ fontSize: '0.875rem', color: '#64748b', maxWidth: '400px', margin: '0.5rem auto 1.5rem' }}>
@@ -928,14 +940,15 @@ export default function PayrollDashboardPage() {
                     setShowAddEmployeeModal(true);
                   }}
                   style={{
-                    backgroundColor: '#dc2626',
+                    backgroundColor: '#d97706',
                     color: '#ffffff',
                     border: 'none',
                     padding: '0.6rem 1.25rem',
                     borderRadius: '8px',
-                    fontWeight: 600,
+                    fontWeight: 700,
                     fontSize: '0.85rem',
                     cursor: 'pointer',
+                    boxShadow: '0 2px 8px rgba(217, 119, 6, 0.25)',
                   }}
                 >
                   + Register First Employee
@@ -947,16 +960,16 @@ export default function PayrollDashboardPage() {
                   <thead>
                     <tr
                       style={{
-                        backgroundColor: '#0b1120',
-                        borderBottom: '1px solid #1e293b',
-                        color: '#94a3b8',
+                        backgroundColor: '#fef3c7',
+                        borderBottom: '1px solid #fde68a',
+                        color: '#92400e',
                         textTransform: 'uppercase',
                         fontSize: '0.72rem',
                         letterSpacing: '0.05em',
                       }}
                     >
                       <th style={{ padding: '0.9rem 1rem' }}>Employee</th>
-                      <th style={{ padding: '0.9rem 1rem' }}>Department & Role</th>
+                      <th style={{ padding: '0.9rem 1rem' }}>Department &amp; Role</th>
                       <th style={{ padding: '0.9rem 1rem' }}>Decided Salary / Mo</th>
                       <th style={{ padding: '0.9rem 1rem' }}>Bank Account</th>
                       <th style={{ padding: '0.9rem 1rem' }}>{selectedPeriod} Status</th>
@@ -975,26 +988,27 @@ export default function PayrollDashboardPage() {
                         <tr
                           key={emp._id}
                           style={{
-                            borderBottom: '1px solid #1e293b',
-                            backgroundColor: idx % 2 === 0 ? 'transparent' : 'rgba(15, 23, 42, 0.4)',
+                            borderBottom: '1px solid #fef3c7',
+                            backgroundColor: idx % 2 === 0 ? '#ffffff' : '#fffdfa',
                             transition: 'background-color 0.15s ease',
                           }}
                         >
                           {/* Col 1: Employee info */}
                           <td style={{ padding: '1rem' }}>
-                            <div style={{ fontWeight: 600, color: '#f8fafc', fontSize: '0.92rem' }}>
+                            <div style={{ fontWeight: 700, color: '#0f172a', fontSize: '0.92rem' }}>
                               {emp.fullName}
                             </div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.2rem' }}>
                               <span
                                 style={{
-                                  backgroundColor: '#1e293b',
-                                  color: '#cbd5e1',
+                                  backgroundColor: '#fef3c7',
+                                  color: '#92400e',
+                                  border: '1px solid #fde68a',
                                   padding: '0.1rem 0.4rem',
                                   borderRadius: '4px',
                                   fontSize: '0.72rem',
                                   fontFamily: 'monospace',
-                                  fontWeight: 600,
+                                  fontWeight: 700,
                                 }}
                               >
                                 {emp.employeeCode}
@@ -1005,10 +1019,10 @@ export default function PayrollDashboardPage() {
 
                           {/* Col 2: Department & Role */}
                           <td style={{ padding: '1rem' }}>
-                            <div style={{ color: '#f8fafc', fontWeight: 500 }}>
+                            <div style={{ color: '#0f172a', fontWeight: 600 }}>
                               {DEPARTMENT_LABELS[emp.department] || emp.department}
                             </div>
-                            <div style={{ color: '#94a3b8', fontSize: '0.78rem', marginTop: '0.15rem' }}>
+                            <div style={{ color: '#64748b', fontSize: '0.78rem', marginTop: '0.15rem' }}>
                               {emp.designation} • {EMPLOYMENT_TYPE_LABELS[emp.employmentType] || emp.employmentType}
                             </div>
                           </td>
@@ -1017,8 +1031,8 @@ export default function PayrollDashboardPage() {
                           <td style={{ padding: '1rem' }}>
                             {structure ? (
                               <div>
-                                <div style={{ fontWeight: 700, color: '#10b981', fontSize: '0.95rem' }}>
-                                  {formatINR(structure.netSalary)} <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: 400 }}>/ mo (Net)</span>
+                                <div style={{ fontWeight: 700, color: '#059669', fontSize: '0.95rem' }}>
+                                  {formatINR(structure.netSalary)} <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 400 }}>/ mo (Net)</span>
                                 </div>
                                 <div style={{ color: '#64748b', fontSize: '0.75rem', marginTop: '0.15rem' }}>
                                   Gross: {formatINR(structure.grossSalary)} | Ded: {formatINR(structure.pfDeduction + structure.taxDeduction + (structure.otherDeductions || 0))}
@@ -1030,13 +1044,13 @@ export default function PayrollDashboardPage() {
                                   display: 'inline-flex',
                                   alignItems: 'center',
                                   gap: '0.3rem',
-                                  backgroundColor: 'rgba(245, 158, 11, 0.1)',
-                                  border: '1px solid rgba(245, 158, 11, 0.3)',
-                                  color: '#fbbf24',
+                                  backgroundColor: '#fffbeb',
+                                  border: '1px solid #fde68a',
+                                  color: '#b45309',
                                   padding: '0.2rem 0.5rem',
                                   borderRadius: '4px',
                                   fontSize: '0.75rem',
-                                  fontWeight: 500,
+                                  fontWeight: 600,
                                 }}
                               >
                                 <span>⚠️</span>
@@ -1047,7 +1061,7 @@ export default function PayrollDashboardPage() {
 
                           {/* Col 4: Bank Details */}
                           <td style={{ padding: '1rem' }}>
-                            <div style={{ color: '#f8fafc', fontSize: '0.82rem' }}>
+                            <div style={{ color: '#0f172a', fontSize: '0.82rem', fontWeight: 600 }}>
                               {emp.bankDetails?.bankName || 'Bank Not Set'}
                             </div>
                             <div style={{ color: '#64748b', fontSize: '0.75rem', marginTop: '0.15rem' }}>
@@ -1064,9 +1078,9 @@ export default function PayrollDashboardPage() {
                                     display: 'inline-flex',
                                     alignItems: 'center',
                                     gap: '0.35rem',
-                                    backgroundColor: 'rgba(16, 185, 129, 0.15)',
-                                    border: '1px solid #10b981',
-                                    color: '#34d399',
+                                    backgroundColor: '#ecfdf5',
+                                    border: '1px solid #a7f3d0',
+                                    color: '#065f46',
                                     padding: '0.25rem 0.65rem',
                                     borderRadius: '6px',
                                     fontSize: '0.78rem',
@@ -1088,13 +1102,13 @@ export default function PayrollDashboardPage() {
                                   display: 'inline-flex',
                                   alignItems: 'center',
                                   gap: '0.35rem',
-                                  backgroundColor: 'rgba(245, 158, 11, 0.12)',
-                                  border: '1px solid #f59e0b',
-                                  color: '#fbbf24',
+                                  backgroundColor: '#fffbeb',
+                                  border: '1px solid #fde68a',
+                                  color: '#b45309',
                                   padding: '0.25rem 0.65rem',
                                   borderRadius: '6px',
                                   fontSize: '0.78rem',
-                                  fontWeight: 600,
+                                  fontWeight: 700,
                                 }}
                               >
                                 <span>⏳</span>
@@ -1103,11 +1117,13 @@ export default function PayrollDashboardPage() {
                             ) : (
                               <span
                                 style={{
-                                  backgroundColor: '#1e293b',
-                                  color: '#94a3b8',
+                                  backgroundColor: '#fffbeb',
+                                  border: '1px solid #fde68a',
+                                  color: '#92400e',
                                   padding: '0.2rem 0.5rem',
                                   borderRadius: '4px',
                                   fontSize: '0.75rem',
+                                  fontWeight: 600,
                                 }}
                               >
                                 Needs Salary Setup
@@ -1123,13 +1139,13 @@ export default function PayrollDashboardPage() {
                                 onClick={() => handleOpenDecideSalary(item)}
                                 title="Decide or revise monthly compensation"
                                 style={{
-                                  backgroundColor: '#1e293b',
-                                  border: '1px solid #334155',
-                                  color: '#38bdf8',
+                                  backgroundColor: '#fffbeb',
+                                  border: '1px solid #fde68a',
+                                  color: '#92400e',
                                   padding: '0.45rem 0.75rem',
                                   borderRadius: '6px',
                                   fontSize: '0.78rem',
-                                  fontWeight: 600,
+                                  fontWeight: 700,
                                   cursor: 'pointer',
                                 }}
                               >
@@ -1141,13 +1157,13 @@ export default function PayrollDashboardPage() {
                                 <Link
                                   href={`/super-admin/employees/${emp._id}`}
                                   style={{
-                                    backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                                    border: '1px solid rgba(16, 185, 129, 0.3)',
-                                    color: '#34d399',
+                                    backgroundColor: '#ecfdf5',
+                                    border: '1px solid #a7f3d0',
+                                    color: '#065f46',
                                     padding: '0.45rem 0.75rem',
                                     borderRadius: '6px',
                                     fontSize: '0.78rem',
-                                    fontWeight: 600,
+                                    fontWeight: 700,
                                     textDecoration: 'none',
                                     display: 'inline-block',
                                   }}
@@ -1159,7 +1175,7 @@ export default function PayrollDashboardPage() {
                                   onClick={() => handleOpenPaySalary(item)}
                                   title="Disburse salary directly for this month"
                                   style={{
-                                    backgroundColor: '#10b981',
+                                    backgroundColor: '#d97706',
                                     color: '#ffffff',
                                     border: 'none',
                                     padding: '0.45rem 0.85rem',
@@ -1167,7 +1183,7 @@ export default function PayrollDashboardPage() {
                                     fontSize: '0.78rem',
                                     fontWeight: 700,
                                     cursor: 'pointer',
-                                    boxShadow: '0 2px 8px rgba(16, 185, 129, 0.3)',
+                                    boxShadow: '0 2px 8px rgba(217, 119, 6, 0.3)',
                                   }}
                                 >
                                   Pay Salary
@@ -1179,7 +1195,7 @@ export default function PayrollDashboardPage() {
                                 href={`/super-admin/employees/${emp._id}`}
                                 title="View Employee File"
                                 style={{
-                                  color: '#94a3b8',
+                                  color: '#92400e',
                                   padding: '0.45rem',
                                   borderRadius: '6px',
                                   fontSize: '0.85rem',
@@ -1206,26 +1222,27 @@ export default function PayrollDashboardPage() {
         <div>
           <div
             style={{
-              backgroundColor: '#0f172a',
-              border: '1px solid #1e293b',
+              backgroundColor: '#ffffff',
+              border: '1px solid #fde68a',
               borderRadius: '12px',
               overflow: 'hidden',
+              boxShadow: '0 1px 3px rgba(180, 83, 9, 0.05)',
             }}
           >
             <div
               style={{
                 padding: '1.25rem',
-                borderBottom: '1px solid #1e293b',
+                borderBottom: '1px solid #fef3c7',
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
               }}
             >
               <div>
-                <h2 style={{ fontSize: '1.1rem', fontWeight: 700, margin: 0 }}>
+                <h2 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>
                   Formal Monthly Payroll Batch Runs
                 </h2>
-                <p style={{ color: '#94a3b8', fontSize: '0.82rem', margin: '0.2rem 0 0 0' }}>
+                <p style={{ color: '#64748b', fontSize: '0.82rem', margin: '0.2rem 0 0 0' }}>
                   Institutional audit trail, regulatory compliance, and bulk slip batches.
                 </p>
               </div>
@@ -1233,14 +1250,15 @@ export default function PayrollDashboardPage() {
               <button
                 onClick={() => setShowGenerateRunModal(true)}
                 style={{
-                  backgroundColor: '#dc2626',
+                  backgroundColor: '#d97706',
                   color: '#ffffff',
                   border: 'none',
                   padding: '0.5rem 1rem',
                   borderRadius: '6px',
-                  fontWeight: 600,
+                  fontWeight: 700,
                   fontSize: '0.85rem',
                   cursor: 'pointer',
+                  boxShadow: '0 2px 8px rgba(217, 119, 6, 0.25)',
                 }}
               >
                 + Generate New Run
@@ -1248,11 +1266,11 @@ export default function PayrollDashboardPage() {
             </div>
 
             {loading ? (
-              <div style={{ padding: '3rem', textAlign: 'center', color: '#94a3b8' }}>
+              <div style={{ padding: '3rem', textAlign: 'center', color: '#64748b' }}>
                 Loading batch runs...
               </div>
             ) : runs.length === 0 ? (
-              <div style={{ padding: '3rem', textAlign: 'center', color: '#94a3b8' }}>
+              <div style={{ padding: '3rem', textAlign: 'center', color: '#64748b' }}>
                 <div style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>📄</div>
                 No monthly batch runs recorded for period {selectedPeriod}.
               </div>
@@ -1262,15 +1280,15 @@ export default function PayrollDashboardPage() {
                   <thead>
                     <tr
                       style={{
-                        backgroundColor: '#0b1120',
-                        borderBottom: '1px solid #1e293b',
-                        color: '#94a3b8',
+                        backgroundColor: '#fef3c7',
+                        borderBottom: '1px solid #fde68a',
+                        color: '#92400e',
                         textTransform: 'uppercase',
                         fontSize: '0.72rem',
                         letterSpacing: '0.05em',
                       }}
                     >
-                      <th style={{ padding: '0.85rem 1rem' }}>Run Code & Period</th>
+                      <th style={{ padding: '0.85rem 1rem' }}>Run Code &amp; Period</th>
                       <th style={{ padding: '0.85rem 1rem' }}>Status</th>
                       <th style={{ padding: '0.85rem 1rem' }}>Staff Count</th>
                       <th style={{ padding: '0.85rem 1rem' }}>Gross Total</th>
@@ -1281,9 +1299,9 @@ export default function PayrollDashboardPage() {
                   </thead>
                   <tbody>
                     {runs.map((run) => (
-                      <tr key={run._id} style={{ borderBottom: '1px solid #1e293b' }}>
+                      <tr key={run._id} style={{ borderBottom: '1px solid #fef3c7' }}>
                         <td style={{ padding: '1rem' }}>
-                          <div style={{ fontWeight: 600, color: '#f8fafc' }}>{run.runCode}</div>
+                          <div style={{ fontWeight: 700, color: '#0f172a' }}>{run.runCode}</div>
                           <div style={{ color: '#64748b', fontSize: '0.75rem', marginTop: '0.15rem' }}>
                             Period: {run.payrollPeriod} ({new Date(run.periodStartDate).toLocaleDateString()} - {new Date(run.periodEndDate).toLocaleDateString()})
                           </div>
@@ -1293,22 +1311,22 @@ export default function PayrollDashboardPage() {
                             style={{
                               backgroundColor:
                                 run.status === PayrollRunStatus.COMPLETED
-                                  ? 'rgba(16, 185, 129, 0.15)'
+                                  ? '#ecfdf5'
                                   : run.status === PayrollRunStatus.APPROVED
-                                  ? 'rgba(59, 130, 246, 0.15)'
-                                  : 'rgba(245, 158, 11, 0.15)',
+                                  ? '#eff6ff'
+                                  : '#fffbeb',
                               color:
                                 run.status === PayrollRunStatus.COMPLETED
-                                  ? '#34d399'
+                                  ? '#065f46'
                                   : run.status === PayrollRunStatus.APPROVED
-                                  ? '#60a5fa'
-                                  : '#fbbf24',
+                                  ? '#1d4ed8'
+                                  : '#b45309',
                               border: `1px solid ${
                                 run.status === PayrollRunStatus.COMPLETED
-                                  ? '#10b981'
+                                  ? '#a7f3d0'
                                   : run.status === PayrollRunStatus.APPROVED
-                                  ? '#3b82f6'
-                                  : '#f59e0b'
+                                  ? '#bfdbfe'
+                                  : '#fde68a'
                               }`,
                               padding: '0.2rem 0.55rem',
                               borderRadius: '4px',
@@ -1319,26 +1337,26 @@ export default function PayrollDashboardPage() {
                             {PAYROLL_RUN_STATUS_LABELS[run.status]}
                           </span>
                         </td>
-                        <td style={{ padding: '1rem', color: '#f8fafc' }}>{run.totalEmployees} Employees</td>
-                        <td style={{ padding: '1rem', color: '#94a3b8' }}>{formatINR(run.totalGross)}</td>
-                        <td style={{ padding: '1rem', fontWeight: 600, color: '#f8fafc' }}>{formatINR(run.totalNetPayable)}</td>
-                        <td style={{ padding: '1rem', fontWeight: 600, color: '#10b981' }}>{formatINR(run.totalDisbursed)}</td>
+                        <td style={{ padding: '1rem', color: '#0f172a' }}>{run.totalEmployees} Employees</td>
+                        <td style={{ padding: '1rem', color: '#64748b' }}>{formatINR(run.totalGross)}</td>
+                        <td style={{ padding: '1rem', fontWeight: 700, color: '#0f172a' }}>{formatINR(run.totalNetPayable)}</td>
+                        <td style={{ padding: '1rem', fontWeight: 700, color: '#059669' }}>{formatINR(run.totalDisbursed)}</td>
                         <td style={{ padding: '1rem', textAlign: 'right' }}>
                           <Link
                             href={`/super-admin/payroll/runs/${run._id}`}
                             style={{
-                              backgroundColor: '#1e293b',
-                              border: '1px solid #334155',
-                              color: '#38bdf8',
+                              backgroundColor: '#fffbeb',
+                              border: '1px solid #fde68a',
+                              color: '#92400e',
                               padding: '0.45rem 0.85rem',
                               borderRadius: '6px',
                               fontSize: '0.78rem',
-                              fontWeight: 600,
+                              fontWeight: 700,
                               textDecoration: 'none',
                               display: 'inline-block',
                             }}
                           >
-                            Review & Slips
+                            Review &amp; Slips
                           </Link>
                         </td>
                       </tr>
@@ -1359,7 +1377,7 @@ export default function PayrollDashboardPage() {
           style={{
             position: 'fixed',
             inset: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.75)',
+            backgroundColor: 'rgba(0, 0, 0, 0.6)',
             backdropFilter: 'blur(4px)',
             display: 'flex',
             alignItems: 'center',
@@ -1370,40 +1388,40 @@ export default function PayrollDashboardPage() {
         >
           <div
             style={{
-              backgroundColor: '#0f172a',
-              border: '1px solid #334155',
+              backgroundColor: '#ffffff',
+              border: '1px solid #fde68a',
               borderRadius: '12px',
               width: '100%',
               maxWidth: '750px',
               maxHeight: '90vh',
               overflowY: 'auto',
-              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)',
+              boxShadow: '0 20px 25px -5px rgba(180, 83, 9, 0.15)',
             }}
           >
             <div
               style={{
                 padding: '1.25rem 1.5rem',
-                borderBottom: '1px solid #1e293b',
+                borderBottom: '1px solid #fde68a',
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
                 position: 'sticky',
                 top: 0,
-                backgroundColor: '#0f172a',
+                backgroundColor: '#ffffff',
                 zIndex: 10,
               }}
             >
               <div>
-                <h3 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0, color: '#f8fafc' }}>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0, color: '#0f172a' }}>
                   Register New Employee
                 </h3>
-                <p style={{ color: '#94a3b8', fontSize: '0.8rem', margin: '0.2rem 0 0 0' }}>
+                <p style={{ color: '#64748b', fontSize: '0.8rem', margin: '0.2rem 0 0 0' }}>
                   Add a new staff member to the payroll directory with personal, departmental, and bank details.
                 </p>
               </div>
               <button
                 onClick={() => setShowAddEmployeeModal(false)}
-                style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '1.25rem', cursor: 'pointer' }}
+                style={{ background: 'none', border: 'none', color: '#64748b', fontSize: '1.25rem', cursor: 'pointer' }}
               >
                 ✕
               </button>
@@ -1429,12 +1447,12 @@ export default function PayrollDashboardPage() {
 
               {/* Section 1: Personal Details */}
               <div style={{ marginBottom: '1.5rem' }}>
-                <h4 style={{ color: '#38bdf8', fontSize: '0.85rem', fontWeight: 700, textTransform: 'uppercase', marginBottom: '0.75rem' }}>
+                <h4 style={{ color: '#d97706', fontSize: '0.85rem', fontWeight: 700, textTransform: 'uppercase', marginBottom: '0.75rem' }}>
                   1. Personal & Contact Details
                 </h4>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.75rem' }}>
                   <div>
-                    <label style={{ display: 'block', color: '#94a3b8', fontSize: '0.75rem', marginBottom: '0.25rem' }}>
+                    <label style={{ display: 'block', color: '#64748b', fontSize: '0.75rem', marginBottom: '0.25rem' }}>
                       First Name *
                     </label>
                     <input
@@ -1445,9 +1463,9 @@ export default function PayrollDashboardPage() {
                       placeholder="e.g. Rahul"
                       style={{
                         width: '100%',
-                        backgroundColor: '#0b1120',
-                        border: '1px solid #334155',
-                        color: '#f8fafc',
+                        backgroundColor: '#ffffff',
+                        border: '1px solid #fde68a',
+                        color: '#0f172a',
                         padding: '0.5rem',
                         borderRadius: '6px',
                         fontSize: '0.85rem',
@@ -1458,7 +1476,7 @@ export default function PayrollDashboardPage() {
                   </div>
 
                   <div>
-                    <label style={{ display: 'block', color: '#94a3b8', fontSize: '0.75rem', marginBottom: '0.25rem' }}>
+                    <label style={{ display: 'block', color: '#64748b', fontSize: '0.75rem', marginBottom: '0.25rem' }}>
                       Last Name *
                     </label>
                     <input
@@ -1469,9 +1487,9 @@ export default function PayrollDashboardPage() {
                       placeholder="e.g. Sharma"
                       style={{
                         width: '100%',
-                        backgroundColor: '#0b1120',
-                        border: '1px solid #334155',
-                        color: '#f8fafc',
+                        backgroundColor: '#ffffff',
+                        border: '1px solid #fde68a',
+                        color: '#0f172a',
                         padding: '0.5rem',
                         borderRadius: '6px',
                         fontSize: '0.85rem',
@@ -1482,7 +1500,7 @@ export default function PayrollDashboardPage() {
                   </div>
 
                   <div>
-                    <label style={{ display: 'block', color: '#94a3b8', fontSize: '0.75rem', marginBottom: '0.25rem' }}>
+                    <label style={{ display: 'block', color: '#64748b', fontSize: '0.75rem', marginBottom: '0.25rem' }}>
                       Email Address *
                     </label>
                     <input
@@ -1493,9 +1511,9 @@ export default function PayrollDashboardPage() {
                       placeholder="rahul.s@bloodbank.org"
                       style={{
                         width: '100%',
-                        backgroundColor: '#0b1120',
-                        border: '1px solid #334155',
-                        color: '#f8fafc',
+                        backgroundColor: '#ffffff',
+                        border: '1px solid #fde68a',
+                        color: '#0f172a',
                         padding: '0.5rem',
                         borderRadius: '6px',
                         fontSize: '0.85rem',
@@ -1506,7 +1524,7 @@ export default function PayrollDashboardPage() {
                   </div>
 
                   <div>
-                    <label style={{ display: 'block', color: '#94a3b8', fontSize: '0.75rem', marginBottom: '0.25rem' }}>
+                    <label style={{ display: 'block', color: '#64748b', fontSize: '0.75rem', marginBottom: '0.25rem' }}>
                       Phone Number *
                     </label>
                     <input
@@ -1517,9 +1535,9 @@ export default function PayrollDashboardPage() {
                       placeholder="+91 98765 43210"
                       style={{
                         width: '100%',
-                        backgroundColor: '#0b1120',
-                        border: '1px solid #334155',
-                        color: '#f8fafc',
+                        backgroundColor: '#ffffff',
+                        border: '1px solid #fde68a',
+                        color: '#0f172a',
                         padding: '0.5rem',
                         borderRadius: '6px',
                         fontSize: '0.85rem',
@@ -1533,12 +1551,12 @@ export default function PayrollDashboardPage() {
 
               {/* Section 2: Department & Employment */}
               <div style={{ marginBottom: '1.5rem' }}>
-                <h4 style={{ color: '#38bdf8', fontSize: '0.85rem', fontWeight: 700, textTransform: 'uppercase', marginBottom: '0.75rem' }}>
+                <h4 style={{ color: '#d97706', fontSize: '0.85rem', fontWeight: 700, textTransform: 'uppercase', marginBottom: '0.75rem' }}>
                   2. Department & Employment
                 </h4>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.75rem' }}>
                   <div>
-                    <label style={{ display: 'block', color: '#94a3b8', fontSize: '0.75rem', marginBottom: '0.25rem' }}>
+                    <label style={{ display: 'block', color: '#64748b', fontSize: '0.75rem', marginBottom: '0.25rem' }}>
                       Department *
                     </label>
                     <select
@@ -1548,9 +1566,9 @@ export default function PayrollDashboardPage() {
                       }
                       style={{
                         width: '100%',
-                        backgroundColor: '#0b1120',
-                        border: '1px solid #334155',
-                        color: '#f8fafc',
+                        backgroundColor: '#ffffff',
+                        border: '1px solid #fde68a',
+                        color: '#0f172a',
                         padding: '0.5rem',
                         borderRadius: '6px',
                         fontSize: '0.85rem',
@@ -1567,7 +1585,7 @@ export default function PayrollDashboardPage() {
                   </div>
 
                   <div>
-                    <label style={{ display: 'block', color: '#94a3b8', fontSize: '0.75rem', marginBottom: '0.25rem' }}>
+                    <label style={{ display: 'block', color: '#64748b', fontSize: '0.75rem', marginBottom: '0.25rem' }}>
                       Designation / Role *
                     </label>
                     <input
@@ -1578,9 +1596,9 @@ export default function PayrollDashboardPage() {
                       placeholder="e.g. Senior Medical Officer"
                       style={{
                         width: '100%',
-                        backgroundColor: '#0b1120',
-                        border: '1px solid #334155',
-                        color: '#f8fafc',
+                        backgroundColor: '#ffffff',
+                        border: '1px solid #fde68a',
+                        color: '#0f172a',
                         padding: '0.5rem',
                         borderRadius: '6px',
                         fontSize: '0.85rem',
@@ -1591,7 +1609,7 @@ export default function PayrollDashboardPage() {
                   </div>
 
                   <div>
-                    <label style={{ display: 'block', color: '#94a3b8', fontSize: '0.75rem', marginBottom: '0.25rem' }}>
+                    <label style={{ display: 'block', color: '#64748b', fontSize: '0.75rem', marginBottom: '0.25rem' }}>
                       Employment Type *
                     </label>
                     <select
@@ -1601,9 +1619,9 @@ export default function PayrollDashboardPage() {
                       }
                       style={{
                         width: '100%',
-                        backgroundColor: '#0b1120',
-                        border: '1px solid #334155',
-                        color: '#f8fafc',
+                        backgroundColor: '#ffffff',
+                        border: '1px solid #fde68a',
+                        color: '#0f172a',
                         padding: '0.5rem',
                         borderRadius: '6px',
                         fontSize: '0.85rem',
@@ -1620,7 +1638,7 @@ export default function PayrollDashboardPage() {
                   </div>
 
                   <div>
-                    <label style={{ display: 'block', color: '#94a3b8', fontSize: '0.75rem', marginBottom: '0.25rem' }}>
+                    <label style={{ display: 'block', color: '#64748b', fontSize: '0.75rem', marginBottom: '0.25rem' }}>
                       Date of Joining *
                     </label>
                     <input
@@ -1630,9 +1648,9 @@ export default function PayrollDashboardPage() {
                       onChange={(e) => setEmployeeFormData({ ...employeeFormData, dateOfJoining: e.target.value })}
                       style={{
                         width: '100%',
-                        backgroundColor: '#0b1120',
-                        border: '1px solid #334155',
-                        color: '#f8fafc',
+                        backgroundColor: '#ffffff',
+                        border: '1px solid #fde68a',
+                        color: '#0f172a',
                         padding: '0.5rem',
                         borderRadius: '6px',
                         fontSize: '0.85rem',
@@ -1646,12 +1664,12 @@ export default function PayrollDashboardPage() {
 
               {/* Section 3: Bank Account Details */}
               <div style={{ marginBottom: '1.5rem' }}>
-                <h4 style={{ color: '#38bdf8', fontSize: '0.85rem', fontWeight: 700, textTransform: 'uppercase', marginBottom: '0.75rem' }}>
+                <h4 style={{ color: '#d97706', fontSize: '0.85rem', fontWeight: 700, textTransform: 'uppercase', marginBottom: '0.75rem' }}>
                   3. Bank & Payout Information
                 </h4>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.75rem' }}>
                   <div>
-                    <label style={{ display: 'block', color: '#94a3b8', fontSize: '0.75rem', marginBottom: '0.25rem' }}>
+                    <label style={{ display: 'block', color: '#64748b', fontSize: '0.75rem', marginBottom: '0.25rem' }}>
                       Bank Name *
                     </label>
                     <input
@@ -1662,9 +1680,9 @@ export default function PayrollDashboardPage() {
                       placeholder="e.g. HDFC Bank"
                       style={{
                         width: '100%',
-                        backgroundColor: '#0b1120',
-                        border: '1px solid #334155',
-                        color: '#f8fafc',
+                        backgroundColor: '#ffffff',
+                        border: '1px solid #fde68a',
+                        color: '#0f172a',
                         padding: '0.5rem',
                         borderRadius: '6px',
                         fontSize: '0.85rem',
@@ -1675,7 +1693,7 @@ export default function PayrollDashboardPage() {
                   </div>
 
                   <div>
-                    <label style={{ display: 'block', color: '#94a3b8', fontSize: '0.75rem', marginBottom: '0.25rem' }}>
+                    <label style={{ display: 'block', color: '#64748b', fontSize: '0.75rem', marginBottom: '0.25rem' }}>
                       Account Number *
                     </label>
                     <input
@@ -1686,9 +1704,9 @@ export default function PayrollDashboardPage() {
                       placeholder="e.g. 50100234567890"
                       style={{
                         width: '100%',
-                        backgroundColor: '#0b1120',
-                        border: '1px solid #334155',
-                        color: '#f8fafc',
+                        backgroundColor: '#ffffff',
+                        border: '1px solid #fde68a',
+                        color: '#0f172a',
                         padding: '0.5rem',
                         borderRadius: '6px',
                         fontSize: '0.85rem',
@@ -1699,7 +1717,7 @@ export default function PayrollDashboardPage() {
                   </div>
 
                   <div>
-                    <label style={{ display: 'block', color: '#94a3b8', fontSize: '0.75rem', marginBottom: '0.25rem' }}>
+                    <label style={{ display: 'block', color: '#64748b', fontSize: '0.75rem', marginBottom: '0.25rem' }}>
                       IFSC Code *
                     </label>
                     <input
@@ -1710,9 +1728,9 @@ export default function PayrollDashboardPage() {
                       placeholder="e.g. HDFC0001234"
                       style={{
                         width: '100%',
-                        backgroundColor: '#0b1120',
-                        border: '1px solid #334155',
-                        color: '#f8fafc',
+                        backgroundColor: '#ffffff',
+                        border: '1px solid #fde68a',
+                        color: '#0f172a',
                         padding: '0.5rem',
                         borderRadius: '6px',
                         fontSize: '0.85rem',
@@ -1723,7 +1741,7 @@ export default function PayrollDashboardPage() {
                   </div>
 
                   <div>
-                    <label style={{ display: 'block', color: '#94a3b8', fontSize: '0.75rem', marginBottom: '0.25rem' }}>
+                    <label style={{ display: 'block', color: '#64748b', fontSize: '0.75rem', marginBottom: '0.25rem' }}>
                       PAN Card Number (Optional)
                     </label>
                     <input
@@ -1733,9 +1751,9 @@ export default function PayrollDashboardPage() {
                       placeholder="ABCDE1234F"
                       style={{
                         width: '100%',
-                        backgroundColor: '#0b1120',
-                        border: '1px solid #334155',
-                        color: '#f8fafc',
+                        backgroundColor: '#ffffff',
+                        border: '1px solid #fde68a',
+                        color: '#0f172a',
                         padding: '0.5rem',
                         borderRadius: '6px',
                         fontSize: '0.85rem',
@@ -1751,8 +1769,8 @@ export default function PayrollDashboardPage() {
               <div
                 style={{
                   marginBottom: '1.5rem',
-                  backgroundColor: '#0b1120',
-                  border: '1px dashed #334155',
+                  backgroundColor: '#ffffff',
+                  border: '1px dashed #fde68a',
                   borderRadius: '8px',
                   padding: '1rem',
                 }}
@@ -1761,11 +1779,11 @@ export default function PayrollDashboardPage() {
                   <h4 style={{ color: '#10b981', fontSize: '0.85rem', fontWeight: 700, textTransform: 'uppercase', margin: 0 }}>
                     4. Initial Salary Configuration (Optional)
                   </h4>
-                  <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Can also decide later anytime</span>
+                  <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Can also decide later anytime</span>
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.75rem' }}>
                   <div>
-                    <label style={{ display: 'block', color: '#94a3b8', fontSize: '0.75rem', marginBottom: '0.25rem' }}>
+                    <label style={{ display: 'block', color: '#64748b', fontSize: '0.75rem', marginBottom: '0.25rem' }}>
                       Basic Salary (₹/mo)
                     </label>
                     <input
@@ -1775,9 +1793,9 @@ export default function PayrollDashboardPage() {
                       placeholder="e.g. 35000"
                       style={{
                         width: '100%',
-                        backgroundColor: '#0f172a',
-                        border: '1px solid #334155',
-                        color: '#f8fafc',
+                        backgroundColor: '#ffffff',
+                        border: '1px solid #fde68a',
+                        color: '#0f172a',
                         padding: '0.45rem',
                         borderRadius: '6px',
                         fontSize: '0.85rem',
@@ -1788,7 +1806,7 @@ export default function PayrollDashboardPage() {
                   </div>
 
                   <div>
-                    <label style={{ display: 'block', color: '#94a3b8', fontSize: '0.75rem', marginBottom: '0.25rem' }}>
+                    <label style={{ display: 'block', color: '#64748b', fontSize: '0.75rem', marginBottom: '0.25rem' }}>
                       HRA (₹/mo)
                     </label>
                     <input
@@ -1798,9 +1816,9 @@ export default function PayrollDashboardPage() {
                       placeholder="e.g. 14000"
                       style={{
                         width: '100%',
-                        backgroundColor: '#0f172a',
-                        border: '1px solid #334155',
-                        color: '#f8fafc',
+                        backgroundColor: '#ffffff',
+                        border: '1px solid #fde68a',
+                        color: '#0f172a',
                         padding: '0.45rem',
                         borderRadius: '6px',
                         fontSize: '0.85rem',
@@ -1811,7 +1829,7 @@ export default function PayrollDashboardPage() {
                   </div>
 
                   <div>
-                    <label style={{ display: 'block', color: '#94a3b8', fontSize: '0.75rem', marginBottom: '0.25rem' }}>
+                    <label style={{ display: 'block', color: '#64748b', fontSize: '0.75rem', marginBottom: '0.25rem' }}>
                       Allowances (₹/mo)
                     </label>
                     <input
@@ -1821,9 +1839,9 @@ export default function PayrollDashboardPage() {
                       placeholder="e.g. 3000"
                       style={{
                         width: '100%',
-                        backgroundColor: '#0f172a',
-                        border: '1px solid #334155',
-                        color: '#f8fafc',
+                        backgroundColor: '#ffffff',
+                        border: '1px solid #fde68a',
+                        color: '#0f172a',
                         padding: '0.45rem',
                         borderRadius: '6px',
                         fontSize: '0.85rem',
@@ -1834,7 +1852,7 @@ export default function PayrollDashboardPage() {
                   </div>
 
                   <div>
-                    <label style={{ display: 'block', color: '#94a3b8', fontSize: '0.75rem', marginBottom: '0.25rem' }}>
+                    <label style={{ display: 'block', color: '#64748b', fontSize: '0.75rem', marginBottom: '0.25rem' }}>
                       PF Deduction (₹/mo)
                     </label>
                     <input
@@ -1844,9 +1862,9 @@ export default function PayrollDashboardPage() {
                       placeholder="e.g. 1800"
                       style={{
                         width: '100%',
-                        backgroundColor: '#0f172a',
-                        border: '1px solid #334155',
-                        color: '#f8fafc',
+                        backgroundColor: '#ffffff',
+                        border: '1px solid #fde68a',
+                        color: '#0f172a',
                         padding: '0.45rem',
                         borderRadius: '6px',
                         fontSize: '0.85rem',
@@ -1864,9 +1882,9 @@ export default function PayrollDashboardPage() {
                   type="button"
                   onClick={() => setShowAddEmployeeModal(false)}
                   style={{
-                    backgroundColor: '#1e293b',
-                    color: '#f8fafc',
-                    border: '1px solid #334155',
+                    backgroundColor: '#fffbeb',
+                    color: '#92400e',
+                    border: '1px solid #fde68a',
                     padding: '0.6rem 1.25rem',
                     borderRadius: '8px',
                     fontSize: '0.875rem',
@@ -1879,7 +1897,7 @@ export default function PayrollDashboardPage() {
                   type="submit"
                   disabled={isSubmittingEmployee}
                   style={{
-                    backgroundColor: '#dc2626',
+                    backgroundColor: '#d97706',
                     color: '#ffffff',
                     border: 'none',
                     padding: '0.6rem 1.5rem',
@@ -1906,7 +1924,7 @@ export default function PayrollDashboardPage() {
           style={{
             position: 'fixed',
             inset: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.75)',
+            backgroundColor: 'rgba(0, 0, 0, 0.6)',
             backdropFilter: 'blur(4px)',
             display: 'flex',
             alignItems: 'center',
@@ -1917,36 +1935,36 @@ export default function PayrollDashboardPage() {
         >
           <div
             style={{
-              backgroundColor: '#0f172a',
-              border: '1px solid #334155',
+              backgroundColor: '#ffffff',
+              border: '1px solid #fde68a',
               borderRadius: '12px',
               width: '100%',
               maxWidth: '650px',
               maxHeight: '90vh',
               overflowY: 'auto',
-              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)',
+              boxShadow: '0 20px 25px -5px rgba(180, 83, 9, 0.15)',
             }}
           >
             <div
               style={{
                 padding: '1.25rem 1.5rem',
-                borderBottom: '1px solid #1e293b',
+                borderBottom: '1px solid #fde68a',
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
               }}
             >
               <div>
-                <h3 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0, color: '#f8fafc' }}>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0, color: '#0f172a' }}>
                   Decide / Revise Monthly Salary
                 </h3>
-                <p style={{ color: '#94a3b8', fontSize: '0.8rem', margin: '0.2rem 0 0 0' }}>
-                  Employee: <strong style={{ color: '#f8fafc' }}>{selectedEmployeeForSalary.employee.fullName}</strong> ({selectedEmployeeForSalary.employee.employeeCode})
+                <p style={{ color: '#64748b', fontSize: '0.8rem', margin: '0.2rem 0 0 0' }}>
+                  Employee: <strong style={{ color: '#0f172a' }}>{selectedEmployeeForSalary.employee.fullName}</strong> ({selectedEmployeeForSalary.employee.employeeCode})
                 </p>
               </div>
               <button
                 onClick={() => setShowDecideSalaryModal(false)}
-                style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '1.25rem', cursor: 'pointer' }}
+                style={{ background: 'none', border: 'none', color: '#64748b', fontSize: '1.25rem', cursor: 'pointer' }}
               >
                 ✕
               </button>
@@ -1973,7 +1991,7 @@ export default function PayrollDashboardPage() {
               {/* Effective Date & Notes */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1.25rem' }}>
                 <div>
-                  <label style={{ display: 'block', color: '#94a3b8', fontSize: '0.75rem', marginBottom: '0.25rem' }}>
+                  <label style={{ display: 'block', color: '#64748b', fontSize: '0.75rem', marginBottom: '0.25rem' }}>
                     Effective Date *
                   </label>
                   <input
@@ -1983,9 +2001,9 @@ export default function PayrollDashboardPage() {
                     onChange={(e) => setSalaryFormData({ ...salaryFormData, effectiveFrom: e.target.value })}
                     style={{
                       width: '100%',
-                      backgroundColor: '#0b1120',
-                      border: '1px solid #334155',
-                      color: '#f8fafc',
+                      backgroundColor: '#ffffff',
+                      border: '1px solid #fde68a',
+                      color: '#0f172a',
                       padding: '0.5rem',
                       borderRadius: '6px',
                       fontSize: '0.85rem',
@@ -1995,7 +2013,7 @@ export default function PayrollDashboardPage() {
                   />
                 </div>
                 <div>
-                  <label style={{ display: 'block', color: '#94a3b8', fontSize: '0.75rem', marginBottom: '0.25rem' }}>
+                  <label style={{ display: 'block', color: '#64748b', fontSize: '0.75rem', marginBottom: '0.25rem' }}>
                     Revision Justification / Notes
                   </label>
                   <input
@@ -2005,9 +2023,9 @@ export default function PayrollDashboardPage() {
                     placeholder="e.g. Annual revision, probation confirmed"
                     style={{
                       width: '100%',
-                      backgroundColor: '#0b1120',
-                      border: '1px solid #334155',
-                      color: '#f8fafc',
+                      backgroundColor: '#ffffff',
+                      border: '1px solid #fde68a',
+                      color: '#0f172a',
                       padding: '0.5rem',
                       borderRadius: '6px',
                       fontSize: '0.85rem',
@@ -2025,7 +2043,7 @@ export default function PayrollDashboardPage() {
                 </h4>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.75rem' }}>
                   <div>
-                    <label style={{ display: 'block', color: '#94a3b8', fontSize: '0.75rem', marginBottom: '0.25rem' }}>
+                    <label style={{ display: 'block', color: '#64748b', fontSize: '0.75rem', marginBottom: '0.25rem' }}>
                       Basic Salary (₹) *
                     </label>
                     <input
@@ -2036,9 +2054,9 @@ export default function PayrollDashboardPage() {
                       onChange={(e) => setSalaryFormData({ ...salaryFormData, basicSalary: Number(e.target.value) })}
                       style={{
                         width: '100%',
-                        backgroundColor: '#0b1120',
-                        border: '1px solid #334155',
-                        color: '#f8fafc',
+                        backgroundColor: '#ffffff',
+                        border: '1px solid #fde68a',
+                        color: '#0f172a',
                         padding: '0.5rem',
                         borderRadius: '6px',
                         fontSize: '0.85rem',
@@ -2049,7 +2067,7 @@ export default function PayrollDashboardPage() {
                   </div>
 
                   <div>
-                    <label style={{ display: 'block', color: '#94a3b8', fontSize: '0.75rem', marginBottom: '0.25rem' }}>
+                    <label style={{ display: 'block', color: '#64748b', fontSize: '0.75rem', marginBottom: '0.25rem' }}>
                       HRA (House Rent)
                     </label>
                     <input
@@ -2059,9 +2077,9 @@ export default function PayrollDashboardPage() {
                       onChange={(e) => setSalaryFormData({ ...salaryFormData, hra: Number(e.target.value) })}
                       style={{
                         width: '100%',
-                        backgroundColor: '#0b1120',
-                        border: '1px solid #334155',
-                        color: '#f8fafc',
+                        backgroundColor: '#ffffff',
+                        border: '1px solid #fde68a',
+                        color: '#0f172a',
                         padding: '0.5rem',
                         borderRadius: '6px',
                         fontSize: '0.85rem',
@@ -2072,7 +2090,7 @@ export default function PayrollDashboardPage() {
                   </div>
 
                   <div>
-                    <label style={{ display: 'block', color: '#94a3b8', fontSize: '0.75rem', marginBottom: '0.25rem' }}>
+                    <label style={{ display: 'block', color: '#64748b', fontSize: '0.75rem', marginBottom: '0.25rem' }}>
                       Special Allowances
                     </label>
                     <input
@@ -2082,9 +2100,9 @@ export default function PayrollDashboardPage() {
                       onChange={(e) => setSalaryFormData({ ...salaryFormData, allowances: Number(e.target.value) })}
                       style={{
                         width: '100%',
-                        backgroundColor: '#0b1120',
-                        border: '1px solid #334155',
-                        color: '#f8fafc',
+                        backgroundColor: '#ffffff',
+                        border: '1px solid #fde68a',
+                        color: '#0f172a',
                         padding: '0.5rem',
                         borderRadius: '6px',
                         fontSize: '0.85rem',
@@ -2103,7 +2121,7 @@ export default function PayrollDashboardPage() {
                 </h4>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.75rem' }}>
                   <div>
-                    <label style={{ display: 'block', color: '#94a3b8', fontSize: '0.75rem', marginBottom: '0.25rem' }}>
+                    <label style={{ display: 'block', color: '#64748b', fontSize: '0.75rem', marginBottom: '0.25rem' }}>
                       PF Deduction
                     </label>
                     <input
@@ -2113,9 +2131,9 @@ export default function PayrollDashboardPage() {
                       onChange={(e) => setSalaryFormData({ ...salaryFormData, pfDeduction: Number(e.target.value) })}
                       style={{
                         width: '100%',
-                        backgroundColor: '#0b1120',
-                        border: '1px solid #334155',
-                        color: '#f8fafc',
+                        backgroundColor: '#ffffff',
+                        border: '1px solid #fde68a',
+                        color: '#0f172a',
                         padding: '0.5rem',
                         borderRadius: '6px',
                         fontSize: '0.85rem',
@@ -2126,7 +2144,7 @@ export default function PayrollDashboardPage() {
                   </div>
 
                   <div>
-                    <label style={{ display: 'block', color: '#94a3b8', fontSize: '0.75rem', marginBottom: '0.25rem' }}>
+                    <label style={{ display: 'block', color: '#64748b', fontSize: '0.75rem', marginBottom: '0.25rem' }}>
                       Professional Tax / TDS
                     </label>
                     <input
@@ -2136,9 +2154,9 @@ export default function PayrollDashboardPage() {
                       onChange={(e) => setSalaryFormData({ ...salaryFormData, taxDeduction: Number(e.target.value) })}
                       style={{
                         width: '100%',
-                        backgroundColor: '#0b1120',
-                        border: '1px solid #334155',
-                        color: '#f8fafc',
+                        backgroundColor: '#ffffff',
+                        border: '1px solid #fde68a',
+                        color: '#0f172a',
                         padding: '0.5rem',
                         borderRadius: '6px',
                         fontSize: '0.85rem',
@@ -2149,7 +2167,7 @@ export default function PayrollDashboardPage() {
                   </div>
 
                   <div>
-                    <label style={{ display: 'block', color: '#94a3b8', fontSize: '0.75rem', marginBottom: '0.25rem' }}>
+                    <label style={{ display: 'block', color: '#64748b', fontSize: '0.75rem', marginBottom: '0.25rem' }}>
                       Other Deductions
                     </label>
                     <input
@@ -2159,9 +2177,9 @@ export default function PayrollDashboardPage() {
                       onChange={(e) => setSalaryFormData({ ...salaryFormData, otherDeductions: Number(e.target.value) })}
                       style={{
                         width: '100%',
-                        backgroundColor: '#0b1120',
-                        border: '1px solid #334155',
-                        color: '#f8fafc',
+                        backgroundColor: '#ffffff',
+                        border: '1px solid #fde68a',
+                        color: '#0f172a',
                         padding: '0.5rem',
                         borderRadius: '6px',
                         fontSize: '0.85rem',
@@ -2176,8 +2194,8 @@ export default function PayrollDashboardPage() {
               {/* Calculation Summary Box */}
               <div
                 style={{
-                  backgroundColor: '#0b1120',
-                  border: '1px solid #1e293b',
+                  backgroundColor: '#fef3c7',
+                  border: '1px solid #fde68a',
                   borderRadius: '8px',
                   padding: '1rem',
                   marginBottom: '1.5rem',
@@ -2187,14 +2205,14 @@ export default function PayrollDashboardPage() {
                 }}
               >
                 <div style={{ textAlign: 'center' }}>
-                  <div style={{ color: '#94a3b8', fontSize: '0.75rem', textTransform: 'uppercase' }}>Gross Salary</div>
-                  <div style={{ fontSize: '1.25rem', fontWeight: 700, color: '#f8fafc' }}>
+                  <div style={{ color: '#64748b', fontSize: '0.75rem', textTransform: 'uppercase' }}>Gross Salary</div>
+                  <div style={{ fontSize: '1.25rem', fontWeight: 700, color: '#0f172a' }}>
                     {formatINR(calculatedGross)}
                   </div>
                 </div>
                 <div style={{ color: '#64748b', fontSize: '1.25rem' }}>−</div>
                 <div style={{ textAlign: 'center' }}>
-                  <div style={{ color: '#94a3b8', fontSize: '0.75rem', textTransform: 'uppercase' }}>Deductions</div>
+                  <div style={{ color: '#64748b', fontSize: '0.75rem', textTransform: 'uppercase' }}>Deductions</div>
                   <div style={{ fontSize: '1.25rem', fontWeight: 700, color: '#f87171' }}>
                     {formatINR(calculatedDeductions)}
                   </div>
@@ -2216,9 +2234,9 @@ export default function PayrollDashboardPage() {
                   type="button"
                   onClick={() => setShowDecideSalaryModal(false)}
                   style={{
-                    backgroundColor: '#1e293b',
-                    color: '#f8fafc',
-                    border: '1px solid #334155',
+                    backgroundColor: '#fffbeb',
+                    color: '#92400e',
+                    border: '1px solid #fde68a',
                     padding: '0.6rem 1.25rem',
                     borderRadius: '8px',
                     fontSize: '0.875rem',
@@ -2258,7 +2276,7 @@ export default function PayrollDashboardPage() {
           style={{
             position: 'fixed',
             inset: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.75)',
+            backgroundColor: 'rgba(0, 0, 0, 0.6)',
             backdropFilter: 'blur(4px)',
             display: 'flex',
             alignItems: 'center',
@@ -2269,25 +2287,25 @@ export default function PayrollDashboardPage() {
         >
           <div
             style={{
-              backgroundColor: '#0f172a',
+              backgroundColor: '#ffffff',
               border: '1px solid #10b981',
               borderRadius: '12px',
               width: '100%',
               maxWidth: '560px',
-              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)',
+              boxShadow: '0 20px 25px -5px rgba(180, 83, 9, 0.15)',
             }}
           >
             <div
               style={{
                 padding: '1.25rem 1.5rem',
-                borderBottom: '1px solid #1e293b',
+                borderBottom: '1px solid #fde68a',
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
               }}
             >
               <div>
-                <h3 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0, color: '#f8fafc' }}>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0, color: '#0f172a' }}>
                   Pay Employee Salary
                 </h3>
                 <p style={{ color: '#34d399', fontSize: '0.8rem', margin: '0.2rem 0 0 0' }}>
@@ -2296,7 +2314,7 @@ export default function PayrollDashboardPage() {
               </div>
               <button
                 onClick={() => setShowPayModal(false)}
-                style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '1.25rem', cursor: 'pointer' }}
+                style={{ background: 'none', border: 'none', color: '#64748b', fontSize: '1.25rem', cursor: 'pointer' }}
               >
                 ✕
               </button>
@@ -2327,8 +2345,8 @@ export default function PayrollDashboardPage() {
               {/* Employee & Bank Summary Box */}
               <div
                 style={{
-                  backgroundColor: '#0b1120',
-                  border: '1px solid #1e293b',
+                  backgroundColor: '#fffbeb',
+                  border: '1px solid #fde68a',
                   borderRadius: '8px',
                   padding: '1rem',
                   marginBottom: '1.25rem',
@@ -2336,19 +2354,19 @@ export default function PayrollDashboardPage() {
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div>
-                    <div style={{ fontWeight: 700, color: '#f8fafc', fontSize: '1rem' }}>
+                    <div style={{ fontWeight: 700, color: '#0f172a', fontSize: '1rem' }}>
                       {selectedEmployeeForPay.employee.fullName}
                     </div>
-                    <div style={{ color: '#94a3b8', fontSize: '0.78rem' }}>
+                    <div style={{ color: '#64748b', fontSize: '0.78rem' }}>
                       {selectedEmployeeForPay.employee.employeeCode} • {selectedEmployeeForPay.employee.designation}
                     </div>
                   </div>
                   <div style={{ textAlign: 'right' }}>
                     <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Account:</div>
-                    <div style={{ fontSize: '0.85rem', color: '#f8fafc', fontFamily: 'monospace' }}>
+                    <div style={{ fontSize: '0.85rem', color: '#0f172a', fontFamily: 'monospace' }}>
                       •••• {selectedEmployeeForPay.employee.bankDetails?.accountNumber?.slice(-4) || 'N/A'}
                     </div>
-                    <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>
+                    <div style={{ fontSize: '0.72rem', color: '#64748b' }}>
                       {selectedEmployeeForPay.employee.bankDetails?.ifscCode}
                     </div>
                   </div>
@@ -2357,7 +2375,7 @@ export default function PayrollDashboardPage() {
 
               {/* Amount to Pay */}
               <div style={{ marginBottom: '1rem' }}>
-                <label style={{ display: 'block', color: '#94a3b8', fontSize: '0.75rem', marginBottom: '0.25rem' }}>
+                <label style={{ display: 'block', color: '#64748b', fontSize: '0.75rem', marginBottom: '0.25rem' }}>
                   Salary Payout Amount (₹) *
                 </label>
                 <input
@@ -2369,7 +2387,7 @@ export default function PayrollDashboardPage() {
                   onChange={(e) => setPayFormData({ ...payFormData, amount: Number(e.target.value) })}
                   style={{
                     width: '100%',
-                    backgroundColor: '#0b1120',
+                    backgroundColor: '#ffffff',
                     border: '1px solid #10b981',
                     color: '#10b981',
                     padding: '0.65rem',
@@ -2385,7 +2403,7 @@ export default function PayrollDashboardPage() {
               {/* Disbursement Method & Transaction Reference */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1rem' }}>
                 <div>
-                  <label style={{ display: 'block', color: '#94a3b8', fontSize: '0.75rem', marginBottom: '0.25rem' }}>
+                  <label style={{ display: 'block', color: '#64748b', fontSize: '0.75rem', marginBottom: '0.25rem' }}>
                     Payment Mode *
                   </label>
                   <select
@@ -2395,9 +2413,9 @@ export default function PayrollDashboardPage() {
                     }
                     style={{
                       width: '100%',
-                      backgroundColor: '#0b1120',
-                      border: '1px solid #334155',
-                      color: '#f8fafc',
+                      backgroundColor: '#ffffff',
+                      border: '1px solid #fde68a',
+                      color: '#0f172a',
                       padding: '0.5rem',
                       borderRadius: '6px',
                       fontSize: '0.85rem',
@@ -2414,7 +2432,7 @@ export default function PayrollDashboardPage() {
                 </div>
 
                 <div>
-                  <label style={{ display: 'block', color: '#94a3b8', fontSize: '0.75rem', marginBottom: '0.25rem' }}>
+                  <label style={{ display: 'block', color: '#64748b', fontSize: '0.75rem', marginBottom: '0.25rem' }}>
                     UTR / Transaction Ref # *
                   </label>
                   <input
@@ -2425,9 +2443,9 @@ export default function PayrollDashboardPage() {
                     placeholder="e.g. UTR1928374650"
                     style={{
                       width: '100%',
-                      backgroundColor: '#0b1120',
-                      border: '1px solid #334155',
-                      color: '#f8fafc',
+                      backgroundColor: '#ffffff',
+                      border: '1px solid #fde68a',
+                      color: '#0f172a',
                       padding: '0.5rem',
                       borderRadius: '6px',
                       fontSize: '0.85rem',
@@ -2441,7 +2459,7 @@ export default function PayrollDashboardPage() {
               {/* Disbursement Date & Notes */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1.5rem' }}>
                 <div>
-                  <label style={{ display: 'block', color: '#94a3b8', fontSize: '0.75rem', marginBottom: '0.25rem' }}>
+                  <label style={{ display: 'block', color: '#64748b', fontSize: '0.75rem', marginBottom: '0.25rem' }}>
                     Payment Date *
                   </label>
                   <input
@@ -2451,9 +2469,9 @@ export default function PayrollDashboardPage() {
                     onChange={(e) => setPayFormData({ ...payFormData, disbursementDate: e.target.value })}
                     style={{
                       width: '100%',
-                      backgroundColor: '#0b1120',
-                      border: '1px solid #334155',
-                      color: '#f8fafc',
+                      backgroundColor: '#ffffff',
+                      border: '1px solid #fde68a',
+                      color: '#0f172a',
                       padding: '0.5rem',
                       borderRadius: '6px',
                       fontSize: '0.85rem',
@@ -2464,7 +2482,7 @@ export default function PayrollDashboardPage() {
                 </div>
 
                 <div>
-                  <label style={{ display: 'block', color: '#94a3b8', fontSize: '0.75rem', marginBottom: '0.25rem' }}>
+                  <label style={{ display: 'block', color: '#64748b', fontSize: '0.75rem', marginBottom: '0.25rem' }}>
                     Payer Notes (Optional)
                   </label>
                   <input
@@ -2474,9 +2492,9 @@ export default function PayrollDashboardPage() {
                     placeholder="e.g. Cleared by Super Admin"
                     style={{
                       width: '100%',
-                      backgroundColor: '#0b1120',
-                      border: '1px solid #334155',
-                      color: '#f8fafc',
+                      backgroundColor: '#ffffff',
+                      border: '1px solid #fde68a',
+                      color: '#0f172a',
                       padding: '0.5rem',
                       borderRadius: '6px',
                       fontSize: '0.85rem',
@@ -2493,9 +2511,9 @@ export default function PayrollDashboardPage() {
                   type="button"
                   onClick={() => setShowPayModal(false)}
                   style={{
-                    backgroundColor: '#1e293b',
-                    color: '#f8fafc',
-                    border: '1px solid #334155',
+                    backgroundColor: '#fffbeb',
+                    color: '#92400e',
+                    border: '1px solid #fde68a',
                     padding: '0.6rem 1.25rem',
                     borderRadius: '8px',
                     fontSize: '0.875rem',
@@ -2536,7 +2554,7 @@ export default function PayrollDashboardPage() {
           style={{
             position: 'fixed',
             inset: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.75)',
+            backgroundColor: 'rgba(0, 0, 0, 0.6)',
             backdropFilter: 'blur(4px)',
             display: 'flex',
             alignItems: 'center',
@@ -2547,34 +2565,34 @@ export default function PayrollDashboardPage() {
         >
           <div
             style={{
-              backgroundColor: '#0f172a',
-              border: '1px solid #334155',
+              backgroundColor: '#ffffff',
+              border: '1px solid #fde68a',
               borderRadius: '12px',
               width: '100%',
               maxWidth: '480px',
-              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)',
+              boxShadow: '0 20px 25px -5px rgba(180, 83, 9, 0.15)',
             }}
           >
             <div
               style={{
                 padding: '1.25rem 1.5rem',
-                borderBottom: '1px solid #1e293b',
+                borderBottom: '1px solid #fde68a',
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
               }}
             >
               <div>
-                <h3 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0, color: '#f8fafc' }}>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0, color: '#0f172a' }}>
                   Generate Monthly Batch Run
                 </h3>
-                <p style={{ color: '#94a3b8', fontSize: '0.8rem', margin: '0.2rem 0 0 0' }}>
+                <p style={{ color: '#64748b', fontSize: '0.8rem', margin: '0.2rem 0 0 0' }}>
                   Creates formal snapshot slips for all active employees.
                 </p>
               </div>
               <button
                 onClick={() => setShowGenerateRunModal(false)}
-                style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '1.25rem', cursor: 'pointer' }}
+                style={{ background: 'none', border: 'none', color: '#64748b', fontSize: '1.25rem', cursor: 'pointer' }}
               >
                 ✕
               </button>
@@ -2582,7 +2600,7 @@ export default function PayrollDashboardPage() {
 
             <form onSubmit={handleGenerateBatchRun} style={{ padding: '1.5rem' }}>
               <div style={{ marginBottom: '1rem' }}>
-                <label style={{ display: 'block', color: '#94a3b8', fontSize: '0.75rem', marginBottom: '0.25rem' }}>
+                <label style={{ display: 'block', color: '#64748b', fontSize: '0.75rem', marginBottom: '0.25rem' }}>
                   Payroll Period (YYYY-MM) *
                 </label>
                 <input
@@ -2592,9 +2610,9 @@ export default function PayrollDashboardPage() {
                   onChange={(e) => setBatchPeriodInput(e.target.value)}
                   style={{
                     width: '100%',
-                    backgroundColor: '#0b1120',
-                    border: '1px solid #334155',
-                    color: '#f8fafc',
+                    backgroundColor: '#ffffff',
+                    border: '1px solid #fde68a',
+                    color: '#0f172a',
                     padding: '0.5rem',
                     borderRadius: '6px',
                     fontSize: '0.85rem',
@@ -2605,7 +2623,7 @@ export default function PayrollDashboardPage() {
               </div>
 
               <div style={{ marginBottom: '1.5rem' }}>
-                <label style={{ display: 'block', color: '#94a3b8', fontSize: '0.75rem', marginBottom: '0.25rem' }}>
+                <label style={{ display: 'block', color: '#64748b', fontSize: '0.75rem', marginBottom: '0.25rem' }}>
                   Batch Notes (Optional)
                 </label>
                 <textarea
@@ -2615,9 +2633,9 @@ export default function PayrollDashboardPage() {
                   placeholder="e.g. October monthly regular payroll run"
                   style={{
                     width: '100%',
-                    backgroundColor: '#0b1120',
-                    border: '1px solid #334155',
-                    color: '#f8fafc',
+                    backgroundColor: '#ffffff',
+                    border: '1px solid #fde68a',
+                    color: '#0f172a',
                     padding: '0.5rem',
                     borderRadius: '6px',
                     fontSize: '0.85rem',
@@ -2632,9 +2650,9 @@ export default function PayrollDashboardPage() {
                   type="button"
                   onClick={() => setShowGenerateRunModal(false)}
                   style={{
-                    backgroundColor: '#1e293b',
-                    color: '#f8fafc',
-                    border: '1px solid #334155',
+                    backgroundColor: '#fffbeb',
+                    color: '#92400e',
+                    border: '1px solid #fde68a',
                     padding: '0.6rem 1.25rem',
                     borderRadius: '8px',
                     fontSize: '0.875rem',
@@ -2647,7 +2665,7 @@ export default function PayrollDashboardPage() {
                   type="submit"
                   disabled={isGeneratingRun}
                   style={{
-                    backgroundColor: '#dc2626',
+                    backgroundColor: '#d97706',
                     color: '#ffffff',
                     border: 'none',
                     padding: '0.6rem 1.5rem',

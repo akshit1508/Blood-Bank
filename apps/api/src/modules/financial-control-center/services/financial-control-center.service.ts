@@ -30,6 +30,10 @@ import {
   SalaryDisbursementDocument,
 } from '../../payroll/schemas/salary-disbursement.schema';
 import {
+  SalarySlip,
+  SalarySlipDocument,
+} from '../../payroll/schemas/salary-slip.schema';
+import {
   Campaign,
   CampaignDocument,
 } from '../../campaigns/schemas/campaign.schema';
@@ -81,6 +85,8 @@ export class FinancialControlCenterService {
     private readonly payrollRunModel: Model<MonthlyPayrollRunDocument>,
     @InjectModel(SalaryDisbursement.name)
     private readonly salaryDisbursementModel: Model<SalaryDisbursementDocument>,
+    @InjectModel(SalarySlip.name)
+    private readonly salarySlipModel: Model<SalarySlipDocument>,
     @InjectModel(Campaign.name)
     private readonly campaignModel: Model<CampaignDocument>,
   ) {}
@@ -776,4 +782,48 @@ export class FinancialControlCenterService {
       points: dataPoints,
     };
   }
+
+  /**
+   * Super Admin operation: Purge all financial transactional data across all financial modules.
+   * This clears expenses, disbursement payments, billing invoices, billing collections,
+   * monthly payroll batch runs, salary slips, and salary disbursements for fresh testing.
+   */
+  async purgeAllFinancialData(): Promise<{
+    expenses: number;
+    payments: number;
+    bloodIssueInvoices: number;
+    bloodIssueCollections: number;
+    monthlyPayrollRuns: number;
+    salarySlips: number;
+    salaryDisbursements: number;
+  }> {
+    const [
+      delExpenses,
+      delPayments,
+      delInvoices,
+      delCollections,
+      delPayrollRuns,
+      delSalarySlips,
+      delSalaryDisbursements,
+    ] = await Promise.all([
+      this.expenseModel.deleteMany({}),
+      this.paymentModel.deleteMany({}),
+      this.invoiceModel.deleteMany({}),
+      this.collectionModel.deleteMany({}),
+      this.payrollRunModel.deleteMany({}),
+      this.salarySlipModel.deleteMany({}),
+      this.salaryDisbursementModel.deleteMany({}),
+    ]);
+
+    return {
+      expenses: delExpenses.deletedCount || 0,
+      payments: delPayments.deletedCount || 0,
+      bloodIssueInvoices: delInvoices.deletedCount || 0,
+      bloodIssueCollections: delCollections.deletedCount || 0,
+      monthlyPayrollRuns: delPayrollRuns.deletedCount || 0,
+      salarySlips: delSalarySlips.deletedCount || 0,
+      salaryDisbursements: delSalaryDisbursements.deletedCount || 0,
+    };
+  }
 }
+

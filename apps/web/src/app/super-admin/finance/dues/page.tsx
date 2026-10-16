@@ -166,7 +166,7 @@ export default function SuperAdminDuesPage() {
             </div>
           ) : (
             <div>
-              <div style={{ padding: '1rem 1.25rem', borderBottom: '1px solid #e2e8f0', backgroundColor: '#f8fafc', fontWeight: 700, fontSize: '0.875rem', color: '#0f172a' }}>
+              <div style={{ padding: '1rem 1.25rem', borderBottom: '1px solid #fde68a', backgroundColor: '#fef3c7', fontWeight: 700, fontSize: '0.875rem', color: '#92400e' }}>
                 Creditor Balances &amp; Payable Breakdown
               </div>
 

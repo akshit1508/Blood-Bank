@@ -275,9 +275,9 @@ export default function EmployeeProfilePage({ params }: PageProps) {
             display: 'inline-flex',
             alignItems: 'center',
             gap: '0.45rem',
-            backgroundColor: '#1e293b',
-            color: '#f8fafc',
-            border: '1px solid #334155',
+            backgroundColor: '#ffffff',
+            color: '#0f172a',
+            border: '1px solid #fde68a',
             padding: '0.6rem 1.15rem',
             borderRadius: '8px',
             textDecoration: 'none',
@@ -298,7 +298,7 @@ export default function EmployeeProfilePage({ params }: PageProps) {
         display: 'flex',
         flexDirection: 'column',
         gap: '1.5rem',
-        color: '#f8fafc',
+        color: '#0f172a',
       }}
     >
       {/* 1. Breadcrumbs & Top Navigation (NO Payroll link) */}
@@ -324,11 +324,11 @@ export default function EmployeeProfilePage({ params }: PageProps) {
             style={{
               fontFamily: 'monospace',
               fontSize: '0.85rem',
-              backgroundColor: '#1e293b',
+              backgroundColor: '#ffffff',
               color: '#38bdf8',
               padding: '0.3rem 0.8rem',
               borderRadius: '6px',
-              border: '1px solid #334155',
+              border: '1px solid #fde68a',
               fontWeight: 700,
             }}
           >
@@ -341,8 +341,8 @@ export default function EmployeeProfilePage({ params }: PageProps) {
       {/* 2. Employee Profile Header Banner */}
       <div
         style={{
-          backgroundColor: '#0f172a',
-          border: '1px solid #1e293b',
+          backgroundColor: '#ffffff',
+          border: '1px solid #fde68a',
           borderRadius: '16px',
           padding: '1.75rem',
           display: 'flex',
@@ -373,7 +373,7 @@ export default function EmployeeProfilePage({ params }: PageProps) {
           </div>
 
           <div>
-            <h1 style={{ fontSize: '1.85rem', fontWeight: 800, color: '#f8fafc', margin: 0 }}>
+            <h1 style={{ fontSize: '1.85rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>
               {employee.fullName}
             </h1>
             <p style={{ color: '#94a3b8', fontSize: '0.95rem', margin: '0.35rem 0 0 0', fontWeight: 600 }}>
@@ -398,9 +398,9 @@ export default function EmployeeProfilePage({ params }: PageProps) {
               display: 'inline-flex',
               alignItems: 'center',
               gap: '0.45rem',
-              backgroundColor: '#1e293b',
-              color: '#f8fafc',
-              border: '1px solid #334155',
+              backgroundColor: '#ffffff',
+              color: '#0f172a',
+              border: '1px solid #fde68a',
               padding: '0.6rem 1.1rem',
               borderRadius: '8px',
               fontSize: '0.85rem',
@@ -421,9 +421,9 @@ export default function EmployeeProfilePage({ params }: PageProps) {
               display: 'inline-flex',
               alignItems: 'center',
               gap: '0.45rem',
-              backgroundColor: '#1e293b',
+              backgroundColor: '#ffffff',
               color: '#cbd5e1',
-              border: '1px solid #334155',
+              border: '1px solid #fde68a',
               padding: '0.6rem 1.1rem',
               borderRadius: '8px',
               fontSize: '0.85rem',
@@ -440,21 +440,21 @@ export default function EmployeeProfilePage({ params }: PageProps) {
       {/* 3. High-Priority "When He Joined & Tenure" Highlight Banner */}
       <div
         style={{
-          backgroundColor: '#0f172a',
+          backgroundColor: '#ffffff',
           border: '1px solid #0284c7',
           borderRadius: '16px',
           padding: '1.5rem',
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
           gap: '1.25rem',
-          background: 'linear-gradient(135deg, #0f172a 0%, #0c2340 100%)',
+          background: 'linear-gradient(135deg, #ffffff 0%, #fffbeb 100%)',
         }}
       >
         <div>
           <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
             📅 Official Joining Date
           </div>
-          <div style={{ fontSize: '1.25rem', fontWeight: 800, color: '#f8fafc', marginTop: '0.35rem' }}>
+          <div style={{ fontSize: '1.25rem', fontWeight: 800, color: '#0f172a', marginTop: '0.35rem' }}>
             {joinedDetails.formattedDate}
           </div>
           <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.2rem' }}>
@@ -509,8 +509,8 @@ export default function EmployeeProfilePage({ params }: PageProps) {
       {/* 4. Complete Decided Salary & Compensation Dossier */}
       <div
         style={{
-          backgroundColor: '#0f172a',
-          border: '1px solid #1e293b',
+          backgroundColor: '#ffffff',
+          border: '1px solid #fde68a',
           borderRadius: '16px',
           padding: '1.5rem',
           display: 'flex',
@@ -525,7 +525,7 @@ export default function EmployeeProfilePage({ params }: PageProps) {
             alignItems: 'center',
             flexWrap: 'wrap',
             gap: '0.75rem',
-            borderBottom: '1px solid #1e293b',
+            borderBottom: '1px solid #fef3c7',
             paddingBottom: '0.75rem',
           }}
         >
@@ -533,15 +533,15 @@ export default function EmployeeProfilePage({ params }: PageProps) {
             <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#10b981', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
               💰 Decided Salary & Compensation Structure
             </div>
-            <h2 style={{ fontSize: '1.35rem', fontWeight: 800, color: '#f8fafc', margin: '0.25rem 0 0 0' }}>
+            <h2 style={{ fontSize: '1.35rem', fontWeight: 800, color: '#0f172a', margin: '0.25rem 0 0 0' }}>
               Monthly Earnings & Deductions Breakdown
             </h2>
           </div>
 
           {activeStructure && (
-            <div style={{ fontSize: '0.8rem', color: '#94a3b8', backgroundColor: '#1e293b', padding: '0.35rem 0.75rem', borderRadius: '8px', border: '1px solid #334155' }}>
+            <div style={{ fontSize: '0.8rem', color: '#94a3b8', backgroundColor: '#ffffff', padding: '0.35rem 0.75rem', borderRadius: '8px', border: '1px solid #fde68a' }}>
               Revision #{activeStructure.revisionNumber} &bull; Effective From{' '}
-              <strong style={{ color: '#f8fafc' }}>
+              <strong style={{ color: '#0f172a' }}>
                 {new Date(activeStructure.effectiveFrom).toLocaleDateString('en-IN', {
                   day: 'numeric',
                   month: 'short',
@@ -584,8 +584,8 @@ export default function EmployeeProfilePage({ params }: PageProps) {
 
               <div
                 style={{
-                  backgroundColor: '#1e293b',
-                  border: '1px solid #334155',
+                  backgroundColor: '#ffffff',
+                  border: '1px solid #fde68a',
                   borderRadius: '12px',
                   padding: '1.1rem 1.25rem',
                 }}
@@ -593,7 +593,7 @@ export default function EmployeeProfilePage({ params }: PageProps) {
                 <div style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase' }}>
                   Gross Monthly Salary
                 </div>
-                <div style={{ fontSize: '1.65rem', fontWeight: 800, color: '#f8fafc', marginTop: '0.35rem' }}>
+                <div style={{ fontSize: '1.65rem', fontWeight: 800, color: '#0f172a', marginTop: '0.35rem' }}>
                   {formatINR(activeStructure.grossSalary)}
                 </div>
                 <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.2rem' }}>
@@ -603,8 +603,8 @@ export default function EmployeeProfilePage({ params }: PageProps) {
 
               <div
                 style={{
-                  backgroundColor: '#1e293b',
-                  border: '1px solid #334155',
+                  backgroundColor: '#ffffff',
+                  border: '1px solid #fde68a',
                   borderRadius: '12px',
                   padding: '1.1rem 1.25rem',
                 }}
@@ -622,8 +622,8 @@ export default function EmployeeProfilePage({ params }: PageProps) {
 
               <div
                 style={{
-                  backgroundColor: '#1e293b',
-                  border: '1px solid #334155',
+                  backgroundColor: '#ffffff',
+                  border: '1px solid #fde68a',
                   borderRadius: '12px',
                   padding: '1.1rem 1.25rem',
                 }}
@@ -651,8 +651,8 @@ export default function EmployeeProfilePage({ params }: PageProps) {
               {/* Earnings Table */}
               <div
                 style={{
-                  backgroundColor: '#1e293b',
-                  border: '1px solid #334155',
+                  backgroundColor: '#ffffff',
+                  border: '1px solid #fde68a',
                   borderRadius: '10px',
                   padding: '1rem',
                 }}
@@ -663,18 +663,18 @@ export default function EmployeeProfilePage({ params }: PageProps) {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.85rem' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                     <span style={{ color: '#94a3b8' }}>Basic Salary</span>
-                    <strong style={{ color: '#f8fafc' }}>{formatINR(activeStructure.basicSalary)}</strong>
+                    <strong style={{ color: '#0f172a' }}>{formatINR(activeStructure.basicSalary)}</strong>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                     <span style={{ color: '#94a3b8' }}>House Rent Allowance (HRA)</span>
-                    <strong style={{ color: '#f8fafc' }}>{formatINR(activeStructure.hra)}</strong>
+                    <strong style={{ color: '#0f172a' }}>{formatINR(activeStructure.hra)}</strong>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                     <span style={{ color: '#94a3b8' }}>Special & Medical Allowances</span>
-                    <strong style={{ color: '#f8fafc' }}>{formatINR(activeStructure.allowances)}</strong>
+                    <strong style={{ color: '#0f172a' }}>{formatINR(activeStructure.allowances)}</strong>
                   </div>
                   <div style={{ borderTop: '1px solid #334155', paddingTop: '0.5rem', display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ fontWeight: 700, color: '#f8fafc' }}>Gross Earnings</span>
+                    <span style={{ fontWeight: 700, color: '#0f172a' }}>Gross Earnings</span>
                     <strong style={{ color: '#10b981', fontWeight: 800 }}>{formatINR(activeStructure.grossSalary)}</strong>
                   </div>
                 </div>
@@ -683,8 +683,8 @@ export default function EmployeeProfilePage({ params }: PageProps) {
               {/* Deductions Table */}
               <div
                 style={{
-                  backgroundColor: '#1e293b',
-                  border: '1px solid #334155',
+                  backgroundColor: '#ffffff',
+                  border: '1px solid #fde68a',
                   borderRadius: '10px',
                   padding: '1rem',
                 }}
@@ -695,18 +695,18 @@ export default function EmployeeProfilePage({ params }: PageProps) {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.85rem' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                     <span style={{ color: '#94a3b8' }}>Provident Fund (PF)</span>
-                    <strong style={{ color: '#f8fafc' }}>{formatINR(activeStructure.pfDeduction)}</strong>
+                    <strong style={{ color: '#0f172a' }}>{formatINR(activeStructure.pfDeduction)}</strong>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                     <span style={{ color: '#94a3b8' }}>Professional / Income Tax (TDS)</span>
-                    <strong style={{ color: '#f8fafc' }}>{formatINR(activeStructure.taxDeduction)}</strong>
+                    <strong style={{ color: '#0f172a' }}>{formatINR(activeStructure.taxDeduction)}</strong>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                     <span style={{ color: '#94a3b8' }}>Other Authorized Deductions</span>
-                    <strong style={{ color: '#f8fafc' }}>{formatINR(activeStructure.otherDeductions)}</strong>
+                    <strong style={{ color: '#0f172a' }}>{formatINR(activeStructure.otherDeductions)}</strong>
                   </div>
                   <div style={{ borderTop: '1px solid #334155', paddingTop: '0.5rem', display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ fontWeight: 700, color: '#f8fafc' }}>Total Deductions</span>
+                    <span style={{ fontWeight: 700, color: '#0f172a' }}>Total Deductions</span>
                     <strong style={{ color: '#f87171', fontWeight: 800 }}>
                       -{formatINR(activeStructure.pfDeduction + activeStructure.taxDeduction + activeStructure.otherDeductions)}
                     </strong>
@@ -725,12 +725,12 @@ export default function EmployeeProfilePage({ params }: PageProps) {
             style={{
               padding: '2.5rem',
               textAlign: 'center',
-              backgroundColor: '#1e293b',
+              backgroundColor: '#ffffff',
               borderRadius: '10px',
-              border: '1px dashed #334155',
+              border: '1px dashed #fde68a',
             }}
           >
-            <div style={{ fontSize: '1.1rem', fontWeight: 700, color: '#f8fafc' }}>
+            <div style={{ fontSize: '1.1rem', fontWeight: 700, color: '#0f172a' }}>
               Salary Structure Not Decided Yet
             </div>
             <p style={{ color: '#64748b', fontSize: '0.85rem', margin: '0.35rem 0 0 0' }}>
@@ -751,8 +751,8 @@ export default function EmployeeProfilePage({ params }: PageProps) {
         {/* Card 1: Job & Employment Details */}
         <div
           style={{
-            backgroundColor: '#0f172a',
-            border: '1px solid #1e293b',
+            backgroundColor: '#ffffff',
+            border: '1px solid #fde68a',
             borderRadius: '12px',
             padding: '1.5rem',
             display: 'flex',
@@ -767,7 +767,7 @@ export default function EmployeeProfilePage({ params }: PageProps) {
               color: '#38bdf8',
               textTransform: 'uppercase',
               letterSpacing: '0.05em',
-              borderBottom: '1px solid #1e293b',
+              borderBottom: '1px solid #fef3c7',
               paddingBottom: '0.5rem',
             }}
           >
@@ -777,35 +777,35 @@ export default function EmployeeProfilePage({ params }: PageProps) {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', fontSize: '0.85rem' }}>
             <div>
               <div style={{ color: '#64748b', fontSize: '0.75rem' }}>Employee Code</div>
-              <div style={{ fontWeight: 700, fontFamily: 'monospace', color: '#f8fafc', marginTop: '0.2rem' }}>
+              <div style={{ fontWeight: 700, fontFamily: 'monospace', color: '#0f172a', marginTop: '0.2rem' }}>
                 {employee.employeeCode}
               </div>
             </div>
 
             <div>
               <div style={{ color: '#64748b', fontSize: '0.75rem' }}>Official Designation</div>
-              <div style={{ fontWeight: 600, color: '#f8fafc', marginTop: '0.2rem' }}>
+              <div style={{ fontWeight: 600, color: '#0f172a', marginTop: '0.2rem' }}>
                 {employee.designation}
               </div>
             </div>
 
             <div>
               <div style={{ color: '#64748b', fontSize: '0.75rem' }}>Assigned Department</div>
-              <div style={{ fontWeight: 600, color: '#f8fafc', marginTop: '0.2rem' }}>
+              <div style={{ fontWeight: 600, color: '#0f172a', marginTop: '0.2rem' }}>
                 {DEPARTMENT_LABELS[employee.department] || employee.department}
               </div>
             </div>
 
             <div>
               <div style={{ color: '#64748b', fontSize: '0.75rem' }}>Employment Category</div>
-              <div style={{ fontWeight: 600, color: '#f8fafc', marginTop: '0.2rem' }}>
+              <div style={{ fontWeight: 600, color: '#0f172a', marginTop: '0.2rem' }}>
                 {EMPLOYMENT_TYPE_LABELS[employee.employmentType] || employee.employmentType}
               </div>
             </div>
 
             <div>
               <div style={{ color: '#64748b', fontSize: '0.75rem' }}>Joining Date</div>
-              <div style={{ fontWeight: 600, color: '#f8fafc', marginTop: '0.2rem' }}>
+              <div style={{ fontWeight: 600, color: '#0f172a', marginTop: '0.2rem' }}>
                 {new Date(employee.dateOfJoining).toLocaleDateString('en-IN', {
                   day: 'numeric',
                   month: 'short',
@@ -826,8 +826,8 @@ export default function EmployeeProfilePage({ params }: PageProps) {
         {/* Card 2: Contact & Emergency Information */}
         <div
           style={{
-            backgroundColor: '#0f172a',
-            border: '1px solid #1e293b',
+            backgroundColor: '#ffffff',
+            border: '1px solid #fde68a',
             borderRadius: '12px',
             padding: '1.5rem',
             display: 'flex',
@@ -842,7 +842,7 @@ export default function EmployeeProfilePage({ params }: PageProps) {
               color: '#10b981',
               textTransform: 'uppercase',
               letterSpacing: '0.05em',
-              borderBottom: '1px solid #1e293b',
+              borderBottom: '1px solid #fef3c7',
               paddingBottom: '0.5rem',
             }}
           >
@@ -852,14 +852,14 @@ export default function EmployeeProfilePage({ params }: PageProps) {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', fontSize: '0.85rem' }}>
             <div>
               <div style={{ color: '#64748b', fontSize: '0.75rem' }}>Official Email Address</div>
-              <div style={{ fontWeight: 600, color: '#f8fafc', marginTop: '0.2rem' }}>
+              <div style={{ fontWeight: 600, color: '#0f172a', marginTop: '0.2rem' }}>
                 {employee.email}
               </div>
             </div>
 
             <div>
               <div style={{ color: '#64748b', fontSize: '0.75rem' }}>Mobile Phone Number</div>
-              <div style={{ fontWeight: 600, color: '#f8fafc', marginTop: '0.2rem' }}>
+              <div style={{ fontWeight: 600, color: '#0f172a', marginTop: '0.2rem' }}>
                 {employee.phone}
               </div>
             </div>
@@ -867,8 +867,8 @@ export default function EmployeeProfilePage({ params }: PageProps) {
             <div
               style={{
                 gridColumn: 'span 2',
-                backgroundColor: '#1e293b',
-                border: '1px solid #334155',
+                backgroundColor: '#ffffff',
+                border: '1px solid #fde68a',
                 borderRadius: '8px',
                 padding: '0.85rem',
               }}
@@ -878,7 +878,7 @@ export default function EmployeeProfilePage({ params }: PageProps) {
               </div>
               {employee.emergencyContact?.name ? (
                 <div style={{ marginTop: '0.4rem', display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
-                  <div style={{ fontWeight: 700, color: '#f8fafc' }}>
+                  <div style={{ fontWeight: 700, color: '#0f172a' }}>
                     {employee.emergencyContact.name}{' '}
                     <span style={{ color: '#94a3b8', fontWeight: 400 }}>({employee.emergencyContact.relationship})</span>
                   </div>
@@ -898,8 +898,8 @@ export default function EmployeeProfilePage({ params }: PageProps) {
         {/* Card 3: Disbursement Bank Account */}
         <div
           style={{
-            backgroundColor: '#0f172a',
-            border: '1px solid #1e293b',
+            backgroundColor: '#ffffff',
+            border: '1px solid #fde68a',
             borderRadius: '12px',
             padding: '1.5rem',
             display: 'flex',
@@ -914,7 +914,7 @@ export default function EmployeeProfilePage({ params }: PageProps) {
               color: '#f59e0b',
               textTransform: 'uppercase',
               letterSpacing: '0.05em',
-              borderBottom: '1px solid #1e293b',
+              borderBottom: '1px solid #fef3c7',
               paddingBottom: '0.5rem',
               display: 'flex',
               justifyContent: 'space-between',
@@ -940,14 +940,14 @@ export default function EmployeeProfilePage({ params }: PageProps) {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', fontSize: '0.85rem' }}>
               <div>
                 <div style={{ color: '#64748b', fontSize: '0.75rem' }}>Bank Name</div>
-                <div style={{ fontWeight: 700, color: '#f8fafc', marginTop: '0.2rem' }}>
+                <div style={{ fontWeight: 700, color: '#0f172a', marginTop: '0.2rem' }}>
                   {employee.bankDetails.bankName}
                 </div>
               </div>
 
               <div>
                 <div style={{ color: '#64748b', fontSize: '0.75rem' }}>Account Holder</div>
-                <div style={{ fontWeight: 600, color: '#f8fafc', marginTop: '0.2rem' }}>
+                <div style={{ fontWeight: 600, color: '#0f172a', marginTop: '0.2rem' }}>
                   {employee.bankDetails.accountHolderName}
                 </div>
               </div>
@@ -961,7 +961,7 @@ export default function EmployeeProfilePage({ params }: PageProps) {
 
               <div>
                 <div style={{ color: '#64748b', fontSize: '0.75rem' }}>IFSC Branch Code</div>
-                <div style={{ fontWeight: 700, fontFamily: 'monospace', color: '#f8fafc', marginTop: '0.2rem' }}>
+                <div style={{ fontWeight: 700, fontFamily: 'monospace', color: '#0f172a', marginTop: '0.2rem' }}>
                   {employee.bankDetails.ifscCode}
                 </div>
               </div>
@@ -983,8 +983,8 @@ export default function EmployeeProfilePage({ params }: PageProps) {
         {/* Card 4: Administrative Notes & Dossier History */}
         <div
           style={{
-            backgroundColor: '#0f172a',
-            border: '1px solid #1e293b',
+            backgroundColor: '#ffffff',
+            border: '1px solid #fde68a',
             borderRadius: '12px',
             padding: '1.5rem',
             display: 'flex',
@@ -999,7 +999,7 @@ export default function EmployeeProfilePage({ params }: PageProps) {
               color: '#94a3b8',
               textTransform: 'uppercase',
               letterSpacing: '0.05em',
-              borderBottom: '1px solid #1e293b',
+              borderBottom: '1px solid #fef3c7',
               paddingBottom: '0.5rem',
             }}
           >
@@ -1037,9 +1037,9 @@ export default function EmployeeProfilePage({ params }: PageProps) {
                 style={{
                   marginTop: '0.35rem',
                   padding: '0.75rem',
-                  backgroundColor: '#1e293b',
+                  backgroundColor: '#ffffff',
                   borderRadius: '8px',
-                  border: '1px solid #334155',
+                  border: '1px solid #fde68a',
                   color: employee.notes ? '#f8fafc' : '#64748b',
                   fontStyle: employee.notes ? 'normal' : 'italic',
                   fontSize: '0.825rem',
@@ -1062,7 +1062,7 @@ export default function EmployeeProfilePage({ params }: PageProps) {
             left: 0,
             right: 0,
             bottom: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.75)',
+            backgroundColor: 'rgba(0, 0, 0, 0.6)',
             backdropFilter: 'blur(4px)',
             display: 'flex',
             alignItems: 'center',
@@ -1074,14 +1074,14 @@ export default function EmployeeProfilePage({ params }: PageProps) {
         >
           <div
             style={{
-              backgroundColor: '#0f172a',
-              border: '1px solid #334155',
+              backgroundColor: '#ffffff',
+              border: '1px solid #fde68a',
               borderRadius: '16px',
               width: '100%',
               maxWidth: '640px',
               padding: '1.75rem',
-              color: '#f8fafc',
-              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)',
+              color: '#0f172a',
+              boxShadow: '0 20px 25px -5px rgba(180, 83, 9, 0.15)',
               margin: '2rem auto',
             }}
           >
@@ -1090,12 +1090,12 @@ export default function EmployeeProfilePage({ params }: PageProps) {
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
-                borderBottom: '1px solid #1e293b',
+                borderBottom: '1px solid #fef3c7',
                 paddingBottom: '0.75rem',
               }}
             >
               <div>
-                <h3 style={{ fontSize: '1.2rem', fontWeight: 700, margin: 0, color: '#f8fafc' }}>
+                <h3 style={{ fontSize: '1.2rem', fontWeight: 700, margin: 0, color: '#0f172a' }}>
                   Edit Employee Details
                 </h3>
                 <p style={{ color: '#94a3b8', fontSize: '0.75rem', margin: '0.2rem 0 0 0' }}>
@@ -1129,11 +1129,11 @@ export default function EmployeeProfilePage({ params }: PageProps) {
                     onChange={(e) => setEditForm((prev) => ({ ...prev, firstName: e.target.value }))}
                     style={{
                       width: '100%',
-                      backgroundColor: '#1e293b',
-                      border: '1px solid #334155',
+                      backgroundColor: '#ffffff',
+                      border: '1px solid #fde68a',
                       borderRadius: '8px',
                       padding: '0.6rem 0.85rem',
-                      color: '#f8fafc',
+                      color: '#0f172a',
                       fontSize: '0.875rem',
                       outline: 'none',
                       boxSizing: 'border-box',
@@ -1151,11 +1151,11 @@ export default function EmployeeProfilePage({ params }: PageProps) {
                     onChange={(e) => setEditForm((prev) => ({ ...prev, lastName: e.target.value }))}
                     style={{
                       width: '100%',
-                      backgroundColor: '#1e293b',
-                      border: '1px solid #334155',
+                      backgroundColor: '#ffffff',
+                      border: '1px solid #fde68a',
                       borderRadius: '8px',
                       padding: '0.6rem 0.85rem',
-                      color: '#f8fafc',
+                      color: '#0f172a',
                       fontSize: '0.875rem',
                       outline: 'none',
                       boxSizing: 'border-box',
@@ -1176,11 +1176,11 @@ export default function EmployeeProfilePage({ params }: PageProps) {
                     onChange={(e) => setEditForm((prev) => ({ ...prev, email: e.target.value }))}
                     style={{
                       width: '100%',
-                      backgroundColor: '#1e293b',
-                      border: '1px solid #334155',
+                      backgroundColor: '#ffffff',
+                      border: '1px solid #fde68a',
                       borderRadius: '8px',
                       padding: '0.6rem 0.85rem',
-                      color: '#f8fafc',
+                      color: '#0f172a',
                       fontSize: '0.875rem',
                       outline: 'none',
                       boxSizing: 'border-box',
@@ -1198,11 +1198,11 @@ export default function EmployeeProfilePage({ params }: PageProps) {
                     onChange={(e) => setEditForm((prev) => ({ ...prev, phone: e.target.value }))}
                     style={{
                       width: '100%',
-                      backgroundColor: '#1e293b',
-                      border: '1px solid #334155',
+                      backgroundColor: '#ffffff',
+                      border: '1px solid #fde68a',
                       borderRadius: '8px',
                       padding: '0.6rem 0.85rem',
-                      color: '#f8fafc',
+                      color: '#0f172a',
                       fontSize: '0.875rem',
                       outline: 'none',
                       boxSizing: 'border-box',
@@ -1223,11 +1223,11 @@ export default function EmployeeProfilePage({ params }: PageProps) {
                     onChange={(e) => setEditForm((prev) => ({ ...prev, designation: e.target.value }))}
                     style={{
                       width: '100%',
-                      backgroundColor: '#1e293b',
-                      border: '1px solid #334155',
+                      backgroundColor: '#ffffff',
+                      border: '1px solid #fde68a',
                       borderRadius: '8px',
                       padding: '0.6rem 0.85rem',
-                      color: '#f8fafc',
+                      color: '#0f172a',
                       fontSize: '0.875rem',
                       outline: 'none',
                       boxSizing: 'border-box',
@@ -1243,11 +1243,11 @@ export default function EmployeeProfilePage({ params }: PageProps) {
                     onChange={(e) => setEditForm((prev) => ({ ...prev, department: e.target.value as EmployeeDepartment }))}
                     style={{
                       width: '100%',
-                      backgroundColor: '#1e293b',
-                      border: '1px solid #334155',
+                      backgroundColor: '#ffffff',
+                      border: '1px solid #fde68a',
                       borderRadius: '8px',
                       padding: '0.6rem 0.85rem',
-                      color: '#f8fafc',
+                      color: '#0f172a',
                       fontSize: '0.85rem',
                       outline: 'none',
                       boxSizing: 'border-box',
@@ -1269,11 +1269,11 @@ export default function EmployeeProfilePage({ params }: PageProps) {
                     onChange={(e) => setEditForm((prev) => ({ ...prev, employmentType: e.target.value as EmploymentType }))}
                     style={{
                       width: '100%',
-                      backgroundColor: '#1e293b',
-                      border: '1px solid #334155',
+                      backgroundColor: '#ffffff',
+                      border: '1px solid #fde68a',
                       borderRadius: '8px',
                       padding: '0.6rem 0.85rem',
-                      color: '#f8fafc',
+                      color: '#0f172a',
                       fontSize: '0.85rem',
                       outline: 'none',
                       boxSizing: 'border-box',
@@ -1291,8 +1291,8 @@ export default function EmployeeProfilePage({ params }: PageProps) {
               {/* Bank Details */}
               <div
                 style={{
-                  backgroundColor: '#1e293b',
-                  border: '1px solid #334155',
+                  backgroundColor: '#ffffff',
+                  border: '1px solid #fde68a',
                   borderRadius: '12px',
                   padding: '1rem',
                   display: 'flex',
@@ -1323,11 +1323,11 @@ export default function EmployeeProfilePage({ params }: PageProps) {
                       }
                       style={{
                         width: '100%',
-                        backgroundColor: '#0f172a',
-                        border: '1px solid #334155',
+                        backgroundColor: '#ffffff',
+                        border: '1px solid #fde68a',
                         borderRadius: '6px',
                         padding: '0.5rem 0.75rem',
-                        color: '#f8fafc',
+                        color: '#0f172a',
                         fontSize: '0.85rem',
                         outline: 'none',
                         boxSizing: 'border-box',
@@ -1353,11 +1353,11 @@ export default function EmployeeProfilePage({ params }: PageProps) {
                       }
                       style={{
                         width: '100%',
-                        backgroundColor: '#0f172a',
-                        border: '1px solid #334155',
+                        backgroundColor: '#ffffff',
+                        border: '1px solid #fde68a',
                         borderRadius: '6px',
                         padding: '0.5rem 0.75rem',
-                        color: '#f8fafc',
+                        color: '#0f172a',
                         fontSize: '0.85rem',
                         outline: 'none',
                         boxSizing: 'border-box',
@@ -1383,11 +1383,11 @@ export default function EmployeeProfilePage({ params }: PageProps) {
                       }
                       style={{
                         width: '100%',
-                        backgroundColor: '#0f172a',
-                        border: '1px solid #334155',
+                        backgroundColor: '#ffffff',
+                        border: '1px solid #fde68a',
                         borderRadius: '6px',
                         padding: '0.5rem 0.75rem',
-                        color: '#f8fafc',
+                        color: '#0f172a',
                         fontSize: '0.85rem',
                         outline: 'none',
                         textTransform: 'uppercase',
@@ -1414,11 +1414,11 @@ export default function EmployeeProfilePage({ params }: PageProps) {
                       }
                       style={{
                         width: '100%',
-                        backgroundColor: '#0f172a',
-                        border: '1px solid #334155',
+                        backgroundColor: '#ffffff',
+                        border: '1px solid #fde68a',
                         borderRadius: '6px',
                         padding: '0.5rem 0.75rem',
-                        color: '#f8fafc',
+                        color: '#0f172a',
                         fontSize: '0.85rem',
                         outline: 'none',
                         boxSizing: 'border-box',
@@ -1431,8 +1431,8 @@ export default function EmployeeProfilePage({ params }: PageProps) {
               {/* Emergency Contact */}
               <div
                 style={{
-                  backgroundColor: '#1e293b',
-                  border: '1px solid #334155',
+                  backgroundColor: '#ffffff',
+                  border: '1px solid #fde68a',
                   borderRadius: '12px',
                   padding: '1rem',
                   display: 'flex',
@@ -1463,11 +1463,11 @@ export default function EmployeeProfilePage({ params }: PageProps) {
                       }
                       style={{
                         width: '100%',
-                        backgroundColor: '#0f172a',
-                        border: '1px solid #334155',
+                        backgroundColor: '#ffffff',
+                        border: '1px solid #fde68a',
                         borderRadius: '6px',
                         padding: '0.5rem 0.75rem',
-                        color: '#f8fafc',
+                        color: '#0f172a',
                         fontSize: '0.85rem',
                         outline: 'none',
                         boxSizing: 'border-box',
@@ -1493,11 +1493,11 @@ export default function EmployeeProfilePage({ params }: PageProps) {
                       }
                       style={{
                         width: '100%',
-                        backgroundColor: '#0f172a',
-                        border: '1px solid #334155',
+                        backgroundColor: '#ffffff',
+                        border: '1px solid #fde68a',
                         borderRadius: '6px',
                         padding: '0.5rem 0.75rem',
-                        color: '#f8fafc',
+                        color: '#0f172a',
                         fontSize: '0.85rem',
                         outline: 'none',
                         boxSizing: 'border-box',
@@ -1523,11 +1523,11 @@ export default function EmployeeProfilePage({ params }: PageProps) {
                       }
                       style={{
                         width: '100%',
-                        backgroundColor: '#0f172a',
-                        border: '1px solid #334155',
+                        backgroundColor: '#ffffff',
+                        border: '1px solid #fde68a',
                         borderRadius: '6px',
                         padding: '0.5rem 0.75rem',
-                        color: '#f8fafc',
+                        color: '#0f172a',
                         fontSize: '0.85rem',
                         outline: 'none',
                         boxSizing: 'border-box',
@@ -1548,11 +1548,11 @@ export default function EmployeeProfilePage({ params }: PageProps) {
                   onChange={(e) => setEditForm((prev) => ({ ...prev, notes: e.target.value }))}
                   style={{
                     width: '100%',
-                    backgroundColor: '#1e293b',
-                    border: '1px solid #334155',
+                    backgroundColor: '#ffffff',
+                    border: '1px solid #fde68a',
                     borderRadius: '8px',
                     padding: '0.6rem 0.85rem',
-                    color: '#f8fafc',
+                    color: '#0f172a',
                     fontSize: '0.85rem',
                     outline: 'none',
                     boxSizing: 'border-box',
@@ -1589,9 +1589,9 @@ export default function EmployeeProfilePage({ params }: PageProps) {
                   type="button"
                   onClick={() => setShowEditModal(false)}
                   style={{
-                    backgroundColor: '#1e293b',
-                    border: '1px solid #334155',
-                    color: '#f8fafc',
+                    backgroundColor: '#ffffff',
+                    border: '1px solid #fde68a',
+                    color: '#0f172a',
                     padding: '0.55rem 1rem',
                     borderRadius: '8px',
                     fontSize: '0.85rem',
@@ -1604,7 +1604,7 @@ export default function EmployeeProfilePage({ params }: PageProps) {
                   type="submit"
                   disabled={isSaving}
                   style={{
-                    backgroundColor: '#dc2626',
+                    backgroundColor: '#d97706',
                     color: '#ffffff',
                     border: 'none',
                     padding: '0.55rem 1.25rem',
@@ -1632,7 +1632,7 @@ export default function EmployeeProfilePage({ params }: PageProps) {
             left: 0,
             right: 0,
             bottom: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.75)',
+            backgroundColor: 'rgba(0, 0, 0, 0.6)',
             backdropFilter: 'blur(4px)',
             display: 'flex',
             alignItems: 'center',
@@ -1643,14 +1643,14 @@ export default function EmployeeProfilePage({ params }: PageProps) {
         >
           <div
             style={{
-              backgroundColor: '#0f172a',
-              border: '1px solid #334155',
+              backgroundColor: '#ffffff',
+              border: '1px solid #fde68a',
               borderRadius: '16px',
               width: '100%',
               maxWidth: '480px',
               padding: '1.75rem',
-              color: '#f8fafc',
-              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)',
+              color: '#0f172a',
+              boxShadow: '0 20px 25px -5px rgba(180, 83, 9, 0.15)',
             }}
           >
             <div
@@ -1658,11 +1658,11 @@ export default function EmployeeProfilePage({ params }: PageProps) {
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
-                borderBottom: '1px solid #1e293b',
+                borderBottom: '1px solid #fef3c7',
                 paddingBottom: '0.75rem',
               }}
             >
-              <h3 style={{ fontSize: '1.15rem', fontWeight: 700, margin: 0, color: '#f8fafc' }}>
+              <h3 style={{ fontSize: '1.15rem', fontWeight: 700, margin: 0, color: '#0f172a' }}>
                 Update Staff Employment Status
               </h3>
               <button
@@ -1689,11 +1689,11 @@ export default function EmployeeProfilePage({ params }: PageProps) {
                   onChange={(e) => setLifecycleStatus(e.target.value as EmployeeStatus)}
                   style={{
                     width: '100%',
-                    backgroundColor: '#1e293b',
-                    border: '1px solid #334155',
+                    backgroundColor: '#ffffff',
+                    border: '1px solid #fde68a',
                     borderRadius: '8px',
                     padding: '0.6rem 0.85rem',
-                    color: '#f8fafc',
+                    color: '#0f172a',
                     fontSize: '0.875rem',
                     outline: 'none',
                     boxSizing: 'border-box',
@@ -1719,11 +1719,11 @@ export default function EmployeeProfilePage({ params }: PageProps) {
                     onChange={(e) => setLeavingDate(e.target.value)}
                     style={{
                       width: '100%',
-                      backgroundColor: '#1e293b',
+                      backgroundColor: '#ffffff',
                       border: '1px solid #991b1b',
                       borderRadius: '8px',
                       padding: '0.6rem 0.85rem',
-                      color: '#f8fafc',
+                      color: '#0f172a',
                       fontSize: '0.875rem',
                       outline: 'none',
                       boxSizing: 'border-box',
@@ -1743,11 +1743,11 @@ export default function EmployeeProfilePage({ params }: PageProps) {
                   onChange={(e) => setLifecycleNotes(e.target.value)}
                   style={{
                     width: '100%',
-                    backgroundColor: '#1e293b',
-                    border: '1px solid #334155',
+                    backgroundColor: '#ffffff',
+                    border: '1px solid #fde68a',
                     borderRadius: '8px',
                     padding: '0.6rem 0.85rem',
-                    color: '#f8fafc',
+                    color: '#0f172a',
                     fontSize: '0.85rem',
                     outline: 'none',
                     boxSizing: 'border-box',
@@ -1784,9 +1784,9 @@ export default function EmployeeProfilePage({ params }: PageProps) {
                   type="button"
                   onClick={() => setShowStatusModal(false)}
                   style={{
-                    backgroundColor: '#1e293b',
-                    border: '1px solid #334155',
-                    color: '#f8fafc',
+                    backgroundColor: '#ffffff',
+                    border: '1px solid #fde68a',
+                    color: '#0f172a',
                     padding: '0.55rem 1rem',
                     borderRadius: '8px',
                     fontSize: '0.85rem',

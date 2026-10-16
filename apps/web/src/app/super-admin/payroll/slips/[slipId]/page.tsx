@@ -67,12 +67,13 @@ export default function SalarySlipPrintPage({ params }: PageProps) {
             display: 'inline-flex',
             alignItems: 'center',
             gap: '0.45rem',
-            backgroundColor: '#1e293b',
-            color: '#f8fafc',
-            border: '1px solid #334155',
+            backgroundColor: '#fffbeb',
+            color: '#92400e',
+            border: '1px solid #fde68a',
             padding: '0.6rem 1rem',
             borderRadius: '8px',
             textDecoration: 'none',
+            fontWeight: 600,
           }}
         >
           &larr; Back to Payroll Dashboard
@@ -431,8 +432,9 @@ export default function SalarySlipPrintPage({ params }: PageProps) {
         {/* Net Salary Highlight Box */}
         <div
           style={{
-            backgroundColor: '#0f172a',
-            color: '#ffffff',
+            backgroundColor: '#fef3c7',
+            border: '1px solid #fde68a',
+            color: '#0f172a',
             borderRadius: '12px',
             padding: '1.25rem 1.5rem',
             display: 'flex',
@@ -443,10 +445,10 @@ export default function SalarySlipPrintPage({ params }: PageProps) {
           }}
         >
           <div>
-            <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: '#94a3b8', letterSpacing: '0.05em' }}>
+            <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: '#92400e', letterSpacing: '0.05em', fontWeight: 700 }}>
               Net Take-Home Salary
             </div>
-            <div style={{ fontSize: '2rem', fontWeight: 900, color: '#ffffff', marginTop: '0.2rem' }}>
+            <div style={{ fontSize: '2rem', fontWeight: 900, color: '#065f46', marginTop: '0.2rem' }}>
               {formatINR(slip.netPayable)}
             </div>
           </div>

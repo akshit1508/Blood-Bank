@@ -350,9 +350,38 @@ export class ExpensesService implements OnModuleInit {
       byCategory[c._id] = Math.round(c.totalAmount * 100) / 100;
     }
 
+    // Payment metrics on APPROVED expenses
+    const paymentPipeline = [
+      { $match: { ...matchFilter, status: ExpenseStatus.APPROVED } },
+      {
+        $group: {
+          _id: null,
+          totalPaidAmount: { $sum: { $ifNull: ['$paidAmount', 0] } },
+          totalAmount: { $sum: '$amount' },
+          paidCount: {
+            $sum: { $cond: [{ $eq: ['$paymentStatus', ExpensePaymentStatus.PAID] }, 1, 0] },
+          },
+          unpaidCount: {
+            $sum: { $cond: [{ $ne: ['$paymentStatus', ExpensePaymentStatus.PAID] }, 1, 0] },
+          },
+        },
+      },
+    ];
+
+    const paymentResults = await this.expenseModel.aggregate(paymentPipeline).exec();
+    const paidAmount = paymentResults[0]?.totalPaidAmount || 0;
+    const approvedTotal = paymentResults[0]?.totalAmount || approvedAmount;
+    const unpaidAmount = Math.max(0, approvedTotal - paidAmount);
+    const paidCount = paymentResults[0]?.paidCount || 0;
+    const unpaidCount = paymentResults[0]?.unpaidCount || (approvedCount - paidCount);
+
     return {
       approvedAmount: Math.round(approvedAmount * 100) / 100,
       approvedCount,
+      paidAmount: Math.round(paidAmount * 100) / 100,
+      paidCount,
+      unpaidAmount: Math.round(unpaidAmount * 100) / 100,
+      unpaidCount,
       submittedAmount: Math.round(submittedAmount * 100) / 100,
       submittedCount,
       rejectedAmount: Math.round(rejectedAmount * 100) / 100,

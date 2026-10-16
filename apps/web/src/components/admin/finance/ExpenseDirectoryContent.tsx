@@ -67,6 +67,10 @@ export default function ExpenseDirectoryContent({ portalRole }: ExpenseDirectory
   const [stats, setStats] = useState<ExpenseSummaryStats>({
     approvedAmount: 0,
     approvedCount: 0,
+    paidAmount: 0,
+    paidCount: 0,
+    unpaidAmount: 0,
+    unpaidCount: 0,
     submittedAmount: 0,
     submittedCount: 0,
     rejectedAmount: 0,
@@ -482,8 +486,31 @@ export default function ExpenseDirectoryContent({ portalRole }: ExpenseDirectory
         </div>
       </div>
 
-      {/* KPI Cards Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
+      {/* Scoped Grid Styles for Clean 3x2 Layout */}
+      <style
+        dangerouslySetInnerHTML={{
+          __html: `
+            .expense-kpi-grid {
+              display: grid;
+              grid-template-columns: repeat(3, minmax(0, 1fr));
+              gap: 1.15rem;
+            }
+            @media (max-width: 1024px) {
+              .expense-kpi-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+              }
+            }
+            @media (max-width: 640px) {
+              .expense-kpi-grid {
+                grid-template-columns: 1fr;
+              }
+            }
+          `,
+        }}
+      />
+
+      {/* KPI Cards Grid - Balanced 3x2 Layout */}
+      <div className="expense-kpi-grid">
         <StatCard
           title="Total Incurred (Approved)"
           value={formatINR(stats.approvedAmount)}
@@ -496,6 +523,36 @@ export default function ExpenseDirectoryContent({ portalRole }: ExpenseDirectory
         />
 
         <StatCard
+          title="Paid (Disbursed)"
+          value={formatINR(stats.paidAmount || 0)}
+          subtitle={`${stats.paidCount || 0} bills settled • Disbursed`}
+          accentColor="#10b981"
+          badge="Settled"
+          badgeType="success"
+          loading={loading}
+          icon={<span>💳</span>}
+        />
+
+        <StatCard
+          title="Unpaid / Left to Pay"
+          value={formatINR(
+            stats.unpaidAmount !== undefined
+              ? stats.unpaidAmount
+              : Math.max(0, stats.approvedAmount - (stats.paidAmount || 0))
+          )}
+          subtitle={`${
+            stats.unpaidCount !== undefined
+              ? stats.unpaidCount
+              : Math.max(0, stats.approvedCount - (stats.paidCount || 0))
+          } approved bills awaiting payment`}
+          accentColor="#f59e0b"
+          badge={(stats.unpaidAmount ?? Math.max(0, stats.approvedAmount - (stats.paidAmount || 0))) > 0 ? 'Pending' : 'Cleared'}
+          badgeType={(stats.unpaidAmount ?? Math.max(0, stats.approvedAmount - (stats.paidAmount || 0))) > 0 ? 'warning' : 'success'}
+          loading={loading}
+          icon={<span>⏳</span>}
+        />
+
+        <StatCard
           title="Pending Approval"
           value={formatINR(stats.submittedAmount)}
           subtitle={`${stats.submittedCount} claims in Super Admin queue`}
@@ -503,7 +560,7 @@ export default function ExpenseDirectoryContent({ portalRole }: ExpenseDirectory
           badge={stats.submittedCount > 0 ? 'Action Req' : 'Clear'}
           badgeType={stats.submittedCount > 0 ? 'warning' : 'success'}
           loading={loading}
-          icon={<span>⏳</span>}
+          icon={<span>⏱️</span>}
         />
 
         <StatCard

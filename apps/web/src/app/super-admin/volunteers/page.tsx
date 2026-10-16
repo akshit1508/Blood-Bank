@@ -27,10 +27,10 @@ const STATUS_BADGES: Record<
   VolunteerStatus,
   { bg: string; text: string; border: string; label: string }
 > = {
-  PENDING: { bg: '#451a03', text: '#fde68a', border: '#b45309', label: '⏳ PENDING REVIEW' },
-  APPROVED: { bg: '#064e3b', text: '#6ee7b7', border: '#059669', label: '✓ ACTIVE / APPROVED' },
-  REJECTED: { bg: '#450a0a', text: '#fca5a5', border: '#dc2626', label: '✕ REJECTED' },
-  INACTIVE: { bg: '#1e293b', text: '#94a3b8', border: '#334155', label: 'INACTIVE' },
+  PENDING: { bg: '#fef3c7', text: '#92400e', border: '#fde68a', label: '⏳ PENDING REVIEW' },
+  APPROVED: { bg: '#ecfdf5', text: '#065f46', border: '#a7f3d0', label: '✓ ACTIVE / APPROVED' },
+  REJECTED: { bg: '#fef2f2', text: '#991b1b', border: '#fecaca', label: '✕ REJECTED' },
+  INACTIVE: { bg: '#f1f5f9', text: '#475569', border: '#cbd5e1', label: 'INACTIVE' },
 };
 
 export default function SuperAdminVolunteersPage() {
@@ -137,28 +137,28 @@ export default function SuperAdminVolunteersPage() {
               style={{
                 fontSize: '1.65rem',
                 fontWeight: 800,
-                color: '#f8fafc',
+                color: '#0f172a',
                 letterSpacing: '-0.02em',
                 margin: 0,
               }}
             >
-              Volunteer Directory & Attendance Roster
+              Volunteer Directory &amp; Attendance Roster
             </h1>
             <span
               style={{
-                backgroundColor: '#1e293b',
-                color: '#38bdf8',
-                border: '1px solid #0284c7',
+                backgroundColor: '#fef3c7',
+                color: '#92400e',
+                border: '1px solid #fde68a',
                 padding: '0.2rem 0.6rem',
                 borderRadius: '9999px',
                 fontSize: '0.75rem',
                 fontWeight: 700,
               }}
             >
-              Super Admin View
+              👑 Super Admin View
             </span>
           </div>
-          <p style={{ color: '#94a3b8', fontSize: '0.875rem', margin: '0.35rem 0 0 0' }}>
+          <p style={{ color: '#64748b', fontSize: '0.875rem', margin: '0.35rem 0 0 0' }}>
             Comprehensive directory of all volunteers with verified contact information, active roles, and campaign attendance history.
           </p>
         </div>
@@ -169,17 +169,18 @@ export default function SuperAdminVolunteersPage() {
           onClick={loadData}
           disabled={loading}
           style={{
-            backgroundColor: '#1e293b',
-            color: '#cbd5e1',
-            border: '1px solid #334155',
+            backgroundColor: '#ffffff',
+            color: '#92400e',
+            border: '1px solid #fde68a',
             borderRadius: '8px',
             padding: '0.5rem 1rem',
             fontSize: '0.825rem',
-            fontWeight: 600,
+            fontWeight: 700,
             cursor: loading ? 'not-allowed' : 'pointer',
             display: 'flex',
             alignItems: 'center',
             gap: '0.5rem',
+            boxShadow: '0 1px 2px rgba(217, 119, 6, 0.05)',
             transition: 'all 0.15s ease',
           }}
           title="Refresh volunteer list"
@@ -200,43 +201,43 @@ export default function SuperAdminVolunteersPage() {
           marginBottom: '1.5rem',
         }}
       >
-        <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '10px', padding: '1rem' }}>
-          <span style={{ fontSize: '0.725rem', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+        <div style={{ backgroundColor: '#ffffff', border: '1px solid #fde68a', borderRadius: '12px', padding: '1.25rem', boxShadow: '0 1px 3px rgba(217, 119, 6, 0.05)' }}>
+          <span style={{ fontSize: '0.725rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
             Total Volunteers Registered
           </span>
-          <div style={{ fontSize: '1.75rem', fontWeight: 800, color: '#38bdf8', margin: '0.35rem 0 0.15rem 0' }}>
+          <div style={{ fontSize: '1.75rem', fontWeight: 800, color: '#0284c7', margin: '0.35rem 0 0.15rem 0' }}>
             {counts.total}
           </div>
           <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Platform wide registered volunteers</span>
         </div>
 
-        <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '10px', padding: '1rem' }}>
-          <span style={{ fontSize: '0.725rem', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+        <div style={{ backgroundColor: '#ffffff', border: '1px solid #fde68a', borderRadius: '12px', padding: '1.25rem', boxShadow: '0 1px 3px rgba(217, 119, 6, 0.05)' }}>
+          <span style={{ fontSize: '0.725rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
             Active / Approved Volunteers
           </span>
-          <div style={{ fontSize: '1.75rem', fontWeight: 800, color: '#34d399', margin: '0.35rem 0 0.15rem 0' }}>
+          <div style={{ fontSize: '1.75rem', fontWeight: 800, color: '#059669', margin: '0.35rem 0 0.15rem 0' }}>
             {counts.approved}
           </div>
           <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Ready for campaign deployment</span>
         </div>
 
-        <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '10px', padding: '1rem' }}>
-          <span style={{ fontSize: '0.725rem', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+        <div style={{ backgroundColor: '#ffffff', border: '1px solid #fde68a', borderRadius: '12px', padding: '1.25rem', boxShadow: '0 1px 3px rgba(217, 119, 6, 0.05)' }}>
+          <span style={{ fontSize: '0.725rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
             Pending Verification
           </span>
-          <div style={{ fontSize: '1.75rem', fontWeight: 800, color: counts.pending > 0 ? '#fbbf24' : '#f8fafc', margin: '0.35rem 0 0.15rem 0' }}>
+          <div style={{ fontSize: '1.75rem', fontWeight: 800, color: counts.pending > 0 ? '#d97706' : '#64748b', margin: '0.35rem 0 0.15rem 0' }}>
             {counts.pending}
           </div>
-          <span style={{ fontSize: '0.75rem', color: counts.pending > 0 ? '#fbbf24' : '#64748b' }}>
+          <span style={{ fontSize: '0.75rem', color: counts.pending > 0 ? '#d97706' : '#64748b' }}>
             {counts.pending > 0 ? 'Awaiting admin verification' : 'Zero pending reviews'}
           </span>
         </div>
 
-        <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '10px', padding: '1rem' }}>
-          <span style={{ fontSize: '0.725rem', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+        <div style={{ backgroundColor: '#ffffff', border: '1px solid #fde68a', borderRadius: '12px', padding: '1.25rem', boxShadow: '0 1px 3px rgba(217, 119, 6, 0.05)' }}>
+          <span style={{ fontSize: '0.725rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
             Total Campaigns Attended
           </span>
-          <div style={{ fontSize: '1.75rem', fontWeight: 800, color: '#a78bfa', margin: '0.35rem 0 0.15rem 0' }}>
+          <div style={{ fontSize: '1.75rem', fontWeight: 800, color: '#b45309', margin: '0.35rem 0 0.15rem 0' }}>
             {totalAttendedCount}
           </div>
           <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Cumulative campaign participations</span>
@@ -244,13 +245,15 @@ export default function SuperAdminVolunteersPage() {
       </div>
 
       {/* Filter and Search Bar */}
+      {/* Filter and Search Bar */}
       <div
         style={{
-          backgroundColor: '#0f172a',
-          border: '1px solid #1e293b',
-          borderRadius: '10px',
-          padding: '1rem',
-          marginBottom: '1rem',
+          backgroundColor: '#ffffff',
+          border: '1px solid #fde68a',
+          borderRadius: '12px',
+          padding: '1.25rem',
+          marginBottom: '1.25rem',
+          boxShadow: '0 1px 3px rgba(217, 119, 6, 0.05)',
         }}
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '1rem' }}>
@@ -260,9 +263,9 @@ export default function SuperAdminVolunteersPage() {
               type="button"
               onClick={() => setStatusFilter('ALL')}
               style={{
-                backgroundColor: statusFilter === 'ALL' ? '#38bdf8' : '#1e293b',
-                color: statusFilter === 'ALL' ? '#0f172a' : '#94a3b8',
-                border: 'none',
+                backgroundColor: statusFilter === 'ALL' ? '#d97706' : '#fef3c7',
+                color: statusFilter === 'ALL' ? '#ffffff' : '#92400e',
+                border: '1px solid #fde68a',
                 borderRadius: '6px',
                 padding: '0.45rem 0.85rem',
                 fontSize: '0.8rem',
@@ -277,9 +280,9 @@ export default function SuperAdminVolunteersPage() {
               type="button"
               onClick={() => setStatusFilter('APPROVED')}
               style={{
-                backgroundColor: statusFilter === 'APPROVED' ? '#059669' : '#1e293b',
-                color: statusFilter === 'APPROVED' ? '#ffffff' : '#94a3b8',
-                border: 'none',
+                backgroundColor: statusFilter === 'APPROVED' ? '#059669' : '#ecfdf5',
+                color: statusFilter === 'APPROVED' ? '#ffffff' : '#065f46',
+                border: '1px solid #a7f3d0',
                 borderRadius: '6px',
                 padding: '0.45rem 0.85rem',
                 fontSize: '0.8rem',
@@ -294,9 +297,9 @@ export default function SuperAdminVolunteersPage() {
               type="button"
               onClick={() => setStatusFilter('PENDING')}
               style={{
-                backgroundColor: statusFilter === 'PENDING' ? '#d97706' : '#1e293b',
-                color: statusFilter === 'PENDING' ? '#ffffff' : '#94a3b8',
-                border: 'none',
+                backgroundColor: statusFilter === 'PENDING' ? '#d97706' : '#fef3c7',
+                color: statusFilter === 'PENDING' ? '#ffffff' : '#92400e',
+                border: '1px solid #fde68a',
                 borderRadius: '6px',
                 padding: '0.45rem 0.85rem',
                 fontSize: '0.8rem',
@@ -311,9 +314,9 @@ export default function SuperAdminVolunteersPage() {
               type="button"
               onClick={() => setStatusFilter('REJECTED')}
               style={{
-                backgroundColor: statusFilter === 'REJECTED' ? '#dc2626' : '#1e293b',
-                color: statusFilter === 'REJECTED' ? '#ffffff' : '#94a3b8',
-                border: 'none',
+                backgroundColor: statusFilter === 'REJECTED' ? '#dc2626' : '#fee2e2',
+                color: statusFilter === 'REJECTED' ? '#ffffff' : '#991b1b',
+                border: '1px solid #fca5a5',
                 borderRadius: '6px',
                 padding: '0.45rem 0.85rem',
                 fontSize: '0.8rem',
@@ -341,11 +344,11 @@ export default function SuperAdminVolunteersPage() {
               onChange={(e) => setSearchTerm(e.target.value)}
               style={{
                 width: '100%',
-                backgroundColor: '#1e293b',
-                border: '1px solid #334155',
+                backgroundColor: '#ffffff',
+                border: '1px solid #cbd5e1',
                 borderRadius: '6px',
                 padding: '0.5rem 0.75rem',
-                color: '#f8fafc',
+                color: '#0f172a',
                 fontSize: '0.8rem',
                 outline: 'none',
                 boxSizing: 'border-box',
@@ -361,11 +364,11 @@ export default function SuperAdminVolunteersPage() {
               onChange={(e) => setCityFilter(e.target.value)}
               style={{
                 width: '100%',
-                backgroundColor: '#1e293b',
-                border: '1px solid #334155',
+                backgroundColor: '#ffffff',
+                border: '1px solid #cbd5e1',
                 borderRadius: '6px',
                 padding: '0.5rem 0.75rem',
-                color: '#f8fafc',
+                color: '#0f172a',
                 fontSize: '0.8rem',
                 outline: 'none',
                 boxSizing: 'border-box',
@@ -379,11 +382,11 @@ export default function SuperAdminVolunteersPage() {
               onChange={(e) => setBloodGroupFilter(e.target.value)}
               style={{
                 width: '100%',
-                backgroundColor: '#1e293b',
-                border: '1px solid #334155',
+                backgroundColor: '#ffffff',
+                border: '1px solid #cbd5e1',
                 borderRadius: '6px',
                 padding: '0.5rem 0.75rem',
-                color: '#f8fafc',
+                color: '#0f172a',
                 fontSize: '0.8rem',
                 outline: 'none',
                 cursor: 'pointer',
@@ -405,11 +408,11 @@ export default function SuperAdminVolunteersPage() {
               onChange={(e) => setRoleFilter(e.target.value)}
               style={{
                 width: '100%',
-                backgroundColor: '#1e293b',
-                border: '1px solid #334155',
+                backgroundColor: '#ffffff',
+                border: '1px solid #cbd5e1',
                 borderRadius: '6px',
                 padding: '0.5rem 0.75rem',
-                color: '#f8fafc',
+                color: '#0f172a',
                 fontSize: '0.8rem',
                 outline: 'none',
                 cursor: 'pointer',
@@ -447,36 +450,37 @@ export default function SuperAdminVolunteersPage() {
       {/* Main Volunteers Table */}
       <div
         style={{
-          backgroundColor: '#0f172a',
-          border: '1px solid #1e293b',
-          borderRadius: '10px',
+          backgroundColor: '#ffffff',
+          border: '1px solid #fde68a',
+          borderRadius: '12px',
           overflow: 'hidden',
+          boxShadow: '0 1px 3px rgba(217, 119, 6, 0.05)',
         }}
       >
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem', textAlign: 'left' }}>
             <thead>
-              <tr style={{ borderBottom: '1px solid #1e293b', backgroundColor: '#131e33', color: '#94a3b8' }}>
-                <th style={{ padding: '0.75rem 1rem' }}>Code & Name</th>
-                <th style={{ padding: '0.75rem 1rem' }}>Contact</th>
-                <th style={{ padding: '0.75rem 1rem' }}>Location & Blood</th>
-                <th style={{ padding: '0.75rem 1rem' }}>Role & Availability</th>
-                <th style={{ padding: '0.75rem 1rem' }}>Status</th>
-                <th style={{ padding: '0.75rem 1rem' }}>Campaign Attendance</th>
-                <th style={{ padding: '0.75rem 1rem', textAlign: 'right' }}>Actions</th>
+              <tr style={{ borderBottom: '1px solid #fde68a', backgroundColor: '#fef3c7', color: '#92400e' }}>
+                <th style={{ padding: '0.85rem 1rem', fontWeight: 700 }}>Code &amp; Name</th>
+                <th style={{ padding: '0.85rem 1rem', fontWeight: 700 }}>Contact</th>
+                <th style={{ padding: '0.85rem 1rem', fontWeight: 700 }}>Location &amp; Blood</th>
+                <th style={{ padding: '0.85rem 1rem', fontWeight: 700 }}>Role &amp; Availability</th>
+                <th style={{ padding: '0.85rem 1rem', fontWeight: 700 }}>Status</th>
+                <th style={{ padding: '0.85rem 1rem', fontWeight: 700 }}>Campaign Attendance</th>
+                <th style={{ padding: '0.85rem 1rem', fontWeight: 700, textAlign: 'right' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={7} style={{ padding: '3rem', textAlign: 'center', color: '#94a3b8' }}>
+                  <td colSpan={7} style={{ padding: '3rem', textAlign: 'center', color: '#92400e' }}>
                     <div
                       style={{
                         width: '32px',
                         height: '32px',
                         borderRadius: '50%',
-                        border: '3px solid #334155',
-                        borderTopColor: '#38bdf8',
+                        border: '3px solid #fde68a',
+                        borderTopColor: '#d97706',
                         animation: 'spin 0.8s linear infinite',
                         margin: '0 auto 0.75rem auto',
                       }}
@@ -498,43 +502,43 @@ export default function SuperAdminVolunteersPage() {
                     <tr
                       key={v._id}
                       style={{
-                        borderBottom: '1px solid #1e293b',
+                        borderBottom: '1px solid #f1f5f9',
                         transition: 'background-color 0.15s ease',
                       }}
-                      onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#1e293b')}
+                      onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#fffbeb')}
                       onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
                     >
                       {/* Code & Name (Clickable) */}
                       <td
-                        style={{ padding: '0.75rem 1rem', cursor: 'pointer' }}
+                        style={{ padding: '0.85rem 1rem', cursor: 'pointer' }}
                         onClick={() => handleOpenVolunteerDetail(v._id)}
                         title="Click to view complete details and campaign attendance"
                       >
-                        <div style={{ fontWeight: 700, color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                          <span style={{ textDecoration: 'underline', textDecorationColor: '#38bdf8' }}>{v.fullName}</span>
-                          <span style={{ fontSize: '0.7rem', color: '#38bdf8' }}>↗</span>
+                        <div style={{ fontWeight: 700, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                          <span style={{ textDecoration: 'underline', textDecorationColor: '#d97706' }}>{v.fullName}</span>
+                          <span style={{ fontSize: '0.7rem', color: '#d97706' }}>↗</span>
                         </div>
-                        <div style={{ fontFamily: 'monospace', fontSize: '0.75rem', color: '#38bdf8' }}>
+                        <div style={{ fontFamily: 'monospace', fontSize: '0.75rem', color: '#b45309', fontWeight: 600 }}>
                           {v.volunteerCode}
                         </div>
                       </td>
 
                       {/* Contact */}
-                      <td style={{ padding: '0.75rem 1rem' }}>
-                        <div style={{ color: '#e2e8f0' }}>{v.phone}</div>
+                      <td style={{ padding: '0.85rem 1rem' }}>
+                        <div style={{ color: '#0f172a', fontWeight: 600 }}>{v.phone}</div>
                         {v.email && <div style={{ fontSize: '0.725rem', color: '#64748b' }}>{v.email}</div>}
                       </td>
 
                       {/* Location & Blood */}
-                      <td style={{ padding: '0.75rem 1rem' }}>
-                        <div style={{ color: '#e2e8f0' }}>{v.city}</div>
+                      <td style={{ padding: '0.85rem 1rem' }}>
+                        <div style={{ color: '#334155', fontWeight: 500 }}>{v.city}</div>
                         {v.bloodGroup && (
                           <span
                             style={{
                               display: 'inline-block',
-                              backgroundColor: '#881337',
-                              color: '#fecdd3',
-                              border: '1px solid #be123c',
+                              backgroundColor: '#fee2e2',
+                              color: '#991b1b',
+                              border: '1px solid #fca5a5',
                               borderRadius: '4px',
                               padding: '0.1rem 0.4rem',
                               fontSize: '0.7rem',
@@ -548,8 +552,8 @@ export default function SuperAdminVolunteersPage() {
                       </td>
 
                       {/* Role & Availability */}
-                      <td style={{ padding: '0.75rem 1rem' }}>
-                        <div style={{ color: '#cbd5e1', fontWeight: 600, fontSize: '0.8rem' }}>
+                      <td style={{ padding: '0.85rem 1rem' }}>
+                        <div style={{ color: '#334155', fontWeight: 600, fontSize: '0.8rem' }}>
                           {v.preferredRole ? VOLUNTEER_ROLE_LABELS[v.preferredRole] || v.preferredRole : 'General Volunteer'}
                         </div>
                         <div style={{ fontSize: '0.725rem', color: '#64748b', marginTop: '0.15rem' }}>
@@ -558,7 +562,7 @@ export default function SuperAdminVolunteersPage() {
                       </td>
 
                       {/* Status */}
-                      <td style={{ padding: '0.75rem 1rem' }}>
+                      <td style={{ padding: '0.85rem 1rem' }}>
                         <span
                           style={{
                             display: 'inline-block',
@@ -577,13 +581,13 @@ export default function SuperAdminVolunteersPage() {
                       </td>
 
                       {/* Campaign Attendance Metrics */}
-                      <td style={{ padding: '0.75rem 1rem' }}>
+                      <td style={{ padding: '0.85rem 1rem' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
                           <span
                             style={{
-                              backgroundColor: v.attendedCampaignsCount > 0 ? '#064e3b' : '#1e293b',
-                              color: v.attendedCampaignsCount > 0 ? '#6ee7b7' : '#94a3b8',
-                              border: `1px solid ${v.attendedCampaignsCount > 0 ? '#059669' : '#334155'}`,
+                              backgroundColor: v.attendedCampaignsCount > 0 ? '#ecfdf5' : '#f8fafc',
+                              color: v.attendedCampaignsCount > 0 ? '#065f46' : '#64748b',
+                              border: `1px solid ${v.attendedCampaignsCount > 0 ? '#a7f3d0' : '#e2e8f0'}`,
                               borderRadius: '6px',
                               padding: '0.15rem 0.5rem',
                               fontSize: '0.75rem',
@@ -599,14 +603,14 @@ export default function SuperAdminVolunteersPage() {
                       </td>
 
                       {/* Action: View Details */}
-                      <td style={{ padding: '0.75rem 1rem', textAlign: 'right' }}>
+                      <td style={{ padding: '0.85rem 1rem', textAlign: 'right' }}>
                         <button
                           type="button"
                           onClick={() => handleOpenVolunteerDetail(v._id)}
                           style={{
-                            backgroundColor: '#1e293b',
-                            border: '1px solid #38bdf8',
-                            color: '#38bdf8',
+                            backgroundColor: '#fef3c7',
+                            border: '1px solid #fde68a',
+                            color: '#92400e',
                             borderRadius: '6px',
                             padding: '0.35rem 0.75rem',
                             fontSize: '0.775rem',
@@ -618,12 +622,12 @@ export default function SuperAdminVolunteersPage() {
                             transition: 'all 0.15s ease',
                           }}
                           onMouseEnter={(e) => {
-                            e.currentTarget.style.backgroundColor = '#0284c7';
-                            e.currentTarget.style.color = '#ffffff';
+                            e.currentTarget.style.backgroundColor = '#fde68a';
+                            e.currentTarget.style.color = '#78350f';
                           }}
                           onMouseLeave={(e) => {
-                            e.currentTarget.style.backgroundColor = '#1e293b';
-                            e.currentTarget.style.color = '#38bdf8';
+                            e.currentTarget.style.backgroundColor = '#fef3c7';
+                            e.currentTarget.style.color = '#92400e';
                           }}
                           title="Open volunteer profile & campaign participation history"
                         >
@@ -649,7 +653,8 @@ export default function SuperAdminVolunteersPage() {
             left: 0,
             right: 0,
             bottom: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+            backgroundColor: 'rgba(15, 23, 42, 0.45)',
+            backdropFilter: 'blur(3px)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -664,16 +669,16 @@ export default function SuperAdminVolunteersPage() {
         >
           <div
             style={{
-              backgroundColor: '#0f172a',
-              border: '1px solid #334155',
+              backgroundColor: '#ffffff',
+              border: '1px solid #fde68a',
               borderRadius: '14px',
               maxWidth: '820px',
               width: '100%',
               maxHeight: '90vh',
               overflowY: 'auto',
               padding: '1.75rem',
-              color: '#f8fafc',
-              boxShadow: '0 20px 45px rgba(0, 0, 0, 0.6)',
+              color: '#0f172a',
+              boxShadow: '0 20px 45px rgba(217, 119, 6, 0.15)',
             }}
           >
             {/* Modal Header */}
@@ -682,22 +687,22 @@ export default function SuperAdminVolunteersPage() {
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'flex-start',
-                borderBottom: '1px solid #1e293b',
+                borderBottom: '1px solid #fde68a',
                 paddingBottom: '1rem',
                 marginBottom: '1.25rem',
               }}
             >
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-                  <h2 style={{ fontSize: '1.4rem', fontWeight: 800, margin: 0, color: '#f8fafc' }}>
+                  <h2 style={{ fontSize: '1.4rem', fontWeight: 800, margin: 0, color: '#0f172a' }}>
                     {selectedVolunteerDetail.fullName}
                   </h2>
                   <span
                     style={{
                       fontFamily: 'monospace',
-                      backgroundColor: '#1e293b',
-                      color: '#38bdf8',
-                      border: '1px solid #0284c7',
+                      backgroundColor: '#fef3c7',
+                      color: '#92400e',
+                      border: '1px solid #fde68a',
                       padding: '0.2rem 0.5rem',
                       borderRadius: '4px',
                       fontSize: '0.75rem',
@@ -708,9 +713,9 @@ export default function SuperAdminVolunteersPage() {
                   </span>
                   <span
                     style={{
-                      backgroundColor: STATUS_BADGES[selectedVolunteerDetail.status]?.bg || '#1e293b',
-                      color: STATUS_BADGES[selectedVolunteerDetail.status]?.text || '#f8fafc',
-                      border: `1px solid ${STATUS_BADGES[selectedVolunteerDetail.status]?.border || '#334155'}`,
+                      backgroundColor: STATUS_BADGES[selectedVolunteerDetail.status]?.bg || '#fef3c7',
+                      color: STATUS_BADGES[selectedVolunteerDetail.status]?.text || '#92400e',
+                      border: `1px solid ${STATUS_BADGES[selectedVolunteerDetail.status]?.border || '#fde68a'}`,
                       borderRadius: '9999px',
                       padding: '0.2rem 0.6rem',
                       fontSize: '0.7rem',
@@ -720,9 +725,9 @@ export default function SuperAdminVolunteersPage() {
                     {STATUS_BADGES[selectedVolunteerDetail.status]?.label || selectedVolunteerDetail.status}
                   </span>
                 </div>
-                <p style={{ color: '#94a3b8', fontSize: '0.825rem', margin: '0.35rem 0 0 0' }}>
+                <p style={{ color: '#64748b', fontSize: '0.825rem', margin: '0.35rem 0 0 0' }}>
                   Registered via{' '}
-                  <strong style={{ color: '#cbd5e1' }}>{selectedVolunteerDetail.registeredVia}</strong> on{' '}
+                  <strong style={{ color: '#0f172a' }}>{selectedVolunteerDetail.registeredVia}</strong> on{' '}
                   {new Date(selectedVolunteerDetail.createdAt).toLocaleDateString('en-IN', {
                     day: 'numeric',
                     month: 'short',
@@ -737,7 +742,7 @@ export default function SuperAdminVolunteersPage() {
                 style={{
                   backgroundColor: 'transparent',
                   border: 'none',
-                  color: '#94a3b8',
+                  color: '#64748b',
                   fontSize: '1.35rem',
                   cursor: 'pointer',
                   padding: '0.25rem',
@@ -760,53 +765,53 @@ export default function SuperAdminVolunteersPage() {
             >
               <div
                 style={{
-                  backgroundColor: '#064e3b',
-                  border: '1px solid #059669',
+                  backgroundColor: '#ecfdf5',
+                  border: '1px solid #a7f3d0',
                   borderRadius: '8px',
                   padding: '0.85rem',
                   textAlign: 'center',
                 }}
               >
-                <div style={{ fontSize: '0.7rem', fontWeight: 700, color: '#a7f3d0', textTransform: 'uppercase' }}>
+                <div style={{ fontSize: '0.7rem', fontWeight: 700, color: '#065f46', textTransform: 'uppercase' }}>
                   Campaigns Attended
                 </div>
-                <div style={{ fontSize: '1.65rem', fontWeight: 800, color: '#34d399', margin: '0.2rem 0' }}>
+                <div style={{ fontSize: '1.65rem', fontWeight: 800, color: '#059669', margin: '0.2rem 0' }}>
                   {selectedVolunteerDetail.attendedCampaignsCount || 0}
                 </div>
-                <div style={{ fontSize: '0.7rem', color: '#6ee7b7' }}>✓ Verified present on ground</div>
+                <div style={{ fontSize: '0.7rem', color: '#047857' }}>✓ Verified present on ground</div>
               </div>
 
               <div
                 style={{
-                  backgroundColor: '#1e293b',
-                  border: '1px solid #334155',
+                  backgroundColor: '#fef3c7',
+                  border: '1px solid #fde68a',
                   borderRadius: '8px',
                   padding: '0.85rem',
                   textAlign: 'center',
                 }}
               >
-                <div style={{ fontSize: '0.7rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase' }}>
+                <div style={{ fontSize: '0.7rem', fontWeight: 700, color: '#92400e', textTransform: 'uppercase' }}>
                   Campaigns Assigned
                 </div>
-                <div style={{ fontSize: '1.65rem', fontWeight: 800, color: '#38bdf8', margin: '0.2rem 0' }}>
+                <div style={{ fontSize: '1.65rem', fontWeight: 800, color: '#d97706', margin: '0.2rem 0' }}>
                   {selectedVolunteerDetail.assignedCampaignsCount || 0}
                 </div>
-                <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>Total roster deployments</div>
+                <div style={{ fontSize: '0.7rem', color: '#b45309' }}>Total roster deployments</div>
               </div>
 
               <div
                 style={{
-                  backgroundColor: '#1e1b4b',
-                  border: '1px solid #6366f1',
+                  backgroundColor: '#eff6ff',
+                  border: '1px solid #bfdbfe',
                   borderRadius: '8px',
                   padding: '0.85rem',
                   textAlign: 'center',
                 }}
               >
-                <div style={{ fontSize: '0.7rem', fontWeight: 700, color: '#c7d2fe', textTransform: 'uppercase' }}>
+                <div style={{ fontSize: '0.7rem', fontWeight: 700, color: '#1e40af', textTransform: 'uppercase' }}>
                   Attendance Reliability
                 </div>
-                <div style={{ fontSize: '1.65rem', fontWeight: 800, color: '#818cf8', margin: '0.2rem 0' }}>
+                <div style={{ fontSize: '1.65rem', fontWeight: 800, color: '#2563eb', margin: '0.2rem 0' }}>
                   {selectedVolunteerDetail.assignedCampaignsCount > 0
                     ? `${Math.round(
                         ((selectedVolunteerDetail.attendedCampaignsCount || 0) /
@@ -815,48 +820,48 @@ export default function SuperAdminVolunteersPage() {
                       )}%`
                     : '100%'}
                 </div>
-                <div style={{ fontSize: '0.7rem', color: '#a5b4fc' }}>Completion track record</div>
+                <div style={{ fontSize: '0.7rem', color: '#1d4ed8' }}>Completion track record</div>
               </div>
             </div>
 
             {/* Volunteer Personal & Contact Details Grid */}
             <div
               style={{
-                backgroundColor: '#131e33',
-                border: '1px solid #1e293b',
+                backgroundColor: '#fffbeb',
+                border: '1px solid #fde68a',
                 borderRadius: '8px',
                 padding: '1rem',
                 marginBottom: '1.25rem',
               }}
             >
-              <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#38bdf8', textTransform: 'uppercase', marginBottom: '0.75rem' }}>
-                Profile & Contact Information
+              <div style={{ fontSize: '0.8rem', fontWeight: 800, color: '#92400e', textTransform: 'uppercase', marginBottom: '0.75rem' }}>
+                Profile &amp; Contact Information
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.85rem', fontSize: '0.825rem' }}>
                 <div>
                   <span style={{ color: '#64748b', display: 'block', fontSize: '0.725rem' }}>Phone Number</span>
-                  <div style={{ color: '#f8fafc', fontWeight: 600 }}>{selectedVolunteerDetail.phone}</div>
+                  <div style={{ color: '#0f172a', fontWeight: 600 }}>{selectedVolunteerDetail.phone}</div>
                 </div>
 
                 <div>
                   <span style={{ color: '#64748b', display: 'block', fontSize: '0.725rem' }}>Email Address</span>
-                  <div style={{ color: '#f8fafc', fontWeight: 600 }}>{selectedVolunteerDetail.email || '—'}</div>
+                  <div style={{ color: '#0f172a', fontWeight: 600 }}>{selectedVolunteerDetail.email || '—'}</div>
                 </div>
 
                 <div>
                   <span style={{ color: '#64748b', display: 'block', fontSize: '0.725rem' }}>Blood Group</span>
-                  <div style={{ color: '#f8fafc', fontWeight: 600 }}>{selectedVolunteerDetail.bloodGroup || 'Not specified'}</div>
+                  <div style={{ color: '#0f172a', fontWeight: 600 }}>{selectedVolunteerDetail.bloodGroup || 'Not specified'}</div>
                 </div>
 
                 <div>
                   <span style={{ color: '#64748b', display: 'block', fontSize: '0.725rem' }}>City / Location</span>
-                  <div style={{ color: '#f8fafc', fontWeight: 600 }}>{selectedVolunteerDetail.city}</div>
+                  <div style={{ color: '#0f172a', fontWeight: 600 }}>{selectedVolunteerDetail.city}</div>
                 </div>
 
                 <div>
                   <span style={{ color: '#64748b', display: 'block', fontSize: '0.725rem' }}>Preferred Role</span>
-                  <div style={{ color: '#f8fafc', fontWeight: 600 }}>
+                  <div style={{ color: '#0f172a', fontWeight: 600 }}>
                     {selectedVolunteerDetail.preferredRole
                       ? VOLUNTEER_ROLE_LABELS[selectedVolunteerDetail.preferredRole] || selectedVolunteerDetail.preferredRole
                       : 'General Support'}
@@ -865,24 +870,24 @@ export default function SuperAdminVolunteersPage() {
 
                 <div>
                   <span style={{ color: '#64748b', display: 'block', fontSize: '0.725rem' }}>Availability</span>
-                  <div style={{ color: '#f8fafc', fontWeight: 600 }}>{selectedVolunteerDetail.availability || 'Weekends'}</div>
+                  <div style={{ color: '#0f172a', fontWeight: 600 }}>{selectedVolunteerDetail.availability || 'Weekends'}</div>
                 </div>
 
                 <div>
                   <span style={{ color: '#64748b', display: 'block', fontSize: '0.725rem' }}>Occupation</span>
-                  <div style={{ color: '#f8fafc', fontWeight: 600 }}>{selectedVolunteerDetail.occupation || '—'}</div>
+                  <div style={{ color: '#0f172a', fontWeight: 600 }}>{selectedVolunteerDetail.occupation || '—'}</div>
                 </div>
 
                 <div>
                   <span style={{ color: '#64748b', display: 'block', fontSize: '0.725rem' }}>Skills / Interests</span>
-                  <div style={{ color: '#f8fafc', fontWeight: 600 }}>{selectedVolunteerDetail.skills || '—'}</div>
+                  <div style={{ color: '#0f172a', fontWeight: 600 }}>{selectedVolunteerDetail.skills || '—'}</div>
                 </div>
               </div>
 
               {selectedVolunteerDetail.address && (
-                <div style={{ marginTop: '0.75rem', borderTop: '1px solid #1e293b', paddingTop: '0.5rem', fontSize: '0.8rem' }}>
+                <div style={{ marginTop: '0.75rem', borderTop: '1px solid #fde68a', paddingTop: '0.5rem', fontSize: '0.8rem' }}>
                   <span style={{ color: '#64748b', fontSize: '0.725rem' }}>Full Address: </span>
-                  <span style={{ color: '#cbd5e1' }}>{selectedVolunteerDetail.address}</span>
+                  <span style={{ color: '#334155' }}>{selectedVolunteerDetail.address}</span>
                 </div>
               )}
 
@@ -913,10 +918,10 @@ export default function SuperAdminVolunteersPage() {
             {/* Campaign Participation History Section */}
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-                <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: '#f8fafc', margin: 0 }}>
-                  Campaign Participation & Attendance History ({selectedVolunteerDetail.participations?.length || 0})
+                <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>
+                  Campaign Participation &amp; Attendance History ({selectedVolunteerDetail.participations?.length || 0})
                 </h3>
-                <span style={{ fontSize: '0.725rem', color: '#94a3b8' }}>
+                <span style={{ fontSize: '0.725rem', color: '#64748b' }}>
                   Chronological record of all assigned blood donation drives
                 </span>
               </div>
@@ -924,23 +929,24 @@ export default function SuperAdminVolunteersPage() {
               {!selectedVolunteerDetail.participations || selectedVolunteerDetail.participations.length === 0 ? (
                 <div
                   style={{
-                    backgroundColor: '#1e293b',
+                    backgroundColor: '#fefce8',
+                    border: '1px solid #fde68a',
                     borderRadius: '8px',
                     padding: '2rem',
                     textAlign: 'center',
-                    color: '#64748b',
+                    color: '#92400e',
                     fontSize: '0.825rem',
                   }}
                 >
                   No campaigns have been assigned to this volunteer yet.
                 </div>
               ) : (
-                <div style={{ border: '1px solid #1e293b', borderRadius: '8px', overflow: 'hidden' }}>
+                <div style={{ border: '1px solid #fde68a', borderRadius: '8px', overflow: 'hidden' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem', textAlign: 'left' }}>
                     <thead>
-                      <tr style={{ backgroundColor: '#131e33', color: '#94a3b8', borderBottom: '1px solid #1e293b' }}>
+                      <tr style={{ backgroundColor: '#fef3c7', color: '#92400e', borderBottom: '1px solid #fde68a' }}>
                         <th style={{ padding: '0.65rem 0.85rem' }}>Campaign</th>
-                        <th style={{ padding: '0.65rem 0.85rem' }}>Venue & City</th>
+                        <th style={{ padding: '0.65rem 0.85rem' }}>Venue &amp; City</th>
                         <th style={{ padding: '0.65rem 0.85rem' }}>Assigned Role</th>
                         <th style={{ padding: '0.65rem 0.85rem' }}>Dates</th>
                         <th style={{ padding: '0.65rem 0.85rem' }}>Attendance Status</th>
@@ -957,24 +963,24 @@ export default function SuperAdminVolunteersPage() {
                         const isAbsent = part.attendanceStatus === 'ABSENT';
 
                         return (
-                          <tr key={part._id} style={{ borderBottom: '1px solid #1e293b' }}>
+                          <tr key={part._id} style={{ borderBottom: '1px solid #f1f5f9' }}>
                             <td style={{ padding: '0.65rem 0.85rem' }}>
-                              <div style={{ fontWeight: 700, color: '#f8fafc' }}>{campName}</div>
-                              <div style={{ fontFamily: 'monospace', fontSize: '0.7rem', color: '#38bdf8' }}>
+                              <div style={{ fontWeight: 700, color: '#0f172a' }}>{campName}</div>
+                              <div style={{ fontFamily: 'monospace', fontSize: '0.7rem', color: '#b45309' }}>
                                 {campCode}
                               </div>
                             </td>
 
-                            <td style={{ padding: '0.65rem 0.85rem', color: '#cbd5e1' }}>
+                            <td style={{ padding: '0.65rem 0.85rem', color: '#334155' }}>
                               <div>{venue}</div>
                               <div style={{ fontSize: '0.7rem', color: '#64748b' }}>{city}</div>
                             </td>
 
-                            <td style={{ padding: '0.65rem 0.85rem', color: '#cbd5e1' }}>
+                            <td style={{ padding: '0.65rem 0.85rem', color: '#334155' }}>
                               {part.role ? VOLUNTEER_ROLE_LABELS[part.role] || part.role : 'Volunteer Support'}
                             </td>
 
-                            <td style={{ padding: '0.65rem 0.85rem', color: '#94a3b8', fontSize: '0.75rem' }}>
+                            <td style={{ padding: '0.65rem 0.85rem', color: '#64748b', fontSize: '0.75rem' }}>
                               {camp?.startDate
                                 ? new Date(camp.startDate).toLocaleDateString('en-IN', {
                                     day: 'numeric',
@@ -988,9 +994,9 @@ export default function SuperAdminVolunteersPage() {
                               <span
                                 style={{
                                   display: 'inline-block',
-                                  backgroundColor: isPresent ? '#064e3b' : isAbsent ? '#450a0a' : '#451a03',
-                                  color: isPresent ? '#6ee7b7' : isAbsent ? '#fca5a5' : '#fde68a',
-                                  border: `1px solid ${isPresent ? '#059669' : isAbsent ? '#dc2626' : '#b45309'}`,
+                                  backgroundColor: isPresent ? '#ecfdf5' : isAbsent ? '#fee2e2' : '#fef3c7',
+                                  color: isPresent ? '#065f46' : isAbsent ? '#991b1b' : '#92400e',
+                                  border: `1px solid ${isPresent ? '#a7f3d0' : isAbsent ? '#fca5a5' : '#fde68a'}`,
                                   borderRadius: '9999px',
                                   padding: '0.15rem 0.55rem',
                                   fontSize: '0.7rem',
@@ -1019,19 +1025,20 @@ export default function SuperAdminVolunteersPage() {
             </div>
 
             {/* Modal Actions */}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1.5rem', borderTop: '1px solid #1e293b', paddingTop: '1rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1.5rem', borderTop: '1px solid #fde68a', paddingTop: '1rem' }}>
               <button
                 type="button"
                 onClick={() => setSelectedVolunteerDetail(null)}
                 style={{
-                  backgroundColor: '#1e293b',
-                  border: '1px solid #334155',
-                  color: '#f8fafc',
+                  backgroundColor: '#fef3c7',
+                  border: '1px solid #fde68a',
+                  color: '#92400e',
                   borderRadius: '6px',
                   padding: '0.55rem 1.35rem',
                   fontSize: '0.85rem',
-                  fontWeight: 600,
+                  fontWeight: 700,
                   cursor: 'pointer',
+                  transition: 'all 0.15s ease',
                 }}
               >
                 Close

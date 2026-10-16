@@ -1,6 +1,8 @@
 import {
   Controller,
   Get,
+  Post,
+  Delete,
   Query,
   Res,
   HttpStatus,
@@ -82,5 +84,30 @@ export class FinancialControlCenterController {
     res.setHeader('Content-Type', 'text/csv');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.status(HttpStatus.OK).send(csv);
+  }
+
+  /**
+   * Super Admin operation: Purge all financial transactional data for clean testing.
+   * DELETE /api/financial-control-center/purge-all-data
+   * POST /api/financial-control-center/purge-all-data
+   */
+  @Delete('purge-all-data')
+  async purgeAllData() {
+    const data = await this.controlCenterService.purgeAllFinancialData();
+    return {
+      statusCode: HttpStatus.OK,
+      message: 'All finance data has been successfully purged for fresh testing.',
+      data,
+    };
+  }
+
+  @Post('purge-all-data')
+  async purgeAllDataPost() {
+    const data = await this.controlCenterService.purgeAllFinancialData();
+    return {
+      statusCode: HttpStatus.OK,
+      message: 'All finance data has been successfully purged for fresh testing.',
+      data,
+    };
   }
 }

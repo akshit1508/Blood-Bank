@@ -293,3 +293,32 @@ export async function downloadFinancialCsv(params: QueryLedgerParams): Promise<v
   window.URL.revokeObjectURL(url);
   document.body.removeChild(a);
 }
+
+/**
+ * Super Admin: Purges all financial transactional records for fresh testing.
+ */
+export async function purgeAllFinancialData(): Promise<{
+  expenses: number;
+  payments: number;
+  bloodIssueInvoices: number;
+  bloodIssueCollections: number;
+  monthlyPayrollRuns: number;
+  salarySlips: number;
+  salaryDisbursements: number;
+}> {
+  const res = await fetch(`${API_BASE_URL}/financial-control-center/purge-all-data`, {
+    method: 'DELETE',
+    headers: {
+      ...getAuthHeaders(),
+      Accept: 'application/json',
+    },
+  });
+
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(json.message || `Failed to purge financial data: HTTP ${res.status}`);
+  }
+
+  return json.data;
+}
+
