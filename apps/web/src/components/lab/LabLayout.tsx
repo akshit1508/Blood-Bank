@@ -104,7 +104,12 @@ export default function LabLayout({ children }: { children: React.ReactNode }) {
                 display: none !important;
               }
               .lab-main-container {
-                padding: 1rem 0.75rem !important;
+                padding: 1.25rem 1rem !important;
+              }
+            }
+            @media (max-width: 640px) {
+              .lab-main-container {
+                padding: 0.75rem 0.5rem !important;
               }
             }
           `,

@@ -538,8 +538,53 @@ export default function AdminTestingPage() {
         fontFamily: 'system-ui, -apple-system, sans-serif',
       }}
     >
+      {/* Scoped Responsive Styles */}
+      <style
+        dangerouslySetInnerHTML={{
+          __html: `
+            @media (max-width: 1080px) {
+              .admin-split-grid {
+                grid-template-columns: 1fr !important;
+              }
+            }
+            @media (max-width: 768px) {
+              .admin-testing-header {
+                flex-direction: column !important;
+                align-items: stretch !important;
+                gap: 1rem !important;
+              }
+              .admin-testing-header-btns {
+                width: 100% !important;
+              }
+              .admin-testing-header-btns > button {
+                flex: 1 !important;
+                justify-content: center !important;
+              }
+              .admin-filter-bar {
+                flex-direction: column !important;
+                align-items: stretch !important;
+                gap: 0.75rem !important;
+              }
+              .admin-filter-bar > div {
+                width: 100% !important;
+              }
+              .admin-filter-controls {
+                width: 100% !important;
+                flex-direction: column !important;
+                align-items: stretch !important;
+                gap: 0.75rem !important;
+              }
+              .admin-filter-controls select {
+                width: 100% !important;
+              }
+            }
+          `,
+        }}
+      />
+
       {/* Top Header */}
       <div
+        className="admin-testing-header"
         style={{
           display: 'flex',
           justifyContent: 'space-between',
@@ -566,7 +611,7 @@ export default function AdminTestingPage() {
           </p>
         </div>
 
-        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+        <div className="admin-testing-header-btns" style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
           <button
             onClick={() => loadTestingQueue()}
             style={{
@@ -609,6 +654,7 @@ export default function AdminTestingPage() {
 
       {/* Filter and Search Bar */}
       <div
+        className="admin-filter-bar"
         style={{
           backgroundColor: '#ffffff',
           border: '1px solid #e2e8f0',
@@ -638,7 +684,7 @@ export default function AdminTestingPage() {
           />
         </div>
 
-        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+        <div className="admin-filter-controls" style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
             <label style={{ fontSize: '0.825rem', color: '#475569', fontWeight: 500 }}>
               Status:
