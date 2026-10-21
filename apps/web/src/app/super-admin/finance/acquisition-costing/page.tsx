@@ -17,6 +17,7 @@ import StatCard from '@/components/admin/StatCard';
 import StatusBadge from '@/components/admin/StatusBadge';
 import EmptyState from '@/components/admin/EmptyState';
 import { TableSkeleton } from '@/components/admin/LoadingSkeleton';
+import UnifiedDateFilterBar from '@/components/admin/UnifiedDateFilterBar';
 
 type DateFilterPreset = 'all' | 'today' | '7days' | '15days' | '30days' | 'this_month' | 'custom';
 
@@ -176,9 +177,145 @@ export default function AcquisitionCostingPage() {
   const totalPaid = stats?.totalPaid ?? (stats?.totalPaidPaise ? stats.totalPaidPaise / 100 : 0);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', maxWidth: '1400px', margin: '0 auto', paddingBottom: '3rem' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', maxWidth: '1400px', margin: '0 auto', paddingBottom: '3rem', width: '100%', boxSizing: 'border-box' }}>
+      {/* Scoped CSS for full mobile responsiveness */}
+      <style jsx>{`
+        .acq-header-wrap {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+          flex-wrap: wrap;
+          gap: 1rem;
+        }
+        .acq-header-actions {
+          display: flex;
+          align-items: center;
+          gap: 0.6rem;
+          flex-wrap: wrap;
+        }
+        .acq-kpi-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+          gap: 1rem;
+        }
+        .acq-analytics-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+          gap: 1rem;
+          width: 100%;
+        }
+        .acq-analytics-card {
+          background-color: #ffffff;
+          border-radius: 10px;
+          border: 1px solid #e2e8f0;
+          padding: 1.25rem;
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+          display: flex;
+          flex-direction: column;
+          gap: 1rem;
+          min-width: 0;
+          width: 100%;
+          box-sizing: border-box;
+          overflow: hidden;
+        }
+        .acq-chart-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+          gap: 0.5rem;
+          flex-wrap: wrap;
+        }
+        .acq-chart-badge {
+          flex-shrink: 0;
+          white-space: nowrap;
+        }
+        .blood-group-grid {
+          display: grid;
+          grid-template-columns: repeat(4, 1fr);
+          gap: 0.5rem;
+        }
+        .acq-filters-toolbar {
+          padding: 1rem 1.25rem;
+          border-bottom: 1px solid #e2e8f0;
+          background-color: #f8fafc;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          flex-wrap: wrap;
+          gap: 0.75rem;
+        }
+        .acq-filters-group {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          flex-wrap: wrap;
+          flex: 1 1 auto;
+        }
+
+        /* Responsive Breakpoints */
+        @media (max-width: 880px) {
+          .acq-analytics-grid {
+            grid-template-columns: 1fr !important;
+          }
+        }
+        @media (max-width: 720px) {
+          .acq-header-wrap {
+            flex-direction: column !important;
+            align-items: stretch !important;
+          }
+          .acq-header-actions {
+            width: 100% !important;
+            display: flex !important;
+          }
+          .acq-header-actions > * {
+            flex: 1 1 auto !important;
+            justify-content: center !important;
+            text-align: center !important;
+          }
+          .acq-filters-toolbar {
+            flex-direction: column !important;
+            align-items: stretch !important;
+            padding: 0.75rem 1rem !important;
+          }
+          .acq-filters-group {
+            flex-direction: column !important;
+            align-items: stretch !important;
+            width: 100% !important;
+          }
+          .acq-filters-group input,
+          .acq-filters-group select {
+            width: 100% !important;
+            min-width: 0 !important;
+            box-sizing: border-box !important;
+          }
+        }
+        @media (max-width: 640px) {
+          .acq-analytics-card {
+            padding: 0.85rem 1rem !important;
+            gap: 0.75rem !important;
+          }
+          .acq-kpi-grid {
+            grid-template-columns: repeat(2, 1fr) !important;
+            gap: 0.65rem !important;
+          }
+          .blood-group-grid {
+            grid-template-columns: repeat(3, 1fr) !important;
+            gap: 0.45rem !important;
+          }
+        }
+        @media (max-width: 420px) {
+          .blood-group-grid {
+            grid-template-columns: repeat(2, 1fr) !important;
+            gap: 0.4rem !important;
+          }
+          .acq-kpi-grid {
+            grid-template-columns: 1fr !important;
+          }
+        }
+      `}</style>
+
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
+      <div className="acq-header-wrap">
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
             <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#dc2626', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
@@ -193,7 +330,7 @@ export default function AcquisitionCostingPage() {
           </p>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+        <div className="acq-header-actions">
           <button
             onClick={() => {
               loadSummaryStats();
@@ -273,85 +410,25 @@ export default function AcquisitionCostingPage() {
           boxShadow: '0 1px 2px rgba(0,0,0,0.02)',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-          <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#475569', marginRight: '0.25rem' }}>
-            📅 Time Period:
-          </span>
-          {[
-            { id: 'all', label: 'All Time' },
-            { id: 'today', label: 'Today' },
-            { id: '7days', label: 'Last 7 Days' },
-            { id: '15days', label: 'Last 15 Days' },
-            { id: '30days', label: 'Last 30 Days' },
-            { id: 'this_month', label: 'This Month' },
-            { id: 'custom', label: 'Custom Range' },
-          ].map((preset) => {
-            const active = datePreset === preset.id;
-            return (
-              <button
-                key={preset.id}
-                onClick={() => {
-                  setDatePreset(preset.id as DateFilterPreset);
-                  setPage(1);
-                }}
-                style={{
-                  padding: '0.4rem 0.75rem',
-                  borderRadius: '6px',
-                  border: active ? '1px solid #dc2626' : '1px solid #e2e8f0',
-                  backgroundColor: active ? '#fef2f2' : '#ffffff',
-                  color: active ? '#dc2626' : '#64748b',
-                  fontSize: '0.8rem',
-                  fontWeight: active ? 700 : 500,
-                  cursor: 'pointer',
-                  transition: 'all 0.15s ease',
-                }}
-              >
-                {preset.label}
-              </button>
-            );
-          })}
-        </div>
-
-        {datePreset === 'custom' && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-              <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 600 }}>From:</span>
-              <input
-                type="date"
-                value={customStartDate}
-                onChange={(e) => {
-                  setCustomStartDate(e.target.value);
-                  setPage(1);
-                }}
-                style={{
-                  padding: '0.35rem 0.55rem',
-                  borderRadius: '6px',
-                  border: '1px solid #cbd5e1',
-                  fontSize: '0.8rem',
-                  outline: 'none',
-                }}
-              />
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-              <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 600 }}>To:</span>
-              <input
-                type="date"
-                value={customEndDate}
-                onChange={(e) => {
-                  setCustomEndDate(e.target.value);
-                  setPage(1);
-                }}
-                style={{
-                  padding: '0.35rem 0.55rem',
-                  borderRadius: '6px',
-                  border: '1px solid #cbd5e1',
-                  fontSize: '0.8rem',
-                  outline: 'none',
-                }}
-              />
-            </div>
-          </div>
-        )}
+        <UnifiedDateFilterBar
+          label="📅 Time Period:"
+          activePreset={datePreset}
+          onSelectPreset={(p) => {
+            setDatePreset(p as DateFilterPreset);
+            setPage(1);
+          }}
+          customStartDate={customStartDate}
+          customEndDate={customEndDate}
+          onCustomStartDateChange={(d) => {
+            setCustomStartDate(d);
+            setPage(1);
+          }}
+          onCustomEndDateChange={(d) => {
+            setCustomEndDate(d);
+            setPage(1);
+          }}
+          accentColor="#dc2626"
+        />
       </div>
 
       {error && (
@@ -361,7 +438,7 @@ export default function AcquisitionCostingPage() {
       )}
 
       {/* Summary KPI Cards Grid (8 Cards) */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem' }}>
+      <div className="acq-kpi-grid">
         <StatCard
           title="Total Consignments"
           value={stats?.totalAcquisitions ?? stats?.totalReceipts ?? 0}
@@ -452,21 +529,10 @@ export default function AcquisitionCostingPage() {
       </div>
 
       {/* Visual Analytics / Charts Section */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))', gap: '1rem' }}>
+      <div className="acq-analytics-grid">
         {/* Chart 1: Acquisition Value Timeline */}
-        <div
-          style={{
-            backgroundColor: '#ffffff',
-            borderRadius: '10px',
-            border: '1px solid #e2e8f0',
-            padding: '1.25rem',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '1rem',
-          }}
-        >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div className="acq-analytics-card">
+          <div className="acq-chart-header">
             <div>
               <h3 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 700, color: '#0f172a' }}>
                 📈 Acquisition Cost Trend Over Time
@@ -475,53 +541,91 @@ export default function AcquisitionCostingPage() {
                 Daily distribution of invoiced consignment costs
               </p>
             </div>
-            <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#2563eb', backgroundColor: '#eff6ff', padding: '0.2rem 0.5rem', borderRadius: '4px' }}>
+            <span
+              className="acq-chart-badge"
+              style={{
+                fontSize: '0.75rem',
+                fontWeight: 700,
+                color: '#2563eb',
+                backgroundColor: '#eff6ff',
+                padding: '0.2rem 0.5rem',
+                borderRadius: '4px',
+                border: '1px solid #bfdbfe',
+              }}
+            >
               Timeline
             </span>
           </div>
 
           {stats?.timeline && stats.timeline.length > 0 ? (
-            <div style={{ marginTop: '0.5rem' }}>
-              <div style={{ display: 'flex', alignItems: 'flex-end', gap: '0.75rem', height: '140px', paddingBottom: '0.5rem', borderBottom: '1px solid #e2e8f0', overflowX: 'auto' }}>
-                {(() => {
-                  const maxVal = Math.max(...stats.timeline.map((t) => t.value), 1);
-                  return stats.timeline.map((item, idx) => {
-                    const heightPercent = Math.max(12, Math.round((item.value / maxVal) * 100));
-                    return (
-                      <div
-                        key={idx}
-                        style={{
-                          display: 'flex',
-                          flexDirection: 'column',
-                          alignItems: 'center',
-                          gap: '0.25rem',
-                          minWidth: '55px',
-                          flex: 1,
-                        }}
-                        title={`${item.date}: ${formatINR(item.value)} (${item.count} consignment${item.count > 1 ? 's' : ''})`}
-                      >
-                        <span style={{ fontSize: '0.65rem', fontWeight: 700, color: '#0f172a' }}>
-                          ₹{item.value >= 1000 ? `${(item.value / 1000).toFixed(1)}k` : item.value}
-                        </span>
-                        <div
-                          style={{
-                            width: '100%',
-                            maxWidth: '36px',
-                            height: `${heightPercent}%`,
-                            backgroundColor: '#3b82f6',
-                            borderRadius: '4px 4px 0 0',
-                            transition: 'height 0.3s ease',
-                          }}
-                        />
-                        <span style={{ fontSize: '0.65rem', color: '#64748b', whiteSpace: 'nowrap' }}>
-                          {item.date.slice(5)}
-                        </span>
-                      </div>
-                    );
-                  });
-                })()}
-              </div>
-            </div>
+            (() => {
+              const timelineList = stats.timeline;
+              const isFew = timelineList.length <= 3;
+              const isMany = timelineList.length > 6;
+              const maxVal = Math.max(...timelineList.map((t) => t.value), 1);
+              return (
+                <div style={{ marginTop: '0.5rem', width: '100%' }}>
+                  <div
+                    className="admin-table-scroll"
+                    style={{
+                      width: '100%',
+                      overflowX: 'auto',
+                      WebkitOverflowScrolling: 'touch',
+                      paddingBottom: '0.5rem',
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'flex-end',
+                        gap: '0.75rem',
+                        height: '140px',
+                        paddingBottom: '0.5rem',
+                        borderBottom: '1px solid #e2e8f0',
+                        minWidth: isMany ? `${timelineList.length * 60}px` : '100%',
+                        justifyContent: isFew ? 'center' : 'flex-start',
+                      }}
+                    >
+                      {timelineList.map((item, idx) => {
+                        const heightPercent = Math.max(14, Math.round((item.value / maxVal) * 100));
+                        return (
+                          <div
+                            key={idx}
+                            style={{
+                              display: 'flex',
+                              flexDirection: 'column',
+                              alignItems: 'center',
+                              gap: '0.25rem',
+                              minWidth: '55px',
+                              flex: isFew ? '0 0 75px' : 1,
+                              maxWidth: isFew ? '90px' : 'none',
+                            }}
+                            title={`${item.date}: ${formatINR(item.value)} (${item.count} consignment${item.count > 1 ? 's' : ''})`}
+                          >
+                            <span style={{ fontSize: '0.65rem', fontWeight: 700, color: '#0f172a' }}>
+                              ₹{item.value >= 1000 ? `${(item.value / 1000).toFixed(1)}k` : item.value}
+                            </span>
+                            <div
+                              style={{
+                                width: '100%',
+                                maxWidth: '36px',
+                                height: `${heightPercent}%`,
+                                backgroundColor: '#3b82f6',
+                                borderRadius: '4px 4px 0 0',
+                                transition: 'height 0.3s ease',
+                              }}
+                            />
+                            <span style={{ fontSize: '0.65rem', color: '#64748b', whiteSpace: 'nowrap' }}>
+                              {item.date.slice(5)}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              );
+            })()
           ) : (
             <div style={{ padding: '2.5rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>
               No timeline data available for the selected date range.
@@ -530,19 +634,8 @@ export default function AcquisitionCostingPage() {
         </div>
 
         {/* Chart 2: Blood Group & Quality Breakdown */}
-        <div
-          style={{
-            backgroundColor: '#ffffff',
-            borderRadius: '10px',
-            border: '1px solid #e2e8f0',
-            padding: '1.25rem',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '1rem',
-          }}
-        >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div className="acq-analytics-card">
+          <div className="acq-chart-header">
             <div>
               <h3 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 700, color: '#0f172a' }}>
                 🧬 Blood Group &amp; Component Distribution
@@ -551,34 +644,48 @@ export default function AcquisitionCostingPage() {
                 Units received grouped by ABO/Rh group and component type
               </p>
             </div>
-            <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#059669', backgroundColor: '#ecfdf5', padding: '0.2rem 0.5rem', borderRadius: '4px' }}>
+            <span
+              className="acq-chart-badge"
+              style={{
+                fontSize: '0.75rem',
+                fontWeight: 700,
+                color: '#059669',
+                backgroundColor: '#ecfdf5',
+                padding: '0.2rem 0.5rem',
+                borderRadius: '4px',
+                border: '1px solid #a7f3d0',
+              }}
+            >
               Inventory Intake
             </span>
           </div>
 
           {stats?.byBloodGroup && Object.keys(stats.byBloodGroup).length > 0 ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.5rem' }}>
+              <div className="blood-group-grid">
                 {Object.entries(stats.byBloodGroup).map(([group, count]) => (
                   <div
                     key={group}
                     style={{
-                      padding: '0.55rem',
+                      padding: '0.55rem 0.4rem',
                       borderRadius: '6px',
                       backgroundColor: '#f8fafc',
                       border: '1px solid #e2e8f0',
                       textAlign: 'center',
+                      minWidth: 0,
                     }}
                   >
-                    <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#dc2626' }}>{group}</div>
-                    <div style={{ fontSize: '0.75rem', color: '#475569', fontWeight: 600 }}>{count} unit{count > 1 ? 's' : ''}</div>
+                    <div style={{ fontSize: '0.95rem', fontWeight: 800, color: '#dc2626' }}>{group}</div>
+                    <div style={{ fontSize: '0.75rem', color: '#475569', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {count} unit{count > 1 ? 's' : ''}
+                    </div>
                   </div>
                 ))}
               </div>
 
               {/* Component pills */}
               {stats?.byComponent && Object.keys(stats.byComponent).length > 0 && (
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginTop: '0.25rem' }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.45rem', marginTop: '0.25rem' }}>
                   {Object.entries(stats.byComponent).map(([comp, count]) => (
                     <span
                       key={comp}
@@ -590,9 +697,14 @@ export default function AcquisitionCostingPage() {
                         fontSize: '0.725rem',
                         fontWeight: 600,
                         border: '1px solid #cbd5e1',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.3rem',
+                        whiteSpace: 'nowrap',
                       }}
                     >
-                      {comp}: <strong>{count}</strong>
+                      <span>{comp.replace(/_/g, ' ')}:</span>
+                      <strong style={{ color: '#0f172a' }}>{count}</strong>
                     </span>
                   ))}
                 </div>
@@ -617,19 +729,8 @@ export default function AcquisitionCostingPage() {
         }}
       >
         {/* Table Filters Toolbar */}
-        <div
-          style={{
-            padding: '1rem 1.25rem',
-            borderBottom: '1px solid #e2e8f0',
-            backgroundColor: '#f8fafc',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            gap: '0.75rem',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+        <div className="acq-filters-toolbar">
+          <div className="acq-filters-group">
             {/* Search Input */}
             <input
               type="text"
@@ -645,7 +746,7 @@ export default function AcquisitionCostingPage() {
                 border: '1px solid #cbd5e1',
                 borderRadius: '6px',
                 outline: 'none',
-                minWidth: '240px',
+                minWidth: '220px',
                 backgroundColor: '#ffffff',
               }}
             />
@@ -742,8 +843,8 @@ export default function AcquisitionCostingPage() {
             />
           </div>
         ) : (
-          <div className="admin-table-scroll">
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.825rem' }}>
+          <div className="admin-table-scroll" style={{ width: '100%', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+            <table style={{ width: '100%', minWidth: '920px', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.825rem' }}>
               <thead>
                 <tr style={{ color: '#475569', backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
                   <th style={{ padding: '0.75rem 1rem' }}>Receipt Code &amp; Date</th>

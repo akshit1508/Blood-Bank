@@ -195,24 +195,46 @@ export default function PayrollRunDetailPage({ params }: PageProps) {
 
   return (
     <div
+      className="payroll-detail-container"
       style={{
         maxWidth: '1280px',
         margin: '0 auto',
+        padding: '1.5rem',
         display: 'flex',
         flexDirection: 'column',
         gap: '1.75rem',
         color: '#0f172a',
+        width: '100%',
+        boxSizing: 'border-box',
       }}
     >
+      <style jsx>{`
+        @media (max-width: 768px) {
+          .payroll-detail-container {
+            padding: 0.85rem !important;
+            gap: 1.25rem !important;
+          }
+          .payroll-run-kpi-grid {
+            grid-template-columns: repeat(2, 1fr) !important;
+            gap: 0.65rem !important;
+          }
+        }
+        @media (max-width: 440px) {
+          .payroll-run-kpi-grid {
+            grid-template-columns: 1fr !important;
+          }
+        }
+      `}</style>
+
       {/* 1. Navigation / Breadcrumbs */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
         <Link
           href="/super-admin/payroll"
           style={{
             display: 'inline-flex',
             alignItems: 'center',
             gap: '0.45rem',
-            color: '#94a3b8',
+            color: '#64748b',
             textDecoration: 'none',
             fontSize: '0.85rem',
             fontWeight: 600,
@@ -226,10 +248,11 @@ export default function PayrollRunDetailPage({ params }: PageProps) {
             fontFamily: 'monospace',
             fontSize: '0.75rem',
             backgroundColor: '#fffbeb',
-            color: '#94a3b8',
+            color: '#92400e',
             padding: '0.25rem 0.65rem',
             borderRadius: '6px',
             border: '1px solid #fde68a',
+            fontWeight: 700,
           }}
         >
           Run ID: {run.runCode}
@@ -353,6 +376,7 @@ export default function PayrollRunDetailPage({ params }: PageProps) {
 
       {/* 3. Financial Summary Grid */}
       <div
+        className="payroll-run-kpi-grid"
         style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
@@ -440,6 +464,8 @@ export default function PayrollRunDetailPage({ params }: PageProps) {
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: '0.5rem',
           }}
         >
           <div style={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a' }}>
@@ -450,8 +476,8 @@ export default function PayrollRunDetailPage({ params }: PageProps) {
           </div>
         </div>
 
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
+        <div className="admin-table-scroll" style={{ width: '100%', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+          <table style={{ width: '100%', minWidth: '920px', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
             <thead>
               <tr style={{ backgroundColor: '#fef3c7', borderBottom: '1px solid #fde68a' }}>
                 <th style={{ padding: '0.75rem 1rem', color: '#92400e', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>

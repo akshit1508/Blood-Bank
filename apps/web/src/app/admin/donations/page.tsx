@@ -416,6 +416,78 @@ export default function AdminDonationsPage() {
         fontFamily: 'system-ui, -apple-system, sans-serif',
       }}
     >
+      {/* Scoped Styles for Mobile Single-Line Actions & Filters */}
+      <style
+        dangerouslySetInnerHTML={{
+          __html: `
+            .donation-header-actions {
+              display: flex;
+              gap: 0.75rem;
+              align-items: center;
+              flex-wrap: nowrap;
+            }
+            .donation-search-form {
+              display: flex;
+              gap: 0.5rem;
+              flex: 1;
+              min-width: 280px;
+            }
+            .donation-filter-selects {
+              display: flex;
+              gap: 0.75rem;
+              align-items: center;
+              flex-wrap: nowrap;
+            }
+            @media (max-width: 768px) {
+              .donation-header-actions {
+                width: 100% !important;
+                display: flex !important;
+                flex-direction: row !important;
+                flex-wrap: nowrap !important;
+                gap: 0.5rem !important;
+              }
+              .donation-header-actions > * {
+                flex: 1 1 50% !important;
+                min-width: 0 !important;
+                justify-content: center !important;
+                text-align: center !important;
+                white-space: nowrap !important;
+                padding: 0.5rem 0.35rem !important;
+                font-size: 0.775rem !important;
+                box-sizing: border-box !important;
+              }
+              .donation-btn-extra {
+                display: none !important;
+              }
+              .active-donor-search-wrap {
+                width: 100% !important;
+              }
+              .active-donor-search-wrap input {
+                width: 100% !important;
+                min-width: 0 !important;
+                flex: 1 1 auto !important;
+              }
+              .donation-search-form {
+                width: 100% !important;
+                min-width: 0 !important;
+              }
+              .donation-filter-selects {
+                width: 100% !important;
+                display: flex !important;
+                flex-direction: row !important;
+                flex-wrap: nowrap !important;
+                gap: 0.5rem !important;
+              }
+              .donation-filter-selects select {
+                flex: 1 1 50% !important;
+                min-width: 0 !important;
+                width: 100% !important;
+              }
+            }
+          `,
+        }}
+      />
+
       {/* Top Header */}
       <div
         style={{
@@ -444,7 +516,7 @@ export default function AdminDonationsPage() {
           </p>
         </div>
 
-        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+        <div className="donation-header-actions">
           <button
             onClick={() => {
               loadDonations();
@@ -454,13 +526,14 @@ export default function AdminDonationsPage() {
               backgroundColor: '#ffffff',
               border: '1px solid #cbd5e1',
               color: '#334155',
-              padding: '0.5rem 1rem',
+              padding: '0.5rem 0.85rem',
               borderRadius: '6px',
-              fontSize: '0.875rem',
-              fontWeight: 500,
+              fontSize: '0.825rem',
+              fontWeight: 600,
               cursor: 'pointer',
-              display: 'flex',
+              display: 'inline-flex',
               alignItems: 'center',
+              justifyContent: 'center',
               gap: '0.35rem',
             }}
           >
@@ -476,18 +549,19 @@ export default function AdminDonationsPage() {
               backgroundColor: '#dc2626',
               color: '#ffffff',
               border: 'none',
-              padding: '0.5rem 1.15rem',
+              padding: '0.5rem 1rem',
               borderRadius: '6px',
-              fontSize: '0.875rem',
+              fontSize: '0.825rem',
               fontWeight: 600,
               cursor: 'pointer',
-              display: 'flex',
+              display: 'inline-flex',
               alignItems: 'center',
+              justifyContent: 'center',
               gap: '0.35rem',
               boxShadow: '0 1px 2px rgba(220, 38, 38, 0.2)',
             }}
           >
-            + Record Physical Donation
+            + Record <span className="donation-btn-extra">Physical </span>Donation
           </button>
         </div>
       </div>
@@ -550,7 +624,7 @@ export default function AdminDonationsPage() {
             </p>
           </div>
 
-          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+          <div className="active-donor-search-wrap" style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
             <input
               type="text"
               value={donorSearchTerm}
@@ -888,7 +962,7 @@ export default function AdminDonationsPage() {
       >
         <form
           onSubmit={handleSearchSubmit}
-          style={{ display: 'flex', gap: '0.5rem', flex: 1, minWidth: '280px' }}
+          className="donation-search-form"
         >
           <input
             type="text"
@@ -897,6 +971,7 @@ export default function AdminDonationsPage() {
             placeholder="Search by Donation Code, Donor Name, Code, Phone..."
             style={{
               flex: 1,
+              minWidth: 0,
               padding: '0.45rem 0.75rem',
               border: '1px solid #cbd5e1',
               borderRadius: '6px',
@@ -920,14 +995,7 @@ export default function AdminDonationsPage() {
           </button>
         </form>
 
-        <div
-          style={{
-            display: 'flex',
-            gap: '0.75rem',
-            alignItems: 'center',
-            flexWrap: 'wrap',
-          }}
-        >
+        <div className="donation-filter-selects">
           {/* Blood group filter */}
           <select
             value={filterBloodGroup}
@@ -970,23 +1038,6 @@ export default function AdminDonationsPage() {
             <option value={DonationStatus.COMPLETED}>COMPLETED</option>
             <option value={DonationStatus.CANCELLED}>CANCELLED</option>
           </select>
-
-          <button
-            onClick={() => {
-              setPage(1);
-              loadDonations();
-            }}
-            style={{
-              backgroundColor: '#f8fafc',
-              border: '1px solid #cbd5e1',
-              padding: '0.45rem 0.85rem',
-              borderRadius: '6px',
-              cursor: 'pointer',
-              fontSize: '0.875rem',
-            }}
-          >
-            ↻ Refresh
-          </button>
         </div>
       </div>
 

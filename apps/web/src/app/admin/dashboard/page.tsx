@@ -23,8 +23,9 @@ import {
   BloodRequestStatus,
 } from '@/lib/blood-request-api';
 import { fetchTestingRecords, BloodTesting } from '@/lib/testing-api';
+import UnifiedDateFilterBar from '@/components/admin/UnifiedDateFilterBar';
 
-export type DateFilterPreset = 'all' | 'today' | '7days' | '15days' | '30days' | 'custom';
+export type DateFilterPreset = 'all' | 'today' | '7days' | '15days' | '30days' | 'this_month' | 'custom';
 
 export default function AdminDashboardPage() {
   const [loading, setLoading] = useState(true);
@@ -113,6 +114,11 @@ export default function AdminDashboardPage() {
     if (dateFilter === '30days') {
       const start = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
       start.setHours(0, 0, 0, 0);
+      return { start: start.getTime(), end: now.getTime() };
+    }
+
+    if (dateFilter === 'this_month') {
+      const start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
       return { start: start.getTime(), end: now.getTime() };
     }
 
@@ -228,6 +234,8 @@ export default function AdminDashboardPage() {
         return 'Last 15 Days';
       case '30days':
         return 'Last 30 Days';
+      case 'this_month':
+        return 'This Month';
       case 'custom':
         if (customStartDate && customEndDate) return `${customStartDate} to ${customEndDate}`;
         if (customStartDate) return `Since ${customStartDate}`;
@@ -364,76 +372,19 @@ export default function AdminDashboardPage() {
           gap: '0.75rem',
         }}
       >
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            gap: '0.875rem',
-          }}
-        >
-          {/* Left: Timeframe Label & Filter Tabs */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', color: '#475569' }}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-                <line x1="16" y1="2" x2="16" y2="6" />
-                <line x1="8" y1="2" x2="8" y2="6" />
-                <line x1="3" y1="10" x2="21" y2="10" />
-              </svg>
-              <span style={{ fontSize: '0.825rem', fontWeight: 600, color: '#1e293b' }}>
-                Time Period:
-              </span>
-            </div>
-
-            {/* Segmented Control / Tabs */}
-            <div
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                backgroundColor: '#f1f5f9',
-                borderRadius: '8px',
-                padding: '3px',
-                border: '1px solid #e2e8f0',
-                gap: '2px',
-                flexWrap: 'wrap',
-              }}
-            >
-              {[
-                { id: 'all', label: 'All Time' },
-                { id: 'today', label: 'Today' },
-                { id: '7days', label: 'Last 7 Days' },
-                { id: '15days', label: 'Last 15 Days' },
-                { id: '30days', label: 'Last 30 Days' },
-                { id: 'custom', label: 'Custom Range' },
-              ].map((preset) => {
-                const active = dateFilter === preset.id;
-                return (
-                  <button
-                    key={preset.id}
-                    onClick={() => setDateFilter(preset.id as DateFilterPreset)}
-                    style={{
-                      border: 'none',
-                      backgroundColor: active ? '#ffffff' : 'transparent',
-                      color: active ? '#dc2626' : '#64748b',
-                      fontWeight: active ? 700 : 500,
-                      fontSize: '0.8rem',
-                      padding: '0.35rem 0.75rem',
-                      borderRadius: '6px',
-                      cursor: 'pointer',
-                      transition: 'all 0.15s ease',
-                      boxShadow: active ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
-                    }}
-                  >
-                    {preset.label}
-                  </button>
-                );
-              })}
-            </div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap' }}>
+          <div style={{ flex: '1 1 auto', minWidth: 0 }}>
+            <UnifiedDateFilterBar
+              label="📅 Time Period:"
+              activePreset={dateFilter}
+              onSelectPreset={(p) => setDateFilter(p as DateFilterPreset)}
+              customStartDate={customStartDate}
+              customEndDate={customEndDate}
+              onCustomStartDateChange={setCustomStartDate}
+              onCustomEndDateChange={setCustomEndDate}
+              accentColor="#dc2626"
+            />
           </div>
-
-          {/* Right: Active Span Badge */}
           <div
             style={{
               display: 'inline-flex',
@@ -445,92 +396,13 @@ export default function AdminDashboardPage() {
               borderRadius: '6px',
               fontSize: '0.775rem',
               color: '#475569',
+              flexShrink: 0,
             }}
           >
             <span style={{ color: '#94a3b8' }}>Filtering:</span>
             <span style={{ fontWeight: 700, color: '#0f172a' }}>{dateSpanLabel}</span>
           </div>
         </div>
-
-        {/* Custom Range Expansion Bar */}
-        {dateFilter === 'custom' && (
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '1rem',
-              paddingTop: '0.75rem',
-              borderTop: '1px dashed #e2e8f0',
-              flexWrap: 'wrap',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#475569' }}>
-                From Date:
-              </label>
-              <input
-                type="date"
-                value={customStartDate}
-                onChange={(e) => setCustomStartDate(e.target.value)}
-                style={{
-                  padding: '0.35rem 0.6rem',
-                  fontSize: '0.825rem',
-                  color: '#0f172a',
-                  backgroundColor: '#ffffff',
-                  border: '1px solid #cbd5e1',
-                  borderRadius: '6px',
-                  outline: 'none',
-                }}
-              />
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#475569' }}>
-                To Date:
-              </label>
-              <input
-                type="date"
-                value={customEndDate}
-                onChange={(e) => setCustomEndDate(e.target.value)}
-                style={{
-                  padding: '0.35rem 0.6rem',
-                  fontSize: '0.825rem',
-                  color: '#0f172a',
-                  backgroundColor: '#ffffff',
-                  border: '1px solid #cbd5e1',
-                  borderRadius: '6px',
-                  outline: 'none',
-                }}
-              />
-            </div>
-
-            {(customStartDate || customEndDate) && (
-              <button
-                onClick={() => {
-                  setCustomStartDate('');
-                  setCustomEndDate('');
-                }}
-                style={{
-                  border: '1px solid #fecaca',
-                  backgroundColor: '#fef2f2',
-                  color: '#dc2626',
-                  fontSize: '0.775rem',
-                  fontWeight: 600,
-                  padding: '0.35rem 0.65rem',
-                  borderRadius: '6px',
-                  cursor: 'pointer',
-                  transition: 'background 0.15s ease',
-                }}
-              >
-                Reset Dates
-              </button>
-            )}
-
-            <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontStyle: 'italic' }}>
-              Select start and end dates to filter operations within that span.
-            </span>
-          </div>
-        )}
       </div>
 
       {/* Error Banner with Retry */}

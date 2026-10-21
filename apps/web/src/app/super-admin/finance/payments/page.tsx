@@ -15,6 +15,7 @@ import {
 } from '@/lib/payment-api';
 import { fetchExpenses, fetchExpenseById, ExpenseItem, ExpenseStatus, formatINR } from '@/lib/expense-api';
 import StatCard from '@/components/admin/StatCard';
+import UnifiedDateFilterBar from '@/components/admin/UnifiedDateFilterBar';
 
 function generateUUID(): string {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
@@ -678,95 +679,18 @@ function PaymentsContent() {
             </div>
           </div>
 
-          {/* Date Filter Row */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem', paddingTop: '0.65rem', borderTop: '1px solid #f1f5f9' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexWrap: 'wrap' }}>
-              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b', marginRight: '0.25rem' }}>
-                📅 Disbursement Date:
-              </span>
-              {[
-                { id: 'all', label: 'All Time' },
-                { id: 'today', label: 'Today' },
-                { id: '7days', label: 'Last 7 Days' },
-                { id: '15days', label: 'Last 15 Days' },
-                { id: '30days', label: 'Last 30 Days' },
-                { id: 'this_month', label: 'This Month' },
-                { id: 'custom', label: 'Custom' },
-              ].map((p) => {
-                const active = datePreset === p.id;
-                return (
-                  <button
-                    key={p.id}
-                    onClick={() => setDatePreset(p.id as any)}
-                    style={{
-                      border: active ? '1px solid #ef4444' : '1px solid #e2e8f0',
-                      backgroundColor: active ? '#fee2e2' : '#ffffff',
-                      color: active ? '#dc2626' : '#475569',
-                      fontSize: '0.75rem',
-                      fontWeight: active ? 700 : 500,
-                      padding: '0.25rem 0.65rem',
-                      borderRadius: '6px',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    {p.label}
-                  </button>
-                );
-              })}
-            </div>
-
-            {datePreset === 'custom' && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                  <span style={{ fontSize: '0.75rem', color: '#64748b' }}>From:</span>
-                  <input
-                    type="date"
-                    value={customStartDate}
-                    onChange={(e) => setCustomStartDate(e.target.value)}
-                    style={{
-                      padding: '0.25rem 0.5rem',
-                      fontSize: '0.75rem',
-                      border: '1px solid #cbd5e1',
-                      borderRadius: '4px',
-                      outline: 'none',
-                    }}
-                  />
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                  <span style={{ fontSize: '0.75rem', color: '#64748b' }}>To:</span>
-                  <input
-                    type="date"
-                    value={customEndDate}
-                    onChange={(e) => setCustomEndDate(e.target.value)}
-                    style={{
-                      padding: '0.25rem 0.5rem',
-                      fontSize: '0.75rem',
-                      border: '1px solid #cbd5e1',
-                      borderRadius: '4px',
-                      outline: 'none',
-                    }}
-                  />
-                </div>
-                {(customStartDate || customEndDate) && (
-                  <button
-                    onClick={() => {
-                      setCustomStartDate('');
-                      setCustomEndDate('');
-                    }}
-                    style={{
-                      fontSize: '0.75rem',
-                      color: '#dc2626',
-                      backgroundColor: 'transparent',
-                      border: 'none',
-                      cursor: 'pointer',
-                      fontWeight: 600,
-                    }}
-                  >
-                    Clear
-                  </button>
-                )}
-              </div>
-            )}
+          {/* Unified Horizontally Scrollable Date Filter Bar */}
+          <div style={{ paddingTop: '0.65rem', borderTop: '1px solid #f1f5f9', width: '100%' }}>
+            <UnifiedDateFilterBar
+              label="📅 Disbursement Date:"
+              activePreset={datePreset}
+              onSelectPreset={(p) => setDatePreset(p as any)}
+              customStartDate={customStartDate}
+              customEndDate={customEndDate}
+              onCustomStartDateChange={setCustomStartDate}
+              onCustomEndDateChange={setCustomEndDate}
+              accentColor="#dc2626"
+            />
           </div>
         </div>
 
@@ -790,7 +714,8 @@ function PaymentsContent() {
               </p>
             </div>
           ) : (
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
+            <div className="admin-table-scroll" style={{ width: '100%', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+              <table style={{ width: '100%', minWidth: '850px', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
               <thead>
                 <tr style={{ backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0', color: '#475569' }}>
                   <th style={{ padding: '0.75rem 1rem', fontWeight: 600 }}>Date</th>
@@ -886,8 +811,9 @@ function PaymentsContent() {
                 ))}
               </tbody>
             </table>
-          )}
-        </div>
+          </div>
+        )}
+      </div>
 
         {/* Record Disbursement Modal */}
         {showRecordModal && (

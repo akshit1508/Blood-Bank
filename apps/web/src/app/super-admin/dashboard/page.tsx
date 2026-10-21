@@ -58,8 +58,9 @@ import {
   FinancialKpiData,
   FinancialPeriodPreset,
 } from '@/lib/financial-control-center-api';
+import UnifiedDateFilterBar from '@/components/admin/UnifiedDateFilterBar';
 
-export type DateFilterPreset = 'all' | 'today' | '7days' | '15days' | '30days' | 'custom';
+export type DateFilterPreset = 'all' | 'today' | '7days' | '15days' | '30days' | 'this_month' | 'custom';
 
 const formatINR = (amount: number | undefined | null) => {
   return new Intl.NumberFormat('en-IN', {
@@ -113,6 +114,7 @@ export default function SuperAdminDashboardPage() {
       else if (dateFilter === '7days') periodPreset = FinancialPeriodPreset.LAST_7_DAYS;
       else if (dateFilter === '15days') periodPreset = FinancialPeriodPreset.LAST_15_DAYS;
       else if (dateFilter === '30days') periodPreset = FinancialPeriodPreset.THIS_MONTH;
+      else if (dateFilter === 'this_month') periodPreset = FinancialPeriodPreset.THIS_MONTH;
       else if (dateFilter === 'custom' && customStartDate && customEndDate) periodPreset = FinancialPeriodPreset.CUSTOM;
       else if (dateFilter === 'all') periodPreset = FinancialPeriodPreset.THIS_FINANCIAL_YEAR;
 
@@ -193,6 +195,11 @@ export default function SuperAdminDashboardPage() {
     if (dateFilter === '30days') {
       const start = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
       start.setHours(0, 0, 0, 0);
+      return { start: start.getTime(), end: now.getTime() };
+    }
+
+    if (dateFilter === 'this_month') {
+      const start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
       return { start: start.getTime(), end: now.getTime() };
     }
 
@@ -353,6 +360,8 @@ export default function SuperAdminDashboardPage() {
         return 'Last 15 Days';
       case '30days':
         return 'Last 30 Days (1 Month)';
+      case 'this_month':
+        return 'This Month';
       case 'custom':
         if (customStartDate && customEndDate) return `${customStartDate} to ${customEndDate}`;
         if (customStartDate) return `Since ${customStartDate}`;
@@ -702,112 +711,16 @@ export default function SuperAdminDashboardPage() {
 
         {/* Date Filter Bar */}
         <div className="super-horizon-bar">
-          <div className="super-horizon-scroll-wrapper">
-            <button
-              type="button"
-              className="super-horizon-scroll-arrow"
-              onClick={() => scrollHorizon('left')}
-              aria-label="Scroll left"
-              title="Scroll left"
-            >
-              <ChevronLeft size={14} />
-            </button>
-
-            <div
-              ref={horizonScrollRef}
-              className="super-horizon-buttons"
-            >
-              {[
-                { id: 'all', label: 'All Time' },
-                { id: 'today', label: 'Today (1 Day)' },
-                { id: '7days', label: 'Last 7 Days' },
-                { id: '15days', label: 'Last 15 Days' },
-                { id: '30days', label: '1 Month' },
-                { id: 'custom', label: 'Custom Range' },
-              ].map((preset) => {
-                const active = dateFilter === preset.id;
-                return (
-                  <button
-                    key={preset.id}
-                    onClick={() => setDateFilter(preset.id as DateFilterPreset)}
-                    style={{
-                      border: 'none',
-                      backgroundColor: active ? '#d97706' : 'transparent',
-                      color: active ? '#ffffff' : '#92400e',
-                      fontWeight: active ? 700 : 500,
-                      fontSize: '0.775rem',
-                      padding: '0.35rem 0.75rem',
-                      borderRadius: '6px',
-                      cursor: 'pointer',
-                      transition: 'all 0.15s ease',
-                      boxShadow: active ? '0 1px 3px rgba(217, 119, 6, 0.25)' : 'none',
-                      whiteSpace: 'nowrap',
-                      flexShrink: 0,
-                    }}
-                  >
-                    {preset.label}
-                  </button>
-                );
-              })}
-            </div>
-
-            <button
-              type="button"
-              className="super-horizon-scroll-arrow"
-              onClick={() => scrollHorizon('right')}
-              aria-label="Scroll right"
-              title="Scroll right"
-            >
-              <ChevronRight size={14} />
-            </button>
-          </div>
-
-          {dateFilter === 'custom' && (
-            <div className="super-custom-range-wrap">
-              <div className="super-custom-field">
-                <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 600, flexShrink: 0 }}>From:</span>
-                <input
-                  type="date"
-                  value={customStartDate}
-                  onChange={(e) => setCustomStartDate(e.target.value)}
-                />
-              </div>
-
-              <div className="super-custom-field">
-                <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 600, flexShrink: 0 }}>To:</span>
-                <input
-                  type="date"
-                  value={customEndDate}
-                  onChange={(e) => setCustomEndDate(e.target.value)}
-                />
-              </div>
-
-              {(customStartDate || customEndDate) && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setCustomStartDate('');
-                    setCustomEndDate('');
-                  }}
-                  style={{
-                    border: '1px solid #cbd5e1',
-                    backgroundColor: '#f1f5f9',
-                    color: '#475569',
-                    fontSize: '0.7rem',
-                    fontWeight: 600,
-                    padding: '0.35rem 0.5rem',
-                    borderRadius: '6px',
-                    cursor: 'pointer',
-                    whiteSpace: 'nowrap',
-                    flexShrink: 0,
-                  }}
-                  title="Clear Dates"
-                >
-                  Clear
-                </button>
-              )}
-            </div>
-          )}
+          <UnifiedDateFilterBar
+            label=""
+            activePreset={dateFilter}
+            onSelectPreset={(p) => setDateFilter(p as DateFilterPreset)}
+            customStartDate={customStartDate}
+            customEndDate={customEndDate}
+            onCustomStartDateChange={setCustomStartDate}
+            onCustomEndDateChange={setCustomEndDate}
+            accentColor="#d97706"
+          />
         </div>
       </div>
 

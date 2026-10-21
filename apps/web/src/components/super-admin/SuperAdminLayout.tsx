@@ -82,6 +82,11 @@ export default function SuperAdminLayout({ children }: { children: React.ReactNo
               background-color: #fef3c7 !important;
               color: #92400e !important;
             }
+            .admin-table-scroll {
+              width: 100% !important;
+              overflow-x: auto !important;
+              -webkit-overflow-scrolling: touch !important;
+            }
             @media (max-width: 992px) {
               .admin-mobile-toggle {
                 display: inline-flex !important;

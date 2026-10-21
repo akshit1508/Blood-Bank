@@ -37,6 +37,7 @@ import StatCard from '@/components/admin/StatCard';
 import StatusBadge from '@/components/admin/StatusBadge';
 import EmptyState from '@/components/admin/EmptyState';
 import { TableSkeleton } from '@/components/admin/LoadingSkeleton';
+import UnifiedDateFilterBar from '@/components/admin/UnifiedDateFilterBar';
 
 function generateUUID(): string {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
@@ -736,86 +737,27 @@ export default function ExpenseDirectoryContent({ portalRole }: ExpenseDirectory
           </div>
         </div>
 
-        {/* Date Filter Row */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem', paddingTop: '0.65rem', borderTop: '1px solid #f1f5f9' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexWrap: 'wrap' }}>
-            <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b', marginRight: '0.25rem' }}>
-              📅 Expense Date:
-            </span>
-            {[
-              { id: 'all', label: 'All Time' },
-              { id: 'today', label: 'Today' },
-              { id: '7days', label: 'Last 7 Days' },
-              { id: '15days', label: 'Last 15 Days' },
-              { id: '30days', label: 'Last 30 Days' },
-              { id: 'this_month', label: 'This Month' },
-              { id: 'custom', label: 'Custom' },
-            ].map((p) => {
-              const active = datePreset === p.id;
-              return (
-                <button
-                  key={p.id}
-                  onClick={() => {
-                    setDatePreset(p.id as any);
-                    setPage(1);
-                  }}
-                  style={{
-                    padding: '0.3rem 0.65rem',
-                    borderRadius: '6px',
-                    border: active ? '1px solid #dc2626' : '1px solid #e2e8f0',
-                    backgroundColor: active ? '#fef2f2' : '#ffffff',
-                    color: active ? '#dc2626' : '#64748b',
-                    fontSize: '0.75rem',
-                    fontWeight: active ? 700 : 500,
-                    cursor: 'pointer',
-                  }}
-                >
-                  {p.label}
-                </button>
-              );
-            })}
-          </div>
-
-          {datePreset === 'custom' && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                <span style={{ fontSize: '0.725rem', color: '#64748b' }}>From:</span>
-                <input
-                  type="date"
-                  value={customStartDate}
-                  onChange={(e) => {
-                    setCustomStartDate(e.target.value);
-                    setPage(1);
-                  }}
-                  style={{
-                    padding: '0.25rem 0.5rem',
-                    fontSize: '0.75rem',
-                    border: '1px solid #cbd5e1',
-                    borderRadius: '4px',
-                    outline: 'none',
-                  }}
-                />
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                <span style={{ fontSize: '0.725rem', color: '#64748b' }}>To:</span>
-                <input
-                  type="date"
-                  value={customEndDate}
-                  onChange={(e) => {
-                    setCustomEndDate(e.target.value);
-                    setPage(1);
-                  }}
-                  style={{
-                    padding: '0.25rem 0.5rem',
-                    fontSize: '0.75rem',
-                    border: '1px solid #cbd5e1',
-                    borderRadius: '4px',
-                    outline: 'none',
-                  }}
-                />
-              </div>
-            </div>
-          )}
+        {/* Unified Horizontally Scrollable Date Filter Bar */}
+        <div style={{ paddingTop: '0.65rem', borderTop: '1px solid #f1f5f9', width: '100%' }}>
+          <UnifiedDateFilterBar
+            label="📅 Expense Date:"
+            activePreset={datePreset}
+            onSelectPreset={(p) => {
+              setDatePreset(p as any);
+              setPage(1);
+            }}
+            customStartDate={customStartDate}
+            customEndDate={customEndDate}
+            onCustomStartDateChange={(d) => {
+              setCustomStartDate(d);
+              setPage(1);
+            }}
+            onCustomEndDateChange={(d) => {
+              setCustomEndDate(d);
+              setPage(1);
+            }}
+            accentColor="#dc2626"
+          />
         </div>
       </div>
 
@@ -829,8 +771,8 @@ export default function ExpenseDirectoryContent({ portalRole }: ExpenseDirectory
           boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
         }}
       >
-        <div className="admin-table-scroll">
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
+        <div className="admin-table-scroll" style={{ width: '100%', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+          <table style={{ width: '100%', minWidth: '980px', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
             <thead>
               <tr style={{ backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0', color: '#475569', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                 <th style={{ padding: '0.75rem 1rem' }}>Expense Code</th>

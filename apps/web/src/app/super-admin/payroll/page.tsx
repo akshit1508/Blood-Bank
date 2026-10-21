@@ -408,18 +408,159 @@ export default function PayrollDashboardPage() {
   const calculatedNet = calculatedGross - calculatedDeductions;
 
   return (
-    <div style={{ padding: '1.5rem', maxWidth: '1440px', margin: '0 auto', color: '#0f172a' }}>
+    <div className="payroll-container" style={{ padding: '1.5rem', maxWidth: '1440px', margin: '0 auto', color: '#0f172a', width: '100%', boxSizing: 'border-box' }}>
+      {/* Scoped responsive styles */}
+      <style jsx>{`
+        .payroll-header-wrap {
+          display: flex;
+          flex-wrap: wrap;
+          align-items: center;
+          justify-content: space-between;
+          gap: 1rem;
+          margin-bottom: 1.5rem;
+        }
+        .payroll-header-actions {
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+          flex-wrap: wrap;
+        }
+        .payroll-kpi-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+          gap: 1rem;
+          margin-bottom: 1.5rem;
+        }
+        .payroll-tabs-wrap {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          border-bottom: 1px solid #e2e8f0;
+          margin-bottom: 1.25rem;
+          flex-wrap: wrap;
+          gap: 1rem;
+        }
+        .payroll-tab-buttons {
+          display: flex;
+          gap: 0.5rem;
+          overflow-x: auto;
+          -webkit-overflow-scrolling: touch;
+          max-width: 100%;
+        }
+        .payroll-period-bar {
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+          padding-bottom: 0.5rem;
+          flex-wrap: wrap;
+        }
+        .payroll-filters-toolbar {
+          background-color: #ffffff;
+          border: 1px solid #fde68a;
+          border-radius: 10px;
+          padding: 1rem;
+          margin-bottom: 1rem;
+          display: flex;
+          flex-wrap: wrap;
+          gap: 1rem;
+          align-items: center;
+          justify-content: space-between;
+          box-shadow: 0 1px 3px rgba(180, 83, 9, 0.05);
+        }
+        .payroll-search-group {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 0.75rem;
+          flex: 1 1 300px;
+        }
+        .payroll-status-pills {
+          display: flex;
+          gap: 0.4rem;
+          flex-wrap: wrap;
+        }
+
+        /* Responsive Breakpoints */
+        @media (max-width: 768px) {
+          .payroll-container {
+            padding: 0.85rem !important;
+          }
+          .payroll-header-wrap {
+            flex-direction: column !important;
+            align-items: stretch !important;
+          }
+          .payroll-header-actions {
+            width: 100% !important;
+          }
+          .payroll-header-actions > * {
+            flex: 1 1 45% !important;
+            justify-content: center !important;
+            text-align: center !important;
+          }
+          .payroll-tabs-wrap {
+            flex-direction: column !important;
+            align-items: stretch !important;
+          }
+          .payroll-tab-buttons {
+            width: 100% !important;
+            padding-bottom: 0.35rem !important;
+          }
+          .payroll-tab-buttons button {
+            white-space: nowrap !important;
+          }
+          .payroll-period-bar {
+            width: 100% !important;
+            justify-content: space-between !important;
+          }
+          .payroll-filters-toolbar {
+            flex-direction: column !important;
+            align-items: stretch !important;
+            padding: 0.85rem !important;
+          }
+          .payroll-search-group {
+            width: 100% !important;
+            flex-direction: column !important;
+            min-width: 0 !important;
+          }
+          .payroll-search-group input,
+          .payroll-search-group select {
+            width: 100% !important;
+            min-width: 0 !important;
+            box-sizing: border-box !important;
+          }
+          .payroll-status-pills {
+            width: 100% !important;
+            overflow-x: auto !important;
+            -webkit-overflow-scrolling: touch !important;
+            white-space: nowrap !important;
+            padding-bottom: 0.35rem !important;
+          }
+          .payroll-status-pills button {
+            flex-shrink: 0 !important;
+          }
+        }
+
+        @media (max-width: 640px) {
+          .payroll-kpi-grid {
+            grid-template-columns: repeat(2, 1fr) !important;
+            gap: 0.65rem !important;
+          }
+          .payroll-kpi-card {
+            padding: 0.85rem 1rem !important;
+          }
+        }
+
+        @media (max-width: 420px) {
+          .payroll-kpi-grid {
+            grid-template-columns: 1fr !important;
+          }
+          .payroll-header-actions > * {
+            flex: 1 1 100% !important;
+          }
+        }
+      `}</style>
+
       {/* Top Banner & Header */}
-      <div
-        style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: '1rem',
-          marginBottom: '1.5rem',
-        }}
-      >
+      <div className="payroll-header-wrap">
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
             <span
@@ -439,7 +580,7 @@ export default function PayrollDashboardPage() {
             </span>
             <span style={{ color: '#64748b', fontSize: '0.8rem' }}>• Direct Payout Control</span>
           </div>
-          <h1 style={{ fontSize: '1.875rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>
+          <h1 style={{ fontSize: '1.875rem', fontWeight: 800, color: '#0f172a', margin: 0, letterSpacing: '-0.02em' }}>
             Payroll &amp; Employee Command Center
           </h1>
           <p style={{ color: '#64748b', fontSize: '0.9rem', margin: '0.25rem 0 0 0' }}>
@@ -448,7 +589,7 @@ export default function PayrollDashboardPage() {
         </div>
 
         {/* Upper Action Tab / Buttons */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+        <div className="payroll-header-actions">
           <button
             onClick={() => {
               setEmployeeModalError(null);
@@ -555,16 +696,10 @@ export default function PayrollDashboardPage() {
       )}
 
       {/* KPI Cards: Who We Paid & How Much We Paid */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-          gap: '1rem',
-          marginBottom: '1.5rem',
-        }}
-      >
+      <div className="payroll-kpi-grid">
         {/* Card 1: Active Staff */}
         <div
+          className="payroll-kpi-card"
           style={{
             backgroundColor: '#ffffff',
             border: '1px solid #fde68a',
@@ -594,6 +729,7 @@ export default function PayrollDashboardPage() {
 
         {/* Card 2: People Paid This Month */}
         <div
+          className="payroll-kpi-card"
           style={{
             backgroundColor: '#ffffff',
             border: '1px solid #a7f3d0',
@@ -639,6 +775,7 @@ export default function PayrollDashboardPage() {
 
         {/* Card 3: Total Salary Paid Out */}
         <div
+          className="payroll-kpi-card"
           style={{
             backgroundColor: '#ffffff',
             border: '1px solid #fde68a',
@@ -668,6 +805,7 @@ export default function PayrollDashboardPage() {
 
         {/* Card 4: Pending Salary To Pay */}
         <div
+          className="payroll-kpi-card"
           style={{
             backgroundColor: '#ffffff',
             border: '1px solid #fde68a',
@@ -705,18 +843,8 @@ export default function PayrollDashboardPage() {
       </div>
 
       {/* Main Tab Switcher */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          borderBottom: '1px solid #1e293b',
-          marginBottom: '1.25rem',
-          flexWrap: 'wrap',
-          gap: '1rem',
-        }}
-      >
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
+      <div className="payroll-tabs-wrap">
+        <div className="payroll-tab-buttons">
           <button
             onClick={() => setActiveTab('roster')}
             style={{
@@ -781,7 +909,7 @@ export default function PayrollDashboardPage() {
         </div>
 
         {/* Month Selector & Refresh */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', paddingBottom: '0.5rem' }}>
+        <div className="payroll-period-bar">
           <label style={{ color: '#78350f', fontSize: '0.85rem', fontWeight: 600 }}>
             Payroll Period:
           </label>
@@ -822,23 +950,9 @@ export default function PayrollDashboardPage() {
       {activeTab === 'roster' && (
         <div>
           {/* Filters Bar */}
-          <div
-            style={{
-              backgroundColor: '#ffffff',
-              border: '1px solid #fde68a',
-              borderRadius: '10px',
-              padding: '1rem',
-              marginBottom: '1rem',
-              display: 'flex',
-              flexWrap: 'wrap',
-              gap: '1rem',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              boxShadow: '0 1px 3px rgba(180, 83, 9, 0.05)',
-            }}
-          >
+          <div className="payroll-filters-toolbar">
             {/* Search & Department Filters */}
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', flex: 1, minWidth: '300px' }}>
+            <div className="payroll-search-group">
               <input
                 type="text"
                 placeholder="Search staff by name, code, or email..."
@@ -881,7 +995,7 @@ export default function PayrollDashboardPage() {
             </div>
 
             {/* Quick Status Filter Buttons */}
-            <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+            <div className="payroll-status-pills">
               {(
                 [
                   { key: 'ALL', label: 'All Staff' },
@@ -955,8 +1069,8 @@ export default function PayrollDashboardPage() {
                 </button>
               </div>
             ) : (
-              <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
+              <div className="admin-table-scroll" style={{ width: '100%', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+                <table style={{ width: '100%', minWidth: '880px', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
                   <thead>
                     <tr
                       style={{
@@ -1236,6 +1350,8 @@ export default function PayrollDashboardPage() {
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: '0.75rem',
               }}
             >
               <div>
@@ -1275,8 +1391,8 @@ export default function PayrollDashboardPage() {
                 No monthly batch runs recorded for period {selectedPeriod}.
               </div>
             ) : (
-              <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
+              <div className="admin-table-scroll" style={{ width: '100%', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+                <table style={{ width: '100%', minWidth: '780px', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
                   <thead>
                     <tr
                       style={{

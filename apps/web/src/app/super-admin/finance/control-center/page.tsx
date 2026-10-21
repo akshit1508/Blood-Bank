@@ -274,6 +274,7 @@ export default function FinancialControlCenterPage() {
 
   return (
     <div
+      className="fcc-container"
       style={{
         minHeight: '100vh',
         backgroundColor: '#fffbeb',
@@ -283,8 +284,188 @@ export default function FinancialControlCenterPage() {
         fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
       }}
     >
+      <style>{`
+        .fcc-container {
+          min-height: 100vh;
+          background-color: #fffbeb;
+          color: #0f172a;
+          padding: 2rem 2.5rem;
+          box-sizing: border-box;
+          font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+        .fcc-kpi-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+          gap: 1rem;
+        }
+        .fcc-visual-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+          gap: 1.5rem;
+          margin-bottom: 2rem;
+        }
+        .fcc-table-scroll {
+          width: 100%;
+          overflow-x: auto;
+          -webkit-overflow-scrolling: touch;
+          scrollbar-width: thin;
+          scrollbar-color: #d97706 #fef3c7;
+        }
+        .fcc-table-scroll::-webkit-scrollbar {
+          height: 6px;
+        }
+        .fcc-table-scroll::-webkit-scrollbar-track {
+          background: #fef3c7;
+          border-radius: 4px;
+        }
+        .fcc-table-scroll::-webkit-scrollbar-thumb {
+          background: #d97706;
+          border-radius: 4px;
+        }
+
+        @media (max-width: 900px) {
+          .fcc-container {
+            padding: 1.25rem 1rem !important;
+          }
+        }
+
+        @media (max-width: 768px) {
+          .fcc-container {
+            padding: 0.85rem 0.65rem !important;
+          }
+          .fcc-header-wrap {
+            flex-direction: column !important;
+            align-items: stretch !important;
+            gap: 1rem !important;
+            padding-bottom: 1.25rem !important;
+            margin-bottom: 1.25rem !important;
+          }
+          .fcc-header-actions {
+            width: 100% !important;
+            display: flex !important;
+            flex-wrap: wrap !important;
+            gap: 0.5rem !important;
+          }
+          .fcc-header-actions button {
+            flex: 1 1 calc(50% - 0.5rem) !important;
+            justify-content: center !important;
+            text-align: center !important;
+          }
+          .fcc-header-actions button:last-child {
+            flex: 1 1 100% !important;
+          }
+          .fcc-card {
+            padding: 1rem !important;
+          }
+          .fcc-period-header {
+            flex-direction: column !important;
+            align-items: flex-start !important;
+            gap: 0.4rem !important;
+          }
+          .fcc-nwc-banner {
+            flex-direction: column !important;
+            align-items: stretch !important;
+            padding: 1rem !important;
+            gap: 1rem !important;
+          }
+          .fcc-nwc-actions {
+            width: 100% !important;
+            display: flex !important;
+            gap: 0.5rem !important;
+          }
+          .fcc-nwc-actions a {
+            flex: 1 !important;
+            text-align: center !important;
+            justify-content: center !important;
+          }
+          .fcc-visual-grid {
+            grid-template-columns: 1fr !important;
+            gap: 1rem !important;
+          }
+          .fcc-section-header {
+            flex-direction: column !important;
+            align-items: stretch !important;
+            gap: 0.75rem !important;
+          }
+          .fcc-section-header-actions {
+            width: 100% !important;
+            display: flex !important;
+            justify-content: space-between !important;
+            align-items: center !important;
+          }
+          .fcc-ledger-filters {
+            width: 100% !important;
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: stretch !important;
+            gap: 0.5rem !important;
+          }
+          .fcc-ledger-filters input,
+          .fcc-ledger-filters select {
+            width: 100% !important;
+            min-width: 0 !important;
+            box-sizing: border-box !important;
+          }
+          .fcc-custom-dates {
+            flex-direction: column !important;
+            align-items: stretch !important;
+            gap: 0.65rem !important;
+          }
+          .fcc-custom-dates > div {
+            width: 100% !important;
+            display: flex !important;
+            justify-content: space-between !important;
+            align-items: center !important;
+          }
+          .fcc-custom-dates input {
+            flex: 1 !important;
+            box-sizing: border-box !important;
+          }
+          .fcc-custom-dates button {
+            width: 100% !important;
+            padding: 0.6rem !important;
+          }
+          .fcc-purge-modal {
+            padding: 1.25rem !important;
+          }
+        }
+
+        @media (max-width: 640px) {
+          .fcc-kpi-grid {
+            grid-template-columns: repeat(2, 1fr) !important;
+            gap: 0.65rem !important;
+          }
+          .fcc-kpi-card {
+            padding: 0.85rem !important;
+          }
+          .fcc-kpi-card .fcc-kpi-val {
+            font-size: 1.2rem !important;
+          }
+          .fcc-pagination {
+            flex-direction: column !important;
+            gap: 0.75rem !important;
+            align-items: stretch !important;
+            text-align: center !important;
+          }
+          .fcc-pagination > div:last-child {
+            display: flex !important;
+            justify-content: space-between !important;
+          }
+          .fcc-pagination button {
+            flex: 1 !important;
+          }
+        }
+
+        @media (max-width: 420px) {
+          .fcc-kpi-grid {
+            grid-template-columns: 1fr !important;
+          }
+        }
+      `}</style>
+
       {/* Top Header */}
       <div
+        className="fcc-header-wrap"
         style={{
           display: 'flex',
           justifyContent: 'space-between',
@@ -310,6 +491,7 @@ export default function FinancialControlCenterPage() {
               fontWeight: 900,
               color: '#ffffff',
               boxShadow: '0 8px 20px rgba(217, 119, 6, 0.25)',
+              flexShrink: 0,
             }}
           >
             ₹
@@ -340,7 +522,7 @@ export default function FinancialControlCenterPage() {
         </div>
 
         {/* Global Action Buttons */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+        <div className="fcc-header-actions" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
           <button
             onClick={handleExportCsv}
             disabled={exportingCsv}
@@ -477,6 +659,7 @@ export default function FinancialControlCenterPage() {
 
       {/* Reporting Period Filter Bar */}
       <div
+        className="fcc-card"
         style={{
           backgroundColor: '#ffffff',
           border: '1px solid #fde68a',
@@ -486,7 +669,7 @@ export default function FinancialControlCenterPage() {
           boxShadow: '0 1px 3px rgba(180, 83, 9, 0.06)',
         }}
       >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+        <div className="fcc-period-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem', flexWrap: 'wrap', gap: '0.5rem' }}>
           <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#92400e', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
             Reporting Period Filter
           </span>
@@ -499,47 +682,115 @@ export default function FinancialControlCenterPage() {
           )}
         </div>
 
-        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.5rem' }}>
-          {[
-            { id: FinancialPeriodPreset.TODAY, label: 'Today' },
-            { id: FinancialPeriodPreset.YESTERDAY, label: 'Yesterday' },
-            { id: FinancialPeriodPreset.LAST_7_DAYS, label: 'Last 7 Days' },
-            { id: FinancialPeriodPreset.LAST_15_DAYS, label: 'Last 15 Days' },
-            { id: FinancialPeriodPreset.THIS_MONTH, label: 'This Month' },
-            { id: FinancialPeriodPreset.LAST_MONTH, label: 'Last Month' },
-            { id: FinancialPeriodPreset.THIS_FINANCIAL_YEAR, label: 'Financial Year (FY)' },
-            { id: FinancialPeriodPreset.CUSTOM, label: 'Custom Range' },
-          ].map((p) => {
-            const isActive = period === p.id;
-            return (
-              <button
-                key={p.id}
-                onClick={() => {
-                  setPeriod(p.id);
-                  setCurrentPage(1);
-                }}
-                style={{
-                  backgroundColor: isActive ? '#d97706' : '#fffbeb',
-                  color: isActive ? '#ffffff' : '#92400e',
-                  border: isActive ? '1px solid #b45309' : '1px solid #fde68a',
-                  borderRadius: '8px',
-                  padding: '0.45rem 1rem',
-                  fontSize: '0.8rem',
-                  fontWeight: isActive ? 700 : 600,
-                  cursor: 'pointer',
-                  boxShadow: isActive ? '0 2px 8px rgba(217, 119, 6, 0.3)' : 'none',
-                  transition: 'all 0.15s ease-in-out',
-                }}
-              >
-                {p.label}
-              </button>
-            );
-          })}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', width: '100%' }}>
+          <button
+            type="button"
+            onClick={() => {
+              const el = document.getElementById('control-center-period-scroll');
+              if (el) el.scrollBy({ left: -180, behavior: 'smooth' });
+            }}
+            style={{
+              backgroundColor: '#ffffff',
+              border: '1px solid #fde68a',
+              color: '#92400e',
+              borderRadius: '6px',
+              width: '26px',
+              height: '26px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              flexShrink: 0,
+              fontSize: '1rem',
+              lineHeight: 1,
+            }}
+            aria-label="Scroll left"
+          >
+            ‹
+          </button>
+          <div
+            id="control-center-period-scroll"
+            style={{
+              display: 'flex',
+              flexWrap: 'nowrap',
+              alignItems: 'center',
+              gap: '0.5rem',
+              overflowX: 'auto',
+              scrollbarWidth: 'thin',
+              WebkitOverflowScrolling: 'touch',
+              flex: '1 1 auto',
+              minWidth: 0,
+            }}
+          >
+            {[
+              { id: FinancialPeriodPreset.TODAY, label: 'Today' },
+              { id: FinancialPeriodPreset.YESTERDAY, label: 'Yesterday' },
+              { id: FinancialPeriodPreset.LAST_7_DAYS, label: 'Last 7 Days' },
+              { id: FinancialPeriodPreset.LAST_15_DAYS, label: 'Last 15 Days' },
+              { id: FinancialPeriodPreset.THIS_MONTH, label: 'This Month' },
+              { id: FinancialPeriodPreset.LAST_MONTH, label: 'Last Month' },
+              { id: FinancialPeriodPreset.THIS_FINANCIAL_YEAR, label: 'Financial Year (FY)' },
+              { id: FinancialPeriodPreset.CUSTOM, label: 'Custom Range' },
+            ].map((p) => {
+              const isActive = period === p.id;
+              return (
+                <button
+                  key={p.id}
+                  onClick={() => {
+                    setPeriod(p.id);
+                    setCurrentPage(1);
+                  }}
+                  style={{
+                    backgroundColor: isActive ? '#d97706' : '#fffbeb',
+                    color: isActive ? '#ffffff' : '#92400e',
+                    border: isActive ? '1px solid #b45309' : '1px solid #fde68a',
+                    borderRadius: '8px',
+                    padding: '0.45rem 1rem',
+                    fontSize: '0.8rem',
+                    fontWeight: isActive ? 700 : 600,
+                    cursor: 'pointer',
+                    boxShadow: isActive ? '0 2px 8px rgba(217, 119, 6, 0.3)' : 'none',
+                    transition: 'all 0.15s ease-in-out',
+                    whiteSpace: 'nowrap',
+                    flexShrink: 0,
+                  }}
+                >
+                  {p.label}
+                </button>
+              );
+            })}
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              const el = document.getElementById('control-center-period-scroll');
+              if (el) el.scrollBy({ left: 180, behavior: 'smooth' });
+            }}
+            style={{
+              backgroundColor: '#ffffff',
+              border: '1px solid #fde68a',
+              color: '#92400e',
+              borderRadius: '6px',
+              width: '26px',
+              height: '26px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              flexShrink: 0,
+              fontSize: '1rem',
+              lineHeight: 1,
+            }}
+            aria-label="Scroll right"
+          >
+            ›
+          </button>
         </div>
 
         {/* Custom Date Inputs */}
         {period === FinancialPeriodPreset.CUSTOM && (
           <div
+            className="fcc-custom-dates"
             style={{
               marginTop: '1rem',
               paddingTop: '1rem',
@@ -608,6 +859,7 @@ export default function FinancialControlCenterPage() {
       {/* Net Working Capital Liquidity Banner */}
       {kpiData && (
         <div
+          className="fcc-nwc-banner"
           style={{
             background: 'linear-gradient(90deg, #fffbeb 0%, #fef3c7 50%, #fffbeb 100%)',
             border: '1px solid #fde68a',
@@ -634,6 +886,7 @@ export default function FinancialControlCenterPage() {
                 alignItems: 'center',
                 justifyContent: 'center',
                 fontSize: '1.4rem',
+                flexShrink: 0,
               }}
             >
               ⚖️
@@ -644,14 +897,14 @@ export default function FinancialControlCenterPage() {
               </div>
               <div style={{ fontSize: '1.65rem', fontWeight: 900, color: '#0f172a', marginTop: '0.2rem' }}>
                 {formatCurrencyINR(kpiData.receivablesVsPayables.netWorkingPositionInr)}
-                <span style={{ fontSize: '0.8rem', fontWeight: 500, color: '#78350f', marginLeft: '0.75rem' }}>
+                <span style={{ fontSize: '0.8rem', fontWeight: 500, color: '#78350f', marginLeft: '0.75rem', display: 'inline-block' }}>
                   (Receivables: {formatCurrencyINR(kpiData.receivablesVsPayables.receivablesInr)} &ndash; Payables:{' '}
                   {formatCurrencyINR(kpiData.receivablesVsPayables.payablesInr)})
                 </span>
               </div>
             </div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <div className="fcc-nwc-actions" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
             <Link
               href="/super-admin/finance/dues"
               style={{
@@ -694,7 +947,7 @@ export default function FinancialControlCenterPage() {
         </div>
 
         {loadingKpi ? (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))', gap: '1rem' }}>
+          <div className="fcc-kpi-grid">
             {Array.from({ length: 10 }).map((_, i) => (
               <div
                 key={i}
@@ -708,13 +961,13 @@ export default function FinancialControlCenterPage() {
             ))}
           </div>
         ) : kpiData ? (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))', gap: '1rem' }}>
+          <div className="fcc-kpi-grid">
             {/* 1. Actual Money Received */}
-            <div style={{ backgroundColor: '#ffffff', border: '1px solid #a7f3d0', borderRadius: '14px', padding: '1.15rem', boxShadow: '0 1px 3px rgba(16, 185, 129, 0.08)' }}>
+            <div className="fcc-kpi-card" style={{ backgroundColor: '#ffffff', border: '1px solid #a7f3d0', borderRadius: '14px', padding: '1.15rem', boxShadow: '0 1px 3px rgba(16, 185, 129, 0.08)' }}>
               <div style={{ fontSize: '0.72rem', fontWeight: 800, color: '#059669', textTransform: 'uppercase' }}>
                 1. Money Received (Inflow)
               </div>
-              <div style={{ fontSize: '1.45rem', fontWeight: 900, color: '#065f46', marginTop: '0.4rem' }}>
+              <div className="fcc-kpi-val" style={{ fontSize: '1.45rem', fontWeight: 900, color: '#065f46', marginTop: '0.4rem' }}>
                 {formatCurrencyINR(kpiData.kpis.actualMoneyReceived.inr)}
               </div>
               <p style={{ fontSize: '0.72rem', color: '#64748b', margin: '0.35rem 0 0 0', lineHeight: 1.35 }}>
@@ -726,11 +979,11 @@ export default function FinancialControlCenterPage() {
             </div>
 
             {/* 2. Recognized Expenditure */}
-            <div style={{ backgroundColor: '#ffffff', border: '1px solid #fde68a', borderRadius: '14px', padding: '1.15rem', boxShadow: '0 1px 3px rgba(217, 119, 6, 0.08)' }}>
+            <div className="fcc-kpi-card" style={{ backgroundColor: '#ffffff', border: '1px solid #fde68a', borderRadius: '14px', padding: '1.15rem', boxShadow: '0 1px 3px rgba(217, 119, 6, 0.08)' }}>
               <div style={{ fontSize: '0.72rem', fontWeight: 800, color: '#b45309', textTransform: 'uppercase' }}>
                 2. Approved Expenditure
               </div>
-              <div style={{ fontSize: '1.45rem', fontWeight: 900, color: '#92400e', marginTop: '0.4rem' }}>
+              <div className="fcc-kpi-val" style={{ fontSize: '1.45rem', fontWeight: 900, color: '#92400e', marginTop: '0.4rem' }}>
                 {formatCurrencyINR(kpiData.kpis.recognizedExpenditure.inr)}
               </div>
               <p style={{ fontSize: '0.72rem', color: '#64748b', margin: '0.35rem 0 0 0', lineHeight: 1.35 }}>
@@ -742,11 +995,11 @@ export default function FinancialControlCenterPage() {
             </div>
 
             {/* 3. Actual Cash Outflows */}
-            <div style={{ backgroundColor: '#ffffff', border: '1px solid #fecdd3', borderRadius: '14px', padding: '1.15rem', boxShadow: '0 1px 3px rgba(225, 29, 72, 0.08)' }}>
+            <div className="fcc-kpi-card" style={{ backgroundColor: '#ffffff', border: '1px solid #fecdd3', borderRadius: '14px', padding: '1.15rem', boxShadow: '0 1px 3px rgba(225, 29, 72, 0.08)' }}>
               <div style={{ fontSize: '0.72rem', fontWeight: 800, color: '#e11d48', textTransform: 'uppercase' }}>
                 3. Cash Outflows
               </div>
-              <div style={{ fontSize: '1.45rem', fontWeight: 900, color: '#9f1239', marginTop: '0.4rem' }}>
+              <div className="fcc-kpi-val" style={{ fontSize: '1.45rem', fontWeight: 900, color: '#9f1239', marginTop: '0.4rem' }}>
                 {formatCurrencyINR(kpiData.kpis.actualCashOutflows.inr)}
               </div>
               <p style={{ fontSize: '0.72rem', color: '#64748b', margin: '0.35rem 0 0 0', lineHeight: 1.35 }}>
@@ -758,11 +1011,11 @@ export default function FinancialControlCenterPage() {
             </div>
 
             {/* 4. Outstanding Payables */}
-            <div style={{ backgroundColor: '#ffffff', border: '1px solid #fecaca', borderRadius: '14px', padding: '1.15rem', boxShadow: '0 1px 3px rgba(220, 38, 38, 0.08)' }}>
+            <div className="fcc-kpi-card" style={{ backgroundColor: '#ffffff', border: '1px solid #fecaca', borderRadius: '14px', padding: '1.15rem', boxShadow: '0 1px 3px rgba(220, 38, 38, 0.08)' }}>
               <div style={{ fontSize: '0.72rem', fontWeight: 800, color: '#dc2626', textTransform: 'uppercase' }}>
                 4. Outstanding Payables
               </div>
-              <div style={{ fontSize: '1.45rem', fontWeight: 900, color: '#991b1b', marginTop: '0.4rem' }}>
+              <div className="fcc-kpi-val" style={{ fontSize: '1.45rem', fontWeight: 900, color: '#991b1b', marginTop: '0.4rem' }}>
                 {formatCurrencyINR(kpiData.kpis.outstandingPayables.inr)}
               </div>
               <p style={{ fontSize: '0.72rem', color: '#64748b', margin: '0.35rem 0 0 0', lineHeight: 1.35 }}>
@@ -774,11 +1027,11 @@ export default function FinancialControlCenterPage() {
             </div>
 
             {/* 5. Outstanding Receivables */}
-            <div style={{ backgroundColor: '#ffffff', border: '1px solid #bfdbfe', borderRadius: '14px', padding: '1.15rem', boxShadow: '0 1px 3px rgba(37, 99, 235, 0.08)' }}>
+            <div className="fcc-kpi-card" style={{ backgroundColor: '#ffffff', border: '1px solid #bfdbfe', borderRadius: '14px', padding: '1.15rem', boxShadow: '0 1px 3px rgba(37, 99, 235, 0.08)' }}>
               <div style={{ fontSize: '0.72rem', fontWeight: 800, color: '#2563eb', textTransform: 'uppercase' }}>
                 5. Blood Issue Receivables
               </div>
-              <div style={{ fontSize: '1.45rem', fontWeight: 900, color: '#1e40af', marginTop: '0.4rem' }}>
+              <div className="fcc-kpi-val" style={{ fontSize: '1.45rem', fontWeight: 900, color: '#1e40af', marginTop: '0.4rem' }}>
                 {formatCurrencyINR(kpiData.kpis.outstandingReceivables.inr)}
               </div>
               <p style={{ fontSize: '0.72rem', color: '#64748b', margin: '0.35rem 0 0 0', lineHeight: 1.35 }}>
@@ -790,11 +1043,11 @@ export default function FinancialControlCenterPage() {
             </div>
 
             {/* 6. Blood Acquisition Cost */}
-            <div style={{ backgroundColor: '#ffffff', border: '1px solid #fde68a', borderRadius: '14px', padding: '1.15rem', boxShadow: '0 1px 3px rgba(180, 83, 9, 0.06)' }}>
+            <div className="fcc-kpi-card" style={{ backgroundColor: '#ffffff', border: '1px solid #fde68a', borderRadius: '14px', padding: '1.15rem', boxShadow: '0 1px 3px rgba(180, 83, 9, 0.06)' }}>
               <div style={{ fontSize: '0.72rem', fontWeight: 800, color: '#92400e', textTransform: 'uppercase' }}>
                 6. Acquisition Cost
               </div>
-              <div style={{ fontSize: '1.45rem', fontWeight: 900, color: '#0f172a', marginTop: '0.4rem' }}>
+              <div className="fcc-kpi-val" style={{ fontSize: '1.45rem', fontWeight: 900, color: '#0f172a', marginTop: '0.4rem' }}>
                 {formatCurrencyINR(kpiData.kpis.bloodAcquisitionCost.inr)}
               </div>
               <p style={{ fontSize: '0.72rem', color: '#64748b', margin: '0.35rem 0 0 0', lineHeight: 1.35 }}>
@@ -806,11 +1059,11 @@ export default function FinancialControlCenterPage() {
             </div>
 
             {/* 7. Campaign Expenditure */}
-            <div style={{ backgroundColor: '#ffffff', border: '1px solid #fde68a', borderRadius: '14px', padding: '1.15rem', boxShadow: '0 1px 3px rgba(180, 83, 9, 0.06)' }}>
+            <div className="fcc-kpi-card" style={{ backgroundColor: '#ffffff', border: '1px solid #fde68a', borderRadius: '14px', padding: '1.15rem', boxShadow: '0 1px 3px rgba(180, 83, 9, 0.06)' }}>
               <div style={{ fontSize: '0.72rem', fontWeight: 800, color: '#92400e', textTransform: 'uppercase' }}>
                 7. Campaign Expenses
               </div>
-              <div style={{ fontSize: '1.45rem', fontWeight: 900, color: '#0f172a', marginTop: '0.4rem' }}>
+              <div className="fcc-kpi-val" style={{ fontSize: '1.45rem', fontWeight: 900, color: '#0f172a', marginTop: '0.4rem' }}>
                 {formatCurrencyINR(kpiData.kpis.campaignExpenditure.inr)}
               </div>
               <p style={{ fontSize: '0.72rem', color: '#64748b', margin: '0.35rem 0 0 0', lineHeight: 1.35 }}>
@@ -822,11 +1075,11 @@ export default function FinancialControlCenterPage() {
             </div>
 
             {/* 8. Payroll Expense */}
-            <div style={{ backgroundColor: '#ffffff', border: '1px solid #fde68a', borderRadius: '14px', padding: '1.15rem', boxShadow: '0 1px 3px rgba(180, 83, 9, 0.06)' }}>
+            <div className="fcc-kpi-card" style={{ backgroundColor: '#ffffff', border: '1px solid #fde68a', borderRadius: '14px', padding: '1.15rem', boxShadow: '0 1px 3px rgba(180, 83, 9, 0.06)' }}>
               <div style={{ fontSize: '0.72rem', fontWeight: 800, color: '#92400e', textTransform: 'uppercase' }}>
                 8. Payroll Expense
               </div>
-              <div style={{ fontSize: '1.45rem', fontWeight: 900, color: '#0f172a', marginTop: '0.4rem' }}>
+              <div className="fcc-kpi-val" style={{ fontSize: '1.45rem', fontWeight: 900, color: '#0f172a', marginTop: '0.4rem' }}>
                 {formatCurrencyINR(kpiData.kpis.payrollExpense.inr)}
               </div>
               <p style={{ fontSize: '0.72rem', color: '#64748b', margin: '0.35rem 0 0 0', lineHeight: 1.35 }}>
@@ -838,11 +1091,11 @@ export default function FinancialControlCenterPage() {
             </div>
 
             {/* 9. Gross Invoices Billed */}
-            <div style={{ backgroundColor: '#ffffff', border: '1px solid #fde68a', borderRadius: '14px', padding: '1.15rem', boxShadow: '0 1px 3px rgba(180, 83, 9, 0.06)' }}>
+            <div className="fcc-kpi-card" style={{ backgroundColor: '#ffffff', border: '1px solid #fde68a', borderRadius: '14px', padding: '1.15rem', boxShadow: '0 1px 3px rgba(180, 83, 9, 0.06)' }}>
               <div style={{ fontSize: '0.72rem', fontWeight: 800, color: '#92400e', textTransform: 'uppercase' }}>
                 9. Gross Billed
               </div>
-              <div style={{ fontSize: '1.45rem', fontWeight: 900, color: '#0f172a', marginTop: '0.4rem' }}>
+              <div className="fcc-kpi-val" style={{ fontSize: '1.45rem', fontWeight: 900, color: '#0f172a', marginTop: '0.4rem' }}>
                 {formatCurrencyINR(kpiData.kpis.totalInvoicedGross.inr)}
               </div>
               <p style={{ fontSize: '0.72rem', color: '#64748b', margin: '0.35rem 0 0 0', lineHeight: 1.35 }}>
@@ -854,11 +1107,11 @@ export default function FinancialControlCenterPage() {
             </div>
 
             {/* 10. Total Collections Received */}
-            <div style={{ backgroundColor: '#ffffff', border: '1px solid #fde68a', borderRadius: '14px', padding: '1.15rem', boxShadow: '0 1px 3px rgba(180, 83, 9, 0.06)' }}>
+            <div className="fcc-kpi-card" style={{ backgroundColor: '#ffffff', border: '1px solid #fde68a', borderRadius: '14px', padding: '1.15rem', boxShadow: '0 1px 3px rgba(180, 83, 9, 0.06)' }}>
               <div style={{ fontSize: '0.72rem', fontWeight: 800, color: '#92400e', textTransform: 'uppercase' }}>
                 10. Total Remittances
               </div>
-              <div style={{ fontSize: '1.45rem', fontWeight: 900, color: '#0f172a', marginTop: '0.4rem' }}>
+              <div className="fcc-kpi-val" style={{ fontSize: '1.45rem', fontWeight: 900, color: '#0f172a', marginTop: '0.4rem' }}>
                 {formatCurrencyINR(kpiData.kpis.totalCollectionsReceived.inr)}
               </div>
               <p style={{ fontSize: '0.72rem', color: '#64748b', margin: '0.35rem 0 0 0', lineHeight: 1.35 }}>
@@ -874,7 +1127,7 @@ export default function FinancialControlCenterPage() {
 
       {/* Visual Breakdowns Section */}
       {kpiData && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
+        <div className="fcc-visual-grid">
           {/* Expense Category Breakdown */}
           <div
             style={{
@@ -985,6 +1238,7 @@ export default function FinancialControlCenterPage() {
 
       {/* 🛡️ UNAPPROVED VENDOR BILLS & EXPENDITURES QUEUE */}
       <div
+        className="fcc-card"
         style={{
           backgroundColor: '#ffffff',
           border: pendingExpenses.length > 0 ? '1px solid #d97706' : '1px solid #fde68a',
@@ -995,6 +1249,7 @@ export default function FinancialControlCenterPage() {
         }}
       >
         <div
+          className="fcc-section-header"
           style={{
             display: 'flex',
             justifyContent: 'space-between',
@@ -1056,7 +1311,7 @@ export default function FinancialControlCenterPage() {
             </p>
           </div>
 
-          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+          <div className="fcc-section-header-actions" style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
             <button
               onClick={loadPendingExpenses}
               disabled={loadingPending}
@@ -1121,8 +1376,8 @@ export default function FinancialControlCenterPage() {
         )}
 
         {/* Table of Unapproved Bills */}
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.825rem' }}>
+        <div className="fcc-table-scroll admin-table-scroll" style={{ width: '100%', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+          <table style={{ width: '100%', minWidth: '940px', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.825rem' }}>
             <thead>
               <tr
                 style={{
@@ -1365,6 +1620,7 @@ export default function FinancialControlCenterPage() {
 
       {/* Central Financial Transaction Ledger */}
       <div
+        className="fcc-card"
         style={{
           backgroundColor: '#ffffff',
           border: '1px solid #fde68a',
@@ -1374,6 +1630,7 @@ export default function FinancialControlCenterPage() {
         }}
       >
         <div
+          className="fcc-section-header"
           style={{
             display: 'flex',
             justifyContent: 'space-between',
@@ -1410,7 +1667,7 @@ export default function FinancialControlCenterPage() {
           </div>
 
           {/* Filter Controls */}
-          <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.65rem' }}>
+          <div className="fcc-ledger-filters" style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.65rem' }}>
             {/* Search */}
             <input
               type="text"
@@ -1486,8 +1743,8 @@ export default function FinancialControlCenterPage() {
         </div>
 
         {/* Ledger Table */}
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.8rem' }}>
+        <div className="fcc-table-scroll admin-table-scroll" style={{ width: '100%', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+          <table style={{ width: '100%', minWidth: '940px', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.8rem' }}>
             <thead>
               <tr style={{ backgroundColor: '#fef3c7', color: '#92400e', borderBottom: '1px solid #fde68a' }}>
                 <th style={{ padding: '0.85rem 0.75rem', fontWeight: 700, fontSize: '0.72rem', textTransform: 'uppercase' }}>Date</th>
@@ -1625,6 +1882,7 @@ export default function FinancialControlCenterPage() {
         {/* Pagination Controls */}
         {ledgerData && ledgerData.totalPages > 1 && (
           <div
+            className="fcc-pagination"
             style={{
               display: 'flex',
               justifyContent: 'space-between',
@@ -1698,6 +1956,7 @@ export default function FinancialControlCenterPage() {
           }}
         >
           <div
+            className="fcc-purge-modal"
             style={{
               backgroundColor: '#ffffff',
               borderRadius: '16px',
@@ -1706,6 +1965,7 @@ export default function FinancialControlCenterPage() {
               padding: '2rem',
               border: '1px solid #fde68a',
               boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)',
+              boxSizing: 'border-box',
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.25rem' }}>

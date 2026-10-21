@@ -426,6 +426,46 @@ export default function AdminBloodRequestsPage() {
 
   return (
     <div style={{ maxWidth: '100%', margin: '0 auto', padding: '0', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
+      {/* Scoped Styles for Mobile Single-Line Actions & Filter */}
+      <style
+        dangerouslySetInnerHTML={{
+          __html: `
+            .request-header-actions {
+              display: flex;
+              gap: 0.75rem;
+              align-items: center;
+              flex-wrap: nowrap;
+            }
+            @media (max-width: 768px) {
+              .request-header-actions {
+                width: 100% !important;
+                display: flex !important;
+                flex-direction: row !important;
+                flex-wrap: nowrap !important;
+                gap: 0.5rem !important;
+              }
+              .request-header-actions > * {
+                flex: 1 1 50% !important;
+                min-width: 0 !important;
+                justify-content: center !important;
+                text-align: center !important;
+                white-space: nowrap !important;
+                padding: 0.5rem 0.35rem !important;
+                font-size: 0.775rem !important;
+                box-sizing: border-box !important;
+              }
+              .request-filter-row {
+                width: 100% !important;
+              }
+              .request-filter-row select {
+                flex: 1 1 auto !important;
+                min-width: 0 !important;
+              }
+            }
+          `,
+        }}
+      />
+
       {/* Top Bar */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', borderBottom: '1px solid #e2e8f0', paddingBottom: '1rem', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
@@ -434,20 +474,21 @@ export default function AdminBloodRequestsPage() {
             Real-time intake queue and lifecycle processing
           </p>
         </div>
-        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+        <div className="request-header-actions">
           <button
             onClick={loadRequests}
             style={{
               backgroundColor: '#ffffff',
               border: '1px solid #cbd5e1',
               color: '#334155',
-              padding: '0.5rem 1rem',
+              padding: '0.5rem 0.85rem',
               borderRadius: '6px',
-              fontSize: '0.875rem',
-              fontWeight: 500,
+              fontSize: '0.825rem',
+              fontWeight: 600,
               cursor: 'pointer',
-              display: 'flex',
+              display: 'inline-flex',
               alignItems: 'center',
+              justifyContent: 'center',
               gap: '0.35rem',
             }}
           >
@@ -462,10 +503,11 @@ export default function AdminBloodRequestsPage() {
               padding: '0.5rem 1rem',
               borderRadius: '6px',
               textDecoration: 'none',
-              fontSize: '0.875rem',
+              fontSize: '0.825rem',
               fontWeight: 600,
-              display: 'flex',
+              display: 'inline-flex',
               alignItems: 'center',
+              justifyContent: 'center',
               gap: '0.35rem',
               boxShadow: '0 1px 2px rgba(220, 38, 38, 0.2)',
             }}
@@ -477,8 +519,8 @@ export default function AdminBloodRequestsPage() {
 
       {/* Filter and Controls */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', background: '#ffffff', padding: '0.75rem 1rem', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <label style={{ fontSize: '0.875rem', fontWeight: 500, color: '#475569' }}>Filter by Status:</label>
+        <div className="request-filter-row" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', width: '100%' }}>
+          <label style={{ fontSize: '0.875rem', fontWeight: 500, color: '#475569', whiteSpace: 'nowrap' }}>Filter by Status:</label>
           <select
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value)}
@@ -490,13 +532,6 @@ export default function AdminBloodRequestsPage() {
             ))}
           </select>
         </div>
-
-        <button
-          onClick={loadRequests}
-          style={{ background: '#f8fafc', border: '1px solid #cbd5e1', padding: '0.4rem 0.8rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.875rem' }}
-        >
-          ↻ Refresh List
-        </button>
       </div>
 
       {/* Error Banner */}

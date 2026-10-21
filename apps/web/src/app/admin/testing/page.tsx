@@ -733,21 +733,6 @@ export default function AdminTestingPage() {
               <option value={TestingDecision.REJECTED}>REJECTED</option>
             </select>
           </div>
-
-          <button
-            onClick={() => loadTestingQueue()}
-            style={{
-              backgroundColor: '#f8fafc',
-              border: '1px solid #cbd5e1',
-              padding: '0.45rem 0.85rem',
-              borderRadius: '6px',
-              fontSize: '0.875rem',
-              cursor: 'pointer',
-              color: '#334155',
-            }}
-          >
-            ↻ Refresh Queue
-          </button>
         </div>
       </div>
 
