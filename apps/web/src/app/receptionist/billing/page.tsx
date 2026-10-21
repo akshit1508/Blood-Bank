@@ -642,10 +642,10 @@ export default function ReceptionistBillingPage() {
                   Itemized Tariff Charges
                 </h3>
 
-                <div style={{ border: '1px solid #1e293b', borderRadius: '8px', overflow: 'hidden' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.8rem' }}>
+                <div style={{ border: '1px solid #1e293b', borderRadius: '8px', overflowX: 'auto', WebkitOverflowScrolling: 'touch', width: '100%', display: 'block' }}>
+                  <table style={{ width: '100%', minWidth: '420px', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.8rem' }}>
                     <thead>
-                      <tr style={{ backgroundColor: '#020617', borderBottom: '1px solid #1e293b', color: '#94a3b8' }}>
+                      <tr style={{ backgroundColor: '#020617', borderBottom: '1px solid #1e293b', color: '#94a3b8', whiteSpace: 'nowrap' }}>
                         <th style={{ padding: '0.65rem 0.85rem' }}>Item Description</th>
                         <th style={{ padding: '0.65rem 0.85rem', textAlign: 'center' }}>Qty</th>
                         <th style={{ padding: '0.65rem 0.85rem', textAlign: 'right' }}>Unit Rate</th>
@@ -654,14 +654,78 @@ export default function ReceptionistBillingPage() {
                     </thead>
                     <tbody>
                       {(selectedInvoice.items || []).map((item: any, idx: number) => {
-                        const rate = Number(item.unitRate ?? item.rate ?? item.unitPrice ?? item.basePrice ?? 0);
-                        const qty = Number(item.quantity ?? 1);
-                        const lineTotal = Number(item.totalPrice ?? item.totalAmount ?? item.amount ?? (rate * qty));
+                        const qty = Number(item.quantity ?? item.qty ?? 1);
+
+                        // Fallback rate from total invoice amount if item-level amounts are missing
+                        const fallbackPerItem = (selectedInvoice.items && selectedInvoice.items.length > 0)
+                          ? Math.round(Number(selectedInvoice.subtotal ?? selectedInvoice.totalAmount ?? selectedInvoice.netPayable ?? 0) / selectedInvoice.items.length)
+                          : 0;
+
+                        const rawItemTotal = Number(
+                          item.lineTotal ??
+                          item.totalPrice ??
+                          item.totalAmount ??
+                          item.amount ??
+                          (item.lineTotalPaise ? item.lineTotalPaise / 100 : undefined) ??
+                          (item.baseProcessingFee !== undefined ? (Number(item.baseProcessingFee) + Number(item.crossmatchFee || 0)) : undefined) ??
+                          (item.baseProcessingFeePaise !== undefined ? (Number(item.baseProcessingFeePaise) + Number(item.crossmatchFeePaise || 0)) / 100 : undefined) ??
+                          (item.unitRate ? Number(item.unitRate) * qty : undefined) ??
+                          (item.rate ? Number(item.rate) * qty : undefined) ??
+                          (item.unitPrice ? Number(item.unitPrice) * qty : undefined) ??
+                          0
+                        );
+
+                        const lineTotal = rawItemTotal > 0 ? rawItemTotal : (fallbackPerItem > 0 ? fallbackPerItem * qty : 0);
+
+                        const rawRate = Number(
+                          item.unitRate ??
+                          item.rate ??
+                          item.unitPrice ??
+                          item.basePrice ??
+                          (item.lineTotal ? item.lineTotal / qty : undefined) ??
+                          (item.baseProcessingFee !== undefined ? (Number(item.baseProcessingFee) + Number(item.crossmatchFee || 0)) / qty : undefined) ??
+                          (item.lineTotalPaise ? (item.lineTotalPaise / 100) / qty : undefined) ??
+                          (lineTotal > 0 ? lineTotal / qty : 0)
+                        );
+
+                        const rate = rawRate > 0 ? rawRate : (lineTotal > 0 ? lineTotal / qty : (fallbackPerItem > 0 ? fallbackPerItem : 0));
+
+                        const bloodGroup = item.bloodGroup || selectedInvoice.bloodGroup;
+                        const component = (item.componentType || selectedInvoice.componentType || 'Whole Blood').replace(/_/g, ' ');
+                        const unitCode = item.unitCode || item.unitNumber || (item.bloodUnitId ? `Unit #${String(item.bloodUnitId).slice(-6)}` : '');
 
                         return (
                           <tr key={idx} style={{ borderBottom: '1px solid #1e293b', backgroundColor: '#0f172a' }}>
-                            <td style={{ padding: '0.65rem 0.85rem', color: '#ffffff', fontWeight: 600 }}>
-                              {item.description || (item.bloodGroup && item.componentType ? `${item.bloodGroup} ${item.componentType.replace(/_/g, ' ')} (${item.unitCode || 'Unit'})` : 'Blood Service Charge')}
+                            <td style={{ padding: '0.65rem 0.85rem', color: '#ffffff', minWidth: '180px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
+                                {bloodGroup && (
+                                  <span
+                                    style={{
+                                      display: 'inline-block',
+                                      padding: '0.1rem 0.4rem',
+                                      borderRadius: '4px',
+                                      fontWeight: 800,
+                                      fontSize: '0.75rem',
+                                      backgroundColor: '#450a0a',
+                                      color: '#fda4af',
+                                      border: '1px solid #9f1239',
+                                    }}
+                                  >
+                                    {bloodGroup}
+                                  </span>
+                                )}
+                                <strong style={{ color: '#f8fafc' }}>{component}</strong>
+                              </div>
+                              {unitCode && (
+                                <div style={{ fontSize: '0.725rem', color: '#94a3b8', fontFamily: 'monospace', marginTop: '0.2rem' }}>
+                                  {unitCode}
+                                </div>
+                              )}
+                              {!unitCode && item.description && (
+                                <div style={{ fontSize: '0.725rem', color: '#94a3b8', marginTop: '0.2rem' }}>
+                                  {item.description}
+                                </div>
+                              )}
                             </td>
                             <td style={{ padding: '0.65rem 0.85rem', textAlign: 'center', color: '#cbd5e1', fontFamily: 'monospace' }}>
                               {qty}

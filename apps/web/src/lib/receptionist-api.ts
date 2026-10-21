@@ -467,9 +467,25 @@ export async function fetchActiveTariffs() {
 /**
  * Fetch daily register cashier shift report.
  */
-export async function fetchDailyRegisterReport(date?: string) {
+export async function fetchDailyRegisterReport(
+  params?:
+    | string
+    | {
+        date?: string;
+        period?: ReceptionistPeriod;
+        startDate?: string;
+        endDate?: string;
+      },
+) {
   const q = new URLSearchParams();
-  if (date) q.set('date', date);
+  if (typeof params === 'string') {
+    if (params) q.set('date', params);
+  } else if (params) {
+    if (params.date) q.set('date', params.date);
+    if (params.period) q.set('period', params.period);
+    if (params.startDate) q.set('startDate', params.startDate);
+    if (params.endDate) q.set('endDate', params.endDate);
+  }
 
   const res = await fetch(`${API_BASE_URL}/billing/reports/daily-register?${q.toString()}`, {
     headers: {

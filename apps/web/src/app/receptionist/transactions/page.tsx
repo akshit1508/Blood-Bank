@@ -238,8 +238,8 @@ export default function ReceptionistTransactionsHistoryPage() {
             </p>
           </div>
         ) : (
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
+          <div style={{ width: '100%', maxWidth: '100%', overflowX: 'auto', WebkitOverflowScrolling: 'touch', display: 'block' }}>
+            <table style={{ width: '100%', minWidth: '650px', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
               <thead>
                 <tr
                   style={{
@@ -250,6 +250,7 @@ export default function ReceptionistTransactionsHistoryPage() {
                     color: '#94a3b8',
                     textTransform: 'uppercase',
                     letterSpacing: '0.05em',
+                    whiteSpace: 'nowrap',
                   }}
                 >
                   <th style={{ padding: '0.75rem 1rem' }}>Receipt #</th>

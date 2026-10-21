@@ -18,8 +18,13 @@ export class BillingReportsController {
    * GET /api/billing/reports/daily-register?date=YYYY-MM-DD
    */
   @Get('daily-register')
-  async getDailyRegister(@Query('date') date?: string) {
-    const data = await this.reportsService.getDailyRegister(date);
+  async getDailyRegister(
+    @Query('date') date?: string,
+    @Query('period') period?: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    const data = await this.reportsService.getDailyRegister(date, period, startDate, endDate);
     return {
       statusCode: HttpStatus.OK,
       data,

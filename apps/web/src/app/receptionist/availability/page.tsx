@@ -74,11 +74,15 @@ export default function ReceptionistAvailabilityPage() {
   const filteredItems = items.filter((item) => {
     if (!searchQuery) return true;
     const q = searchQuery.toLowerCase();
+    const uCode = item.bloodUnit?.unitCode || item.unitCode || item.unitNumber || item.barcode || item._id || '';
+    const bGroup = item.bloodUnit?.bloodGroup || item.bloodGroup || item.donor?.bloodGroup || '';
+    const cType = item.bloodUnit?.componentType || item.componentType || '';
+    const sLoc = item.bloodUnit?.storageLocation || item.storageLocation || '';
     return (
-      item.unitNumber?.toLowerCase().includes(q) ||
-      item.bloodGroup?.toLowerCase().includes(q) ||
-      item.componentType?.toLowerCase().includes(q) ||
-      item.storageLocation?.toLowerCase().includes(q)
+      uCode.toLowerCase().includes(q) ||
+      bGroup.toLowerCase().includes(q) ||
+      cType.toLowerCase().includes(q) ||
+      sLoc.toLowerCase().includes(q)
     );
   });
 
@@ -589,8 +593,8 @@ export default function ReceptionistAvailabilityPage() {
             </p>
           </div>
         ) : (
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
+          <div style={{ width: '100%', maxWidth: '100%', overflowX: 'auto', WebkitOverflowScrolling: 'touch', display: 'block' }}>
+            <table style={{ width: '100%', minWidth: '600px', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
               <thead>
                 <tr
                   style={{
@@ -614,9 +618,43 @@ export default function ReceptionistAvailabilityPage() {
               </thead>
               <tbody>
                 {filteredItems.map((item) => {
+                  const unitIdentifier =
+                    item.bloodUnit?.unitCode ||
+                    item.unitCode ||
+                    item.unitNumber ||
+                    item.barcode ||
+                    item._id?.slice(-8) ||
+                    'N/A';
+
+                  const bloodGroup =
+                    item.bloodUnit?.bloodGroup ||
+                    item.bloodGroup ||
+                    item.donor?.bloodGroup ||
+                    'O+';
+
+                  const component =
+                    item.bloodUnit?.componentType ||
+                    item.componentType ||
+                    'WHOLE_BLOOD';
+
+                  const volume =
+                    item.bloodUnit?.volume ||
+                    item.volume ||
+                    item.volumeMl ||
+                    450;
+
+                  const storageLocation =
+                    item.bloodUnit?.storageLocation ||
+                    item.storageLocation ||
+                    'Main Cold Storage';
+
+                  const rawExpiry =
+                    item.bloodUnit?.expiryDate ||
+                    item.expiryDate;
+
                   const isExpiringSoon =
-                    item.expiryDate &&
-                    new Date(item.expiryDate).getTime() - Date.now() < 3 * 24 * 60 * 60 * 1000;
+                    rawExpiry &&
+                    new Date(rawExpiry).getTime() - Date.now() < 3 * 24 * 60 * 60 * 1000;
 
                   return (
                     <tr
@@ -627,34 +665,35 @@ export default function ReceptionistAvailabilityPage() {
                       }}
                     >
                       <td style={{ padding: '0.75rem 1rem', fontFamily: 'monospace', fontWeight: 700, color: '#ffffff' }}>
-                        {item.unitNumber || item.barcode || item._id?.slice(-8)}
+                        {unitIdentifier}
                       </td>
                       <td style={{ padding: '0.75rem 1rem' }}>
                         <span
                           style={{
                             display: 'inline-block',
-                            padding: '0.15rem 0.5rem',
+                            padding: '0.2rem 0.55rem',
                             borderRadius: '4px',
-                            fontWeight: 700,
-                            fontSize: '0.75rem',
+                            fontWeight: 800,
+                            fontSize: '0.8rem',
                             backgroundColor: '#450a0a',
                             color: '#fda4af',
                             border: '1px solid #9f1239',
+                            letterSpacing: '0.02em',
                           }}
                         >
-                          {item.bloodGroup}
+                          {bloodGroup}
                         </span>
                       </td>
                       <td style={{ padding: '0.75rem 1rem', color: '#cbd5e1' }}>
-                        {item.componentType?.replace(/_/g, ' ')}
+                        {component.replace(/_/g, ' ')}
                       </td>
                       <td style={{ padding: '0.75rem 1rem', fontFamily: 'monospace', color: '#cbd5e1' }}>
-                        {item.volumeMl ? `${item.volumeMl} mL` : '1 Unit'}
+                        {volume} mL
                       </td>
                       <td style={{ padding: '0.75rem 1rem', color: '#94a3b8', fontSize: '0.8rem' }}>
                         <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
                           <Thermometer style={{ width: '14px', height: '14px', color: '#64748b' }} />
-                          {item.storageLocation || 'Main Cold Storage'}
+                          {storageLocation}
                         </span>
                       </td>
                       <td style={{ padding: '0.75rem 1rem', fontSize: '0.8rem' }}>
@@ -668,7 +707,7 @@ export default function ReceptionistAvailabilityPage() {
                           }}
                         >
                           <Calendar style={{ width: '14px', height: '14px' }} />
-                          {item.expiryDate ? new Date(item.expiryDate).toLocaleDateString() : 'N/A'}
+                          {rawExpiry ? new Date(rawExpiry).toLocaleDateString() : 'N/A'}
                         </span>
                       </td>
                       <td style={{ padding: '0.75rem 1rem' }}>{getStatusBadge(item.status)}</td>

@@ -723,7 +723,7 @@ export default function ReceptionistRequestsDeskPage() {
         </div>
 
         {/* Right Column: Blood Units Selection & Issue Desk */}
-        <div>
+        <div style={{ minWidth: 0, width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}>
           {selectedRequest ? (
             <div
               style={{
@@ -734,6 +734,10 @@ export default function ReceptionistRequestsDeskPage() {
                 display: 'flex',
                 flexDirection: 'column',
                 gap: '1.5rem',
+                minWidth: 0,
+                width: '100%',
+                maxWidth: '100%',
+                boxSizing: 'border-box',
               }}
             >
               {/* Selected Request Header */}
@@ -850,10 +854,52 @@ export default function ReceptionistRequestsDeskPage() {
                     </p>
                   </div>
                 ) : (
-                  <div style={{ border: '1px solid #1e293b', borderRadius: '8px', overflow: 'hidden' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.8rem' }}>
+                  <div
+                    style={{
+                      border: '1px solid #1e293b',
+                      borderRadius: '8px',
+                      overflowX: 'auto',
+                      WebkitOverflowScrolling: 'touch',
+                      width: '100%',
+                      maxWidth: '100%',
+                      boxSizing: 'border-box',
+                      display: 'block',
+                    }}
+                  >
+                    {/* Mobile Swipe Hint */}
+                    <div
+                      style={{
+                        padding: '0.45rem 0.75rem',
+                        backgroundColor: '#131e33',
+                        borderBottom: '1px solid #1e293b',
+                        fontSize: '0.725rem',
+                        color: '#38bdf8',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.4rem',
+                      }}
+                    >
+                      <span>👉 Swipe table horizontally to view Storage Rack, Expiry Date & Status</span>
+                    </div>
+
+                    <table
+                      style={{
+                        width: '100%',
+                        minWidth: '600px',
+                        borderCollapse: 'collapse',
+                        textAlign: 'left',
+                        fontSize: '0.8rem',
+                      }}
+                    >
                       <thead>
-                        <tr style={{ backgroundColor: '#020617', borderBottom: '1px solid #1e293b', color: '#94a3b8' }}>
+                        <tr
+                          style={{
+                            backgroundColor: '#020617',
+                            borderBottom: '1px solid #1e293b',
+                            color: '#94a3b8',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
                           <th style={{ padding: '0.65rem 0.85rem', width: '40px', textAlign: 'center' }}>Select</th>
                           <th style={{ padding: '0.65rem 0.85rem' }}>Unit Code</th>
                           <th style={{ padding: '0.65rem 0.85rem' }}>Component / Group</th>
@@ -876,6 +922,7 @@ export default function ReceptionistRequestsDeskPage() {
                                 backgroundColor: isSelected ? 'rgba(244, 63, 94, 0.12)' : '#0f172a',
                                 cursor: isFullyIssued ? 'default' : 'pointer',
                                 transition: 'background-color 0.15s ease',
+                                whiteSpace: 'nowrap',
                               }}
                             >
                               <td style={{ padding: '0.65rem 0.85rem', textAlign: 'center' }}>
@@ -1401,39 +1448,41 @@ export default function ReceptionistRequestsDeskPage() {
               </div>
 
               {/* Items Breakdown Table */}
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem', marginBottom: '1.25rem' }}>
-                <thead>
-                  <tr style={{ backgroundColor: '#f1f5f9', borderBottom: '1px solid #cbd5e1', textAlign: 'left' }}>
-                    <th style={{ padding: '0.6rem 0.75rem' }}>Blood Component & Unit Code</th>
-                    <th style={{ padding: '0.6rem 0.75rem', textAlign: 'right' }}>Base Processing</th>
-                    <th style={{ padding: '0.6rem 0.75rem', textAlign: 'right' }}>Crossmatching</th>
-                    <th style={{ padding: '0.6rem 0.75rem', textAlign: 'right' }}>Total Fee</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {activeInvoice.items && activeInvoice.items.length > 0 ? (
-                    activeInvoice.items.map((item: any, idx: number) => (
-                      <tr key={idx} style={{ borderBottom: '1px solid #e2e8f0' }}>
-                        <td style={{ padding: '0.6rem 0.75rem' }}>
-                          <strong>{item.bloodGroup} {item.componentType?.replace(/_/g, ' ')}</strong> • Unit Code: <span style={{ fontFamily: 'monospace' }}>{item.unitCode}</span>
-                        </td>
-                        <td style={{ padding: '0.6rem 0.75rem', textAlign: 'right' }}>{formatINR(item.baseProcessingFee)}</td>
-                        <td style={{ padding: '0.6rem 0.75rem', textAlign: 'right' }}>{formatINR(item.crossmatchFee)}</td>
-                        <td style={{ padding: '0.6rem 0.75rem', textAlign: 'right', fontWeight: 600 }}>{formatINR(item.lineTotal)}</td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
-                      <td style={{ padding: '0.6rem 0.75rem' }}>
-                        <strong>{selectedRequest?.bloodGroup} {selectedRequest?.componentType?.replace(/_/g, ' ')}</strong> • {selectedRequest?.unitsRequested || 1} unit(s)
-                      </td>
-                      <td style={{ padding: '0.6rem 0.75rem', textAlign: 'right' }}>{formatINR((activeInvoice.subtotal || 5250) * 0.8)}</td>
-                      <td style={{ padding: '0.6rem 0.75rem', textAlign: 'right' }}>{formatINR((activeInvoice.subtotal || 5250) * 0.2)}</td>
-                      <td style={{ padding: '0.6rem 0.75rem', textAlign: 'right', fontWeight: 600 }}>{formatINR(activeInvoice.netPayable || activeInvoice.totalAmount || 5250)}</td>
+              <div style={{ width: '100%', overflowX: 'auto', WebkitOverflowScrolling: 'touch', display: 'block', marginBottom: '1.25rem' }}>
+                <table style={{ width: '100%', minWidth: '450px', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+                  <thead>
+                    <tr style={{ backgroundColor: '#f1f5f9', borderBottom: '1px solid #cbd5e1', textAlign: 'left', whiteSpace: 'nowrap' }}>
+                      <th style={{ padding: '0.6rem 0.75rem' }}>Blood Component & Unit Code</th>
+                      <th style={{ padding: '0.6rem 0.75rem', textAlign: 'right' }}>Base Processing</th>
+                      <th style={{ padding: '0.6rem 0.75rem', textAlign: 'right' }}>Crossmatching</th>
+                      <th style={{ padding: '0.6rem 0.75rem', textAlign: 'right' }}>Total Fee</th>
                     </tr>
-                  )}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {activeInvoice.items && activeInvoice.items.length > 0 ? (
+                      activeInvoice.items.map((item: any, idx: number) => (
+                        <tr key={idx} style={{ borderBottom: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>
+                          <td style={{ padding: '0.6rem 0.75rem' }}>
+                            <strong>{item.bloodGroup} {item.componentType?.replace(/_/g, ' ')}</strong> • Unit Code: <span style={{ fontFamily: 'monospace' }}>{item.unitCode}</span>
+                          </td>
+                          <td style={{ padding: '0.6rem 0.75rem', textAlign: 'right' }}>{formatINR(item.baseProcessingFee)}</td>
+                          <td style={{ padding: '0.6rem 0.75rem', textAlign: 'right' }}>{formatINR(item.crossmatchFee)}</td>
+                          <td style={{ padding: '0.6rem 0.75rem', textAlign: 'right', fontWeight: 600 }}>{formatINR(item.lineTotal)}</td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr style={{ borderBottom: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>
+                        <td style={{ padding: '0.6rem 0.75rem' }}>
+                          <strong>{selectedRequest?.bloodGroup} {selectedRequest?.componentType?.replace(/_/g, ' ')}</strong> • {selectedRequest?.unitsRequested || 1} unit(s)
+                        </td>
+                        <td style={{ padding: '0.6rem 0.75rem', textAlign: 'right' }}>{formatINR((activeInvoice.subtotal || 5250) * 0.8)}</td>
+                        <td style={{ padding: '0.6rem 0.75rem', textAlign: 'right' }}>{formatINR((activeInvoice.subtotal || 5250) * 0.2)}</td>
+                        <td style={{ padding: '0.6rem 0.75rem', textAlign: 'right', fontWeight: 600 }}>{formatINR(activeInvoice.netPayable || activeInvoice.totalAmount || 5250)}</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
 
               {/* Totals Summary */}
               <div style={{ marginLeft: 'auto', maxWidth: 360, fontSize: '0.9rem', marginBottom: '1.5rem' }}>

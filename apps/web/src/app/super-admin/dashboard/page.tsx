@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import {
   Users,
@@ -26,6 +26,8 @@ import {
   CreditCard,
   Building,
   Check,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import StatCard from '@/components/admin/StatCard';
 import InventoryBarChart from '@/components/admin/InventoryBarChart';
@@ -76,6 +78,15 @@ export default function SuperAdminDashboardPage() {
   const [dateFilter, setDateFilter] = useState<DateFilterPreset>('all');
   const [customStartDate, setCustomStartDate] = useState<string>('');
   const [customEndDate, setCustomEndDate] = useState<string>('');
+
+  const horizonScrollRef = useRef<HTMLDivElement>(null);
+
+  const scrollHorizon = (direction: 'left' | 'right') => {
+    if (horizonScrollRef.current) {
+      const scrollAmount = direction === 'left' ? -180 : 180;
+      horizonScrollRef.current.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+    }
+  };
 
   // Operational metrics datasets
   const [rawSummary, setRawSummary] = useState<InventorySummary | null>(null);
@@ -382,10 +393,167 @@ export default function SuperAdminDashboardPage() {
               grid-template-columns: repeat(4, 1fr);
               gap: 1rem;
             }
+            .super-financial-grid {
+              display: grid;
+              grid-template-columns: repeat(3, 1fr);
+              gap: 1rem;
+            }
             .super-governance-grid {
               display: grid;
               grid-template-columns: repeat(5, 1fr);
               gap: 1rem;
+            }
+
+            .super-header-actions {
+              display: flex;
+              align-items: stretch;
+              gap: 0.65rem;
+            }
+            .super-header-btn {
+              display: inline-flex;
+              align-items: center;
+              justify-content: center;
+              gap: 0.45rem;
+              padding: 0.55rem 1rem;
+              border-radius: 8px;
+              font-size: 0.825rem;
+              font-weight: 700;
+              text-decoration: none;
+              box-sizing: border-box;
+              min-height: 42px;
+              line-height: 1.25;
+              text-align: center;
+              white-space: nowrap;
+              transition: all 0.15s ease;
+            }
+            .super-btn-refresh {
+              background-color: #ffffff;
+              border: 1px solid #fde68a;
+              color: #92400e;
+              box-shadow: 0 1px 2px rgba(217, 119, 6, 0.05);
+              cursor: pointer;
+            }
+            .super-btn-refresh:hover:not(:disabled) {
+              background-color: #fef3c7;
+              border-color: #d97706;
+            }
+            .super-btn-finance {
+              background-color: #d97706;
+              border: 1px solid #d97706;
+              color: #ffffff;
+              box-shadow: 0 2px 4px rgba(217, 119, 6, 0.25);
+            }
+            .super-btn-finance:hover {
+              background-color: #b45309;
+              border-color: #b45309;
+            }
+
+            .super-horizon-bar {
+              margin-top: 1.25rem;
+              padding-top: 1rem;
+              border-top: 1px solid #fef3c7;
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              flex-wrap: wrap;
+              gap: 0.75rem;
+              width: 100%;
+              max-width: 100%;
+              box-sizing: border-box;
+            }
+            .super-horizon-scroll-wrapper {
+              display: flex;
+              align-items: center;
+              gap: 0.45rem;
+              flex: 1 1 auto;
+              min-width: 0;
+              max-width: 100%;
+              position: relative;
+            }
+            .super-horizon-buttons {
+              display: flex;
+              align-items: center;
+              gap: 3px;
+              background-color: #fef3c7;
+              border-radius: 8px;
+              padding: 3px;
+              border: 1px solid #fde68a;
+              overflow-x: auto;
+              overflow-y: hidden;
+              flex-wrap: nowrap !important;
+              max-width: 100%;
+              min-width: 0;
+              flex: 1 1 auto;
+              -webkit-overflow-scrolling: touch;
+              scrollbar-width: thin;
+              scrollbar-color: #d97706 transparent;
+              scroll-behavior: smooth;
+            }
+            .super-horizon-buttons::-webkit-scrollbar {
+              height: 4px;
+            }
+            .super-horizon-buttons::-webkit-scrollbar-track {
+              background: rgba(254, 243, 199, 0.6);
+              border-radius: 9999px;
+            }
+            .super-horizon-buttons::-webkit-scrollbar-thumb {
+              background: #fde68a;
+              border-radius: 9999px;
+            }
+            .super-horizon-buttons::-webkit-scrollbar-thumb:hover {
+              background: #d97706;
+            }
+            .super-horizon-buttons button {
+              flex-shrink: 0 !important;
+              white-space: nowrap !important;
+            }
+            .super-horizon-scroll-arrow {
+              background-color: #ffffff;
+              border: 1px solid #fde68a;
+              color: #92400e;
+              border-radius: 6px;
+              width: 26px;
+              height: 26px;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              cursor: pointer;
+              flex-shrink: 0;
+              transition: all 0.15s ease;
+            }
+            .super-horizon-scroll-arrow:hover {
+              background-color: #fef3c7;
+              border-color: #d97706;
+            }
+
+            .super-custom-range-wrap {
+              width: 100%;
+              display: flex;
+              align-items: center;
+              gap: 0.45rem;
+              padding-top: 0.65rem;
+              border-top: 1px dashed #e2e8f0;
+              flex-wrap: nowrap !important;
+              box-sizing: border-box;
+            }
+            .super-custom-field {
+              display: flex;
+              align-items: center;
+              gap: 0.35rem;
+              flex: 1 1 0;
+              min-width: 0;
+            }
+            .super-custom-field input {
+              width: 100%;
+              min-width: 0;
+              box-sizing: border-box;
+              padding: 0.35rem 0.4rem;
+              font-size: 0.75rem;
+              background-color: #ffffff;
+              color: #0f172a;
+              border: 1px solid #cbd5e1;
+              border-radius: 6px;
+              outline: none;
             }
 
             @media (max-width: 1200px) {
@@ -404,6 +572,9 @@ export default function SuperAdminDashboardPage() {
               .super-lifecycle-grid {
                 grid-template-columns: 1fr;
               }
+              .super-financial-grid {
+                grid-template-columns: repeat(2, 1fr);
+              }
             }
 
             @media (max-width: 768px) {
@@ -411,10 +582,35 @@ export default function SuperAdminDashboardPage() {
                 flex-direction: column;
                 align-items: stretch;
               }
+              .super-header-actions {
+                width: 100% !important;
+                margin-top: 0.75rem !important;
+                display: flex !important;
+                flex-direction: row !important;
+                gap: 0.5rem !important;
+              }
+              .super-header-btn {
+                flex: 1 1 50% !important;
+                min-width: 0 !important;
+                white-space: normal !important;
+                padding: 0.55rem 0.5rem !important;
+                font-size: 0.775rem !important;
+                min-height: 44px !important;
+                text-align: center !important;
+                line-height: 1.2 !important;
+              }
+              .super-horizon-bar {
+                flex-direction: column !important;
+                align-items: stretch !important;
+                gap: 0.75rem !important;
+              }
               .super-governance-grid {
                 grid-template-columns: repeat(2, 1fr);
               }
               .super-kpis-grid {
+                grid-template-columns: 1fr;
+              }
+              .super-financial-grid {
                 grid-template-columns: 1fr;
               }
             }
@@ -484,24 +680,11 @@ export default function SuperAdminDashboardPage() {
             </div>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+          <div className="super-header-actions">
             <button
               onClick={loadAllData}
               disabled={loading}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.45rem',
-                backgroundColor: '#ffffff',
-                border: '1px solid #fde68a',
-                padding: '0.55rem 1rem',
-                borderRadius: '8px',
-                fontSize: '0.825rem',
-                fontWeight: 700,
-                color: '#92400e',
-                cursor: loading ? 'not-allowed' : 'pointer',
-                boxShadow: '0 1px 2px rgba(217, 119, 6, 0.05)',
-              }}
+              className="super-header-btn super-btn-refresh"
             >
               <RefreshCw size={15} className={loading ? 'animate-spin' : ''} />
               <span>{loading ? 'Refreshing...' : 'Refresh Live Data'}</span>
@@ -509,19 +692,7 @@ export default function SuperAdminDashboardPage() {
 
             <Link
               href="/super-admin/finance/control-center"
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.45rem',
-                backgroundColor: '#d97706',
-                color: '#ffffff',
-                padding: '0.55rem 1.15rem',
-                borderRadius: '8px',
-                fontSize: '0.825rem',
-                fontWeight: 700,
-                textDecoration: 'none',
-                boxShadow: '0 2px 4px rgba(217, 119, 6, 0.25)',
-              }}
+              className="super-header-btn super-btn-finance"
             >
               <DollarSign size={15} />
               <span>Financial Control Center &rarr;</span>
@@ -530,35 +701,21 @@ export default function SuperAdminDashboardPage() {
         </div>
 
         {/* Date Filter Bar */}
-        <div
-          style={{
-            marginTop: '1.25rem',
-            paddingTop: '1rem',
-            borderTop: '1px solid #fef3c7',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            flexWrap: 'wrap',
-            gap: '0.75rem',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
-            <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#92400e', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-              <Calendar size={15} color="#d97706" />
-              <span>Reporting Horizon:</span>
-            </span>
+        <div className="super-horizon-bar">
+          <div className="super-horizon-scroll-wrapper">
+            <button
+              type="button"
+              className="super-horizon-scroll-arrow"
+              onClick={() => scrollHorizon('left')}
+              aria-label="Scroll left"
+              title="Scroll left"
+            >
+              <ChevronLeft size={14} />
+            </button>
 
             <div
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                backgroundColor: '#fef3c7',
-                borderRadius: '8px',
-                padding: '3px',
-                border: '1px solid #fde68a',
-                gap: '2px',
-                flexWrap: 'wrap',
-              }}
+              ref={horizonScrollRef}
+              className="super-horizon-buttons"
             >
               {[
                 { id: 'all', label: 'All Time' },
@@ -584,6 +741,8 @@ export default function SuperAdminDashboardPage() {
                       cursor: 'pointer',
                       transition: 'all 0.15s ease',
                       boxShadow: active ? '0 1px 3px rgba(217, 119, 6, 0.25)' : 'none',
+                      whiteSpace: 'nowrap',
+                      flexShrink: 0,
                     }}
                   >
                     {preset.label}
@@ -591,75 +750,41 @@ export default function SuperAdminDashboardPage() {
                 );
               })}
             </div>
-          </div>
 
-          <div
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '0.4rem',
-              backgroundColor: '#f8fafc',
-              border: '1px solid #e2e8f0',
-              padding: '0.35rem 0.75rem',
-              borderRadius: '6px',
-              fontSize: '0.775rem',
-              color: '#475569',
-            }}
-          >
-            <span style={{ color: '#94a3b8' }}>Filtering:</span>
-            <strong style={{ color: '#0f172a' }}>{dateSpanLabel}</strong>
+            <button
+              type="button"
+              className="super-horizon-scroll-arrow"
+              onClick={() => scrollHorizon('right')}
+              aria-label="Scroll right"
+              title="Scroll right"
+            >
+              <ChevronRight size={14} />
+            </button>
           </div>
 
           {dateFilter === 'custom' && (
-            <div
-              style={{
-                width: '100%',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.75rem',
-                paddingTop: '0.65rem',
-                borderTop: '1px dashed #e2e8f0',
-                flexWrap: 'wrap',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 600 }}>From:</span>
+            <div className="super-custom-range-wrap">
+              <div className="super-custom-field">
+                <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 600, flexShrink: 0 }}>From:</span>
                 <input
                   type="date"
                   value={customStartDate}
                   onChange={(e) => setCustomStartDate(e.target.value)}
-                  style={{
-                    padding: '0.35rem 0.6rem',
-                    fontSize: '0.775rem',
-                    backgroundColor: '#ffffff',
-                    color: '#0f172a',
-                    border: '1px solid #cbd5e1',
-                    borderRadius: '6px',
-                    outline: 'none',
-                  }}
                 />
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 600 }}>To:</span>
+              <div className="super-custom-field">
+                <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 600, flexShrink: 0 }}>To:</span>
                 <input
                   type="date"
                   value={customEndDate}
                   onChange={(e) => setCustomEndDate(e.target.value)}
-                  style={{
-                    padding: '0.35rem 0.6rem',
-                    fontSize: '0.775rem',
-                    backgroundColor: '#ffffff',
-                    color: '#0f172a',
-                    border: '1px solid #cbd5e1',
-                    borderRadius: '6px',
-                    outline: 'none',
-                  }}
                 />
               </div>
 
               {(customStartDate || customEndDate) && (
                 <button
+                  type="button"
                   onClick={() => {
                     setCustomStartDate('');
                     setCustomEndDate('');
@@ -668,14 +793,17 @@ export default function SuperAdminDashboardPage() {
                     border: '1px solid #cbd5e1',
                     backgroundColor: '#f1f5f9',
                     color: '#475569',
-                    fontSize: '0.75rem',
+                    fontSize: '0.7rem',
                     fontWeight: 600,
-                    padding: '0.35rem 0.65rem',
+                    padding: '0.35rem 0.5rem',
                     borderRadius: '6px',
                     cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                    flexShrink: 0,
                   }}
+                  title="Clear Dates"
                 >
-                  Clear Dates
+                  Clear
                 </button>
               )}
             </div>
@@ -700,133 +828,45 @@ export default function SuperAdminDashboardPage() {
             Financial Control Center &rarr;
           </Link>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.25rem' }}>
+        <div className="super-financial-grid">
           {/* Card 1: Expenses */}
-          <div
-            style={{
-              backgroundColor: '#ffffff',
-              border: '1px solid #e2e8f0',
-              borderRadius: '12px',
-              padding: '1.35rem 1.5rem',
-              boxShadow: '0 2px 4px rgba(0,0,0,0.03)',
-              borderLeft: '5px solid #dc2626',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'space-between',
-            }}
-          >
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '0.775rem', fontWeight: 800, color: '#dc2626', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  Expenses
-                </span>
-                <div style={{ width: '36px', height: '36px', borderRadius: '8px', backgroundColor: '#fee2e2', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <TrendingDown size={19} color="#dc2626" />
-                </div>
-              </div>
-              <div style={{ fontSize: '1.85rem', fontWeight: 800, color: '#0f172a', marginTop: '0.65rem', letterSpacing: '-0.02em' }}>
-                {loading ? '...' : formatINR(totalExpenses)}
-              </div>
-              <div style={{ fontSize: '0.775rem', color: '#64748b', marginTop: '0.35rem', lineHeight: 1.4 }}>
-                {expenseSummary?.approvedCount ? `${expenseSummary.approvedCount} approved vouchers` : 'Approved operational & procurement liabilities'}
-              </div>
-            </div>
-            <div style={{ marginTop: '1rem', paddingTop: '0.75rem', borderTop: '1px solid #f1f5f9' }}>
-              <Link
-                href="/super-admin/finance/expenses"
-                style={{ fontSize: '0.8rem', fontWeight: 700, color: '#dc2626', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}
-              >
-                <span>View Expenses</span>
-                <span>&rarr;</span>
-              </Link>
-            </div>
-          </div>
+          <StatCard
+            title="Expenses"
+            value={loading ? '...' : formatINR(totalExpenses)}
+            subtitle={expenseSummary?.approvedCount ? `${expenseSummary.approvedCount} approved vouchers` : 'Approved operational liabilities'}
+            accentColor="#dc2626"
+            badge="Expenses"
+            badgeType="danger"
+            href="/super-admin/finance/expenses"
+            loading={loading}
+            icon={<TrendingDown size={19} color="#dc2626" />}
+          />
 
           {/* Card 2: How Much Money Came (Inflow) */}
-          <div
-            style={{
-              backgroundColor: '#ffffff',
-              border: '1px solid #e2e8f0',
-              borderRadius: '12px',
-              padding: '1.35rem 1.5rem',
-              boxShadow: '0 2px 4px rgba(0,0,0,0.03)',
-              borderLeft: '5px solid #10b981',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'space-between',
-            }}
-          >
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '0.775rem', fontWeight: 800, color: '#059669', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  How Much Money Came (Inflow)
-                </span>
-                <div style={{ width: '36px', height: '36px', borderRadius: '8px', backgroundColor: '#d1fae5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <TrendingUp size={19} color="#059669" />
-                </div>
-              </div>
-              <div style={{ fontSize: '1.85rem', fontWeight: 800, color: '#059669', marginTop: '0.65rem', letterSpacing: '-0.02em' }}>
-                {loading ? '...' : formatINR(totalMoneyReceived)}
-              </div>
-              <div style={{ fontSize: '0.775rem', color: '#64748b', marginTop: '0.35rem', lineHeight: 1.4 }}>
-                {revenueSummary?.totalInvoicesCount
-                  ? `${revenueSummary.paidCount ?? 0} settled invoices • Confirmed receipts`
-                  : 'Confirmed patient & hospital billing collections'}
-              </div>
-            </div>
-            <div style={{ marginTop: '1rem', paddingTop: '0.75rem', borderTop: '1px solid #f1f5f9' }}>
-              <Link
-                href="/super-admin/finance/billing"
-                style={{ fontSize: '0.8rem', fontWeight: 700, color: '#059669', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}
-              >
-                <span>View Collections &amp; Billing</span>
-                <span>&rarr;</span>
-              </Link>
-            </div>
-          </div>
+          <StatCard
+            title="How Much Money Came (Inflow)"
+            value={loading ? '...' : formatINR(totalMoneyReceived)}
+            subtitle={revenueSummary?.totalInvoicesCount ? `${revenueSummary.paidCount ?? 0} settled invoices • Confirmed receipts` : 'Confirmed receipts & collections'}
+            accentColor="#10b981"
+            badge="Inflow"
+            badgeType="success"
+            href="/super-admin/finance/billing"
+            loading={loading}
+            icon={<TrendingUp size={19} color="#10b981" />}
+          />
 
           {/* Card 3: Outstanding */}
-          <div
-            style={{
-              backgroundColor: '#ffffff',
-              border: '1px solid #e2e8f0',
-              borderRadius: '12px',
-              padding: '1.35rem 1.5rem',
-              boxShadow: '0 2px 4px rgba(0,0,0,0.03)',
-              borderLeft: '5px solid #f59e0b',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'space-between',
-            }}
-          >
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '0.775rem', fontWeight: 800, color: '#d97706', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  Outstanding
-                </span>
-                <div style={{ width: '36px', height: '36px', borderRadius: '8px', backgroundColor: '#fef3c7', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <Clock size={19} color="#d97706" />
-                </div>
-              </div>
-              <div style={{ fontSize: '1.85rem', fontWeight: 800, color: '#d97706', marginTop: '0.65rem', letterSpacing: '-0.02em' }}>
-                {loading ? '...' : formatINR(totalOutstanding)}
-              </div>
-              <div style={{ fontSize: '0.775rem', color: '#64748b', marginTop: '0.35rem', lineHeight: 1.4 }}>
-                {duesSummary?.summary?.pendingExpensesCount
-                  ? `${duesSummary.summary.pendingExpensesCount} bills awaiting disbursement`
-                  : 'Pending supplier payables & uncollected dues'}
-              </div>
-            </div>
-            <div style={{ marginTop: '1rem', paddingTop: '0.75rem', borderTop: '1px solid #f1f5f9' }}>
-              <Link
-                href="/super-admin/finance/dues"
-                style={{ fontSize: '0.8rem', fontWeight: 700, color: '#d97706', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}
-              >
-                <span>View Outstanding Dues</span>
-                <span>&rarr;</span>
-              </Link>
-            </div>
-          </div>
+          <StatCard
+            title="Outstanding"
+            value={loading ? '...' : formatINR(totalOutstanding)}
+            subtitle={duesSummary?.summary?.pendingExpensesCount ? `${duesSummary.summary.pendingExpensesCount} bills awaiting disbursement` : 'Pending supplier payables & dues'}
+            accentColor="#f59e0b"
+            badge="Dues"
+            badgeType="warning"
+            href="/super-admin/finance/dues"
+            loading={loading}
+            icon={<Clock size={19} color="#d97706" />}
+          />
         </div>
       </div>
 

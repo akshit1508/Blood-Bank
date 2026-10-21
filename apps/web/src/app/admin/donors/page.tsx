@@ -293,6 +293,69 @@ export default function AdminDonorsPage() {
         fontFamily: 'system-ui, -apple-system, sans-serif',
       }}
     >
+      {/* Scoped Styles for Mobile Single-Line Actions & Filters */}
+      <style
+        dangerouslySetInnerHTML={{
+          __html: `
+            .donor-header-actions {
+              display: flex;
+              gap: 0.75rem;
+              align-items: center;
+              flex-wrap: nowrap;
+            }
+            .donor-search-form {
+              display: flex;
+              gap: 0.5rem;
+              flex: 1;
+              min-width: 280px;
+            }
+            .donor-filter-selects {
+              display: flex;
+              gap: 0.75rem;
+              align-items: center;
+              flex-wrap: nowrap;
+            }
+            @media (max-width: 768px) {
+              .donor-header-actions {
+                width: 100% !important;
+                display: flex !important;
+                flex-direction: row !important;
+                flex-wrap: nowrap !important;
+                gap: 0.5rem !important;
+              }
+              .donor-header-actions > * {
+                flex: 1 1 50% !important;
+                min-width: 0 !important;
+                justify-content: center !important;
+                text-align: center !important;
+                white-space: nowrap !important;
+                padding: 0.5rem 0.4rem !important;
+                font-size: 0.775rem !important;
+                box-sizing: border-box !important;
+              }
+              .donor-search-form {
+                width: 100% !important;
+                min-width: 0 !important;
+              }
+              .donor-filter-selects {
+                width: 100% !important;
+                display: flex !important;
+                flex-direction: row !important;
+                flex-wrap: nowrap !important;
+                gap: 0.5rem !important;
+              }
+              .donor-filter-selects select {
+                flex: 1 1 50% !important;
+                min-width: 0 !important;
+                width: 100% !important;
+                box-sizing: border-box !important;
+                padding: 0.45rem 0.4rem !important;
+                font-size: 0.8rem !important;
+              }
+            }
+          `,
+        }}
+      />
       {/* Top Header */}
       <div
         style={{
@@ -339,7 +402,7 @@ export default function AdminDonorsPage() {
           </p>
         </div>
 
-        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+        <div className="donor-header-actions">
           <button
             onClick={loadDonors}
             disabled={loading}
@@ -354,6 +417,7 @@ export default function AdminDonorsPage() {
               cursor: loading ? 'not-allowed' : 'pointer',
               display: 'inline-flex',
               alignItems: 'center',
+              justifyContent: 'center',
               gap: '0.35rem',
             }}
           >
@@ -372,6 +436,7 @@ export default function AdminDonorsPage() {
               fontWeight: 600,
               display: 'inline-flex',
               alignItems: 'center',
+              justifyContent: 'center',
               gap: '0.35rem',
               boxShadow: '0 1px 2px rgba(220, 38, 38, 0.2)',
             }}
@@ -398,7 +463,7 @@ export default function AdminDonorsPage() {
       >
         <form
           onSubmit={handleSearchSubmit}
-          style={{ display: 'flex', gap: '0.5rem', flex: 1, minWidth: '280px' }}
+          className="donor-search-form"
         >
           <input
             type="text"
@@ -407,6 +472,7 @@ export default function AdminDonorsPage() {
             placeholder="Search by Donor Code, Name, Phone, City..."
             style={{
               flex: 1,
+              minWidth: 0,
               padding: '0.45rem 0.75rem',
               border: '1px solid #cbd5e1',
               borderRadius: '6px',
@@ -424,13 +490,14 @@ export default function AdminDonorsPage() {
               fontSize: '0.875rem',
               fontWeight: 500,
               cursor: 'pointer',
+              flexShrink: 0,
             }}
           >
             Search
           </button>
         </form>
 
-        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+        <div className="donor-filter-selects">
           {/* Blood group filter */}
           <select
             value={filterBloodGroup}
@@ -467,20 +534,6 @@ export default function AdminDonorsPage() {
             <option value={DonorStatus.ACTIVE}>Active</option>
             <option value={DonorStatus.INACTIVE}>Inactive</option>
           </select>
-
-          <button
-            onClick={loadDonors}
-            style={{
-              backgroundColor: '#f8fafc',
-              border: '1px solid #cbd5e1',
-              padding: '0.45rem 0.85rem',
-              borderRadius: '6px',
-              cursor: 'pointer',
-              fontSize: '0.875rem',
-            }}
-          >
-            ↻ Refresh
-          </button>
         </div>
       </div>
 

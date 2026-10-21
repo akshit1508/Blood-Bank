@@ -25,15 +25,62 @@ export class BillingReportsService {
   ) {}
 
   /**
-   * Generates the Daily Day-End Cashier Register.
+   * Generates the Daily Day-End Cashier Register / Period Cashier Report.
    */
-  async getDailyRegister(dateString?: string) {
-    const targetDate = dateString ? new Date(dateString) : new Date();
-    const startOfDay = new Date(targetDate);
-    startOfDay.setHours(0, 0, 0, 0);
+  async getDailyRegister(
+    dateString?: string,
+    period?: string,
+    startDateStr?: string,
+    endDateStr?: string,
+  ) {
+    const now = new Date();
+    let startOfDay: Date;
+    let endOfDay: Date;
 
-    const endOfDay = new Date(targetDate);
-    endOfDay.setHours(23, 59, 59, 999);
+    if (period === 'yesterday') {
+      startOfDay = new Date(now);
+      startOfDay.setDate(now.getDate() - 1);
+      startOfDay.setHours(0, 0, 0, 0);
+      endOfDay = new Date(now);
+      endOfDay.setDate(now.getDate() - 1);
+      endOfDay.setHours(23, 59, 59, 999);
+    } else if (period === 'last_7_days') {
+      startOfDay = new Date(now);
+      startOfDay.setDate(now.getDate() - 7);
+      startOfDay.setHours(0, 0, 0, 0);
+      endOfDay = new Date(now);
+      endOfDay.setHours(23, 59, 59, 999);
+    } else if (period === 'last_15_days') {
+      startOfDay = new Date(now);
+      startOfDay.setDate(now.getDate() - 15);
+      startOfDay.setHours(0, 0, 0, 0);
+      endOfDay = new Date(now);
+      endOfDay.setHours(23, 59, 59, 999);
+    } else if (period === 'last_30_days') {
+      startOfDay = new Date(now);
+      startOfDay.setDate(now.getDate() - 30);
+      startOfDay.setHours(0, 0, 0, 0);
+      endOfDay = new Date(now);
+      endOfDay.setHours(23, 59, 59, 999);
+    } else if (period === 'this_month') {
+      startOfDay = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+      endOfDay = new Date(now);
+      endOfDay.setHours(23, 59, 59, 999);
+    } else if (period === 'previous_month') {
+      startOfDay = new Date(now.getFullYear(), now.getMonth() - 1, 1, 0, 0, 0, 0);
+      endOfDay = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+    } else if (startDateStr || endDateStr) {
+      startOfDay = startDateStr ? new Date(startDateStr) : new Date(now);
+      startOfDay.setHours(0, 0, 0, 0);
+      endOfDay = endDateStr ? new Date(endDateStr) : new Date(now);
+      endOfDay.setHours(23, 59, 59, 999);
+    } else {
+      const targetDate = dateString ? new Date(dateString) : new Date();
+      startOfDay = new Date(targetDate);
+      startOfDay.setHours(0, 0, 0, 0);
+      endOfDay = new Date(targetDate);
+      endOfDay.setHours(23, 59, 59, 999);
+    }
 
     const collections = await this.collectionModel
       .find({
@@ -65,22 +112,40 @@ export class BillingReportsService {
       }
     }
 
+    const totalCash = byMethod[CollectionPaymentMethod.CASH]?.totalAmount || 0;
+    const totalDigital =
+      (byMethod[CollectionPaymentMethod.UPI]?.totalAmount || 0) +
+      (byMethod[CollectionPaymentMethod.CARD]?.totalAmount || 0) +
+      (byMethod[CollectionPaymentMethod.NEFT_RTGS]?.totalAmount || 0);
+    const totalCollected = CurrencyUtil.toInr(totalCollectionsPaise);
+
+    const mappedTransactions = collections.map((c) => ({
+      _id: (c._id as any).toString(),
+      receiptNumber: c.receiptNumber,
+      invoiceNumber: c.invoiceNumber,
+      amount: c.amount,
+      paymentMethod: c.paymentMethod,
+      referenceNumber: c.referenceNumber,
+      paymentDate: c.paymentDate,
+      createdAt: c.paymentDate || (c as any).createdAt,
+      collectedByName: c.collectedByName,
+    }));
+
     return {
       date: startOfDay.toISOString().slice(0, 10),
+      startDate: startOfDay.toISOString().slice(0, 10),
+      endDate: endOfDay.toISOString().slice(0, 10),
+      period: period || 'custom',
       totalCount: collections.length,
+      transactionCount: collections.length,
       totalCollectionsPaise,
-      totalCollectionsAmount: CurrencyUtil.toInr(totalCollectionsPaise),
+      totalCollectionsAmount: totalCollected,
+      totalCollected,
+      totalCash,
+      totalDigital,
       byMethod,
-      transactions: collections.map((c) => ({
-        _id: (c._id as any).toString(),
-        receiptNumber: c.receiptNumber,
-        invoiceNumber: c.invoiceNumber,
-        amount: c.amount,
-        paymentMethod: c.paymentMethod,
-        referenceNumber: c.referenceNumber,
-        paymentDate: c.paymentDate,
-        collectedByName: c.collectedByName,
-      })),
+      collections: mappedTransactions,
+      transactions: mappedTransactions,
     };
   }
 
