@@ -66,6 +66,9 @@ export default function ReceptionistLayout({ children }: { children: React.React
         display: 'flex',
         flexDirection: 'column',
         minHeight: '100vh',
+        width: '100%',
+        maxWidth: '100vw',
+        overflowX: 'clip',
         backgroundColor: '#0b1120',
         color: '#f8fafc',
         fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
@@ -82,6 +85,16 @@ export default function ReceptionistLayout({ children }: { children: React.React
               background-color: #f8fafc !important;
               color: #0f172a !important;
             }
+            /* Universal dropdown and input mobile boundary protection */
+            select, input, textarea {
+              max-width: 100% !important;
+              box-sizing: border-box !important;
+            }
+            .receptionist-select-container {
+              width: 100% !important;
+              max-width: 100% !important;
+              box-sizing: border-box !important;
+            }
             @media (max-width: 992px) {
               .admin-mobile-toggle {
                 display: inline-flex !important;
@@ -93,6 +106,7 @@ export default function ReceptionistLayout({ children }: { children: React.React
                 bottom: 0 !important;
                 transform: translateX(-100%);
                 box-shadow: 8px 0 24px rgba(0, 0, 0, 0.15) !important;
+                z-index: 95 !important;
               }
               .admin-sidebar.sidebar-open {
                 transform: translateX(0) !important;
@@ -105,17 +119,29 @@ export default function ReceptionistLayout({ children }: { children: React.React
               }
               .receptionist-main-container {
                 padding: 1rem 0.75rem !important;
+                width: 100% !important;
+                max-width: 100vw !important;
+                box-sizing: border-box !important;
               }
             }
           `,
         }}
       />
 
-      {/* Top Navbar */}
-      <AdminNavbar
-        onToggleSidebar={toggleSidebar}
-        isSidebarOpen={isSidebarOpen}
-      />
+      {/* Top Navbar: Constant Header on Scroll */}
+      <div
+        style={{
+          position: 'sticky',
+          top: 0,
+          zIndex: 100,
+          width: '100%',
+        }}
+      >
+        <AdminNavbar
+          onToggleSidebar={toggleSidebar}
+          isSidebarOpen={isSidebarOpen}
+        />
+      </div>
 
       {/* Body with Sidebar and Main Content */}
       <div
@@ -123,6 +149,7 @@ export default function ReceptionistLayout({ children }: { children: React.React
           display: 'flex',
           flex: 1,
           width: '100%',
+          maxWidth: '100vw',
           position: 'relative',
         }}
       >
@@ -138,10 +165,11 @@ export default function ReceptionistLayout({ children }: { children: React.React
           style={{
             flex: 1,
             minWidth: 0,
+            width: '100%',
+            maxWidth: '100%',
             padding: '2rem',
             boxSizing: 'border-box',
             backgroundColor: '#0b1120',
-            overflowY: 'auto',
           }}
           className="receptionist-main-container"
         >

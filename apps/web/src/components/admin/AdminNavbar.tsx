@@ -18,10 +18,12 @@ export default function AdminNavbar({
       style={{
         position: 'sticky',
         top: 0,
-        zIndex: 40,
+        zIndex: 100,
         backgroundColor: '#ffffff',
         borderBottom: isSuperAdmin ? '1px solid #fde68a' : '1px solid #e2e8f0',
         height: '64px',
+        width: '100%',
+        boxSizing: 'border-box',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',

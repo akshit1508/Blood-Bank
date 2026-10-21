@@ -164,7 +164,7 @@ export default function ReceptionistPatientsDirectoryPage() {
           }}
           style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}
         >
-          <div style={{ position: 'relative', flex: 1, minWidth: '260px' }}>
+          <div style={{ position: 'relative', flex: 1, minWidth: 'min(100%, 260px)' }}>
             <Search
               style={{
                 width: '18px',
@@ -238,7 +238,7 @@ export default function ReceptionistPatientsDirectoryPage() {
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 360px), 1fr))',
           gap: '1.5rem',
           alignItems: 'start',
         }}

@@ -7,6 +7,7 @@ import {
   ReceptionistPeriod,
   ReceptionistDashboardResponse,
 } from '@/lib/receptionist-api';
+import ReceptionistSelect from '@/components/receptionist/ReceptionistSelect';
 
 const PERIOD_LABELS: Record<ReceptionistPeriod, string> = {
   today: 'Today',
@@ -152,20 +153,165 @@ export default function ReceptionistDashboardPage() {
   }
 
   return (
-    <div style={{ maxWidth: '1440px', margin: '0 auto', paddingBottom: '3rem' }}>
-      {/* Top Header */}
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          flexWrap: 'wrap',
-          gap: '1rem',
-          marginBottom: '1.5rem',
+    <div className="receptionist-dash-container">
+      {/* Scoped Responsive Styles */}
+      <style
+        dangerouslySetInnerHTML={{
+          __html: `
+            .receptionist-dash-container {
+              width: 100%;
+              max-width: 1440px;
+              margin: 0 auto;
+              padding-bottom: 3rem;
+              box-sizing: border-box;
+              overflow-x: hidden;
+            }
+            .receptionist-header {
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              flex-wrap: wrap;
+              gap: 1rem;
+              margin-bottom: 1.5rem;
+              width: 100%;
+              box-sizing: border-box;
+            }
+            .receptionist-header-actions {
+              display: flex;
+              gap: 0.65rem;
+              flex-wrap: wrap;
+            }
+            .receptionist-kpi-grid {
+              display: grid;
+              grid-template-columns: repeat(4, minmax(0, 1fr));
+              gap: 1rem;
+              margin-bottom: 1.5rem;
+              width: 100%;
+              box-sizing: border-box;
+            }
+            .receptionist-analytics-grid {
+              display: grid;
+              grid-template-columns: repeat(2, minmax(0, 1fr));
+              gap: 1.25rem;
+              margin-bottom: 1.5rem;
+              width: 100%;
+              box-sizing: border-box;
+            }
+            .receptionist-period-bar {
+              background-color: #0f172a;
+              border: 1px solid #1e293b;
+              border-radius: 12px;
+              padding: 1rem;
+              margin-bottom: 1.5rem;
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              flex-wrap: wrap;
+              gap: 1rem;
+              width: 100%;
+              box-sizing: border-box;
+            }
+            .receptionist-period-buttons {
+              display: flex;
+              align-items: center;
+              gap: 0.45rem;
+              flex-wrap: wrap;
+            }
+            .receptionist-filter-bar {
+              display: flex;
+              align-items: center;
+              gap: 0.75rem;
+              flex-wrap: wrap;
+            }
+            .receptionist-table-wrapper {
+              width: 100%;
+              max-width: 100%;
+              overflow-x: auto;
+              -webkit-overflow-scrolling: touch;
+              display: block;
+              box-sizing: border-box;
+            }
+            .receptionist-table-scroll-hint {
+              display: none;
+            }
+
+            @media (max-width: 1024px) {
+              .receptionist-kpi-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+              }
+            }
+
+            @media (max-width: 768px) {
+              .receptionist-analytics-grid {
+                grid-template-columns: 1fr !important;
+              }
+              .receptionist-header {
+                flex-direction: column;
+                align-items: stretch !important;
+              }
+              .receptionist-header-actions {
+                width: 100%;
+              }
+              .receptionist-header-actions a,
+              .receptionist-header-actions button {
+                flex: 1 1 calc(50% - 0.5rem);
+                min-width: 120px;
+                justify-content: center;
+                text-align: center;
+                box-sizing: border-box;
+              }
+              .receptionist-period-bar {
+                padding: 0.75rem !important;
+              }
+              .receptionist-period-buttons {
+                width: 100%;
+                overflow-x: auto;
+                flex-wrap: nowrap !important;
+                padding-bottom: 0.35rem;
+                -webkit-overflow-scrolling: touch;
+              }
+              .receptionist-period-buttons button {
+                flex-shrink: 0;
+              }
+              .receptionist-filter-bar {
+                width: 100% !important;
+                flex-direction: column !important;
+                align-items: stretch !important;
+                gap: 0.5rem !important;
+              }
+              .receptionist-filter-bar input,
+              .receptionist-filter-bar select,
+              .receptionist-filter-bar > * {
+                width: 100% !important;
+                min-width: 0 !important;
+                box-sizing: border-box !important;
+              }
+              .receptionist-table-scroll-hint {
+                display: flex !important;
+              }
+            }
+
+            @media (max-width: 480px) {
+              .receptionist-kpi-grid {
+                grid-template-columns: 1fr !important;
+                gap: 0.75rem !important;
+              }
+              .receptionist-header-actions a,
+              .receptionist-header-actions button {
+                flex: 1 1 100%;
+              }
+              .receptionist-header h1 {
+                font-size: 1.3rem !important;
+              }
+            }
+          `,
         }}
-      >
+      />
+
+      {/* Top Header */}
+      <div className="receptionist-header">
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap' }}>
             <h1 style={{ fontSize: '1.65rem', fontWeight: 800, color: '#f8fafc', letterSpacing: '-0.02em', margin: 0 }}>
               Receptionist Command & Billing Center
             </h1>
@@ -178,6 +324,7 @@ export default function ReceptionistDashboardPage() {
                 borderRadius: '9999px',
                 fontSize: '0.725rem',
                 fontWeight: 700,
+                whiteSpace: 'nowrap',
               }}
             >
               Finance Receptionist
@@ -189,7 +336,7 @@ export default function ReceptionistDashboardPage() {
         </div>
 
         {/* Quick Action Navigation Buttons */}
-        <div style={{ display: 'flex', gap: '0.65rem', flexWrap: 'wrap' }}>
+        <div className="receptionist-header-actions">
           <Link
             href="/receptionist/patients/new"
             style={{
@@ -247,22 +394,9 @@ export default function ReceptionistDashboardPage() {
       </div>
 
       {/* Date Range Filter Bar */}
-      <div
-        style={{
-          backgroundColor: '#0f172a',
-          border: '1px solid #1e293b',
-          borderRadius: '12px',
-          padding: '1rem',
-          marginBottom: '1.5rem',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          flexWrap: 'wrap',
-          gap: '1rem',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
-          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', marginRight: '0.5rem' }}>
+      <div className="receptionist-period-bar">
+        <div className="receptionist-period-buttons">
+          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', marginRight: '0.5rem', flexShrink: 0 }}>
             Reporting Period:
           </span>
           {(['today', 'yesterday', 'last_7_days', 'last_15_days', 'last_30_days', 'this_month', 'previous_month', 'custom'] as ReceptionistPeriod[]).map(
@@ -339,16 +473,9 @@ export default function ReceptionistDashboardPage() {
       )}
 
       {/* 8 Summary Cards */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-          gap: '1rem',
-          marginBottom: '1.5rem',
-        }}
-      >
+      <div className="receptionist-kpi-grid">
         {/* Card 1: Completed Blood Issues */}
-        <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '10px', padding: '1.1rem' }}>
+        <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '10px', padding: '1.1rem', boxSizing: 'border-box' }}>
           <span style={{ fontSize: '0.725rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
             1. Completed Blood Issues
           </span>
@@ -359,7 +486,7 @@ export default function ReceptionistDashboardPage() {
         </div>
 
         {/* Card 2: Total Units Issued */}
-        <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '10px', padding: '1.1rem' }}>
+        <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '10px', padding: '1.1rem', boxSizing: 'border-box' }}>
           <span style={{ fontSize: '0.725rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
             2. Total Units Issued
           </span>
@@ -370,7 +497,7 @@ export default function ReceptionistDashboardPage() {
         </div>
 
         {/* Card 3: Total Invoices Generated */}
-        <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '10px', padding: '1.1rem' }}>
+        <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '10px', padding: '1.1rem', boxSizing: 'border-box' }}>
           <span style={{ fontSize: '0.725rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
             3. Invoices Generated
           </span>
@@ -383,7 +510,7 @@ export default function ReceptionistDashboardPage() {
         </div>
 
         {/* Card 4: Total Payments Collected */}
-        <div style={{ backgroundColor: '#064e3b', border: '1px solid #059669', borderRadius: '10px', padding: '1.1rem' }}>
+        <div style={{ backgroundColor: '#064e3b', border: '1px solid #059669', borderRadius: '10px', padding: '1.1rem', boxSizing: 'border-box' }}>
           <span style={{ fontSize: '0.725rem', fontWeight: 700, color: '#a7f3d0', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
             4. Total Payments Collected
           </span>
@@ -394,7 +521,7 @@ export default function ReceptionistDashboardPage() {
         </div>
 
         {/* Card 5: Cash Collected */}
-        <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '10px', padding: '1.1rem' }}>
+        <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '10px', padding: '1.1rem', boxSizing: 'border-box' }}>
           <span style={{ fontSize: '0.725rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
             5. Cash Collected
           </span>
@@ -405,7 +532,7 @@ export default function ReceptionistDashboardPage() {
         </div>
 
         {/* Card 6: Digital Collections */}
-        <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '10px', padding: '1.1rem' }}>
+        <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '10px', padding: '1.1rem', boxSizing: 'border-box' }}>
           <span style={{ fontSize: '0.725rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
             6. Digital Payments Collected
           </span>
@@ -416,7 +543,7 @@ export default function ReceptionistDashboardPage() {
         </div>
 
         {/* Card 7: Outstanding Receivables */}
-        <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '10px', padding: '1.1rem' }}>
+        <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '10px', padding: '1.1rem', boxSizing: 'border-box' }}>
           <span style={{ fontSize: '0.725rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
             7. Outstanding Balance
           </span>
@@ -427,7 +554,7 @@ export default function ReceptionistDashboardPage() {
         </div>
 
         {/* Card 8: Pending Transactions */}
-        <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '10px', padding: '1.1rem' }}>
+        <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '10px', padding: '1.1rem', boxSizing: 'border-box' }}>
           <span style={{ fontSize: '0.725rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
             8. Follow-up Incomplete Tx
           </span>
@@ -439,14 +566,7 @@ export default function ReceptionistDashboardPage() {
       </div>
 
       {/* Visual Analytics Row: Issues over time & Payment Distribution */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))',
-          gap: '1.25rem',
-          marginBottom: '1.5rem',
-        }}
-      >
+      <div className="receptionist-analytics-grid">
         {/* Payment Method Distribution Breakdown */}
         <div
           style={{
@@ -454,9 +574,12 @@ export default function ReceptionistDashboardPage() {
             border: '1px solid #1e293b',
             borderRadius: '12px',
             padding: '1.25rem',
+            overflow: 'hidden',
+            boxSizing: 'border-box',
+            width: '100%',
           }}
         >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.4rem' }}>
             <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: '#f8fafc', margin: 0 }}>
               Payment Method Breakdown
             </h3>
@@ -468,8 +591,8 @@ export default function ReceptionistDashboardPage() {
               const total = data?.summary?.totalPaymentsCollected || 1;
               const pct = Math.round((item.amount / total) * 100);
               return (
-                <div key={item.method}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: '0.25rem' }}>
+                <div key={item.method} style={{ width: '100%' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.8rem', marginBottom: '0.25rem', flexWrap: 'wrap', gap: '0.25rem' }}>
                     <span style={{ fontWeight: 600, color: '#e2e8f0' }}>{item.method} ({item.count} payments)</span>
                     <span style={{ fontWeight: 700, color: '#38bdf8' }}>{formatCurrency(item.amount)} ({pct}%)</span>
                   </div>
@@ -503,16 +626,19 @@ export default function ReceptionistDashboardPage() {
             border: '1px solid #1e293b',
             borderRadius: '12px',
             padding: '1.25rem',
+            overflow: 'hidden',
+            boxSizing: 'border-box',
+            width: '100%',
           }}
         >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.4rem' }}>
             <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: '#f8fafc', margin: 0 }}>
               Blood Component Issue Distribution
             </h3>
             <span style={{ fontSize: '0.725rem', color: '#94a3b8' }}>Total units released</span>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.75rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '0.75rem', width: '100%' }}>
             {(!data?.charts?.componentDistribution || data.charts.componentDistribution.length === 0) ? (
               <div style={{ color: '#64748b', fontSize: '0.8rem', gridColumn: 'span 2', textAlign: 'center', padding: '1.5rem' }}>
                 No units issued in selected date range.
@@ -526,10 +652,12 @@ export default function ReceptionistDashboardPage() {
                     borderRadius: '8px',
                     padding: '0.75rem',
                     border: '1px solid #334155',
+                    minWidth: 0,
+                    overflow: 'hidden',
                   }}
                 >
-                  <span style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: 600 }}>{item.component}</span>
-                  <div style={{ fontSize: '1.35rem', fontWeight: 800, color: '#f8fafc', marginTop: '0.15rem' }}>
+                  <span style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: 600, display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.component}</span>
+                  <div style={{ fontSize: '1.25rem', fontWeight: 800, color: '#f8fafc', marginTop: '0.15rem' }}>
                     {item.units} <span style={{ fontSize: '0.75rem', fontWeight: 500, color: '#64748b' }}>units</span>
                   </div>
                 </div>
@@ -546,6 +674,8 @@ export default function ReceptionistDashboardPage() {
           border: '1px solid #1e293b',
           borderRadius: '12px',
           overflow: 'hidden',
+          width: '100%',
+          boxSizing: 'border-box',
         }}
       >
         {/* Table Filter Header */}
@@ -569,7 +699,7 @@ export default function ReceptionistDashboardPage() {
             </p>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+          <div className="receptionist-filter-bar">
             <input
               type="text"
               placeholder="Search receipt, invoice, patient, code..."
@@ -582,36 +712,33 @@ export default function ReceptionistDashboardPage() {
                 borderRadius: '6px',
                 padding: '0.45rem 0.75rem',
                 fontSize: '0.8rem',
-                minWidth: '260px',
                 outline: 'none',
               }}
             />
 
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              style={{
-                backgroundColor: '#1e293b',
-                color: '#f8fafc',
-                border: '1px solid #334155',
-                borderRadius: '6px',
-                padding: '0.45rem 0.75rem',
-                fontSize: '0.8rem',
-                outline: 'none',
-                cursor: 'pointer',
-              }}
-            >
-              <option value="ALL">All Payment Statuses</option>
-              <option value="PAID">Paid in Full</option>
-              <option value="PARTIALLY_COLLECTED">Partially Paid</option>
-              <option value="PENDING">Pending Payment</option>
-              <option value="WAIVED">Waived</option>
-            </select>
+            <div style={{ minWidth: '180px', flex: '0 0 auto' }}>
+              <ReceptionistSelect
+                value={statusFilter}
+                onChange={setStatusFilter}
+                options={[
+                  { value: 'ALL', label: 'All Payment Statuses' },
+                  { value: 'PAID', label: 'Paid in Full' },
+                  { value: 'PARTIALLY_COLLECTED', label: 'Partially Paid' },
+                  { value: 'PENDING', label: 'Pending Payment' },
+                  { value: 'WAIVED', label: 'Waived' },
+                ]}
+              />
+            </div>
           </div>
         </div>
 
+        {/* Mobile Swipe Hint */}
+        <div className="receptionist-table-scroll-hint" style={{ padding: '0.5rem 1rem', backgroundColor: '#131e33', borderBottom: '1px solid #1e293b', fontSize: '0.75rem', color: '#38bdf8', alignItems: 'center', gap: '0.5rem' }}>
+          <span>👉 Swipe table horizontally to view full invoice & payment details</span>
+        </div>
+
         {/* Transactions Table */}
-        <div style={{ overflowX: 'auto' }}>
+        <div className="receptionist-table-wrapper">
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.825rem', textAlign: 'left' }}>
             <thead>
               <tr style={{ backgroundColor: '#131e33', color: '#94a3b8', borderBottom: '1px solid #1e293b' }}>
@@ -779,13 +906,17 @@ export default function ReceptionistDashboardPage() {
           }}
         >
           <div
+            className="receptionist-receipt-modal"
             style={{
               backgroundColor: '#ffffff',
               color: '#0f172a',
               borderRadius: '12px',
               maxWidth: '560px',
               width: '100%',
-              padding: '2rem',
+              maxHeight: '90vh',
+              overflowY: 'auto',
+              boxSizing: 'border-box',
+              padding: '1.75rem',
               boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
               fontFamily: 'system-ui, -apple-system, sans-serif',
             }}

@@ -18,6 +18,7 @@ import {
   fetchBloodAvailabilitySummary,
   fetchAvailableInventory,
 } from '@/lib/receptionist-api';
+import ReceptionistSelect from '@/components/receptionist/ReceptionistSelect';
 
 const BLOOD_GROUPS = ['ALL', 'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 const COMPONENTS = [
@@ -367,7 +368,7 @@ export default function ReceptionistAvailabilityPage() {
         }}
       >
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', alignItems: 'center' }}>
-          <div style={{ position: 'relative', flex: 1, minWidth: '260px' }}>
+          <div style={{ position: 'relative', flex: 1, minWidth: 'min(100%, 260px)' }}>
             <Search
               style={{
                 width: '18px',
@@ -398,69 +399,72 @@ export default function ReceptionistAvailabilityPage() {
             />
           </div>
 
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', alignItems: 'center' }}>
+          <style
+            dangerouslySetInnerHTML={{
+              __html: `
+                @media (max-width: 768px) {
+                  .availability-filters-row {
+                    width: 100% !important;
+                    display: flex !important;
+                    flex-direction: column !important;
+                    align-items: stretch !important;
+                    gap: 0.5rem !important;
+                  }
+                  .availability-filters-row > * {
+                    width: 100% !important;
+                    min-width: 0 !important;
+                  }
+                }
+              `,
+            }}
+          />
+
+          <div
+            className="availability-filters-row"
+            style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', alignItems: 'center' }}
+          >
             {/* Blood Group Select */}
-            <select
-              value={selectedGroup}
-              onChange={(e) => setSelectedGroup(e.target.value)}
-              style={{
-                padding: '0.65rem 0.85rem',
-                backgroundColor: '#020617',
-                border: '1px solid #334155',
-                borderRadius: '8px',
-                fontSize: '0.85rem',
-                color: '#f8fafc',
-                outline: 'none',
-              }}
-            >
-              <option value="ALL">All Blood Groups</option>
-              {['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map((bg) => (
-                <option key={bg} value={bg}>
-                  Group {bg}
-                </option>
-              ))}
-            </select>
+            <div style={{ minWidth: '150px' }}>
+              <ReceptionistSelect
+                value={selectedGroup}
+                onChange={setSelectedGroup}
+                options={[
+                  { value: 'ALL', label: 'All Blood Groups' },
+                  ...['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map((bg) => ({
+                    value: bg,
+                    label: `Group ${bg}`,
+                  })),
+                ]}
+              />
+            </div>
 
             {/* Component Type Select */}
-            <select
-              value={selectedComponent}
-              onChange={(e) => setSelectedComponent(e.target.value)}
-              style={{
-                padding: '0.65rem 0.85rem',
-                backgroundColor: '#020617',
-                border: '1px solid #334155',
-                borderRadius: '8px',
-                fontSize: '0.85rem',
-                color: '#f8fafc',
-                outline: 'none',
-              }}
-            >
-              <option value="ALL">All Components</option>
-              {COMPONENTS.filter((c) => c !== 'ALL').map((c) => (
-                <option key={c} value={c}>
-                  {c.replace(/_/g, ' ')}
-                </option>
-              ))}
-            </select>
+            <div style={{ minWidth: '170px' }}>
+              <ReceptionistSelect
+                value={selectedComponent}
+                onChange={setSelectedComponent}
+                options={[
+                  { value: 'ALL', label: 'All Components' },
+                  ...COMPONENTS.filter((c) => c !== 'ALL').map((c) => ({
+                    value: c,
+                    label: c.replace(/_/g, ' '),
+                  })),
+                ]}
+              />
+            </div>
 
             {/* Status Select */}
-            <select
-              value={selectedStatus}
-              onChange={(e) => setSelectedStatus(e.target.value)}
-              style={{
-                padding: '0.65rem 0.85rem',
-                backgroundColor: '#020617',
-                border: '1px solid #334155',
-                borderRadius: '8px',
-                fontSize: '0.85rem',
-                color: '#f8fafc',
-                outline: 'none',
-              }}
-            >
-              <option value="AVAILABLE">Available Only</option>
-              <option value="RESERVED">Reserved Units</option>
-              <option value="ALL">All Statuses</option>
-            </select>
+            <div style={{ minWidth: '150px' }}>
+              <ReceptionistSelect
+                value={selectedStatus}
+                onChange={setSelectedStatus}
+                options={[
+                  { value: 'AVAILABLE', label: 'Available Only' },
+                  { value: 'RESERVED', label: 'Reserved Units' },
+                  { value: 'ALL', label: 'All Statuses' },
+                ]}
+              />
+            </div>
           </div>
         </div>
 

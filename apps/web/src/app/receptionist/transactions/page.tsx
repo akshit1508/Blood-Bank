@@ -14,6 +14,7 @@ import {
   CreditCard,
 } from 'lucide-react';
 import { fetchCollections } from '@/lib/receptionist-api';
+import ReceptionistSelect from '@/components/receptionist/ReceptionistSelect';
 
 export default function ReceptionistTransactionsHistoryPage() {
   const [collections, setCollections] = useState<any[]>([]);
@@ -125,13 +126,31 @@ export default function ReceptionistTransactionsHistoryPage() {
           marginBottom: '1.5rem',
         }}
       >
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', alignItems: 'center' }}>
+        <style
+          dangerouslySetInnerHTML={{
+            __html: `
+              @media (max-width: 768px) {
+                .transactions-filter-row {
+                  flex-direction: column !important;
+                  align-items: stretch !important;
+                  gap: 0.5rem !important;
+                }
+                .transactions-filter-row > * {
+                  width: 100% !important;
+                  min-width: 0 !important;
+                }
+              }
+            `,
+          }}
+        />
+
+        <div className="transactions-filter-row" style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', alignItems: 'center' }}>
           <form
             onSubmit={(e) => {
               e.preventDefault();
               loadCollections();
             }}
-            style={{ position: 'relative', flex: 1, minWidth: '260px' }}
+            style={{ position: 'relative', flex: 1, minWidth: 'min(100%, 260px)' }}
           >
             <Search
               style={{
@@ -163,26 +182,20 @@ export default function ReceptionistTransactionsHistoryPage() {
             />
           </form>
 
-          <div>
-            <select
+          <div style={{ minWidth: '200px' }}>
+            <ReceptionistSelect
               value={paymentMethodFilter}
-              onChange={(e) => setPaymentMethodFilter(e.target.value)}
-              style={{
-                padding: '0.65rem 0.85rem',
-                backgroundColor: '#020617',
-                border: '1px solid #334155',
-                borderRadius: '8px',
-                fontSize: '0.85rem',
-                color: '#f8fafc',
-                outline: 'none',
+              onChange={(val) => {
+                setPaymentMethodFilter(val);
               }}
-            >
-              <option value="ALL">All Payment Methods</option>
-              <option value="CASH">Cash Only</option>
-              <option value="UPI">UPI Digital</option>
-              <option value="CARD">Debit / Credit Card</option>
-              <option value="HOSPITAL_CREDIT">Hospital Credit</option>
-            </select>
+              options={[
+                { value: 'ALL', label: 'All Payment Methods' },
+                { value: 'CASH', label: 'Cash Only' },
+                { value: 'UPI', label: 'UPI Digital' },
+                { value: 'CARD', label: 'Debit / Credit Card' },
+                { value: 'HOSPITAL_CREDIT', label: 'Hospital Credit' },
+              ]}
+            />
           </div>
         </div>
       </div>

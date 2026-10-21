@@ -10,6 +10,7 @@ import {
   fetchBloodAvailabilitySummary,
   PatientSearchResult,
 } from '@/lib/receptionist-api';
+import ReceptionistSelect from '@/components/receptionist/ReceptionistSelect';
 
 const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 const BLOOD_COMPONENTS = [
@@ -290,6 +291,9 @@ export default function ReceptionistNewPatientPage() {
               marginTop: '0.5rem',
               maxHeight: '220px',
               overflowY: 'auto',
+              width: '100%',
+              maxWidth: '100%',
+              boxSizing: 'border-box',
             }}
           >
             {searchResults.map((p) => (
@@ -378,7 +382,7 @@ export default function ReceptionistNewPatientPage() {
             Patient Information
           </h2>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '1rem' }}>
             <div>
               <label style={{ display: 'block', fontSize: '0.8rem', color: '#94a3b8', marginBottom: '0.35rem' }}>Patient Full Name *</label>
               <input
@@ -406,15 +410,15 @@ export default function ReceptionistNewPatientPage() {
 
             <div>
               <label style={{ display: 'block', fontSize: '0.8rem', color: '#94a3b8', marginBottom: '0.35rem' }}>Gender *</label>
-              <select
+              <ReceptionistSelect
                 value={patientGender}
-                onChange={(e) => setPatientGender(e.target.value)}
-                style={{ width: '100%', backgroundColor: '#1e293b', color: '#f8fafc', border: '1px solid #334155', borderRadius: '6px', padding: '0.55rem', fontSize: '0.85rem', boxSizing: 'border-box' }}
-              >
-                <option value="MALE">Male</option>
-                <option value="FEMALE">Female</option>
-                <option value="OTHER">Other</option>
-              </select>
+                onChange={setPatientGender}
+                options={[
+                  { value: 'MALE', label: 'Male' },
+                  { value: 'FEMALE', label: 'Female' },
+                  { value: 'OTHER', label: 'Other' },
+                ]}
+              />
             </div>
 
             <div>
@@ -455,31 +459,23 @@ export default function ReceptionistNewPatientPage() {
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '1rem' }}>
             <div>
               <label style={{ display: 'block', fontSize: '0.8rem', color: '#94a3b8', marginBottom: '0.35rem' }}>Blood Group *</label>
-              <select
+              <ReceptionistSelect
                 value={bloodGroup}
-                onChange={(e) => setBloodGroup(e.target.value)}
-                style={{ width: '100%', backgroundColor: '#1e293b', color: '#f8fafc', border: '1px solid #334155', borderRadius: '6px', padding: '0.55rem', fontSize: '0.85rem', boxSizing: 'border-box' }}
-              >
-                {BLOOD_GROUPS.map((bg) => (
-                  <option key={bg} value={bg}>{bg}</option>
-                ))}
-              </select>
+                onChange={setBloodGroup}
+                options={BLOOD_GROUPS.map((bg) => ({ value: bg, label: bg }))}
+              />
             </div>
 
             <div>
               <label style={{ display: 'block', fontSize: '0.8rem', color: '#94a3b8', marginBottom: '0.35rem' }}>Blood Component *</label>
-              <select
+              <ReceptionistSelect
                 value={componentType}
-                onChange={(e) => setComponentType(e.target.value)}
-                style={{ width: '100%', backgroundColor: '#1e293b', color: '#f8fafc', border: '1px solid #334155', borderRadius: '6px', padding: '0.55rem', fontSize: '0.85rem', boxSizing: 'border-box' }}
-              >
-                {BLOOD_COMPONENTS.map((c) => (
-                  <option key={c.value} value={c.value}>{c.label}</option>
-                ))}
-              </select>
+                onChange={setComponentType}
+                options={BLOOD_COMPONENTS}
+              />
             </div>
 
             <div>
@@ -497,15 +493,15 @@ export default function ReceptionistNewPatientPage() {
 
             <div>
               <label style={{ display: 'block', fontSize: '0.8rem', color: '#94a3b8', marginBottom: '0.35rem' }}>Clinical Priority *</label>
-              <select
+              <ReceptionistSelect
                 value={priority}
-                onChange={(e) => setPriority(e.target.value)}
-                style={{ width: '100%', backgroundColor: '#1e293b', color: '#f8fafc', border: '1px solid #334155', borderRadius: '6px', padding: '0.55rem', fontSize: '0.85rem', boxSizing: 'border-box' }}
-              >
-                <option value="ROUTINE">Routine Schedule</option>
-                <option value="URGENT">Urgent (Within 4 hours)</option>
-                <option value="CRITICAL_EMERGENCY">Critical Emergency (Immediate)</option>
-              </select>
+                onChange={setPriority}
+                options={[
+                  { value: 'ROUTINE', label: 'Routine Schedule' },
+                  { value: 'URGENT', label: 'Urgent (Within 4 hours)' },
+                  { value: 'CRITICAL_EMERGENCY', label: 'Critical Emergency (Immediate)' },
+                ]}
+              />
             </div>
           </div>
         </div>
@@ -516,7 +512,7 @@ export default function ReceptionistNewPatientPage() {
             Hospital & Treating Doctor Information
           </h2>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '1rem' }}>
             <div>
               <label style={{ display: 'block', fontSize: '0.8rem', color: '#94a3b8', marginBottom: '0.35rem' }}>Hospital / Clinic Name *</label>
               <input
@@ -663,7 +659,7 @@ export default function ReceptionistNewPatientPage() {
             Accompanying Person / Requester Contact
           </h2>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '1rem' }}>
             <div>
               <label style={{ display: 'block', fontSize: '0.8rem', color: '#94a3b8', marginBottom: '0.35rem' }}>Contact Name *</label>
               <input

@@ -531,7 +531,7 @@ export default function ReceptionistRequestsDeskPage() {
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 360px), 1fr))',
           gap: '1.5rem',
           alignItems: 'start',
         }}
