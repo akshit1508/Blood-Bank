@@ -172,7 +172,7 @@ export default function CampaignCommandCenterPage() {
   const [registerVolError, setRegisterVolError] = useState<string | null>(null);
 
   // Filter and View States
-  const [activeTab, setActiveTab] = useState<'all' | 'blood' | 'volunteers' | 'financials'>('all');
+  const [activeTab, setActiveTab] = useState<'all' | 'approvals' | 'blood' | 'volunteers' | 'financials'>('all');
   const [bloodSearchTerm, setBloodSearchTerm] = useState<string>('');
   const [bloodFilterGroup, setBloodFilterGroup] = useState<string>('ALL');
   const [bloodFilterStatus, setBloodFilterStatus] = useState<string>('ALL');
@@ -297,18 +297,22 @@ export default function CampaignCommandCenterPage() {
     try {
       setAddingExpense(true);
       setAddExpenseError(null);
-      await createCampaignExpenditure(campaign._id, {
-        title: expenseFormData.title.trim(),
-        category: expenseFormData.category,
-        amount: numAmount,
-        invoiceNumber: expenseFormData.invoiceNumber.trim(),
-        vendorName: expenseFormData.vendorName.trim(),
-        expenseDate: expenseFormData.expenseDate,
-        description: expenseFormData.description.trim() || undefined,
-        taxAmount: expenseFormData.taxAmount ? Number(expenseFormData.taxAmount) : undefined,
-        gstinNumber: expenseFormData.gstinNumber.trim() || undefined,
-        receiptFile: expenseFormData.receiptFile,
-      });
+      await createCampaignExpenditure(
+        campaign._id,
+        {
+          title: expenseFormData.title.trim(),
+          category: expenseFormData.category,
+          amount: numAmount,
+          invoiceNumber: expenseFormData.invoiceNumber.trim(),
+          vendorName: expenseFormData.vendorName.trim(),
+          expenseDate: expenseFormData.expenseDate,
+          description: expenseFormData.description.trim() || undefined,
+          taxAmount: expenseFormData.taxAmount ? Number(expenseFormData.taxAmount) : undefined,
+          gstinNumber: expenseFormData.gstinNumber.trim() || undefined,
+          receiptFile: expenseFormData.receiptFile,
+        },
+        { autoApprove: isSuperAdmin },
+      );
 
       setIsAddExpenseModalOpen(false);
       setExpenseFormData({
@@ -791,20 +795,20 @@ export default function CampaignCommandCenterPage() {
 
   if (loading && !campaign) {
     return (
-      <div style={{ minHeight: '100vh', backgroundColor: '#0b1120', color: '#f8fafc', padding: '3rem', textAlign: 'center' }}>
-        <div style={{ display: 'inline-block', width: '32px', height: '32px', border: '3px solid #38bdf8', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
-        <div style={{ marginTop: '1rem', color: '#94a3b8' }}>Loading Campaign Command Center...</div>
+      <div style={{ minHeight: '100vh', backgroundColor: '#fffbeb', color: '#0f172a', padding: '3rem', textAlign: 'center' }}>
+        <div style={{ display: 'inline-block', width: '32px', height: '32px', border: '3px solid #d97706', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+        <div style={{ marginTop: '1rem', color: '#64748b' }}>Loading Campaign Command Center...</div>
       </div>
     );
   }
 
   if (error || !campaign) {
     return (
-      <div style={{ minHeight: '100vh', backgroundColor: '#0b1120', color: '#f8fafc', padding: '2rem' }}>
-        <div style={{ backgroundColor: '#450a0a', border: '1px solid #dc2626', color: '#fecaca', borderRadius: '8px', padding: '1.5rem', maxWidth: '600px', margin: '2rem auto' }}>
+      <div style={{ minHeight: '100vh', backgroundColor: '#fffbeb', color: '#0f172a', padding: '2rem' }}>
+        <div style={{ backgroundColor: '#fef2f2', border: '1px solid #fecaca', color: '#991b1b', borderRadius: '8px', padding: '1.5rem', maxWidth: '600px', margin: '2rem auto' }}>
           <h2 style={{ margin: '0 0 0.5rem 0', fontSize: '1.25rem' }}>Campaign Not Found</h2>
           <p>{error || 'The requested campaign record could not be loaded.'}</p>
-          <Link href="/admin/campaigns" style={{ color: '#38bdf8', textDecoration: 'underline', fontSize: '0.9rem' }}>
+          <Link href="/admin/campaigns" style={{ color: '#92400e', textDecoration: 'underline', fontSize: '0.9rem' }}>
             ← Back to Campaigns List
           </Link>
         </div>
@@ -812,31 +816,58 @@ export default function CampaignCommandCenterPage() {
     );
   }
 
-  const badge = CAMPAIGN_STATUS_BADGE_COLORS[campaign.status] || CAMPAIGN_STATUS_BADGE_COLORS[CampaignStatus.PLANNED];
+  const getStatusBadge = (status: CampaignStatus) => {
+    switch (status) {
+      case CampaignStatus.ACTIVE:
+        return { bg: '#ecfdf5', text: '#065f46', border: '#a7f3d0' };
+      case CampaignStatus.COMPLETED:
+        return { bg: '#f1f5f9', text: '#334155', border: '#cbd5e1' };
+      case CampaignStatus.CANCELLED:
+        return { bg: '#fef2f2', text: '#991b1b', border: '#fecaca' };
+      case CampaignStatus.PLANNED:
+      default:
+        return { bg: '#eff6ff', text: '#1d4ed8', border: '#bfdbfe' };
+    }
+  };
+
+  const badge = getStatusBadge(campaign.status);
   const bm = financials?.budgetMetrics;
   const cm = financials?.collectionMetrics;
   const util = bm?.utilizationPercentage || 0;
   const isOver = bm?.isOverBudget || false;
-  const pendingReviewCount = financials?.linkedExpenses?.filter((e) => e.status === 'SUBMITTED').length || 0;
+  const pendingExpenses = financials?.linkedExpenses?.filter((e) => e.status === 'SUBMITTED') || [];
+  const approvedExpenses = financials?.linkedExpenses?.filter((e) => e.status === 'APPROVED') || [];
+  const pendingReviewCount = pendingExpenses.length;
+  const totalApprovedAmount = approvedExpenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+  const totalPendingAmount = pendingExpenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+
+  const targetDonations = campaign.targetDonations || 0;
+  const unitsCollected = bloodReport?.summary?.totalUnitsCollected ?? campaign.completedDonationsCount ?? 0;
+  const bloodTargetPercent = targetDonations > 0 ? Math.round((unitsCollected / targetDonations) * 100) : 0;
+
+  const totalVolAssigned = campaignVolunteers?.summary?.totalAssigned || 0;
+  const volPresent = campaignVolunteers?.summary?.present || 0;
+  const volAbsent = campaignVolunteers?.summary?.absent || 0;
+  const volParticipationRate = totalVolAssigned > 0 ? Math.round((volPresent / totalVolAssigned) * 100) : 0;
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#0b1120', color: '#f8fafc', padding: '1.75rem' }}>
+    <div style={{ minHeight: '100vh', backgroundColor: '#fffbeb', color: '#0f172a', padding: '1.75rem' }}>
       {/* Breadcrumb & Navigation */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.75rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', color: '#94a3b8' }}>
-          <Link href="/admin/campaigns" style={{ color: '#94a3b8', textDecoration: 'none' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', color: '#64748b' }}>
+          <Link href="/admin/campaigns" style={{ color: '#64748b', textDecoration: 'none' }}>
             Campaigns
           </Link>
           <span>/</span>
-          <span style={{ color: '#f8fafc', fontWeight: 600 }}>{campaign.campaignCode}</span>
+          <span style={{ color: '#0f172a', fontWeight: 600 }}>{campaign.campaignCode}</span>
         </div>
 
         <Link
           href="/admin/campaigns"
           style={{
-            backgroundColor: '#1e293b',
-            color: '#94a3b8',
-            border: '1px solid #334155',
+            backgroundColor: '#fffdf5',
+            color: '#64748b',
+            border: '1px solid #fde68a',
             borderRadius: '6px',
             padding: '0.4rem 0.85rem',
             fontSize: '0.8rem',
@@ -850,8 +881,8 @@ export default function CampaignCommandCenterPage() {
       {/* Header Banner */}
       <div
         style={{
-          backgroundColor: '#0f172a',
-          border: '1px solid #1e293b',
+          backgroundColor: '#ffffff',
+          border: '1px solid #fde68a',
           borderRadius: '12px',
           padding: '1.5rem',
           marginBottom: '1.75rem',
@@ -869,9 +900,9 @@ export default function CampaignCommandCenterPage() {
                 fontFamily: 'monospace',
                 fontWeight: 700,
                 fontSize: '0.9rem',
-                color: '#38bdf8',
-                backgroundColor: '#0369a120',
-                border: '1px solid #0284c740',
+                color: '#92400e',
+                backgroundColor: '#fef3c7',
+                border: '1px solid #fde68a',
                 padding: '0.2rem 0.6rem',
                 borderRadius: '6px',
               }}
@@ -901,9 +932,9 @@ export default function CampaignCommandCenterPage() {
                 value={campaign.status}
                 onChange={(e) => handleStatusChange(e.target.value as CampaignStatus)}
                 style={{
-                  backgroundColor: '#1e293b',
-                  color: '#e2e8f0',
-                  border: '1px solid #334155',
+                  backgroundColor: '#fffdf5',
+                  color: '#1e293b',
+                  border: '1px solid #fde68a',
                   borderRadius: '6px',
                   padding: '0.25rem 0.5rem',
                   fontSize: '0.75rem',
@@ -920,11 +951,11 @@ export default function CampaignCommandCenterPage() {
             </div>
           </div>
 
-          <h1 style={{ fontSize: '1.75rem', fontWeight: 800, margin: '0 0 0.5rem 0', color: '#f8fafc' }}>
+          <h1 style={{ fontSize: '1.75rem', fontWeight: 800, margin: '0 0 0.5rem 0', color: '#0f172a' }}>
             {campaign.name}
           </h1>
 
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1.25rem', color: '#94a3b8', fontSize: '0.875rem' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1.25rem', color: '#64748b', fontSize: '0.875rem' }}>
             <div>
               📍 <strong>{campaign.venue}</strong>, {campaign.city}
             </div>
@@ -937,7 +968,7 @@ export default function CampaignCommandCenterPage() {
           </div>
 
           {campaign.description && (
-            <p style={{ margin: '0.75rem 0 0 0', color: '#cbd5e1', fontSize: '0.875rem', maxWidth: '750px', lineHeight: 1.5 }}>
+            <p style={{ margin: '0.75rem 0 0 0', color: '#475569', fontSize: '0.875rem', maxWidth: '750px', lineHeight: 1.5 }}>
               {campaign.description}
             </p>
           )}
@@ -1013,7 +1044,7 @@ export default function CampaignCommandCenterPage() {
           display: 'flex',
           gap: '0.5rem',
           marginBottom: '1.75rem',
-          borderBottom: '1px solid #1e293b',
+          borderBottom: '1px solid #fef3c7',
           paddingBottom: '0.75rem',
           flexWrap: 'wrap',
         }}
@@ -1021,13 +1052,13 @@ export default function CampaignCommandCenterPage() {
         <button
           onClick={() => setActiveTab('all')}
           style={{
-            backgroundColor: activeTab === 'all' ? '#1e293b' : 'transparent',
-            color: activeTab === 'all' ? '#f8fafc' : '#94a3b8',
-            border: activeTab === 'all' ? '1px solid #38bdf8' : '1px solid transparent',
+            backgroundColor: activeTab === 'all' ? '#fef3c7' : '#ffffff',
+            color: activeTab === 'all' ? '#92400e' : '#64748b',
+            border: activeTab === 'all' ? '1px solid #d97706' : '1px solid #fde68a',
             borderRadius: '8px',
             padding: '0.55rem 1.15rem',
             fontSize: '0.875rem',
-            fontWeight: 600,
+            fontWeight: 700,
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
@@ -1039,11 +1070,59 @@ export default function CampaignCommandCenterPage() {
         </button>
 
         <button
+          onClick={() => setActiveTab('approvals')}
+          style={{
+            backgroundColor: activeTab === 'approvals' ? '#fffbeb' : '#ffffff',
+            color: activeTab === 'approvals' ? '#b45309' : '#64748b',
+            border: activeTab === 'approvals' ? '1px solid #d97706' : '1px solid #fde68a',
+            borderRadius: '8px',
+            padding: '0.55rem 1.15rem',
+            fontSize: '0.875rem',
+            fontWeight: 700,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            transition: 'all 0.15s ease',
+          }}
+        >
+          <span>🛡️</span> Approvals & Command Deck
+          {pendingReviewCount > 0 ? (
+            <span
+              style={{
+                backgroundColor: '#dc2626',
+                color: '#ffffff',
+                fontSize: '0.725rem',
+                fontWeight: 800,
+                borderRadius: '9999px',
+                padding: '0.1rem 0.55rem',
+                animation: 'pulse 2s infinite',
+              }}
+            >
+              {pendingReviewCount} Pending
+            </span>
+          ) : (
+            <span
+              style={{
+                backgroundColor: '#10b981',
+                color: '#ffffff',
+                fontSize: '0.725rem',
+                fontWeight: 700,
+                borderRadius: '9999px',
+                padding: '0.1rem 0.55rem',
+              }}
+            >
+              ✓ Up-to-date
+            </span>
+          )}
+        </button>
+
+        <button
           onClick={() => setActiveTab('blood')}
           style={{
-            backgroundColor: activeTab === 'blood' ? '#4c0519' : 'transparent',
-            color: activeTab === 'blood' ? '#ffe4e6' : '#94a3b8',
-            border: activeTab === 'blood' ? '1px solid #e11d48' : '1px solid transparent',
+            backgroundColor: activeTab === 'blood' ? '#ffe4e6' : '#ffffff',
+            color: activeTab === 'blood' ? '#9f1239' : '#64748b',
+            border: activeTab === 'blood' ? '1px solid #e11d48' : '1px solid #fde68a',
             borderRadius: '8px',
             padding: '0.55rem 1.15rem',
             fontSize: '0.875rem',
@@ -1075,9 +1154,9 @@ export default function CampaignCommandCenterPage() {
         <button
           onClick={() => setActiveTab('volunteers')}
           style={{
-            backgroundColor: activeTab === 'volunteers' ? '#581c87' : 'transparent',
-            color: activeTab === 'volunteers' ? '#f5d0fe' : '#94a3b8',
-            border: activeTab === 'volunteers' ? '1px solid #c084fc' : '1px solid transparent',
+            backgroundColor: activeTab === 'volunteers' ? '#f5d0fe' : '#ffffff',
+            color: activeTab === 'volunteers' ? '#86198f' : '#64748b',
+            border: activeTab === 'volunteers' ? '1px solid #a855f7' : '1px solid #fde68a',
             borderRadius: '8px',
             padding: '0.55rem 1.15rem',
             fontSize: '0.875rem',
@@ -1109,9 +1188,9 @@ export default function CampaignCommandCenterPage() {
         <button
           onClick={() => setActiveTab('financials')}
           style={{
-            backgroundColor: activeTab === 'financials' ? '#064e3b' : 'transparent',
-            color: activeTab === 'financials' ? '#a7f3d0' : '#94a3b8',
-            border: activeTab === 'financials' ? '1px solid #10b981' : '1px solid transparent',
+            backgroundColor: activeTab === 'financials' ? '#ecfdf5' : '#ffffff',
+            color: activeTab === 'financials' ? '#065f46' : '#64748b',
+            border: activeTab === 'financials' ? '1px solid #10b981' : '1px solid #fde68a',
             borderRadius: '8px',
             padding: '0.55rem 1.15rem',
             fontSize: '0.875rem',
@@ -1145,9 +1224,9 @@ export default function CampaignCommandCenterPage() {
       {intakeSuccessMessage && (
         <div
           style={{
-            backgroundColor: '#064e3b',
-            border: '1px solid #059669',
-            color: '#a7f3d0',
+            backgroundColor: '#ecfdf5',
+            border: '1px solid #a7f3d0',
+            color: '#065f46',
             borderRadius: '10px',
             padding: '1rem 1.25rem',
             marginBottom: '1.5rem',
@@ -1207,9 +1286,9 @@ export default function CampaignCommandCenterPage() {
       {intakeErrorMessage && (
         <div
           style={{
-            backgroundColor: '#450a0a',
-            border: '1px solid #dc2626',
-            color: '#fecaca',
+            backgroundColor: '#fef2f2',
+            border: '1px solid #fecaca',
+            color: '#991b1b',
             borderRadius: '10px',
             padding: '1rem 1.25rem',
             marginBottom: '1.5rem',
@@ -1245,14 +1324,626 @@ export default function CampaignCommandCenterPage() {
         </div>
       )}
 
+      {/* 🛡️ SUPER ADMIN EXECUTIVE OVERSIGHT & APPROVALS DECK */}
+      {(activeTab === 'all' || activeTab === 'approvals') && (
+        <div
+          style={{
+            backgroundColor: '#ffffff',
+            border: '1px solid #fde68a',
+            borderRadius: '12px',
+            padding: '1.5rem',
+            marginBottom: '2rem',
+            boxShadow: '0 4px 16px rgba(217, 119, 6, 0.08)',
+          }}
+        >
+          {/* Deck Header */}
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: '1rem',
+              marginBottom: '1.5rem',
+              borderBottom: '1px solid #fef3c7',
+              paddingBottom: '1rem',
+            }}
+          >
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap', marginBottom: '0.25rem' }}>
+                <span
+                  style={{
+                    backgroundColor: '#fef3c7',
+                    color: '#92400e',
+                    border: '1px solid #fde68a',
+                    padding: '0.2rem 0.6rem',
+                    borderRadius: '6px',
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    letterSpacing: '0.04em',
+                  }}
+                >
+                  🛡️ SUPER ADMIN WORKFLOW
+                </span>
+                <h2 style={{ fontSize: '1.35rem', fontWeight: 800, margin: 0, color: '#0f172a' }}>
+                  Campaign Executive Approvals & Operational Control
+                </h2>
+              </div>
+              <p style={{ margin: 0, color: '#64748b', fontSize: '0.825rem' }}>
+                Direct review and authorization hub: Payment approvals, blood units received vs target, and participating volunteer roster.
+              </p>
+            </div>
+
+            <div style={{ display: 'flex', gap: '0.65rem', flexWrap: 'wrap', alignItems: 'center' }}>
+              <button
+                type="button"
+                onClick={() => {
+                  setAddExpenseError(null);
+                  setIsAddExpenseModalOpen(true);
+                }}
+                style={{
+                  backgroundColor: '#d97706',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: '8px',
+                  padding: '0.55rem 1.15rem',
+                  fontSize: '0.825rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.45rem',
+                  boxShadow: '0 4px 12px rgba(217, 119, 6, 0.25)',
+                }}
+              >
+                <span>+</span> Add Expense (Direct Auto-Approve)
+              </button>
+            </div>
+          </div>
+
+          {/* 3 Executive Summary Action Cards Grid */}
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(310px, 1fr))',
+              gap: '1.25rem',
+              marginBottom: '1.75rem',
+            }}
+          >
+            {/* Card 1: Payment Approvals Overview */}
+            <div
+              style={{
+                backgroundColor: '#fffdf5',
+                border: pendingExpenses.length > 0 ? '1px solid #f59e0b' : '1px solid #fde68a',
+                borderRadius: '10px',
+                padding: '1.25rem',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+              }}
+            >
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                  <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#b45309', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    💳 Payment List For Approval
+                  </span>
+                  <span
+                    style={{
+                      backgroundColor: pendingExpenses.length > 0 ? '#fef3c7' : '#ecfdf5',
+                      color: pendingExpenses.length > 0 ? '#b45309' : '#065f46',
+                      border: pendingExpenses.length > 0 ? '1px solid #fde68a' : '1px solid #a7f3d0',
+                      padding: '0.15rem 0.5rem',
+                      borderRadius: '9999px',
+                      fontSize: '0.725rem',
+                      fontWeight: 700,
+                    }}
+                  >
+                    {pendingExpenses.length > 0 ? `${pendingExpenses.length} Awaiting Review` : '✓ All Reconciled'}
+                  </span>
+                </div>
+
+                <div style={{ fontSize: '1.65rem', fontWeight: 800, color: '#0f172a', margin: '0.25rem 0' }}>
+                  {formatCurrency(totalPendingAmount)}
+                </div>
+                <div style={{ fontSize: '0.8rem', color: '#64748b', marginBottom: '0.75rem' }}>
+                  Pending Super Admin authorization • {approvedExpenses.length} invoices already approved ({formatCurrency(totalApprovedAmount)})
+                </div>
+              </div>
+
+              {pendingExpenses.length > 0 ? (
+                <div style={{ fontSize: '0.775rem', color: '#b45309', backgroundColor: '#fffbeb', padding: '0.5rem 0.75rem', borderRadius: '6px', border: '1px solid #fde68a' }}>
+                  ⚠️ {pendingExpenses.length} payment voucher(s) require your direct decision below.
+                </div>
+              ) : (
+                <div style={{ fontSize: '0.775rem', color: '#065f46', backgroundColor: '#ecfdf5', padding: '0.5rem 0.75rem', borderRadius: '6px', border: '1px solid #a7f3d0' }}>
+                  ✓ All submitted payment claims for this campaign are approved.
+                </div>
+              )}
+            </div>
+
+            {/* Card 2: Blood Units Received vs Target */}
+            <div
+              style={{
+                backgroundColor: '#fffdf5',
+                border: '1px solid #fde68a',
+                borderRadius: '10px',
+                padding: '1.25rem',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+              }}
+            >
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                  <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#991b1b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    🩸 Blood Received vs Target
+                  </span>
+                  <span
+                    style={{
+                      backgroundColor: bloodTargetPercent >= 100 ? '#ecfdf5' : '#fee2e2',
+                      color: bloodTargetPercent >= 100 ? '#065f46' : '#991b1b',
+                      border: bloodTargetPercent >= 100 ? '1px solid #a7f3d0' : '1px solid #fecaca',
+                      padding: '0.15rem 0.5rem',
+                      borderRadius: '9999px',
+                      fontSize: '0.725rem',
+                      fontWeight: 700,
+                    }}
+                  >
+                    {bloodTargetPercent}% Achieved
+                  </span>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.45rem', margin: '0.25rem 0' }}>
+                  <span style={{ fontSize: '1.65rem', fontWeight: 800, color: '#0f172a' }}>
+                    {unitsCollected}
+                  </span>
+                  <span style={{ fontSize: '1rem', color: '#64748b', fontWeight: 600 }}>
+                    / {targetDonations} units target
+                  </span>
+                </div>
+
+                {/* Visual Progress Bar */}
+                <div style={{ width: '100%', height: '8px', backgroundColor: '#e2e8f0', borderRadius: '9999px', overflow: 'hidden', margin: '0.65rem 0 0.5rem 0' }}>
+                  <div
+                    style={{
+                      width: `${Math.min(100, bloodTargetPercent)}%`,
+                      height: '100%',
+                      backgroundColor: bloodTargetPercent >= 100 ? '#10b981' : '#dc2626',
+                      borderRadius: '9999px',
+                      transition: 'width 0.4s ease',
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: '#64748b', flexWrap: 'wrap', gap: '0.35rem' }}>
+                <span>Passed: <strong style={{ color: '#059669' }}>{bloodReport?.summary?.testingPassed || 0}</strong></span>
+                <span>Testing: <strong style={{ color: '#d97706' }}>{bloodReport?.summary?.testingInProgress || 0}</strong></span>
+                <span>Vault: <strong style={{ color: '#0284c7' }}>{bloodReport?.summary?.inInventoryCount || 0}</strong></span>
+              </div>
+            </div>
+
+            {/* Card 3: Volunteer Participation & Details */}
+            <div
+              style={{
+                backgroundColor: '#fffdf5',
+                border: '1px solid #fde68a',
+                borderRadius: '10px',
+                padding: '1.25rem',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+              }}
+            >
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                  <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#6b21a8', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    🤝 Volunteers Participated
+                  </span>
+                  <span
+                    style={{
+                      backgroundColor: '#f5d0fe',
+                      color: '#86198f',
+                      border: '1px solid #e879f9',
+                      padding: '0.15rem 0.5rem',
+                      borderRadius: '9999px',
+                      fontSize: '0.725rem',
+                      fontWeight: 700,
+                    }}
+                  >
+                    {volParticipationRate}% Present
+                  </span>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.45rem', margin: '0.25rem 0' }}>
+                  <span style={{ fontSize: '1.65rem', fontWeight: 800, color: '#0f172a' }}>
+                    {volPresent}
+                  </span>
+                  <span style={{ fontSize: '1rem', color: '#64748b', fontWeight: 600 }}>
+                    / {totalVolAssigned} volunteers attended
+                  </span>
+                </div>
+
+                <div style={{ fontSize: '0.8rem', color: '#64748b', margin: '0.5rem 0' }}>
+                  {volAbsent} absent • {totalVolAssigned - volPresent - volAbsent} awaiting check-in
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem' }}>
+                <button
+                  type="button"
+                  onClick={() => setIsAssignVolunteerModalOpen(true)}
+                  style={{
+                    backgroundColor: '#ffffff',
+                    border: '1px solid #fde68a',
+                    color: '#92400e',
+                    borderRadius: '6px',
+                    padding: '0.35rem 0.75rem',
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                  }}
+                >
+                  + Assign Volunteer
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsRegisterVolModalOpen(true)}
+                  style={{
+                    backgroundColor: '#ffffff',
+                    border: '1px solid #fde68a',
+                    color: '#92400e',
+                    borderRadius: '6px',
+                    padding: '0.35rem 0.75rem',
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                  }}
+                >
+                  + Register On-Site
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Detailed Section A: Payment List for Approval (Pending & Authorizations) */}
+          <div style={{ marginBottom: '2rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+              <div>
+                <h3 style={{ fontSize: '1.05rem', fontWeight: 700, margin: '0 0 0.15rem 0', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                  <span>💳</span> Invoices & Payments Requiring Super Admin Approval
+                </h3>
+                <span style={{ fontSize: '0.775rem', color: '#64748b' }}>
+                  1-Click direct approval or rejection with automatic budget liability updates
+                </span>
+              </div>
+              {pendingExpenses.length > 0 && (
+                <span style={{ backgroundColor: '#fffbeb', color: '#b45309', border: '1px solid #fde68a', padding: '0.2rem 0.6rem', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 700 }}>
+                  {pendingExpenses.length} claim(s) pending approval
+                </span>
+              )}
+            </div>
+
+            {pendingExpenses.length === 0 ? (
+              <div
+                style={{
+                  backgroundColor: '#ecfdf5',
+                  border: '1px solid #a7f3d0',
+                  borderRadius: '8px',
+                  padding: '1.25rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.75rem',
+                }}
+              >
+                <span style={{ fontSize: '1.5rem' }}>✅</span>
+                <div>
+                  <strong style={{ color: '#065f46', fontSize: '0.9rem', display: 'block' }}>
+                    All Payment Claims Approved
+                  </strong>
+                  <span style={{ color: '#047857', fontSize: '0.8rem' }}>
+                    There are currently no unapproved payment claims for this campaign. All {approvedExpenses.length} expenditures totaling {formatCurrency(totalApprovedAmount)} have been authorized.
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <div className="camp-table-scroll admin-table-scroll">
+                <table style={{ width: '100%', minWidth: '780px', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
+                  <thead>
+                    <tr style={{ backgroundColor: '#fffdf5', borderBottom: '1px solid #fde68a', color: '#64748b', fontSize: '0.75rem', textTransform: 'uppercase' }}>
+                      <th style={{ padding: '0.65rem 0.85rem' }}>Invoice / Voucher #</th>
+                      <th style={{ padding: '0.65rem 0.85rem' }}>Payee / Vendor</th>
+                      <th style={{ padding: '0.65rem 0.85rem' }}>Item Description</th>
+                      <th style={{ padding: '0.65rem 0.85rem' }}>Date</th>
+                      <th style={{ padding: '0.65rem 0.85rem' }}>Bill Attachment</th>
+                      <th style={{ padding: '0.65rem 0.85rem' }}>Amount (₹)</th>
+                      <th style={{ padding: '0.65rem 0.85rem', textAlign: 'right' }}>Direct Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pendingExpenses.map((exp) => (
+                      <tr key={exp._id} style={{ borderBottom: '1px solid #fef3c7', backgroundColor: '#ffffff' }}>
+                        <td style={{ padding: '0.75rem 0.85rem' }}>
+                          <span style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: '0.8rem', color: '#b45309', backgroundColor: '#fffbeb', border: '1px solid #fde68a', padding: '0.15rem 0.45rem', borderRadius: '4px' }}>
+                            {exp.invoiceNumber ? `INV: ${exp.invoiceNumber}` : exp.voucherNumber || exp.expenseCode}
+                          </span>
+                        </td>
+                        <td style={{ padding: '0.75rem 0.85rem', fontWeight: 600, color: '#0f172a' }}>
+                          {exp.vendorName || 'Direct Vendor'}
+                        </td>
+                        <td style={{ padding: '0.75rem 0.85rem' }}>
+                          <span style={{ color: '#0f172a', fontWeight: 500, display: 'block' }}>{exp.title}</span>
+                          <span style={{ fontSize: '0.725rem', color: '#92400e', backgroundColor: '#fef3c7', padding: '0.1rem 0.4rem', borderRadius: '4px' }}>
+                            {EXPENSE_CATEGORY_LABELS[exp.category as ExpenseCategory] || exp.category}
+                          </span>
+                        </td>
+                        <td style={{ padding: '0.75rem 0.85rem', color: '#64748b', fontSize: '0.8rem' }}>
+                          {formatDate(exp.expenseDate)}
+                        </td>
+                        <td style={{ padding: '0.75rem 0.85rem' }}>
+                          {exp.receipt?.fileId ? (
+                            <a
+                              href={getReceiptStreamUrl(exp._id)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '0.3rem',
+                                backgroundColor: '#fffdf5',
+                                color: '#92400e',
+                                border: '1px solid #fde68a',
+                                borderRadius: '4px',
+                                padding: '0.2rem 0.5rem',
+                                fontSize: '0.75rem',
+                                fontWeight: 600,
+                                textDecoration: 'none',
+                              }}
+                            >
+                              <span>📄</span> View Bill
+                            </a>
+                          ) : (
+                            <span style={{ color: '#94a3b8', fontSize: '0.75rem' }}>No bill attached</span>
+                          )}
+                        </td>
+                        <td style={{ padding: '0.75rem 0.85rem', fontWeight: 800, color: '#0f172a', fontSize: '0.9rem' }}>
+                          {formatCurrency(exp.amount)}
+                        </td>
+                        <td style={{ padding: '0.75rem 0.85rem', textAlign: 'right' }}>
+                          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.4rem', alignItems: 'center' }}>
+                            <button
+                              type="button"
+                              disabled={actionExpenseId === exp._id}
+                              onClick={() => handleApproveExpense(exp._id, exp.invoiceNumber || exp.voucherNumber)}
+                              style={{
+                                backgroundColor: '#10b981',
+                                color: '#ffffff',
+                                border: 'none',
+                                borderRadius: '6px',
+                                padding: '0.35rem 0.75rem',
+                                fontSize: '0.775rem',
+                                fontWeight: 700,
+                                cursor: actionExpenseId === exp._id ? 'not-allowed' : 'pointer',
+                                boxShadow: '0 2px 6px rgba(16, 185, 129, 0.25)',
+                              }}
+                            >
+                              ✓ Approve
+                            </button>
+                            <button
+                              type="button"
+                              disabled={actionExpenseId === exp._id}
+                              onClick={() => handleRejectExpense(exp._id, exp.invoiceNumber || exp.voucherNumber)}
+                              style={{
+                                backgroundColor: '#ffffff',
+                                color: '#dc2626',
+                                border: '1px solid #fecaca',
+                                borderRadius: '6px',
+                                padding: '0.35rem 0.65rem',
+                                fontSize: '0.775rem',
+                                fontWeight: 600,
+                                cursor: actionExpenseId === exp._id ? 'not-allowed' : 'pointer',
+                              }}
+                            >
+                              ✕ Reject
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          {/* Detailed Section B: Volunteer Participation & Roster Details */}
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+              <div>
+                <h3 style={{ fontSize: '1.05rem', fontWeight: 700, margin: '0 0 0.15rem 0', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                  <span>🤝</span> Participating Volunteers Roster & Details
+                </h3>
+                <span style={{ fontSize: '0.775rem', color: '#64748b' }}>
+                  Total {totalVolAssigned} assigned • {volPresent} participated ({volParticipationRate}%) • Real-time attendance verification
+                </span>
+              </div>
+              <div style={{ display: 'flex', gap: '0.45rem' }}>
+                <button
+                  type="button"
+                  onClick={() => setIsAssignVolunteerModalOpen(true)}
+                  style={{
+                    backgroundColor: '#fffdf5',
+                    color: '#92400e',
+                    border: '1px solid #fde68a',
+                    borderRadius: '6px',
+                    padding: '0.35rem 0.75rem',
+                    fontSize: '0.775rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                  }}
+                >
+                  + Assign Volunteer
+                </button>
+              </div>
+            </div>
+
+            {!campaignVolunteers?.volunteers || campaignVolunteers.volunteers.length === 0 ? (
+              <div
+                style={{
+                  backgroundColor: '#fffdf5',
+                  border: '1px dashed #fde68a',
+                  borderRadius: '8px',
+                  padding: '1.5rem',
+                  textAlign: 'center',
+                  color: '#64748b',
+                }}
+              >
+                <div style={{ fontSize: '1.75rem', marginBottom: '0.35rem' }}>🤝</div>
+                <strong style={{ display: 'block', color: '#0f172a', fontSize: '0.9rem', marginBottom: '0.25rem' }}>
+                  No Volunteers Assigned Yet
+                </strong>
+                <span style={{ fontSize: '0.8rem' }}>
+                  Assign registered volunteers to this campaign to mobilize donor care, registration, and logistics.
+                </span>
+                <div style={{ marginTop: '0.75rem' }}>
+                  <button
+                    type="button"
+                    onClick={() => setIsAssignVolunteerModalOpen(true)}
+                    style={{
+                      backgroundColor: '#d97706',
+                      color: '#ffffff',
+                      border: 'none',
+                      borderRadius: '6px',
+                      padding: '0.4rem 0.95rem',
+                      fontSize: '0.8rem',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    + Assign Volunteers Now
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="camp-table-scroll admin-table-scroll">
+                <table style={{ width: '100%', minWidth: '780px', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
+                  <thead>
+                    <tr style={{ backgroundColor: '#fffdf5', borderBottom: '1px solid #fde68a', color: '#64748b', fontSize: '0.75rem', textTransform: 'uppercase' }}>
+                      <th style={{ padding: '0.65rem 0.85rem' }}>Volunteer Name & Code</th>
+                      <th style={{ padding: '0.65rem 0.85rem' }}>Assigned Role</th>
+                      <th style={{ padding: '0.65rem 0.85rem' }}>Contact Phone</th>
+                      <th style={{ padding: '0.65rem 0.85rem' }}>Participation Status</th>
+                      <th style={{ padding: '0.65rem 0.85rem', textAlign: 'right' }}>Attendance Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {campaignVolunteers.volunteers.map((vol) => {
+                      const isPresent = vol.attendanceStatus === 'PRESENT';
+                      const isAbsent = vol.attendanceStatus === 'ABSENT';
+
+                      return (
+                        <tr key={vol._id} style={{ borderBottom: '1px solid #fef3c7', backgroundColor: '#ffffff' }}>
+                          <td style={{ padding: '0.75rem 0.85rem' }}>
+                            <strong style={{ color: '#0f172a', display: 'block', fontSize: '0.875rem' }}>
+                              {vol.volunteerName}
+                            </strong>
+                            <span style={{ fontFamily: 'monospace', fontSize: '0.75rem', color: '#64748b' }}>
+                              {vol.volunteerCode}
+                            </span>
+                          </td>
+                          <td style={{ padding: '0.75rem 0.85rem' }}>
+                            <span
+                              style={{
+                                backgroundColor: '#fef3c7',
+                                color: '#92400e',
+                                border: '1px solid #fde68a',
+                                padding: '0.15rem 0.5rem',
+                                borderRadius: '4px',
+                                fontSize: '0.75rem',
+                                fontWeight: 600,
+                              }}
+                            >
+                              {VOLUNTEER_ROLE_LABELS[vol.role] || vol.role || 'Volunteer'}
+                            </span>
+                          </td>
+                          <td style={{ padding: '0.75rem 0.85rem', color: '#0f172a', fontSize: '0.825rem' }}>
+                            {vol.volunteerPhone || '—'}
+                          </td>
+                          <td style={{ padding: '0.75rem 0.85rem' }}>
+                            <span
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '0.3rem',
+                                padding: '0.2rem 0.55rem',
+                                borderRadius: '9999px',
+                                fontSize: '0.725rem',
+                                fontWeight: 700,
+                                backgroundColor: isPresent ? '#ecfdf5' : isAbsent ? '#fef2f2' : '#f1f5f9',
+                                color: isPresent ? '#065f46' : isAbsent ? '#991b1b' : '#475569',
+                                border: `1px solid ${isPresent ? '#a7f3d0' : isAbsent ? '#fecaca' : '#cbd5e1'}`,
+                              }}
+                            >
+                              {isPresent ? '✓ PRESENT' : isAbsent ? '✕ ABSENT' : 'ASSIGNED'}
+                            </span>
+                          </td>
+                          <td style={{ padding: '0.75rem 0.85rem', textAlign: 'right' }}>
+                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.4rem', alignItems: 'center' }}>
+                              <button
+                                type="button"
+                                disabled={updatingAttendanceId === vol._id}
+                                onClick={() => handleUpdateAttendance(vol._id, 'PRESENT')}
+                                style={{
+                                  backgroundColor: isPresent ? '#d1fae5' : '#ffffff',
+                                  color: isPresent ? '#065f46' : '#10b981',
+                                  border: isPresent ? '1px solid #10b981' : '1px solid #a7f3d0',
+                                  borderRadius: '4px',
+                                  padding: '0.25rem 0.55rem',
+                                  fontSize: '0.725rem',
+                                  fontWeight: 700,
+                                  cursor: updatingAttendanceId === vol._id ? 'not-allowed' : 'pointer',
+                                }}
+                              >
+                                ✓ Present
+                              </button>
+                              <button
+                                type="button"
+                                disabled={updatingAttendanceId === vol._id}
+                                onClick={() => handleUpdateAttendance(vol._id, 'ABSENT')}
+                                style={{
+                                  backgroundColor: isAbsent ? '#fef2f2' : '#ffffff',
+                                  color: isAbsent ? '#991b1b' : '#ef4444',
+                                  border: isAbsent ? '1px solid #ef4444' : '1px solid #fecaca',
+                                  borderRadius: '4px',
+                                  padding: '0.25rem 0.55rem',
+                                  fontSize: '0.725rem',
+                                  fontWeight: 700,
+                                  cursor: updatingAttendanceId === vol._id ? 'not-allowed' : 'pointer',
+                                }}
+                              >
+                                ✕ Absent
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* 🩸 BLOOD COLLECTION, TESTING & CENTRAL INVENTORY MODULE */}
       {(activeTab === 'all' || activeTab === 'blood') && (
         <div style={{ marginBottom: '2.5rem' }}>
           {/* Header & Intake Action Bar */}
           <div
             style={{
-              backgroundColor: '#0f172a',
-              border: '1px solid #1e293b',
+              backgroundColor: '#ffffff',
+              border: '1px solid #fde68a',
               borderRadius: '12px',
               padding: '1.5rem',
               marginBottom: '1.25rem',
@@ -1274,7 +1965,7 @@ export default function CampaignCommandCenterPage() {
                     fontSize: '1.25rem',
                     fontWeight: 800,
                     margin: '0 0 0.25rem 0',
-                    color: '#f8fafc',
+                    color: '#0f172a',
                     display: 'flex',
                     alignItems: 'center',
                     gap: '0.5rem',
@@ -1282,7 +1973,7 @@ export default function CampaignCommandCenterPage() {
                 >
                   <span>🩸</span> Blood Collection, Testing Pipeline & Central Inventory
                 </h2>
-                <span style={{ color: '#94a3b8', fontSize: '0.825rem' }}>
+                <span style={{ color: '#64748b', fontSize: '0.825rem' }}>
                   Authoritative campaign audit: Total units collected, laboratory testing clearance, safe remaining units, and enrollment into central inventory with unique unit codes.
                 </span>
               </div>
@@ -1315,9 +2006,9 @@ export default function CampaignCommandCenterPage() {
                   onClick={handleRefreshBloodReport}
                   disabled={loadingBloodReport}
                   style={{
-                    backgroundColor: '#1e293b',
-                    color: '#94a3b8',
-                    border: '1px solid #334155',
+                    backgroundColor: '#fffdf5',
+                    color: '#64748b',
+                    border: '1px solid #fde68a',
                     borderRadius: '8px',
                     padding: '0.55rem 0.95rem',
                     fontSize: '0.825rem',
@@ -1334,8 +2025,8 @@ export default function CampaignCommandCenterPage() {
                 <Link
                   href="/admin/inventory"
                   style={{
-                    backgroundColor: '#1e293b',
-                    color: '#38bdf8',
+                    backgroundColor: '#fffdf5',
+                    color: '#92400e',
                     border: '1px solid #0284c7',
                     borderRadius: '8px',
                     padding: '0.55rem 1rem',
@@ -1360,9 +2051,9 @@ export default function CampaignCommandCenterPage() {
                       onClick={handleIntakePassedUnits}
                       disabled={intakingInventory || !canIntake}
                       style={{
-                        backgroundColor: canIntake ? '#0284c7' : '#1e293b',
-                        color: canIntake ? '#ffffff' : '#64748b',
-                        border: canIntake ? 'none' : '1px solid #334155',
+                        backgroundColor: canIntake ? '#0284c7' : '#f1f5f9',
+                        color: canIntake ? '#ffffff' : '#94a3b8',
+                        border: canIntake ? 'none' : '1px solid #fde68a',
                         borderRadius: '8px',
                         padding: '0.55rem 1.15rem',
                         fontSize: '0.825rem',
@@ -1401,15 +2092,15 @@ export default function CampaignCommandCenterPage() {
               {/* 1. Total Units Collected */}
               <div
                 style={{
-                  backgroundColor: '#1e293b',
-                  border: '1px solid #334155',
+                  backgroundColor: '#fffdf5',
+                  border: '1px solid #fde68a',
                   borderRadius: '10px',
                   padding: '1.1rem',
                 }}
               >
                 <div
                   style={{
-                    color: '#94a3b8',
+                    color: '#64748b',
                     fontSize: '0.725rem',
                     fontWeight: 700,
                     textTransform: 'uppercase',
@@ -1423,7 +2114,7 @@ export default function CampaignCommandCenterPage() {
                   <span>Collected Units</span>
                   <span>🩸</span>
                 </div>
-                <div style={{ fontSize: '1.75rem', fontWeight: 800, color: '#f8fafc' }}>
+                <div style={{ fontSize: '1.75rem', fontWeight: 800, color: '#0f172a' }}>
                   {bloodReport?.summary?.totalUnitsCollected ?? 0}
                 </div>
                 <div style={{ color: '#64748b', fontSize: '0.75rem', marginTop: '0.3rem' }}>
@@ -1434,7 +2125,7 @@ export default function CampaignCommandCenterPage() {
               {/* 2. Safe Units Remaining */}
               <div
                 style={{
-                  backgroundColor: '#1e293b',
+                  backgroundColor: '#fffdf5',
                   border: '1px solid #059669',
                   borderRadius: '10px',
                   padding: '1.1rem',
@@ -1467,7 +2158,7 @@ export default function CampaignCommandCenterPage() {
               {/* 3. Testing Failed / Discarded */}
               <div
                 style={{
-                  backgroundColor: '#1e293b',
+                  backgroundColor: '#fffdf5',
                   border: '1px solid #991b1b',
                   borderRadius: '10px',
                   padding: '1.1rem',
@@ -1500,7 +2191,7 @@ export default function CampaignCommandCenterPage() {
               {/* 4. In Laboratory Testing */}
               <div
                 style={{
-                  backgroundColor: '#1e293b',
+                  backgroundColor: '#fffdf5',
                   border: '1px solid #b45309',
                   borderRadius: '10px',
                   padding: '1.1rem',
@@ -1533,7 +2224,7 @@ export default function CampaignCommandCenterPage() {
               {/* 5. In Central Inventory */}
               <div
                 style={{
-                  backgroundColor: '#1e293b',
+                  backgroundColor: '#fffdf5',
                   border: '1px solid #0284c7',
                   borderRadius: '10px',
                   padding: '1.1rem',
@@ -1541,7 +2232,7 @@ export default function CampaignCommandCenterPage() {
               >
                 <div
                   style={{
-                    color: '#38bdf8',
+                    color: '#92400e',
                     fontSize: '0.725rem',
                     fontWeight: 700,
                     textTransform: 'uppercase',
@@ -1555,7 +2246,7 @@ export default function CampaignCommandCenterPage() {
                   <span>In Central Inventory</span>
                   <span>📦</span>
                 </div>
-                <div style={{ fontSize: '1.75rem', fontWeight: 800, color: '#38bdf8' }}>
+                <div style={{ fontSize: '1.75rem', fontWeight: 800, color: '#92400e' }}>
                   {bloodReport?.summary?.inInventoryCount ?? 0}
                   <span style={{ fontSize: '1rem', color: '#64748b', fontWeight: 500 }}>
                     {' '}/ {bloodReport?.summary?.testingPassed ?? 0}
@@ -1569,7 +2260,7 @@ export default function CampaignCommandCenterPage() {
               {/* 6. Safe Yield Clearance Rate */}
               <div
                 style={{
-                  backgroundColor: '#1e293b',
+                  backgroundColor: '#fffdf5',
                   border: '1px solid #7c3aed',
                   borderRadius: '10px',
                   padding: '1.1rem',
@@ -1604,8 +2295,8 @@ export default function CampaignCommandCenterPage() {
             {bloodReport?.summary?.bloodGroupBreakdown && Object.keys(bloodReport.summary.bloodGroupBreakdown).length > 0 && (
               <div
                 style={{
-                  backgroundColor: '#0b1120',
-                  border: '1px solid #1e293b',
+                  backgroundColor: '#fffbeb',
+                  border: '1px solid #fde68a',
                   borderRadius: '8px',
                   padding: '0.75rem 1rem',
                   display: 'flex',
@@ -1614,7 +2305,7 @@ export default function CampaignCommandCenterPage() {
                   flexWrap: 'wrap',
                 }}
               >
-                <span style={{ fontSize: '0.8rem', color: '#94a3b8', fontWeight: 600 }}>
+                <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 600 }}>
                   Blood Group Distribution:
                 </span>
                 {Object.entries(bloodReport.summary.bloodGroupBreakdown).map(([group, count]) => {
@@ -1646,8 +2337,8 @@ export default function CampaignCommandCenterPage() {
           {/* Search, Filter & Detailed Blood Units Table */}
           <div
             style={{
-              backgroundColor: '#0f172a',
-              border: '1px solid #1e293b',
+              backgroundColor: '#ffffff',
+              border: '1px solid #fde68a',
               borderRadius: '12px',
               padding: '1.5rem',
             }}
@@ -1663,10 +2354,10 @@ export default function CampaignCommandCenterPage() {
               }}
             >
               <div>
-                <h3 style={{ fontSize: '1.1rem', fontWeight: 700, margin: '0 0 0.25rem 0', color: '#f8fafc' }}>
+                <h3 style={{ fontSize: '1.1rem', fontWeight: 700, margin: '0 0 0.25rem 0', color: '#0f172a' }}>
                   Authoritative Unit Inventory & Testing Roster
                 </h3>
-                <span style={{ color: '#94a3b8', fontSize: '0.8rem' }}>
+                <span style={{ color: '#64748b', fontSize: '0.8rem' }}>
                   Showing {filteredBloodUnits.length} of {bloodReport?.units?.length || 0} unit(s) linked to this campaign.
                 </span>
               </div>
@@ -1679,10 +2370,10 @@ export default function CampaignCommandCenterPage() {
                   value={bloodSearchTerm}
                   onChange={(e) => setBloodSearchTerm(e.target.value)}
                   style={{
-                    backgroundColor: '#1e293b',
-                    border: '1px solid #334155',
+                    backgroundColor: '#fffdf5',
+                    border: '1px solid #fde68a',
                     borderRadius: '6px',
-                    color: '#f8fafc',
+                    color: '#0f172a',
                     padding: '0.45rem 0.75rem',
                     fontSize: '0.8rem',
                     minWidth: '220px',
@@ -1694,10 +2385,10 @@ export default function CampaignCommandCenterPage() {
                   value={bloodFilterGroup}
                   onChange={(e) => setBloodFilterGroup(e.target.value)}
                   style={{
-                    backgroundColor: '#1e293b',
-                    border: '1px solid #334155',
+                    backgroundColor: '#fffdf5',
+                    border: '1px solid #fde68a',
                     borderRadius: '6px',
-                    color: '#f8fafc',
+                    color: '#0f172a',
                     padding: '0.45rem 0.75rem',
                     fontSize: '0.8rem',
                     outline: 'none',
@@ -1719,10 +2410,10 @@ export default function CampaignCommandCenterPage() {
                   value={bloodFilterStatus}
                   onChange={(e) => setBloodFilterStatus(e.target.value)}
                   style={{
-                    backgroundColor: '#1e293b',
-                    border: '1px solid #334155',
+                    backgroundColor: '#fffdf5',
+                    border: '1px solid #fde68a',
                     borderRadius: '6px',
-                    color: '#f8fafc',
+                    color: '#0f172a',
                     padding: '0.45rem 0.75rem',
                     fontSize: '0.8rem',
                     outline: 'none',
@@ -1748,7 +2439,7 @@ export default function CampaignCommandCenterPage() {
                       backgroundColor: 'transparent',
                       border: '1px solid #475569',
                       borderRadius: '6px',
-                      color: '#94a3b8',
+                      color: '#64748b',
                       padding: '0.45rem 0.75rem',
                       fontSize: '0.8rem',
                       cursor: 'pointer',
@@ -1761,10 +2452,10 @@ export default function CampaignCommandCenterPage() {
             </div>
 
             {/* Table */}
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.825rem' }}>
+            <div className="camp-table-scroll admin-table-scroll">
+              <table style={{ width: '100%', minWidth: '920px', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.825rem' }}>
                 <thead>
-                  <tr style={{ borderBottom: '2px solid #1e293b', color: '#94a3b8' }}>
+                  <tr style={{ borderBottom: '2px solid #fde68a', color: '#64748b' }}>
                     <th style={{ padding: '0.75rem 0.65rem' }}>Unit Code</th>
                     <th style={{ padding: '0.75rem 0.65rem' }}>Donation Ref</th>
                     <th style={{ padding: '0.75rem 0.65rem' }}>Donor</th>
@@ -1792,17 +2483,17 @@ export default function CampaignCommandCenterPage() {
                         : 'UNKNOWN';
 
                       return (
-                        <tr key={u._id} style={{ borderBottom: '1px solid #1e293b' }}>
+                        <tr key={u._id} style={{ borderBottom: '1px solid #fef3c7' }}>
                           {/* Unit Code */}
                           <td style={{ padding: '0.75rem 0.65rem' }}>
                             <span
                               style={{
                                 fontFamily: 'monospace',
-                                color: '#38bdf8',
+                                color: '#92400e',
                                 fontWeight: 700,
                                 fontSize: '0.875rem',
-                                backgroundColor: '#0284c715',
-                                border: '1px solid #0284c740',
+                                backgroundColor: '#fef3c7',
+                                border: '1px solid #fde68a',
                                 padding: '0.15rem 0.45rem',
                                 borderRadius: '4px',
                               }}
@@ -1812,13 +2503,13 @@ export default function CampaignCommandCenterPage() {
                           </td>
 
                           {/* Donation Code */}
-                          <td style={{ padding: '0.75rem 0.65rem', fontFamily: 'monospace', color: '#cbd5e1' }}>
+                          <td style={{ padding: '0.75rem 0.65rem', fontFamily: 'monospace', color: '#475569' }}>
                             {u.donationCode || 'N/A'}
                           </td>
 
                           {/* Donor */}
                           <td style={{ padding: '0.75rem 0.65rem' }}>
-                            <div style={{ fontWeight: 600, color: '#f8fafc' }}>{u.donorName}</div>
+                            <div style={{ fontWeight: 600, color: '#0f172a' }}>{u.donorName}</div>
                             <div style={{ color: '#64748b', fontSize: '0.725rem' }}>{u.donorCode}</div>
                           </td>
 
@@ -1841,12 +2532,12 @@ export default function CampaignCommandCenterPage() {
                           </td>
 
                           {/* Component */}
-                          <td style={{ padding: '0.75rem 0.65rem', color: '#cbd5e1' }}>
+                          <td style={{ padding: '0.75rem 0.65rem', color: '#475569' }}>
                             {u.componentType?.replace('_', ' ') || 'WHOLE BLOOD'}
                           </td>
 
                           {/* Collection Date */}
-                          <td style={{ padding: '0.75rem 0.65rem', color: '#94a3b8' }}>
+                          <td style={{ padding: '0.75rem 0.65rem', color: '#64748b' }}>
                             {formatDate(u.collectionDate)}
                           </td>
 
@@ -1872,9 +2563,9 @@ export default function CampaignCommandCenterPage() {
                             ) : u.testingDecision === 'REJECTED' ? (
                               <span
                                 style={{
-                                  backgroundColor: '#450a0a',
-                                  color: '#f87171',
-                                  border: '1px solid #dc2626',
+                                  backgroundColor: '#fef2f2',
+                                  color: '#991b1b',
+                                  border: '1px solid #fecaca',
                                   padding: '0.2rem 0.55rem',
                                   borderRadius: '4px',
                                   fontWeight: 700,
@@ -1889,7 +2580,7 @@ export default function CampaignCommandCenterPage() {
                             ) : (
                               <span
                                 style={{
-                                  backgroundColor: '#451a03',
+                                  backgroundColor: '#fffbeb',
                                   color: '#fbbf24',
                                   border: '1px solid #d97706',
                                   padding: '0.2rem 0.55rem',
@@ -1929,7 +2620,7 @@ export default function CampaignCommandCenterPage() {
                               <span
                                 style={{
                                   backgroundColor: '#0c4a6e',
-                                  color: '#38bdf8',
+                                  color: '#92400e',
                                   border: '1px solid #0284c7',
                                   padding: '0.2rem 0.55rem',
                                   borderRadius: '4px',
@@ -1945,9 +2636,9 @@ export default function CampaignCommandCenterPage() {
                             ) : u.testingDecision === 'REJECTED' ? (
                               <span
                                 style={{
-                                  backgroundColor: '#1e293b',
-                                  color: '#94a3b8',
-                                  border: '1px solid #334155',
+                                  backgroundColor: '#fffdf5',
+                                  color: '#64748b',
+                                  border: '1px solid #fde68a',
                                   padding: '0.2rem 0.55rem',
                                   borderRadius: '4px',
                                   fontSize: '0.75rem',
@@ -1958,9 +2649,9 @@ export default function CampaignCommandCenterPage() {
                             ) : (
                               <span
                                 style={{
-                                  backgroundColor: '#1e293b',
+                                  backgroundColor: '#fffdf5',
                                   color: '#64748b',
-                                  border: '1px solid #334155',
+                                  border: '1px solid #fde68a',
                                   padding: '0.2rem 0.55rem',
                                   borderRadius: '4px',
                                   fontSize: '0.75rem',
@@ -1977,7 +2668,7 @@ export default function CampaignCommandCenterPage() {
                               <Link
                                 href="/admin/inventory"
                                 style={{
-                                  color: '#38bdf8',
+                                  color: '#92400e',
                                   textDecoration: 'none',
                                   fontSize: '0.8rem',
                                   fontWeight: 600,
@@ -2061,8 +2752,8 @@ export default function CampaignCommandCenterPage() {
         <div style={{ marginBottom: '2.5rem' }}>
           <div
             style={{
-              backgroundColor: '#0f172a',
-              border: '1px solid #1e293b',
+              backgroundColor: '#ffffff',
+              border: '1px solid #fde68a',
               borderRadius: '12px',
               padding: '1.5rem',
               marginBottom: '1.25rem',
@@ -2085,7 +2776,7 @@ export default function CampaignCommandCenterPage() {
                     fontSize: '1.25rem',
                     fontWeight: 800,
                     margin: '0 0 0.25rem 0',
-                    color: '#f8fafc',
+                    color: '#0f172a',
                     display: 'flex',
                     alignItems: 'center',
                     gap: '0.5rem',
@@ -2093,7 +2784,7 @@ export default function CampaignCommandCenterPage() {
                 >
                   <span>🤝</span> Campaign Volunteer Team & Attendance
                 </h2>
-                <span style={{ color: '#94a3b8', fontSize: '0.825rem' }}>
+                <span style={{ color: '#64748b', fontSize: '0.825rem' }}>
                   Manage campaign volunteers, track real-time attendance (Present / Absent), and register new volunteers directly on-site.
                 </span>
               </div>
@@ -2163,16 +2854,16 @@ export default function CampaignCommandCenterPage() {
             >
               <div
                 style={{
-                  backgroundColor: '#1e293b',
+                  backgroundColor: '#fffdf5',
                   borderRadius: '10px',
                   padding: '1rem',
-                  border: '1px solid #334155',
+                  border: '1px solid #fde68a',
                 }}
               >
-                <span style={{ fontSize: '0.725rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 600 }}>
+                <span style={{ fontSize: '0.725rem', color: '#64748b', textTransform: 'uppercase', fontWeight: 600 }}>
                   Assigned Team Size
                 </span>
-                <div style={{ fontSize: '1.65rem', fontWeight: 800, color: '#f8fafc', margin: '0.35rem 0 0.15rem 0' }}>
+                <div style={{ fontSize: '1.65rem', fontWeight: 800, color: '#0f172a', margin: '0.35rem 0 0.15rem 0' }}>
                   {campaignVolunteers?.summary.totalAssigned ?? 0}
                 </div>
                 <span style={{ fontSize: '0.725rem', color: '#64748b' }}>
@@ -2182,13 +2873,13 @@ export default function CampaignCommandCenterPage() {
 
               <div
                 style={{
-                  backgroundColor: '#1e293b',
+                  backgroundColor: '#fffdf5',
                   borderRadius: '10px',
                   padding: '1rem',
-                  border: '1px solid #334155',
+                  border: '1px solid #fde68a',
                 }}
               >
-                <span style={{ fontSize: '0.725rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 600 }}>
+                <span style={{ fontSize: '0.725rem', color: '#64748b', textTransform: 'uppercase', fontWeight: 600 }}>
                   Marked Present (Attended)
                 </span>
                 <div style={{ fontSize: '1.65rem', fontWeight: 800, color: '#34d399', margin: '0.35rem 0 0.15rem 0' }}>
@@ -2201,13 +2892,13 @@ export default function CampaignCommandCenterPage() {
 
               <div
                 style={{
-                  backgroundColor: '#1e293b',
+                  backgroundColor: '#fffdf5',
                   borderRadius: '10px',
                   padding: '1rem',
-                  border: '1px solid #334155',
+                  border: '1px solid #fde68a',
                 }}
               >
-                <span style={{ fontSize: '0.725rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 600 }}>
+                <span style={{ fontSize: '0.725rem', color: '#64748b', textTransform: 'uppercase', fontWeight: 600 }}>
                   Marked Absent
                 </span>
                 <div style={{ fontSize: '1.65rem', fontWeight: 800, color: '#f87171', margin: '0.35rem 0 0.15rem 0' }}>
@@ -2220,13 +2911,13 @@ export default function CampaignCommandCenterPage() {
 
               <div
                 style={{
-                  backgroundColor: '#1e293b',
+                  backgroundColor: '#fffdf5',
                   borderRadius: '10px',
                   padding: '1rem',
-                  border: '1px solid #334155',
+                  border: '1px solid #fde68a',
                 }}
               >
-                <span style={{ fontSize: '0.725rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 600 }}>
+                <span style={{ fontSize: '0.725rem', color: '#64748b', textTransform: 'uppercase', fontWeight: 600 }}>
                   Pending Attendance
                 </span>
                 <div style={{ fontSize: '1.65rem', fontWeight: 800, color: '#fbbf24', margin: '0.35rem 0 0.15rem 0' }}>
@@ -2239,10 +2930,10 @@ export default function CampaignCommandCenterPage() {
             </div>
 
             {/* Campaign Volunteer Roster Table */}
-            <div style={{ overflowX: 'auto', border: '1px solid #334155', borderRadius: '8px' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.825rem' }}>
+            <div className="camp-table-scroll admin-table-scroll" style={{ border: '1px solid #fde68a', borderRadius: '8px' }}>
+              <table style={{ width: '100%', minWidth: '920px', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.825rem' }}>
                 <thead>
-                  <tr style={{ backgroundColor: '#1e293b', color: '#94a3b8', borderBottom: '1px solid #334155' }}>
+                  <tr style={{ backgroundColor: '#fffdf5', color: '#64748b', borderBottom: '1px solid #fde68a' }}>
                     <th style={{ padding: '0.75rem 0.85rem' }}>Volunteer</th>
                     <th style={{ padding: '0.75rem 0.85rem' }}>Contact</th>
                     <th style={{ padding: '0.75rem 0.85rem' }}>Assigned Camp Role</th>
@@ -2308,14 +2999,14 @@ export default function CampaignCommandCenterPage() {
                         <tr
                           key={v._id}
                           style={{
-                            borderBottom: '1px solid #1e293b',
-                            backgroundColor: isPresent ? '#064e3b15' : isAbsent ? '#450a0a15' : 'transparent',
+                            borderBottom: '1px solid #fef3c7',
+                            backgroundColor: isPresent ? '#ecfdf5' : isAbsent ? '#fef2f2' : 'transparent',
                           }}
                         >
                           {/* Volunteer Info */}
                           <td style={{ padding: '0.75rem 0.85rem' }}>
-                            <div style={{ fontWeight: 700, color: '#f8fafc' }}>{v.volunteerName}</div>
-                            <div style={{ fontFamily: 'monospace', fontSize: '0.725rem', color: '#38bdf8' }}>
+                            <div style={{ fontWeight: 700, color: '#0f172a' }}>{v.volunteerName}</div>
+                            <div style={{ fontFamily: 'monospace', fontSize: '0.725rem', color: '#92400e' }}>
                               {v.volunteerCode}
                             </div>
                             {v.volunteerBloodGroup && (
@@ -2338,16 +3029,16 @@ export default function CampaignCommandCenterPage() {
 
                           {/* Contact */}
                           <td style={{ padding: '0.75rem 0.85rem' }}>
-                            <div style={{ color: '#e2e8f0' }}>{v.volunteerPhone}</div>
+                            <div style={{ color: '#1e293b' }}>{v.volunteerPhone}</div>
                           </td>
 
                           {/* Role */}
                           <td style={{ padding: '0.75rem 0.85rem' }}>
                             <span
                               style={{
-                                backgroundColor: '#1e293b',
-                                color: '#e2e8f0',
-                                border: '1px solid #334155',
+                                backgroundColor: '#fffdf5',
+                                color: '#1e293b',
+                                border: '1px solid #fde68a',
                                 borderRadius: '4px',
                                 padding: '0.2rem 0.55rem',
                                 fontSize: '0.75rem',
@@ -2357,7 +3048,7 @@ export default function CampaignCommandCenterPage() {
                               {VOLUNTEER_ROLE_LABELS[v.role] || v.role}
                             </span>
                             {v.notes && (
-                              <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: '0.25rem' }}>
+                              <div style={{ fontSize: '0.7rem', color: '#64748b', marginTop: '0.25rem' }}>
                                 {v.notes}
                               </div>
                             )}
@@ -2385,9 +3076,9 @@ export default function CampaignCommandCenterPage() {
                             ) : isAbsent ? (
                               <span
                                 style={{
-                                  backgroundColor: '#450a0a',
-                                  color: '#f87171',
-                                  border: '1px solid #dc2626',
+                                  backgroundColor: '#fef2f2',
+                                  color: '#991b1b',
+                                  border: '1px solid #fecaca',
                                   borderRadius: '9999px',
                                   padding: '0.2rem 0.65rem',
                                   fontSize: '0.725rem',
@@ -2402,7 +3093,7 @@ export default function CampaignCommandCenterPage() {
                             ) : (
                               <span
                                 style={{
-                                  backgroundColor: '#451a03',
+                                  backgroundColor: '#fffbeb',
                                   color: '#fbbf24',
                                   border: '1px solid #b45309',
                                   borderRadius: '9999px',
@@ -2423,7 +3114,7 @@ export default function CampaignCommandCenterPage() {
                           <td style={{ padding: '0.75rem 0.85rem' }}>
                             {v.attendanceMarkedAt ? (
                               <div>
-                                <div style={{ fontSize: '0.75rem', color: '#e2e8f0' }}>
+                                <div style={{ fontSize: '0.75rem', color: '#1e293b' }}>
                                   {formatDateTime(v.attendanceMarkedAt)}
                                 </div>
                                 <span style={{ fontSize: '0.7rem', color: '#64748b' }}>
@@ -2444,9 +3135,9 @@ export default function CampaignCommandCenterPage() {
                                 disabled={updatingAttendanceId === v._id}
                                 onClick={() => handleUpdateAttendance(v._id, 'PRESENT')}
                                 style={{
-                                  backgroundColor: isPresent ? '#064e3b' : 'transparent',
-                                  color: isPresent ? '#34d399' : '#10b981',
-                                  border: isPresent ? '1px solid #059669' : '1px solid #10b98160',
+                                  backgroundColor: isPresent ? '#d1fae5' : '#ffffff',
+                                  color: isPresent ? '#065f46' : '#10b981',
+                                  border: isPresent ? '1px solid #10b981' : '1px solid #a7f3d0',
                                   borderRadius: '4px',
                                   padding: '0.25rem 0.55rem',
                                   fontSize: '0.725rem',
@@ -2462,9 +3153,9 @@ export default function CampaignCommandCenterPage() {
                                 disabled={updatingAttendanceId === v._id}
                                 onClick={() => handleUpdateAttendance(v._id, 'ABSENT')}
                                 style={{
-                                  backgroundColor: isAbsent ? '#450a0a' : 'transparent',
-                                  color: isAbsent ? '#f87171' : '#ef4444',
-                                  border: isAbsent ? '1px solid #dc2626' : '1px solid #ef444460',
+                                  backgroundColor: isAbsent ? '#fef2f2' : '#ffffff',
+                                  color: isAbsent ? '#991b1b' : '#ef4444',
+                                  border: isAbsent ? '1px solid #ef4444' : '1px solid #fecaca',
                                   borderRadius: '4px',
                                   padding: '0.25rem 0.55rem',
                                   fontSize: '0.725rem',
@@ -2511,7 +3202,7 @@ export default function CampaignCommandCenterPage() {
           {isSuperAdmin && pendingReviewCount > 0 && (
             <div
               style={{
-                backgroundColor: '#451a03',
+                backgroundColor: '#fffbeb',
                 border: '1px solid #d97706',
                 color: '#fef3c7',
                 borderRadius: '10px',
@@ -2542,7 +3233,7 @@ export default function CampaignCommandCenterPage() {
           {bm && (
             <div style={{ marginBottom: '2rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-                <h2 style={{ fontSize: '1.1rem', fontWeight: 700, margin: 0, color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <h2 style={{ fontSize: '1.1rem', fontWeight: 700, margin: 0, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                   <span>💰</span> Budget vs. Actuals Financial Control
                 </h2>
                 <span style={{ fontSize: '0.75rem', color: '#64748b' }}>
@@ -2559,11 +3250,11 @@ export default function CampaignCommandCenterPage() {
             }}
           >
             {/* Approved Budget */}
-            <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '10px', padding: '1.15rem' }}>
-              <div style={{ color: '#94a3b8', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.35rem' }}>
+            <div style={{ backgroundColor: '#ffffff', border: '1px solid #fde68a', borderRadius: '10px', padding: '1.15rem' }}>
+              <div style={{ color: '#64748b', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.35rem' }}>
                 Approved Budget
               </div>
-              <div style={{ fontSize: '1.65rem', fontWeight: 800, color: '#38bdf8' }}>
+              <div style={{ fontSize: '1.65rem', fontWeight: 800, color: '#92400e' }}>
                 {formatCurrency(bm.approvedBudget)}
               </div>
               <div style={{ color: '#64748b', fontSize: '0.775rem', marginTop: '0.25rem' }}>
@@ -2572,8 +3263,8 @@ export default function CampaignCommandCenterPage() {
             </div>
 
             {/* Actual Expenditure */}
-            <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '10px', padding: '1.15rem' }}>
-              <div style={{ color: '#94a3b8', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.35rem' }}>
+            <div style={{ backgroundColor: '#ffffff', border: '1px solid #fde68a', borderRadius: '10px', padding: '1.15rem' }}>
+              <div style={{ color: '#64748b', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.35rem' }}>
                 Actual Expenditure
               </div>
               <div style={{ fontSize: '1.65rem', fontWeight: 800, color: isOver ? '#ef4444' : '#f59e0b' }}>
@@ -2585,8 +3276,8 @@ export default function CampaignCommandCenterPage() {
             </div>
 
             {/* Cash Disbursed */}
-            <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '10px', padding: '1.15rem' }}>
-              <div style={{ color: '#94a3b8', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.35rem' }}>
+            <div style={{ backgroundColor: '#ffffff', border: '1px solid #fde68a', borderRadius: '10px', padding: '1.15rem' }}>
+              <div style={{ color: '#64748b', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.35rem' }}>
                 Cash Disbursed
               </div>
               <div style={{ fontSize: '1.65rem', fontWeight: 800, color: '#10b981' }}>
@@ -2598,8 +3289,8 @@ export default function CampaignCommandCenterPage() {
             </div>
 
             {/* Remaining Budget */}
-            <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '10px', padding: '1.15rem' }}>
-              <div style={{ color: '#94a3b8', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.35rem' }}>
+            <div style={{ backgroundColor: '#ffffff', border: '1px solid #fde68a', borderRadius: '10px', padding: '1.15rem' }}>
+              <div style={{ color: '#64748b', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.35rem' }}>
                 Remaining Budget
               </div>
               <div style={{ fontSize: '1.65rem', fontWeight: 800, color: isOver ? '#ef4444' : '#10b981' }}>
@@ -2611,8 +3302,8 @@ export default function CampaignCommandCenterPage() {
             </div>
 
             {/* Cost Per Completed Donation */}
-            <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '10px', padding: '1.15rem' }}>
-              <div style={{ color: '#94a3b8', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.35rem' }}>
+            <div style={{ backgroundColor: '#ffffff', border: '1px solid #fde68a', borderRadius: '10px', padding: '1.15rem' }}>
+              <div style={{ color: '#64748b', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.35rem' }}>
                 Cost / Completed Unit
               </div>
               <div style={{ fontSize: '1.65rem', fontWeight: 800, color: '#c084fc' }}>
@@ -2629,21 +3320,21 @@ export default function CampaignCommandCenterPage() {
           {/* Budget Utilization Bar */}
           <div
             style={{
-              backgroundColor: '#0f172a',
-              border: '1px solid #1e293b',
+              backgroundColor: '#ffffff',
+              border: '1px solid #fde68a',
               borderRadius: '10px',
               padding: '1rem 1.25rem',
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem', fontSize: '0.85rem' }}>
-              <span style={{ color: '#94a3b8' }}>
+              <span style={{ color: '#64748b' }}>
                 Budget Utilization: <strong style={{ color: isOver ? '#ef4444' : '#f8fafc' }}>{util}%</strong> of approved {formatCurrency(bm.approvedBudget)}
               </span>
               <span style={{ color: isOver ? '#ef4444' : util > 80 ? '#f59e0b' : '#10b981', fontWeight: 600 }}>
                 {isOver ? '⚠️ OVER BUDGET' : util > 80 ? '⚠️ High Utilization (>80%)' : '✓ Normal Spending'}
               </span>
             </div>
-            <div style={{ width: '100%', height: '8px', backgroundColor: '#334155', borderRadius: '9999px', overflow: 'hidden' }}>
+            <div style={{ width: '100%', height: '8px', backgroundColor: '#e2e8f0', borderRadius: '9999px', overflow: 'hidden' }}>
               <div
                 style={{
                   width: `${Math.min(100, util)}%`,
@@ -2659,13 +3350,13 @@ export default function CampaignCommandCenterPage() {
 
       {/* Main Grid: Systematic Campaign Expenditures & Invoices */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1.75rem', marginBottom: '2rem' }}>
-        <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', padding: '1.5rem' }}>
+        <div style={{ backgroundColor: '#ffffff', border: '1px solid #fde68a', borderRadius: '12px', padding: '1.5rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.75rem' }}>
             <div>
-              <h2 style={{ fontSize: '1.25rem', fontWeight: 700, margin: '0 0 0.25rem 0', color: '#f8fafc' }}>
+              <h2 style={{ fontSize: '1.25rem', fontWeight: 700, margin: '0 0 0.25rem 0', color: '#0f172a' }}>
                 🧾 Campaign Invoices & Expenditures
               </h2>
-              <span style={{ color: '#94a3b8', fontSize: '0.85rem' }}>
+              <span style={{ color: '#64748b', fontSize: '0.85rem' }}>
                 Systematically documented invoices, vendor bills, and campaign liabilities.
               </span>
             </div>
@@ -2696,9 +3387,9 @@ export default function CampaignCommandCenterPage() {
               <button
                 onClick={handleOpenLinkModal}
                 style={{
-                  backgroundColor: '#1e293b',
-                  color: '#38bdf8',
-                  border: '1px solid #334155',
+                  backgroundColor: '#fffdf5',
+                  color: '#92400e',
+                  border: '1px solid #fde68a',
                   borderRadius: '8px',
                   padding: '0.5rem 1rem',
                   fontSize: '0.85rem',
@@ -2713,15 +3404,15 @@ export default function CampaignCommandCenterPage() {
 
           {/* Status Filter Tabs for Invoices */}
           <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.15rem', flexWrap: 'wrap', alignItems: 'center' }}>
-            <span style={{ fontSize: '0.8rem', color: '#94a3b8', fontWeight: 600, marginRight: '0.25rem' }}>
+            <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 600, marginRight: '0.25rem' }}>
               Filter by Status:
             </span>
             <button
               onClick={() => setInvoiceStatusFilter('ALL')}
               style={{
-                backgroundColor: invoiceStatusFilter === 'ALL' ? '#334155' : '#1e293b',
-                color: invoiceStatusFilter === 'ALL' ? '#ffffff' : '#94a3b8',
-                border: invoiceStatusFilter === 'ALL' ? '1px solid #64748b' : '1px solid #334155',
+                backgroundColor: invoiceStatusFilter === 'ALL' ? '#fef3c7' : '#ffffff',
+                color: invoiceStatusFilter === 'ALL' ? '#92400e' : '#64748b',
+                border: invoiceStatusFilter === 'ALL' ? '1px solid #d97706' : '1px solid #fde68a',
                 borderRadius: '6px',
                 padding: '0.3rem 0.75rem',
                 fontSize: '0.8rem',
@@ -2734,9 +3425,9 @@ export default function CampaignCommandCenterPage() {
             <button
               onClick={() => setInvoiceStatusFilter('SUBMITTED')}
               style={{
-                backgroundColor: invoiceStatusFilter === 'SUBMITTED' ? '#78350f' : '#1e293b',
-                color: invoiceStatusFilter === 'SUBMITTED' ? '#fef3c7' : '#f59e0b',
-                border: invoiceStatusFilter === 'SUBMITTED' ? '1px solid #d97706' : '1px solid #334155',
+                backgroundColor: invoiceStatusFilter === 'SUBMITTED' ? '#fffbeb' : '#ffffff',
+                color: invoiceStatusFilter === 'SUBMITTED' ? '#b45309' : '#64748b',
+                border: invoiceStatusFilter === 'SUBMITTED' ? '1px solid #d97706' : '1px solid #fde68a',
                 borderRadius: '6px',
                 padding: '0.3rem 0.75rem',
                 fontSize: '0.8rem',
@@ -2749,9 +3440,9 @@ export default function CampaignCommandCenterPage() {
             <button
               onClick={() => setInvoiceStatusFilter('APPROVED')}
               style={{
-                backgroundColor: invoiceStatusFilter === 'APPROVED' ? '#064e3b' : '#1e293b',
-                color: invoiceStatusFilter === 'APPROVED' ? '#a7f3d0' : '#34d399',
-                border: invoiceStatusFilter === 'APPROVED' ? '1px solid #059669' : '1px solid #334155',
+                backgroundColor: invoiceStatusFilter === 'APPROVED' ? '#ecfdf5' : '#ffffff',
+                color: invoiceStatusFilter === 'APPROVED' ? '#065f46' : '#64748b',
+                border: invoiceStatusFilter === 'APPROVED' ? '1px solid #10b981' : '1px solid #fde68a',
                 borderRadius: '6px',
                 padding: '0.3rem 0.75rem',
                 fontSize: '0.8rem',
@@ -2764,9 +3455,9 @@ export default function CampaignCommandCenterPage() {
             <button
               onClick={() => setInvoiceStatusFilter('REJECTED')}
               style={{
-                backgroundColor: invoiceStatusFilter === 'REJECTED' ? '#450a0a' : '#1e293b',
-                color: invoiceStatusFilter === 'REJECTED' ? '#fecaca' : '#f87171',
-                border: invoiceStatusFilter === 'REJECTED' ? '1px solid #dc2626' : '1px solid #334155',
+                backgroundColor: invoiceStatusFilter === 'REJECTED' ? '#fef2f2' : '#ffffff',
+                color: invoiceStatusFilter === 'REJECTED' ? '#991b1b' : '#64748b',
+                border: invoiceStatusFilter === 'REJECTED' ? '1px solid #ef4444' : '1px solid #fde68a',
                 borderRadius: '6px',
                 padding: '0.3rem 0.75rem',
                 fontSize: '0.8rem',
@@ -2779,10 +3470,10 @@ export default function CampaignCommandCenterPage() {
           </div>
 
           {/* Systematic Invoices Table */}
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
+          <div className="camp-table-scroll admin-table-scroll">
+            <table style={{ width: '100%', minWidth: '920px', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
               <thead>
-                <tr style={{ backgroundColor: '#1e293b', borderBottom: '1px solid #334155', color: '#94a3b8', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                <tr style={{ backgroundColor: '#fffdf5', borderBottom: '1px solid #fde68a', color: '#64748b', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                   <th style={{ padding: '0.75rem 1rem' }}>Invoice & Voucher #</th>
                   <th style={{ padding: '0.75rem 1rem' }}>Vendor / Payee</th>
                   <th style={{ padding: '0.75rem 1rem' }}>Item Details & Category</th>
@@ -2798,7 +3489,7 @@ export default function CampaignCommandCenterPage() {
                   <tr>
                     <td colSpan={8} style={{ padding: '3rem', textAlign: 'center', color: '#64748b' }}>
                       <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>🧾</div>
-                      <strong style={{ display: 'block', color: '#94a3b8', fontSize: '1rem', marginBottom: '0.25rem' }}>
+                      <strong style={{ display: 'block', color: '#64748b', fontSize: '1rem', marginBottom: '0.25rem' }}>
                         {financials?.linkedExpenses && financials.linkedExpenses.length > 0
                           ? `No invoices with status '${invoiceStatusFilter}' found`
                           : 'No expenditures recorded for this campaign yet'}
@@ -2810,7 +3501,7 @@ export default function CampaignCommandCenterPage() {
                             style={{
                               backgroundColor: 'transparent',
                               border: 'none',
-                              color: '#38bdf8',
+                              color: '#92400e',
                               textDecoration: 'underline',
                               cursor: 'pointer',
                               fontSize: '0.85rem',
@@ -2836,8 +3527,8 @@ export default function CampaignCommandCenterPage() {
                       <tr
                         key={exp._id}
                         style={{
-                          borderBottom: '1px solid #1e293b',
-                          backgroundColor: isSubmitted ? '#1e1c14' : 'transparent',
+                          borderBottom: '1px solid #fef3c7',
+                          backgroundColor: isSubmitted ? '#fffbeb' : 'transparent',
                         }}
                       >
                         {/* Invoice & Voucher Code */}
@@ -2849,7 +3540,7 @@ export default function CampaignCommandCenterPage() {
                                 fontWeight: 700,
                                 fontSize: '0.8rem',
                                 color: '#f59e0b',
-                                backgroundColor: '#78350f30',
+                                backgroundColor: '#fef3c7',
                                 border: '1px solid #d9770640',
                                 padding: '0.15rem 0.45rem',
                                 borderRadius: '4px',
@@ -2865,7 +3556,7 @@ export default function CampaignCommandCenterPage() {
 
                         {/* Vendor Name */}
                         <td style={{ padding: '0.85rem 1rem' }}>
-                          <strong style={{ color: '#f8fafc', display: 'block' }}>
+                          <strong style={{ color: '#0f172a', display: 'block' }}>
                             {exp.vendorName || 'Direct Vendor'}
                           </strong>
                           {exp.creatorName && (
@@ -2877,15 +3568,15 @@ export default function CampaignCommandCenterPage() {
 
                         {/* Title & Category */}
                         <td style={{ padding: '0.85rem 1rem' }}>
-                          <span style={{ color: '#e2e8f0', fontWeight: 500, display: 'block' }}>
+                          <span style={{ color: '#1e293b', fontWeight: 500, display: 'block' }}>
                             {exp.title}
                           </span>
                           <span
                             style={{
                               fontSize: '0.725rem',
                               fontWeight: 600,
-                              color: '#38bdf8',
-                              backgroundColor: '#0369a120',
+                              color: '#92400e',
+                              backgroundColor: '#fef3c7',
                               padding: '0.1rem 0.4rem',
                               borderRadius: '4px',
                               display: 'inline-block',
@@ -2895,14 +3586,14 @@ export default function CampaignCommandCenterPage() {
                             {EXPENSE_CATEGORY_LABELS[exp.category as ExpenseCategory] || exp.category}
                           </span>
                           {exp.description && (
-                            <p style={{ margin: '0.25rem 0 0 0', color: '#94a3b8', fontSize: '0.75rem' }}>
+                            <p style={{ margin: '0.25rem 0 0 0', color: '#64748b', fontSize: '0.75rem' }}>
                               {exp.description}
                             </p>
                           )}
                         </td>
 
                         {/* Date */}
-                        <td style={{ padding: '0.85rem 1rem', color: '#94a3b8' }}>
+                        <td style={{ padding: '0.85rem 1rem', color: '#64748b' }}>
                           {formatDate(exp.expenseDate)}
                         </td>
 
@@ -2917,9 +3608,9 @@ export default function CampaignCommandCenterPage() {
                                 display: 'inline-flex',
                                 alignItems: 'center',
                                 gap: '0.35rem',
-                                backgroundColor: '#1e293b',
-                                color: '#38bdf8',
-                                border: '1px solid #334155',
+                                backgroundColor: '#fffdf5',
+                                color: '#92400e',
+                                border: '1px solid #fde68a',
                                 borderRadius: '4px',
                                 padding: '0.25rem 0.6rem',
                                 fontSize: '0.75rem',
@@ -2938,7 +3629,7 @@ export default function CampaignCommandCenterPage() {
 
                         {/* Amount */}
                         <td style={{ padding: '0.85rem 1rem' }}>
-                          <span style={{ fontWeight: 700, fontSize: '0.925rem', color: isApproved ? '#f59e0b' : '#f8fafc' }}>
+                          <span style={{ fontWeight: 700, fontSize: '0.925rem', color: isApproved ? '#059669' : '#0f172a' }}>
                             {formatCurrency(exp.amount)}
                           </span>
                           {exp.paidAmount !== undefined && exp.paidAmount > 0 && (
@@ -2962,27 +3653,27 @@ export default function CampaignCommandCenterPage() {
                                 alignItems: 'center',
                                 gap: '0.35rem',
                                 backgroundColor: isApproved
-                                  ? '#064e3b'
+                                  ? '#ecfdf5'
                                   : isSubmitted
-                                  ? '#451a03'
+                                  ? '#fffbeb'
                                   : isRejected
-                                  ? '#450a0a'
-                                  : '#1e293b',
+                                  ? '#fef2f2'
+                                  : '#f1f5f9',
                                 color: isApproved
-                                  ? '#34d399'
+                                  ? '#065f46'
                                   : isSubmitted
-                                  ? '#fbbf24'
+                                  ? '#b45309'
                                   : isRejected
-                                  ? '#f87171'
-                                  : '#94a3b8',
+                                  ? '#991b1b'
+                                  : '#475569',
                                 border: `1px solid ${
                                   isApproved
-                                    ? '#059669'
+                                    ? '#a7f3d0'
                                     : isSubmitted
-                                    ? '#d97706'
+                                    ? '#fde68a'
                                     : isRejected
-                                    ? '#dc2626'
-                                    : '#475569'
+                                    ? '#fecaca'
+                                    : '#cbd5e1'
                                 }`,
                               }}
                             >
@@ -3073,7 +3764,7 @@ export default function CampaignCommandCenterPage() {
                                 style={{
                                   fontSize: '0.75rem',
                                   color: '#f59e0b',
-                                  backgroundColor: '#78350f20',
+                                  backgroundColor: '#fef3c7',
                                   border: '1px solid #d9770630',
                                   padding: '0.2rem 0.5rem',
                                   borderRadius: '4px',
@@ -3090,8 +3781,8 @@ export default function CampaignCommandCenterPage() {
                               onClick={() => handleUnlinkExpense(exp._id, exp.invoiceNumber || exp.voucherNumber)}
                               style={{
                                 backgroundColor: 'transparent',
-                                color: '#94a3b8',
-                                border: '1px solid #334155',
+                                color: '#64748b',
+                                border: '1px solid #fde68a',
                                 borderRadius: '4px',
                                 padding: '0.3rem 0.55rem',
                                 fontSize: '0.75rem',
@@ -3114,22 +3805,22 @@ export default function CampaignCommandCenterPage() {
 
         {/* Expense Category Breakdown */}
         {financials?.categoryBreakdown && financials.categoryBreakdown.length > 0 && (
-          <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', padding: '1.5rem' }}>
-            <h2 style={{ fontSize: '1.2rem', fontWeight: 700, margin: '0 0 1rem 0', color: '#f8fafc' }}>
+          <div style={{ backgroundColor: '#ffffff', border: '1px solid #fde68a', borderRadius: '12px', padding: '1.5rem' }}>
+            <h2 style={{ fontSize: '1.2rem', fontWeight: 700, margin: '0 0 1rem 0', color: '#0f172a' }}>
               Expense Breakdown by Category
             </h2>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
               {financials.categoryBreakdown.map((item) => (
                 <div key={item.category}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.3rem', fontSize: '0.85rem' }}>
-                    <span style={{ color: '#e2e8f0', fontWeight: 500 }}>
+                    <span style={{ color: '#1e293b', fontWeight: 500 }}>
                       {item.categoryLabel} <span style={{ color: '#64748b' }}>({item.count} items)</span>
                     </span>
-                    <span style={{ fontWeight: 600, color: '#f8fafc' }}>
+                    <span style={{ fontWeight: 600, color: '#0f172a' }}>
                       {formatCurrency(item.amount)} ({item.percentageOfExpenditure}%)
                     </span>
                   </div>
-                  <div style={{ width: '100%', height: '6px', backgroundColor: '#334155', borderRadius: '9999px', overflow: 'hidden' }}>
+                  <div style={{ width: '100%', height: '6px', backgroundColor: '#e2e8f0', borderRadius: '9999px', overflow: 'hidden' }}>
                     <div
                       style={{
                         width: `${item.percentageOfExpenditure}%`,
@@ -3148,9 +3839,9 @@ export default function CampaignCommandCenterPage() {
 
       {/* Budget Revision Audit Timeline (Super Admin) */}
       {isSuperAdmin && (
-        <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', padding: '1.5rem', marginBottom: '2rem' }}>
+        <div style={{ backgroundColor: '#ffffff', border: '1px solid #fde68a', borderRadius: '12px', padding: '1.5rem', marginBottom: '2rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
-            <h2 style={{ fontSize: '1.2rem', fontWeight: 700, margin: 0, color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <h2 style={{ fontSize: '1.2rem', fontWeight: 700, margin: 0, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <span>📜</span> Budget Revision Audit History
             </h2>
             <span style={{ fontSize: '0.75rem', color: '#64748b' }}>
@@ -3172,8 +3863,8 @@ export default function CampaignCommandCenterPage() {
                   <div
                     key={rev._id}
                     style={{
-                      backgroundColor: '#1e293b',
-                      border: '1px solid #334155',
+                      backgroundColor: '#fffdf5',
+                      border: '1px solid #fde68a',
                       borderRadius: '8px',
                       padding: '1rem 1.25rem',
                       display: 'flex',
@@ -3189,15 +3880,15 @@ export default function CampaignCommandCenterPage() {
                           style={{
                             fontWeight: 700,
                             fontSize: '0.8rem',
-                            color: '#38bdf8',
-                            backgroundColor: '#0369a130',
+                            color: '#92400e',
+                            backgroundColor: '#fef3c7',
                             padding: '0.15rem 0.45rem',
                             borderRadius: '4px',
                           }}
                         >
                           Rev #{rev.revisionNumber}
                         </span>
-                        <strong style={{ color: '#f8fafc', fontSize: '0.925rem' }}>
+                        <strong style={{ color: '#0f172a', fontSize: '0.925rem' }}>
                           {formatCurrency(rev.previousBudget)} → {formatCurrency(rev.newBudget)}
                         </strong>
                         <span
@@ -3211,7 +3902,7 @@ export default function CampaignCommandCenterPage() {
                         </span>
                       </div>
 
-                      <div style={{ color: '#cbd5e1', fontSize: '0.85rem', fontStyle: 'italic', marginBottom: '0.35rem' }}>
+                      <div style={{ color: '#475569', fontSize: '0.85rem', fontStyle: 'italic', marginBottom: '0.35rem' }}>
                         &ldquo;{rev.reason}&rdquo;
                       </div>
 
@@ -3242,7 +3933,7 @@ export default function CampaignCommandCenterPage() {
             left: 0,
             right: 0,
             bottom: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.75)',
+            backgroundColor: 'rgba(15, 23, 42, 0.65)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -3251,31 +3942,32 @@ export default function CampaignCommandCenterPage() {
           }}
         >
           <div
+            className="camp-modal-box"
             style={{
-              backgroundColor: '#0f172a',
-              border: '1px solid #334155',
+              backgroundColor: '#ffffff',
+              border: '1px solid #fde68a',
               borderRadius: '12px',
               width: '100%',
               maxWidth: '600px',
               maxHeight: '90vh',
               overflowY: 'auto',
               padding: '1.75rem',
-              color: '#f8fafc',
-              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)',
+              color: '#0f172a',
+              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.15)',
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
               <div>
-                <h2 style={{ fontSize: '1.25rem', fontWeight: 700, margin: '0 0 0.25rem 0', color: '#f8fafc' }}>
+                <h2 style={{ fontSize: '1.25rem', fontWeight: 700, margin: '0 0 0.25rem 0', color: '#0f172a' }}>
                   Add Campaign Expenditure
                 </h2>
-                <span style={{ fontSize: '0.8rem', color: '#94a3b8' }}>
+                <span style={{ fontSize: '0.8rem', color: '#64748b' }}>
                   Associate an operational invoice with <strong>{campaign.campaignCode}</strong>
                 </span>
               </div>
               <button
                 onClick={() => setIsAddExpenseModalOpen(false)}
-                style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '1.25rem', cursor: 'pointer' }}
+                style={{ background: 'none', border: 'none', color: '#64748b', fontSize: '1.25rem', cursor: 'pointer' }}
               >
                 ✕
               </button>
@@ -3284,9 +3976,9 @@ export default function CampaignCommandCenterPage() {
             {addExpenseError && (
               <div
                 style={{
-                  backgroundColor: '#450a0a',
-                  border: '1px solid #dc2626',
-                  color: '#fecaca',
+                  backgroundColor: '#fef2f2',
+                  border: '1px solid #fecaca',
+                  color: '#991b1b',
                   borderRadius: '6px',
                   padding: '0.75rem',
                   marginBottom: '1rem',
@@ -3297,11 +3989,33 @@ export default function CampaignCommandCenterPage() {
               </div>
             )}
 
+            {isSuperAdmin && (
+              <div
+                style={{
+                  backgroundColor: '#ecfdf5',
+                  border: '1px solid #a7f3d0',
+                  color: '#065f46',
+                  borderRadius: '8px',
+                  padding: '0.65rem 0.85rem',
+                  marginBottom: '1rem',
+                  fontSize: '0.8rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                }}
+              >
+                <span style={{ fontSize: '1.1rem' }}>🛡️</span>
+                <span>
+                  <strong>Super Admin Direct Authorization:</strong> This expenditure will be directly authorized and recorded into approved liabilities without requiring secondary verification.
+                </span>
+              </div>
+            )}
+
             <form onSubmit={handleAddExpenseSubmit}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
                 {/* Title */}
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#94a3b8', marginBottom: '0.35rem' }}>
+                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#64748b', marginBottom: '0.35rem' }}>
                     Expenditure Title / Item *
                   </label>
                   <input
@@ -3312,11 +4026,11 @@ export default function CampaignCommandCenterPage() {
                     onChange={(e) => setExpenseFormData({ ...expenseFormData, title: e.target.value })}
                     style={{
                       width: '100%',
-                      backgroundColor: '#1e293b',
-                      border: '1px solid #334155',
+                      backgroundColor: '#fffdf5',
+                      border: '1px solid #fde68a',
                       borderRadius: '6px',
                       padding: '0.55rem 0.75rem',
-                      color: '#f8fafc',
+                      color: '#0f172a',
                       fontSize: '0.875rem',
                       outline: 'none',
                     }}
@@ -3326,7 +4040,7 @@ export default function CampaignCommandCenterPage() {
                 {/* Category & Amount */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '1rem' }}>
                   <div>
-                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#94a3b8', marginBottom: '0.35rem' }}>
+                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#64748b', marginBottom: '0.35rem' }}>
                       Category *
                     </label>
                     <select
@@ -3334,11 +4048,11 @@ export default function CampaignCommandCenterPage() {
                       onChange={(e) => setExpenseFormData({ ...expenseFormData, category: e.target.value as ExpenseCategory })}
                       style={{
                         width: '100%',
-                        backgroundColor: '#1e293b',
-                        border: '1px solid #334155',
+                        backgroundColor: '#fffdf5',
+                        border: '1px solid #fde68a',
                         borderRadius: '6px',
                         padding: '0.55rem 0.75rem',
-                        color: '#f8fafc',
+                        color: '#0f172a',
                         fontSize: '0.875rem',
                         outline: 'none',
                         cursor: 'pointer',
@@ -3353,7 +4067,7 @@ export default function CampaignCommandCenterPage() {
                   </div>
 
                   <div>
-                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#94a3b8', marginBottom: '0.35rem' }}>
+                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#64748b', marginBottom: '0.35rem' }}>
                       Amount (₹) *
                     </label>
                     <input
@@ -3366,11 +4080,11 @@ export default function CampaignCommandCenterPage() {
                       onChange={(e) => setExpenseFormData({ ...expenseFormData, amount: e.target.value })}
                       style={{
                         width: '100%',
-                        backgroundColor: '#1e293b',
-                        border: '1px solid #334155',
+                        backgroundColor: '#fffdf5',
+                        border: '1px solid #fde68a',
                         borderRadius: '6px',
                         padding: '0.55rem 0.75rem',
-                        color: '#f8fafc',
+                        color: '#0f172a',
                         fontSize: '0.875rem',
                         outline: 'none',
                       }}
@@ -3381,7 +4095,7 @@ export default function CampaignCommandCenterPage() {
                 {/* Invoice # & Vendor Name */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                   <div>
-                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#94a3b8', marginBottom: '0.35rem' }}>
+                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#64748b', marginBottom: '0.35rem' }}>
                       Invoice / Bill Number *
                     </label>
                     <input
@@ -3392,11 +4106,11 @@ export default function CampaignCommandCenterPage() {
                       onChange={(e) => setExpenseFormData({ ...expenseFormData, invoiceNumber: e.target.value })}
                       style={{
                         width: '100%',
-                        backgroundColor: '#1e293b',
-                        border: '1px solid #334155',
+                        backgroundColor: '#fffdf5',
+                        border: '1px solid #fde68a',
                         borderRadius: '6px',
                         padding: '0.55rem 0.75rem',
-                        color: '#f8fafc',
+                        color: '#0f172a',
                         fontSize: '0.875rem',
                         outline: 'none',
                       }}
@@ -3404,7 +4118,7 @@ export default function CampaignCommandCenterPage() {
                   </div>
 
                   <div>
-                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#94a3b8', marginBottom: '0.35rem' }}>
+                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#64748b', marginBottom: '0.35rem' }}>
                       Vendor / Merchant Name *
                     </label>
                     <input
@@ -3415,11 +4129,11 @@ export default function CampaignCommandCenterPage() {
                       onChange={(e) => setExpenseFormData({ ...expenseFormData, vendorName: e.target.value })}
                       style={{
                         width: '100%',
-                        backgroundColor: '#1e293b',
-                        border: '1px solid #334155',
+                        backgroundColor: '#fffdf5',
+                        border: '1px solid #fde68a',
                         borderRadius: '6px',
                         padding: '0.55rem 0.75rem',
-                        color: '#f8fafc',
+                        color: '#0f172a',
                         fontSize: '0.875rem',
                         outline: 'none',
                       }}
@@ -3430,7 +4144,7 @@ export default function CampaignCommandCenterPage() {
                 {/* Expense Date & GSTIN */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                   <div>
-                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#94a3b8', marginBottom: '0.35rem' }}>
+                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#64748b', marginBottom: '0.35rem' }}>
                       Invoice / Incurred Date *
                     </label>
                     <input
@@ -3440,11 +4154,11 @@ export default function CampaignCommandCenterPage() {
                       onChange={(e) => setExpenseFormData({ ...expenseFormData, expenseDate: e.target.value })}
                       style={{
                         width: '100%',
-                        backgroundColor: '#1e293b',
-                        border: '1px solid #334155',
+                        backgroundColor: '#fffdf5',
+                        border: '1px solid #fde68a',
                         borderRadius: '6px',
                         padding: '0.55rem 0.75rem',
-                        color: '#f8fafc',
+                        color: '#0f172a',
                         fontSize: '0.875rem',
                         outline: 'none',
                       }}
@@ -3452,7 +4166,7 @@ export default function CampaignCommandCenterPage() {
                   </div>
 
                   <div>
-                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#94a3b8', marginBottom: '0.35rem' }}>
+                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#64748b', marginBottom: '0.35rem' }}>
                       Vendor GSTIN (Optional)
                     </label>
                     <input
@@ -3462,11 +4176,11 @@ export default function CampaignCommandCenterPage() {
                       onChange={(e) => setExpenseFormData({ ...expenseFormData, gstinNumber: e.target.value })}
                       style={{
                         width: '100%',
-                        backgroundColor: '#1e293b',
-                        border: '1px solid #334155',
+                        backgroundColor: '#fffdf5',
+                        border: '1px solid #fde68a',
                         borderRadius: '6px',
                         padding: '0.55rem 0.75rem',
-                        color: '#f8fafc',
+                        color: '#0f172a',
                         fontSize: '0.875rem',
                         outline: 'none',
                       }}
@@ -3476,7 +4190,7 @@ export default function CampaignCommandCenterPage() {
 
                 {/* Invoice File Upload */}
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#94a3b8', marginBottom: '0.35rem' }}>
+                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#64748b', marginBottom: '0.35rem' }}>
                     Invoice / Receipt Document Attachment
                   </label>
                   <input
@@ -3488,11 +4202,11 @@ export default function CampaignCommandCenterPage() {
                     }}
                     style={{
                       width: '100%',
-                      backgroundColor: '#1e293b',
-                      border: '1px dashed #334155',
+                      backgroundColor: '#fffdf5',
+                      border: '1px dashed #d97706',
                       borderRadius: '6px',
                       padding: '0.65rem',
-                      color: '#94a3b8',
+                      color: '#64748b',
                       fontSize: '0.85rem',
                       cursor: 'pointer',
                     }}
@@ -3504,7 +4218,7 @@ export default function CampaignCommandCenterPage() {
 
                 {/* Description / Itemization */}
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#94a3b8', marginBottom: '0.35rem' }}>
+                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#64748b', marginBottom: '0.35rem' }}>
                     Description & Item Breakdown (Optional)
                   </label>
                   <textarea
@@ -3514,11 +4228,11 @@ export default function CampaignCommandCenterPage() {
                     onChange={(e) => setExpenseFormData({ ...expenseFormData, description: e.target.value })}
                     style={{
                       width: '100%',
-                      backgroundColor: '#1e293b',
-                      border: '1px solid #334155',
+                      backgroundColor: '#fffdf5',
+                      border: '1px solid #fde68a',
                       borderRadius: '6px',
                       padding: '0.55rem 0.75rem',
-                      color: '#f8fafc',
+                      color: '#0f172a',
                       fontSize: '0.875rem',
                       outline: 'none',
                       resize: 'vertical',
@@ -3533,8 +4247,8 @@ export default function CampaignCommandCenterPage() {
                   onClick={() => setIsAddExpenseModalOpen(false)}
                   style={{
                     backgroundColor: 'transparent',
-                    border: '1px solid #334155',
-                    color: '#94a3b8',
+                    border: '1px solid #fde68a',
+                    color: '#64748b',
                     borderRadius: '6px',
                     padding: '0.55rem 1rem',
                     fontSize: '0.875rem',
@@ -3547,18 +4261,23 @@ export default function CampaignCommandCenterPage() {
                   type="submit"
                   disabled={addingExpense}
                   style={{
-                    backgroundColor: '#10b981',
+                    backgroundColor: '#d97706',
                     border: 'none',
                     color: '#ffffff',
                     borderRadius: '6px',
                     padding: '0.55rem 1.25rem',
                     fontSize: '0.875rem',
-                    fontWeight: 600,
+                    fontWeight: 700,
                     cursor: addingExpense ? 'not-allowed' : 'pointer',
                     opacity: addingExpense ? 0.7 : 1,
+                    boxShadow: '0 2px 8px rgba(217, 119, 6, 0.3)',
                   }}
                 >
-                  {addingExpense ? 'Saving Expenditure...' : 'Save & Submit Expenditure'}
+                  {addingExpense
+                    ? 'Saving Expenditure...'
+                    : isSuperAdmin
+                    ? 'Directly Authorize & Approve Expenditure'
+                    : 'Save & Submit Expenditure'}
                 </button>
               </div>
             </form>
@@ -3575,7 +4294,7 @@ export default function CampaignCommandCenterPage() {
             left: 0,
             right: 0,
             bottom: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.75)',
+            backgroundColor: 'rgba(15, 23, 42, 0.65)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -3585,23 +4304,23 @@ export default function CampaignCommandCenterPage() {
         >
           <div
             style={{
-              backgroundColor: '#0f172a',
-              border: '1px solid #334155',
+              backgroundColor: '#ffffff',
+              border: '1px solid #fde68a',
               borderRadius: '12px',
               width: '100%',
               maxWidth: '500px',
               padding: '1.75rem',
-              color: '#f8fafc',
-              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)',
+              color: '#0f172a',
+              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.15)',
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
-              <h2 style={{ fontSize: '1.2rem', fontWeight: 700, margin: 0, color: '#f8fafc' }}>
+              <h2 style={{ fontSize: '1.2rem', fontWeight: 700, margin: 0, color: '#0f172a' }}>
                 Revise Approved Campaign Budget
               </h2>
               <button
                 onClick={() => setIsReviseModalOpen(false)}
-                style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '1.25rem', cursor: 'pointer' }}
+                style={{ background: 'none', border: 'none', color: '#64748b', fontSize: '1.25rem', cursor: 'pointer' }}
               >
                 ✕
               </button>
@@ -3610,9 +4329,9 @@ export default function CampaignCommandCenterPage() {
             {reviseError && (
               <div
                 style={{
-                  backgroundColor: '#450a0a',
-                  border: '1px solid #dc2626',
-                  color: '#fecaca',
+                  backgroundColor: '#fef2f2',
+                  border: '1px solid #fecaca',
+                  color: '#991b1b',
                   borderRadius: '6px',
                   padding: '0.75rem',
                   marginBottom: '1rem',
@@ -3625,9 +4344,9 @@ export default function CampaignCommandCenterPage() {
 
             <form onSubmit={handleReviseBudgetSubmit}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                <div style={{ backgroundColor: '#1e293b', padding: '0.75rem', borderRadius: '6px', fontSize: '0.85rem' }}>
-                  <div style={{ color: '#94a3b8' }}>Current Approved Budget:</div>
-                  <strong style={{ fontSize: '1.15rem', color: '#38bdf8' }}>
+                <div style={{ backgroundColor: '#fffdf5', padding: '0.75rem', borderRadius: '6px', fontSize: '0.85rem' }}>
+                  <div style={{ color: '#64748b' }}>Current Approved Budget:</div>
+                  <strong style={{ fontSize: '1.15rem', color: '#92400e' }}>
                     {formatCurrency(campaign.approvedBudget)}
                   </strong>
                   <div style={{ fontSize: '0.725rem', color: '#64748b', marginTop: '0.2rem' }}>
@@ -3636,7 +4355,7 @@ export default function CampaignCommandCenterPage() {
                 </div>
 
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#94a3b8', marginBottom: '0.35rem' }}>
+                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#64748b', marginBottom: '0.35rem' }}>
                     Proposed New Approved Budget (₹) *
                   </label>
                   <input
@@ -3647,11 +4366,11 @@ export default function CampaignCommandCenterPage() {
                     onChange={(e) => setNewBudgetInput(e.target.value)}
                     style={{
                       width: '100%',
-                      backgroundColor: '#1e293b',
-                      border: '1px solid #334155',
+                      backgroundColor: '#fffdf5',
+                      border: '1px solid #fde68a',
                       borderRadius: '6px',
                       padding: '0.55rem 0.75rem',
-                      color: '#f8fafc',
+                      color: '#0f172a',
                       fontSize: '0.9rem',
                       outline: 'none',
                     }}
@@ -3665,7 +4384,7 @@ export default function CampaignCommandCenterPage() {
                 </div>
 
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#94a3b8', marginBottom: '0.35rem' }}>
+                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#64748b', marginBottom: '0.35rem' }}>
                     Mandatory Business Justification Reason *
                   </label>
                   <textarea
@@ -3676,11 +4395,11 @@ export default function CampaignCommandCenterPage() {
                     onChange={(e) => setRevisionReason(e.target.value)}
                     style={{
                       width: '100%',
-                      backgroundColor: '#1e293b',
-                      border: '1px solid #334155',
+                      backgroundColor: '#fffdf5',
+                      border: '1px solid #fde68a',
                       borderRadius: '6px',
                       padding: '0.55rem 0.75rem',
-                      color: '#f8fafc',
+                      color: '#0f172a',
                       fontSize: '0.875rem',
                       outline: 'none',
                       resize: 'vertical',
@@ -3695,8 +4414,8 @@ export default function CampaignCommandCenterPage() {
                   onClick={() => setIsReviseModalOpen(false)}
                   style={{
                     backgroundColor: 'transparent',
-                    border: '1px solid #334155',
-                    color: '#94a3b8',
+                    border: '1px solid #fde68a',
+                    color: '#64748b',
                     borderRadius: '6px',
                     padding: '0.55rem 1rem',
                     fontSize: '0.875rem',
@@ -3737,7 +4456,7 @@ export default function CampaignCommandCenterPage() {
             left: 0,
             right: 0,
             bottom: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.75)',
+            backgroundColor: 'rgba(15, 23, 42, 0.65)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -3747,23 +4466,23 @@ export default function CampaignCommandCenterPage() {
         >
           <div
             style={{
-              backgroundColor: '#0f172a',
-              border: '1px solid #334155',
+              backgroundColor: '#ffffff',
+              border: '1px solid #fde68a',
               borderRadius: '12px',
               width: '100%',
               maxWidth: '520px',
               padding: '1.75rem',
-              color: '#f8fafc',
-              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)',
+              color: '#0f172a',
+              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.15)',
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
-              <h2 style={{ fontSize: '1.2rem', fontWeight: 700, margin: 0, color: '#f8fafc' }}>
+              <h2 style={{ fontSize: '1.2rem', fontWeight: 700, margin: 0, color: '#0f172a' }}>
                 Link Existing Expense
               </h2>
               <button
                 onClick={() => setIsLinkModalOpen(false)}
-                style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '1.25rem', cursor: 'pointer' }}
+                style={{ background: 'none', border: 'none', color: '#64748b', fontSize: '1.25rem', cursor: 'pointer' }}
               >
                 ✕
               </button>
@@ -3772,9 +4491,9 @@ export default function CampaignCommandCenterPage() {
             {linkError && (
               <div
                 style={{
-                  backgroundColor: '#450a0a',
-                  border: '1px solid #dc2626',
-                  color: '#fecaca',
+                  backgroundColor: '#fef2f2',
+                  border: '1px solid #fecaca',
+                  color: '#991b1b',
                   borderRadius: '6px',
                   padding: '0.75rem',
                   marginBottom: '1rem',
@@ -3786,13 +4505,13 @@ export default function CampaignCommandCenterPage() {
             )}
 
             {availableExpenses.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '1.5rem 0', color: '#94a3b8', fontSize: '0.875rem' }}>
+              <div style={{ textAlign: 'center', padding: '1.5rem 0', color: '#64748b', fontSize: '0.875rem' }}>
                 No unlinked approved expenses found in the system. Use &ldquo;+ Add Campaign Expenditure&rdquo; to record a new one!
               </div>
             ) : (
               <form onSubmit={handleLinkExpenseSubmit}>
                 <div style={{ marginBottom: '1.25rem' }}>
-                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#94a3b8', marginBottom: '0.35rem' }}>
+                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#64748b', marginBottom: '0.35rem' }}>
                     Select Approved Expense Voucher *
                   </label>
                   <select
@@ -3800,11 +4519,11 @@ export default function CampaignCommandCenterPage() {
                     onChange={(e) => setSelectedExpenseId(e.target.value)}
                     style={{
                       width: '100%',
-                      backgroundColor: '#1e293b',
-                      border: '1px solid #334155',
+                      backgroundColor: '#fffdf5',
+                      border: '1px solid #fde68a',
                       borderRadius: '6px',
                       padding: '0.55rem 0.75rem',
-                      color: '#f8fafc',
+                      color: '#0f172a',
                       fontSize: '0.875rem',
                       outline: 'none',
                       cursor: 'pointer',
@@ -3824,8 +4543,8 @@ export default function CampaignCommandCenterPage() {
                     onClick={() => setIsLinkModalOpen(false)}
                     style={{
                       backgroundColor: 'transparent',
-                      border: '1px solid #334155',
-                      color: '#94a3b8',
+                      border: '1px solid #fde68a',
+                      color: '#64748b',
                       borderRadius: '6px',
                       padding: '0.55rem 1rem',
                       fontSize: '0.875rem',
@@ -3867,7 +4586,7 @@ export default function CampaignCommandCenterPage() {
             left: 0,
             right: 0,
             bottom: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.75)',
+            backgroundColor: 'rgba(15, 23, 42, 0.65)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -3877,30 +4596,30 @@ export default function CampaignCommandCenterPage() {
         >
           <div
             style={{
-              backgroundColor: '#0f172a',
-              border: '1px solid #334155',
+              backgroundColor: '#ffffff',
+              border: '1px solid #fde68a',
               borderRadius: '12px',
               width: '100%',
               maxWidth: '580px',
               maxHeight: '90vh',
               overflowY: 'auto',
               padding: '1.75rem',
-              color: '#f8fafc',
-              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)',
+              color: '#0f172a',
+              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.15)',
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.25rem' }}>
               <div>
-                <h2 style={{ fontSize: '1.25rem', fontWeight: 800, margin: '0 0 0.25rem 0', color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                <h2 style={{ fontSize: '1.25rem', fontWeight: 800, margin: '0 0 0.25rem 0', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
                   <span>🩸</span> Record Blood Donation for Campaign
                 </h2>
-                <span style={{ fontSize: '0.8rem', color: '#94a3b8' }}>
+                <span style={{ fontSize: '0.8rem', color: '#64748b' }}>
                   Campaign: <strong>{campaign?.name}</strong> ({campaign?.campaignCode}) • Auto-issues unique unitCode
                 </span>
               </div>
               <button
                 onClick={() => setIsRecordDonationModalOpen(false)}
-                style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '1.25rem', cursor: 'pointer' }}
+                style={{ background: 'none', border: 'none', color: '#64748b', fontSize: '1.25rem', cursor: 'pointer' }}
               >
                 ✕
               </button>
@@ -3909,9 +4628,9 @@ export default function CampaignCommandCenterPage() {
             {recordDonationError && (
               <div
                 style={{
-                  backgroundColor: '#450a0a',
-                  border: '1px solid #dc2626',
-                  color: '#fecaca',
+                  backgroundColor: '#fef2f2',
+                  border: '1px solid #fecaca',
+                  color: '#991b1b',
                   borderRadius: '6px',
                   padding: '0.75rem',
                   marginBottom: '1rem',
@@ -3925,9 +4644,9 @@ export default function CampaignCommandCenterPage() {
             {recordDonationSuccess && (
               <div
                 style={{
-                  backgroundColor: '#064e3b',
-                  border: '1px solid #059669',
-                  color: '#a7f3d0',
+                  backgroundColor: '#ecfdf5',
+                  border: '1px solid #a7f3d0',
+                  color: '#065f46',
                   borderRadius: '6px',
                   padding: '0.75rem',
                   marginBottom: '1rem',
@@ -3942,7 +4661,7 @@ export default function CampaignCommandCenterPage() {
             <form onSubmit={handleRecordDonationSubmit}>
               {/* Donor Type Tabs */}
               <div style={{ marginBottom: '1.15rem' }}>
-                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#94a3b8', marginBottom: '0.4rem' }}>
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#64748b', marginBottom: '0.4rem' }}>
                   Donor Entry Mode:
                 </label>
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
@@ -3956,9 +4675,9 @@ export default function CampaignCommandCenterPage() {
                       fontSize: '0.825rem',
                       fontWeight: 700,
                       cursor: 'pointer',
-                      backgroundColor: donationDonorType === 'CAMPAIGN_DONOR' ? '#881337' : '#1e293b',
-                      color: donationDonorType === 'CAMPAIGN_DONOR' ? '#ffe4e6' : '#94a3b8',
-                      border: donationDonorType === 'CAMPAIGN_DONOR' ? '1px solid #be123c' : '1px solid #334155',
+                      backgroundColor: donationDonorType === 'CAMPAIGN_DONOR' ? '#fee2e2' : '#ffffff',
+                      color: donationDonorType === 'CAMPAIGN_DONOR' ? '#991b1b' : '#64748b',
+                      border: donationDonorType === 'CAMPAIGN_DONOR' ? '1px solid #ef4444' : '1px solid #fde68a',
                     }}
                   >
                     🩸 Campaign Donor
@@ -3973,9 +4692,9 @@ export default function CampaignCommandCenterPage() {
                       fontSize: '0.825rem',
                       fontWeight: 700,
                       cursor: 'pointer',
-                      backgroundColor: donationDonorType === 'REGISTERED' ? '#0284c7' : '#1e293b',
-                      color: donationDonorType === 'REGISTERED' ? '#ffffff' : '#94a3b8',
-                      border: donationDonorType === 'REGISTERED' ? '1px solid #0284c7' : '1px solid #334155',
+                      backgroundColor: donationDonorType === 'REGISTERED' ? '#e0f2fe' : '#ffffff',
+                      color: donationDonorType === 'REGISTERED' ? '#0369a1' : '#64748b',
+                      border: donationDonorType === 'REGISTERED' ? '1px solid #0284c7' : '1px solid #fde68a',
                     }}
                   >
                     📋 Existing Registered Donor
@@ -3985,9 +4704,9 @@ export default function CampaignCommandCenterPage() {
 
               {/* Campaign Donor Form */}
               {donationDonorType === 'CAMPAIGN_DONOR' ? (
-                <div style={{ backgroundColor: '#1e293b', padding: '1rem', borderRadius: '8px', marginBottom: '1.15rem', border: '1px solid #334155' }}>
+                <div style={{ backgroundColor: '#fffdf5', padding: '1rem', borderRadius: '8px', marginBottom: '1.15rem', border: '1px solid #fde68a' }}>
                   <div style={{ marginBottom: '0.75rem' }}>
-                    <label style={{ display: 'block', fontSize: '0.775rem', fontWeight: 600, color: '#94a3b8', marginBottom: '0.25rem' }}>
+                    <label style={{ display: 'block', fontSize: '0.775rem', fontWeight: 600, color: '#64748b', marginBottom: '0.25rem' }}>
                       Donor Full Name *
                     </label>
                     <input
@@ -3998,11 +4717,11 @@ export default function CampaignCommandCenterPage() {
                       onChange={(e) => setWalkInName(e.target.value)}
                       style={{
                         width: '100%',
-                        backgroundColor: '#0f172a',
-                        border: '1px solid #334155',
+                        backgroundColor: '#ffffff',
+                        border: '1px solid #fde68a',
                         borderRadius: '6px',
                         padding: '0.45rem 0.65rem',
-                        color: '#f8fafc',
+                        color: '#0f172a',
                         fontSize: '0.85rem',
                         outline: 'none',
                         boxSizing: 'border-box',
@@ -4012,7 +4731,7 @@ export default function CampaignCommandCenterPage() {
 
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '0.75rem' }}>
                     <div>
-                      <label style={{ display: 'block', fontSize: '0.775rem', fontWeight: 600, color: '#94a3b8', marginBottom: '0.25rem' }}>
+                      <label style={{ display: 'block', fontSize: '0.775rem', fontWeight: 600, color: '#64748b', marginBottom: '0.25rem' }}>
                         Blood Group *
                       </label>
                       <select
@@ -4020,11 +4739,11 @@ export default function CampaignCommandCenterPage() {
                         onChange={(e) => setWalkInBloodGroup(e.target.value)}
                         style={{
                           width: '100%',
-                          backgroundColor: '#0f172a',
-                          border: '1px solid #334155',
+                          backgroundColor: '#ffffff',
+                          border: '1px solid #fde68a',
                           borderRadius: '6px',
                           padding: '0.45rem 0.65rem',
-                          color: '#f8fafc',
+                          color: '#0f172a',
                           fontSize: '0.85rem',
                           outline: 'none',
                           cursor: 'pointer',
@@ -4043,7 +4762,7 @@ export default function CampaignCommandCenterPage() {
                     </div>
 
                     <div>
-                      <label style={{ display: 'block', fontSize: '0.775rem', fontWeight: 600, color: '#94a3b8', marginBottom: '0.25rem' }}>
+                      <label style={{ display: 'block', fontSize: '0.775rem', fontWeight: 600, color: '#64748b', marginBottom: '0.25rem' }}>
                         Gender *
                       </label>
                       <select
@@ -4051,11 +4770,11 @@ export default function CampaignCommandCenterPage() {
                         onChange={(e) => setWalkInGender(e.target.value)}
                         style={{
                           width: '100%',
-                          backgroundColor: '#0f172a',
-                          border: '1px solid #334155',
+                          backgroundColor: '#ffffff',
+                          border: '1px solid #fde68a',
                           borderRadius: '6px',
                           padding: '0.45rem 0.65rem',
-                          color: '#f8fafc',
+                          color: '#0f172a',
                           fontSize: '0.85rem',
                           outline: 'none',
                           cursor: 'pointer',
@@ -4071,7 +4790,7 @@ export default function CampaignCommandCenterPage() {
 
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
                     <div>
-                      <label style={{ display: 'block', fontSize: '0.775rem', fontWeight: 600, color: '#94a3b8', marginBottom: '0.25rem' }}>
+                      <label style={{ display: 'block', fontSize: '0.775rem', fontWeight: 600, color: '#64748b', marginBottom: '0.25rem' }}>
                         Phone Number *
                       </label>
                       <input
@@ -4082,11 +4801,11 @@ export default function CampaignCommandCenterPage() {
                         onChange={(e) => setWalkInPhone(e.target.value)}
                         style={{
                           width: '100%',
-                          backgroundColor: '#0f172a',
-                          border: '1px solid #334155',
+                          backgroundColor: '#ffffff',
+                          border: '1px solid #fde68a',
                           borderRadius: '6px',
                           padding: '0.45rem 0.65rem',
-                          color: '#f8fafc',
+                          color: '#0f172a',
                           fontSize: '0.85rem',
                           outline: 'none',
                           boxSizing: 'border-box',
@@ -4095,7 +4814,7 @@ export default function CampaignCommandCenterPage() {
                     </div>
 
                     <div>
-                      <label style={{ display: 'block', fontSize: '0.775rem', fontWeight: 600, color: '#94a3b8', marginBottom: '0.25rem' }}>
+                      <label style={{ display: 'block', fontSize: '0.775rem', fontWeight: 600, color: '#64748b', marginBottom: '0.25rem' }}>
                         Email (Optional)
                       </label>
                       <input
@@ -4105,11 +4824,11 @@ export default function CampaignCommandCenterPage() {
                         onChange={(e) => setWalkInEmail(e.target.value)}
                         style={{
                           width: '100%',
-                          backgroundColor: '#0f172a',
-                          border: '1px solid #334155',
+                          backgroundColor: '#ffffff',
+                          border: '1px solid #fde68a',
                           borderRadius: '6px',
                           padding: '0.45rem 0.65rem',
-                          color: '#f8fafc',
+                          color: '#0f172a',
                           fontSize: '0.85rem',
                           outline: 'none',
                           boxSizing: 'border-box',
@@ -4120,12 +4839,12 @@ export default function CampaignCommandCenterPage() {
                 </div>
               ) : (
                 /* Registered Donor Select */
-                <div style={{ backgroundColor: '#1e293b', padding: '1rem', borderRadius: '8px', marginBottom: '1.15rem', border: '1px solid #334155' }}>
-                  <label style={{ display: 'block', fontSize: '0.775rem', fontWeight: 600, color: '#94a3b8', marginBottom: '0.35rem' }}>
+                <div style={{ backgroundColor: '#fffdf5', padding: '1rem', borderRadius: '8px', marginBottom: '1.15rem', border: '1px solid #fde68a' }}>
+                  <label style={{ display: 'block', fontSize: '0.775rem', fontWeight: 600, color: '#64748b', marginBottom: '0.35rem' }}>
                     Select Registered Donor *
                   </label>
                   {registeredDonors.length === 0 ? (
-                    <div style={{ color: '#94a3b8', fontSize: '0.8rem', padding: '0.5rem 0' }}>
+                    <div style={{ color: '#64748b', fontSize: '0.8rem', padding: '0.5rem 0' }}>
                       {searchingDonors ? 'Loading active donors...' : 'No active donors found. Please use the Campaign Donor tab above.'}
                     </div>
                   ) : (
@@ -4134,11 +4853,11 @@ export default function CampaignCommandCenterPage() {
                       onChange={(e) => setSelectedDonorId(e.target.value)}
                       style={{
                         width: '100%',
-                        backgroundColor: '#0f172a',
-                        border: '1px solid #334155',
+                        backgroundColor: '#ffffff',
+                        border: '1px solid #fde68a',
                         borderRadius: '6px',
                         padding: '0.5rem 0.65rem',
-                        color: '#f8fafc',
+                        color: '#0f172a',
                         fontSize: '0.85rem',
                         outline: 'none',
                         cursor: 'pointer',
@@ -4158,7 +4877,7 @@ export default function CampaignCommandCenterPage() {
               {/* Unit Specifications */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1rem' }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.775rem', fontWeight: 600, color: '#94a3b8', marginBottom: '0.25rem' }}>
+                  <label style={{ display: 'block', fontSize: '0.775rem', fontWeight: 600, color: '#64748b', marginBottom: '0.25rem' }}>
                     Blood Component
                   </label>
                   <select
@@ -4166,11 +4885,11 @@ export default function CampaignCommandCenterPage() {
                     onChange={(e) => setDonationComponentType(e.target.value)}
                     style={{
                       width: '100%',
-                      backgroundColor: '#1e293b',
-                      border: '1px solid #334155',
+                      backgroundColor: '#fffdf5',
+                      border: '1px solid #fde68a',
                       borderRadius: '6px',
                       padding: '0.45rem 0.65rem',
-                      color: '#f8fafc',
+                      color: '#0f172a',
                       fontSize: '0.85rem',
                       outline: 'none',
                       boxSizing: 'border-box',
@@ -4184,7 +4903,7 @@ export default function CampaignCommandCenterPage() {
                 </div>
 
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.775rem', fontWeight: 600, color: '#94a3b8', marginBottom: '0.25rem' }}>
+                  <label style={{ display: 'block', fontSize: '0.775rem', fontWeight: 600, color: '#64748b', marginBottom: '0.25rem' }}>
                     Bag Volume (mL)
                   </label>
                   <input
@@ -4195,11 +4914,11 @@ export default function CampaignCommandCenterPage() {
                     onChange={(e) => setUnitVolume(Number(e.target.value))}
                     style={{
                       width: '100%',
-                      backgroundColor: '#1e293b',
-                      border: '1px solid #334155',
+                      backgroundColor: '#fffdf5',
+                      border: '1px solid #fde68a',
                       borderRadius: '6px',
                       padding: '0.45rem 0.65rem',
-                      color: '#f8fafc',
+                      color: '#0f172a',
                       fontSize: '0.85rem',
                       outline: 'none',
                       boxSizing: 'border-box',
@@ -4210,7 +4929,7 @@ export default function CampaignCommandCenterPage() {
 
               {/* Immediate Screening Decision Option */}
               <div style={{ marginBottom: '1rem' }}>
-                <label style={{ display: 'block', fontSize: '0.775rem', fontWeight: 600, color: '#94a3b8', marginBottom: '0.35rem' }}>
+                <label style={{ display: 'block', fontSize: '0.775rem', fontWeight: 600, color: '#64748b', marginBottom: '0.35rem' }}>
                   Laboratory & Screening Pipeline Initial Decision:
                 </label>
                 <select
@@ -4218,8 +4937,8 @@ export default function CampaignCommandCenterPage() {
                   onChange={(e) => setImmediateScreening(e.target.value as any)}
                   style={{
                     width: '100%',
-                    backgroundColor: '#1e293b',
-                    border: '1px solid #334155',
+                    backgroundColor: '#fffdf5',
+                    border: '1px solid #fde68a',
                     borderRadius: '6px',
                     padding: '0.5rem 0.65rem',
                     color: immediateScreening === 'APPROVED' ? '#34d399' : immediateScreening === 'REJECTED' ? '#f87171' : '#fbbf24',
@@ -4240,7 +4959,7 @@ export default function CampaignCommandCenterPage() {
 
               {/* Notes */}
               <div style={{ marginBottom: '1.25rem' }}>
-                <label style={{ display: 'block', fontSize: '0.775rem', fontWeight: 600, color: '#94a3b8', marginBottom: '0.25rem' }}>
+                <label style={{ display: 'block', fontSize: '0.775rem', fontWeight: 600, color: '#64748b', marginBottom: '0.25rem' }}>
                   Phlebotomist / Clinical Notes (Optional)
                 </label>
                 <textarea
@@ -4250,11 +4969,11 @@ export default function CampaignCommandCenterPage() {
                   onChange={(e) => setDonationNotes(e.target.value)}
                   style={{
                     width: '100%',
-                    backgroundColor: '#1e293b',
-                    border: '1px solid #334155',
+                    backgroundColor: '#fffdf5',
+                    border: '1px solid #fde68a',
                     borderRadius: '6px',
                     padding: '0.45rem 0.65rem',
-                    color: '#f8fafc',
+                    color: '#0f172a',
                     fontSize: '0.85rem',
                     outline: 'none',
                     boxSizing: 'border-box',
@@ -4270,8 +4989,8 @@ export default function CampaignCommandCenterPage() {
                   onClick={() => setIsRecordDonationModalOpen(false)}
                   style={{
                     backgroundColor: 'transparent',
-                    border: '1px solid #334155',
-                    color: '#94a3b8',
+                    border: '1px solid #fde68a',
+                    color: '#64748b',
                     borderRadius: '6px',
                     padding: '0.55rem 1rem',
                     fontSize: '0.85rem',
@@ -4317,7 +5036,7 @@ export default function CampaignCommandCenterPage() {
             left: 0,
             right: 0,
             bottom: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.75)',
+            backgroundColor: 'rgba(15, 23, 42, 0.65)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -4327,13 +5046,13 @@ export default function CampaignCommandCenterPage() {
         >
           <div
             style={{
-              backgroundColor: '#0f172a',
-              border: '1px solid #1e293b',
+              backgroundColor: '#ffffff',
+              border: '1px solid #fde68a',
               borderRadius: '12px',
               maxWidth: '540px',
               width: '100%',
               padding: '1.5rem',
-              color: '#f8fafc',
+              color: '#0f172a',
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
@@ -4342,14 +5061,14 @@ export default function CampaignCommandCenterPage() {
               </h3>
               <button
                 onClick={() => setIsAssignVolunteerModalOpen(false)}
-                style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '1.25rem', cursor: 'pointer' }}
+                style={{ background: 'none', border: 'none', color: '#64748b', fontSize: '1.25rem', cursor: 'pointer' }}
               >
                 ✕
               </button>
             </div>
 
             {assignError && (
-              <div style={{ backgroundColor: '#450a0a', border: '1px solid #dc2626', color: '#fecaca', padding: '0.75rem', borderRadius: '6px', marginBottom: '1rem', fontSize: '0.825rem' }}>
+              <div style={{ backgroundColor: '#fef2f2', border: '1px solid #fecaca', color: '#991b1b', padding: '0.75rem', borderRadius: '6px', marginBottom: '1rem', fontSize: '0.825rem' }}>
                 {assignError}
               </div>
             )}
@@ -4357,7 +5076,7 @@ export default function CampaignCommandCenterPage() {
             <form onSubmit={handleAssignVolunteerSubmit}>
               {/* Quick Search / Initials Filter */}
               <div style={{ marginBottom: '1rem' }}>
-                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#38bdf8', marginBottom: '0.35rem' }}>
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#92400e', marginBottom: '0.35rem' }}>
                   🔍 Search by Name / Initials (e.g. &quot;An&quot;, &quot;AS&quot;, &quot;Rohit&quot;, &quot;VOL-&quot;)
                 </label>
                 <div style={{ position: 'relative' }}>
@@ -4388,11 +5107,11 @@ export default function CampaignCommandCenterPage() {
                     }}
                     style={{
                       width: '100%',
-                      backgroundColor: '#1e293b',
+                      backgroundColor: '#fffdf5',
                       border: '1px solid #38bdf8',
                       borderRadius: '6px',
                       padding: '0.5rem 0.65rem',
-                      color: '#f8fafc',
+                      color: '#0f172a',
                       fontSize: '0.85rem',
                       outline: 'none',
                       boxSizing: 'border-box',
@@ -4414,7 +5133,7 @@ export default function CampaignCommandCenterPage() {
                         transform: 'translateY(-50%)',
                         background: 'transparent',
                         border: 'none',
-                        color: '#94a3b8',
+                        color: '#64748b',
                         cursor: 'pointer',
                         fontSize: '0.85rem',
                       }}
@@ -4424,22 +5143,22 @@ export default function CampaignCommandCenterPage() {
                   )}
                 </div>
                 {assignSearchInitials && (
-                  <div style={{ fontSize: '0.725rem', color: '#94a3b8', marginTop: '0.3rem' }}>
-                    Showing <strong style={{ color: '#38bdf8' }}>{filteredAvailableVolunteers.length}</strong> of {availableVolunteers.length} available approved volunteers
+                  <div style={{ fontSize: '0.725rem', color: '#64748b', marginTop: '0.3rem' }}>
+                    Showing <strong style={{ color: '#92400e' }}>{filteredAvailableVolunteers.length}</strong> of {availableVolunteers.length} available approved volunteers
                   </div>
                 )}
               </div>
 
               <div style={{ marginBottom: '1rem' }}>
-                <label style={{ display: 'block', fontSize: '0.775rem', fontWeight: 600, color: '#94a3b8', marginBottom: '0.35rem' }}>
+                <label style={{ display: 'block', fontSize: '0.775rem', fontWeight: 600, color: '#64748b', marginBottom: '0.35rem' }}>
                   Select Approved Volunteer *
                 </label>
                 {availableVolunteers.length === 0 ? (
-                  <div style={{ color: '#94a3b8', fontSize: '0.8rem', padding: '0.5rem 0' }}>
+                  <div style={{ color: '#64748b', fontSize: '0.8rem', padding: '0.5rem 0' }}>
                     No unassigned approved volunteers found. You can register a new volunteer below.
                   </div>
                 ) : filteredAvailableVolunteers.length === 0 ? (
-                  <div style={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '6px', padding: '0.75rem', color: '#f87171', fontSize: '0.8rem' }}>
+                  <div style={{ backgroundColor: '#fffdf5', border: '1px solid #fde68a', borderRadius: '6px', padding: '0.75rem', color: '#f87171', fontSize: '0.8rem' }}>
                     No approved volunteers match &quot;{assignSearchInitials}&quot;. Try different initials or clear the filter.
                   </div>
                 ) : (
@@ -4448,11 +5167,11 @@ export default function CampaignCommandCenterPage() {
                     onChange={(e) => setSelectedAssignVolId(e.target.value)}
                     style={{
                       width: '100%',
-                      backgroundColor: '#1e293b',
-                      border: '1px solid #334155',
+                      backgroundColor: '#fffdf5',
+                      border: '1px solid #fde68a',
                       borderRadius: '6px',
                       padding: '0.5rem 0.65rem',
-                      color: '#f8fafc',
+                      color: '#0f172a',
                       fontSize: '0.85rem',
                       outline: 'none',
                       cursor: 'pointer',
@@ -4468,7 +5187,7 @@ export default function CampaignCommandCenterPage() {
               </div>
 
               <div style={{ marginBottom: '1.25rem' }}>
-                <label style={{ display: 'block', fontSize: '0.775rem', fontWeight: 600, color: '#94a3b8', marginBottom: '0.35rem' }}>
+                <label style={{ display: 'block', fontSize: '0.775rem', fontWeight: 600, color: '#64748b', marginBottom: '0.35rem' }}>
                   Assigned Camp Role
                 </label>
                 <select
@@ -4476,11 +5195,11 @@ export default function CampaignCommandCenterPage() {
                   onChange={(e) => setSelectedAssignRole(e.target.value as VolunteerRole)}
                   style={{
                     width: '100%',
-                    backgroundColor: '#1e293b',
-                    border: '1px solid #334155',
+                    backgroundColor: '#fffdf5',
+                    border: '1px solid #fde68a',
                     borderRadius: '6px',
                     padding: '0.5rem 0.65rem',
-                    color: '#f8fafc',
+                    color: '#0f172a',
                     fontSize: '0.85rem',
                     outline: 'none',
                     cursor: 'pointer',
@@ -4500,8 +5219,8 @@ export default function CampaignCommandCenterPage() {
                   onClick={() => setIsAssignVolunteerModalOpen(false)}
                   style={{
                     backgroundColor: 'transparent',
-                    border: '1px solid #334155',
-                    color: '#94a3b8',
+                    border: '1px solid #fde68a',
+                    color: '#64748b',
                     borderRadius: '6px',
                     padding: '0.5rem 1rem',
                     fontSize: '0.85rem',
@@ -4541,7 +5260,7 @@ export default function CampaignCommandCenterPage() {
             left: 0,
             right: 0,
             bottom: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.75)',
+            backgroundColor: 'rgba(15, 23, 42, 0.65)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -4551,13 +5270,13 @@ export default function CampaignCommandCenterPage() {
         >
           <div
             style={{
-              backgroundColor: '#0f172a',
-              border: '1px solid #1e293b',
+              backgroundColor: '#ffffff',
+              border: '1px solid #fde68a',
               borderRadius: '12px',
               maxWidth: '560px',
               width: '100%',
               padding: '1.5rem',
-              color: '#f8fafc',
+              color: '#0f172a',
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
@@ -4565,20 +5284,20 @@ export default function CampaignCommandCenterPage() {
                 <h3 style={{ margin: '0 0 0.25rem 0', fontSize: '1.15rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
                   <span>🤝</span> Register & Assign Campaign Volunteer
                 </h3>
-                <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
+                <span style={{ fontSize: '0.75rem', color: '#64748b' }}>
                   Registers volunteer in active roster and deploys them to this campaign drive.
                 </span>
               </div>
               <button
                 onClick={() => setIsRegisterVolModalOpen(false)}
-                style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '1.25rem', cursor: 'pointer' }}
+                style={{ background: 'none', border: 'none', color: '#64748b', fontSize: '1.25rem', cursor: 'pointer' }}
               >
                 ✕
               </button>
             </div>
 
             {registerVolError && (
-              <div style={{ backgroundColor: '#450a0a', border: '1px solid #dc2626', color: '#fecaca', padding: '0.75rem', borderRadius: '6px', marginBottom: '1rem', fontSize: '0.825rem' }}>
+              <div style={{ backgroundColor: '#fef2f2', border: '1px solid #fecaca', color: '#991b1b', padding: '0.75rem', borderRadius: '6px', marginBottom: '1rem', fontSize: '0.825rem' }}>
                 {registerVolError}
               </div>
             )}
@@ -4586,7 +5305,7 @@ export default function CampaignCommandCenterPage() {
             <form onSubmit={handleRegisterAndAssignSubmit}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '0.75rem' }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#94a3b8', marginBottom: '0.25rem' }}>
+                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#64748b', marginBottom: '0.25rem' }}>
                     Volunteer Full Name *
                   </label>
                   <input
@@ -4597,11 +5316,11 @@ export default function CampaignCommandCenterPage() {
                     onChange={(e) => setNewVolName(e.target.value)}
                     style={{
                       width: '100%',
-                      backgroundColor: '#1e293b',
-                      border: '1px solid #334155',
+                      backgroundColor: '#fffdf5',
+                      border: '1px solid #fde68a',
                       borderRadius: '6px',
                       padding: '0.45rem 0.65rem',
-                      color: '#f8fafc',
+                      color: '#0f172a',
                       fontSize: '0.85rem',
                       outline: 'none',
                       boxSizing: 'border-box',
@@ -4610,7 +5329,7 @@ export default function CampaignCommandCenterPage() {
                 </div>
 
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#94a3b8', marginBottom: '0.25rem' }}>
+                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#64748b', marginBottom: '0.25rem' }}>
                     Phone Number *
                   </label>
                   <input
@@ -4621,11 +5340,11 @@ export default function CampaignCommandCenterPage() {
                     onChange={(e) => setNewVolPhone(e.target.value)}
                     style={{
                       width: '100%',
-                      backgroundColor: '#1e293b',
-                      border: '1px solid #334155',
+                      backgroundColor: '#fffdf5',
+                      border: '1px solid #fde68a',
                       borderRadius: '6px',
                       padding: '0.45rem 0.65rem',
-                      color: '#f8fafc',
+                      color: '#0f172a',
                       fontSize: '0.85rem',
                       outline: 'none',
                       boxSizing: 'border-box',
@@ -4636,7 +5355,7 @@ export default function CampaignCommandCenterPage() {
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '0.75rem' }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#94a3b8', marginBottom: '0.25rem' }}>
+                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#64748b', marginBottom: '0.25rem' }}>
                     Blood Group
                   </label>
                   <select
@@ -4644,11 +5363,11 @@ export default function CampaignCommandCenterPage() {
                     onChange={(e) => setNewVolBloodGroup(e.target.value)}
                     style={{
                       width: '100%',
-                      backgroundColor: '#1e293b',
-                      border: '1px solid #334155',
+                      backgroundColor: '#fffdf5',
+                      border: '1px solid #fde68a',
                       borderRadius: '6px',
                       padding: '0.45rem 0.65rem',
-                      color: '#f8fafc',
+                      color: '#0f172a',
                       fontSize: '0.85rem',
                       outline: 'none',
                       boxSizing: 'border-box',
@@ -4666,7 +5385,7 @@ export default function CampaignCommandCenterPage() {
                 </div>
 
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#94a3b8', marginBottom: '0.25rem' }}>
+                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#64748b', marginBottom: '0.25rem' }}>
                     Assigned Camp Role
                   </label>
                   <select
@@ -4674,11 +5393,11 @@ export default function CampaignCommandCenterPage() {
                     onChange={(e) => setNewVolRole(e.target.value as VolunteerRole)}
                     style={{
                       width: '100%',
-                      backgroundColor: '#1e293b',
-                      border: '1px solid #334155',
+                      backgroundColor: '#fffdf5',
+                      border: '1px solid #fde68a',
                       borderRadius: '6px',
                       padding: '0.45rem 0.65rem',
-                      color: '#f8fafc',
+                      color: '#0f172a',
                       fontSize: '0.85rem',
                       outline: 'none',
                       boxSizing: 'border-box',
@@ -4694,7 +5413,7 @@ export default function CampaignCommandCenterPage() {
               </div>
 
               <div style={{ marginBottom: '1.25rem' }}>
-                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#94a3b8', marginBottom: '0.25rem' }}>
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#64748b', marginBottom: '0.25rem' }}>
                   City
                 </label>
                 <input
@@ -4704,11 +5423,11 @@ export default function CampaignCommandCenterPage() {
                   onChange={(e) => setNewVolCity(e.target.value)}
                   style={{
                     width: '100%',
-                    backgroundColor: '#1e293b',
-                    border: '1px solid #334155',
+                    backgroundColor: '#fffdf5',
+                    border: '1px solid #fde68a',
                     borderRadius: '6px',
                     padding: '0.45rem 0.65rem',
-                    color: '#f8fafc',
+                    color: '#0f172a',
                     fontSize: '0.85rem',
                     outline: 'none',
                     boxSizing: 'border-box',
@@ -4722,8 +5441,8 @@ export default function CampaignCommandCenterPage() {
                   onClick={() => setIsRegisterVolModalOpen(false)}
                   style={{
                     backgroundColor: 'transparent',
-                    border: '1px solid #334155',
-                    color: '#94a3b8',
+                    border: '1px solid #fde68a',
+                    color: '#64748b',
                     borderRadius: '6px',
                     padding: '0.5rem 1rem',
                     fontSize: '0.85rem',
@@ -4753,6 +5472,31 @@ export default function CampaignCommandCenterPage() {
           </div>
         </div>
       )}
+
+      <style jsx global>{`
+        .camp-table-scroll {
+          overflow-x: auto;
+          width: 100%;
+          -webkit-overflow-scrolling: touch;
+        }
+        @media (max-width: 768px) {
+          .camp-metrics-grid {
+            grid-template-columns: 1fr 1fr !important;
+          }
+          .camp-modal-grid {
+            grid-template-columns: 1fr !important;
+          }
+          .camp-header-stack {
+            flex-direction: column !important;
+            align-items: flex-start !important;
+          }
+        }
+        @media (max-width: 480px) {
+          .camp-metrics-grid {
+            grid-template-columns: 1fr !important;
+          }
+        }
+      `}</style>
     </div>
   );
 }

@@ -340,6 +340,17 @@ export default function FinancialControlCenterPage() {
             padding-bottom: 1.25rem !important;
             margin-bottom: 1.25rem !important;
           }
+          .fcc-header-brand {
+            width: 100% !important;
+          }
+          .fcc-header-title {
+            font-size: 1.45rem !important;
+            line-height: 1.25 !important;
+          }
+          .fcc-header-desc {
+            font-size: 0.85rem !important;
+            line-height: 1.4 !important;
+          }
           .fcc-header-actions {
             width: 100% !important;
             display: flex !important;
@@ -456,6 +467,18 @@ export default function FinancialControlCenterPage() {
           }
         }
 
+        @media (max-width: 480px) {
+          .fcc-header-brand {
+            width: 100% !important;
+          }
+          .fcc-header-title {
+            font-size: 1.3rem !important;
+          }
+          .fcc-header-desc {
+            font-size: 0.8rem !important;
+          }
+        }
+
         @media (max-width: 420px) {
           .fcc-kpi-grid {
             grid-template-columns: 1fr !important;
@@ -477,48 +500,51 @@ export default function FinancialControlCenterPage() {
           marginBottom: '2rem',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
-          <div
+        <div className="fcc-header-brand" style={{ flex: '1 1 auto', minWidth: 0, width: '100%', maxWidth: '100%' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '0.35rem' }}>
+            <span
+              style={{
+                backgroundColor: '#fef3c7',
+                color: '#92400e',
+                border: '1px solid #fde68a',
+                borderRadius: '9999px',
+                padding: '0.2rem 0.65rem',
+                fontSize: '0.72rem',
+                fontWeight: 800,
+                letterSpacing: '0.04em',
+                textTransform: 'uppercase',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.3rem',
+              }}
+            >
+              <span>👑</span> Super Admin Exclusive
+            </span>
+          </div>
+          <h1
+            className="fcc-header-title"
             style={{
-              width: '54px',
-              height: '54px',
-              borderRadius: '16px',
-              background: 'linear-gradient(135deg, #d97706 0%, #b45309 100%)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '1.65rem',
-              fontWeight: 900,
-              color: '#ffffff',
-              boxShadow: '0 8px 20px rgba(217, 119, 6, 0.25)',
-              flexShrink: 0,
+              margin: 0,
+              fontSize: '1.85rem',
+              fontWeight: 800,
+              color: '#0f172a',
+              letterSpacing: '-0.02em',
+              lineHeight: 1.25,
             }}
           >
-            ₹
-          </div>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-              <h1 style={{ margin: 0, fontSize: '1.85rem', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.02em' }}>
-                Financial Control Center
-              </h1>
-              <span
-                style={{
-                  backgroundColor: '#fef3c7',
-                  color: '#92400e',
-                  border: '1px solid #fde68a',
-                  borderRadius: '9999px',
-                  padding: '0.2rem 0.75rem',
-                  fontSize: '0.75rem',
-                  fontWeight: 700,
-                }}
-              >
-                Super Admin Exclusive
-              </span>
-            </div>
-            <p style={{ margin: '0.35rem 0 0 0', color: '#64748b', fontSize: '0.9rem' }}>
-              Centralized real-time accounting, multi-stream liquidity audit, cash vs. accruals, and transaction ledger.
-            </p>
-          </div>
+            Financial Control Center
+          </h1>
+          <p
+            className="fcc-header-desc"
+            style={{
+              margin: '0.35rem 0 0 0',
+              color: '#64748b',
+              fontSize: '0.875rem',
+              lineHeight: 1.4,
+            }}
+          >
+            Centralized real-time accounting, multi-stream liquidity audit, cash vs. accruals, and transaction ledger.
+          </p>
         </div>
 
         {/* Global Action Buttons */}

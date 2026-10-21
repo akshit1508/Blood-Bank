@@ -449,6 +449,7 @@ export async function unlinkExpenseFromCampaign(campaignId: string, expenseId: s
 export async function createCampaignExpenditure(
   campaignId: string,
   payload: CreateCampaignExpensePayload,
+  options?: { autoApprove?: boolean },
 ): Promise<any> {
   // 1. Create the expense draft linked to this campaign
   const expenseRes = await fetch(`${API_BASE_URL}/expenses`, {
@@ -501,6 +502,7 @@ export async function createCampaignExpenditure(
   }
 
   // 3. Automatically submit the expense for Super Admin review
+  let finalExpense = createdExpense;
   try {
     const submitRes = await fetch(`${API_BASE_URL}/expenses/${encodeURIComponent(createdExpense._id)}/submit`, {
       method: 'POST',
@@ -516,13 +518,37 @@ export async function createCampaignExpenditure(
 
     const submitJson = await submitRes.json();
     if (submitRes.ok && submitJson.data) {
-      return submitJson.data;
+      finalExpense = submitJson.data;
     }
   } catch {
     // If auto-submit fails, the draft still exists and can be reviewed
   }
 
-  return createdExpense;
+  // 4. Super Admin Direct Approval: if autoApprove is true, immediately approve without requiring secondary verification
+  if (options?.autoApprove) {
+    try {
+      const approveRes = await fetch(`${API_BASE_URL}/expenses/${encodeURIComponent(createdExpense._id)}/approve`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+          ...getAuthHeaders(),
+        },
+        body: JSON.stringify({
+          approvalRemarks: 'Directly authorized and approved by Super Administrator upon creation.',
+        }),
+      });
+
+      const approveJson = await approveRes.json();
+      if (approveRes.ok && approveJson.data) {
+        return approveJson.data;
+      }
+    } catch {
+      // If direct approval fails, return final submitted expense
+    }
+  }
+
+  return finalExpense;
 }
 
 /**

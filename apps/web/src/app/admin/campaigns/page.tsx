@@ -211,7 +211,7 @@ export default function AdminCampaignsPage() {
         taxAmount: expenseFormData.taxAmount ? Number(expenseFormData.taxAmount) : undefined,
         gstinNumber: expenseFormData.gstinNumber.trim() || undefined,
         receiptFile: expenseFormData.receiptFile,
-      });
+      }, { autoApprove: isSuperAdmin });
 
       setIsAddExpenseModalOpen(false);
       const campName = selectedCampaignForExpense.name;
@@ -230,7 +230,9 @@ export default function AdminCampaignsPage() {
         receiptFile: null,
       });
       setSuccessMessage(
-        `Expenditure of ₹${numAmount.toLocaleString('en-IN')} for "${campName}" (Invoice #${invNum}) recorded successfully and queued for Super Admin approval.`
+        isSuperAdmin
+          ? `Expenditure of ₹${numAmount.toLocaleString('en-IN')} for "${campName}" (Invoice #${invNum}) directly authorized and approved without requiring verification.`
+          : `Expenditure of ₹${numAmount.toLocaleString('en-IN')} for "${campName}" (Invoice #${invNum}) recorded successfully and queued for Super Admin approval.`
       );
       await loadData();
     } catch (err: any) {
@@ -271,79 +273,255 @@ export default function AdminCampaignsPage() {
     });
   };
 
+  const getStatusBadge = (status: CampaignStatus) => {
+    switch (status) {
+      case CampaignStatus.ACTIVE:
+        return { bg: '#ecfdf5', text: '#065f46', border: '#a7f3d0' };
+      case CampaignStatus.COMPLETED:
+        return { bg: '#f1f5f9', text: '#334155', border: '#cbd5e1' };
+      case CampaignStatus.CANCELLED:
+        return { bg: '#fef2f2', text: '#991b1b', border: '#fecaca' };
+      case CampaignStatus.PLANNED:
+      default:
+        return { bg: '#eff6ff', text: '#1d4ed8', border: '#bfdbfe' };
+    }
+  };
+
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#0b1120', color: '#f8fafc', padding: '1.75rem' }}>
+    <div
+      className="campaigns-container"
+      style={{
+        minHeight: '100vh',
+        backgroundColor: '#fffbeb',
+        color: '#0f172a',
+        padding: '1.75rem 2rem',
+        boxSizing: 'border-box',
+        fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+      }}
+    >
+      <style>{`
+        .campaigns-container {
+          min-height: 100vh;
+          background-color: #fffbeb;
+          color: #0f172a;
+          padding: 1.75rem 2rem;
+          box-sizing: border-box;
+          font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+        .camp-kpi-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+          gap: 1rem;
+          margin-bottom: 1.75rem;
+        }
+        .camp-table-scroll {
+          width: 100%;
+          overflow-x: auto;
+          -webkit-overflow-scrolling: touch;
+          scrollbar-width: thin;
+          scrollbar-color: #d97706 #fef3c7;
+        }
+        .camp-table-scroll::-webkit-scrollbar {
+          height: 6px;
+        }
+        .camp-table-scroll::-webkit-scrollbar-track {
+          background: #fef3c7;
+          border-radius: 4px;
+        }
+        .camp-table-scroll::-webkit-scrollbar-thumb {
+          background: #d97706;
+          border-radius: 4px;
+        }
+
+        @media (max-width: 900px) {
+          .campaigns-container {
+            padding: 1.25rem 1rem !important;
+          }
+        }
+
+        @media (max-width: 768px) {
+          .campaigns-container {
+            padding: 0.85rem 0.65rem !important;
+          }
+          .camp-header-wrap {
+            flex-direction: column !important;
+            align-items: stretch !important;
+            gap: 1rem !important;
+            margin-bottom: 1.25rem !important;
+            padding-bottom: 1.25rem !important;
+          }
+          .camp-header-title {
+            font-size: 1.45rem !important;
+            line-height: 1.25 !important;
+          }
+          .camp-header-desc {
+            font-size: 0.825rem !important;
+            line-height: 1.4 !important;
+          }
+          .camp-header-action-btn {
+            width: 100% !important;
+            justify-content: center !important;
+          }
+          .camp-filter-wrap {
+            flex-direction: column !important;
+            align-items: stretch !important;
+            padding: 0.85rem !important;
+            gap: 0.75rem !important;
+          }
+          .camp-filter-controls {
+            width: 100% !important;
+            flex-direction: column !important;
+            align-items: stretch !important;
+            gap: 0.5rem !important;
+          }
+          .camp-filter-controls input,
+          .camp-filter-controls select {
+            width: 100% !important;
+            min-width: 0 !important;
+            box-sizing: border-box !important;
+          }
+          .camp-filter-count {
+            text-align: right !important;
+            font-size: 0.8rem !important;
+          }
+          .camp-modal-grid {
+            grid-template-columns: 1fr !important;
+            gap: 0.75rem !important;
+          }
+          .camp-modal-box {
+            padding: 1.25rem !important;
+          }
+        }
+
+        @media (max-width: 640px) {
+          .camp-kpi-grid {
+            grid-template-columns: repeat(2, 1fr) !important;
+            gap: 0.65rem !important;
+          }
+          .camp-kpi-card {
+            padding: 0.85rem !important;
+          }
+          .camp-kpi-val {
+            font-size: 1.25rem !important;
+          }
+        }
+
+        @media (max-width: 420px) {
+          .camp-kpi-grid {
+            grid-template-columns: 1fr !important;
+          }
+          .camp-header-title {
+            font-size: 1.3rem !important;
+          }
+        }
+      `}</style>
+
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.75rem', flexWrap: 'wrap', gap: '1rem' }}>
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.35rem' }}>
-            <span style={{ fontSize: '1.5rem' }}>🎪</span>
-            <h1 style={{ fontSize: '1.65rem', fontWeight: 800, margin: 0, letterSpacing: '-0.025em', color: '#f8fafc' }}>
-              Campaigns & Mobile Drives
-            </h1>
+      <div
+        className="camp-header-wrap"
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+          marginBottom: '1.75rem',
+          flexWrap: 'wrap',
+          gap: '1.25rem',
+          borderBottom: '1px solid #fde68a',
+          paddingBottom: '1.5rem',
+        }}
+      >
+        <div style={{ flex: '1 1 auto', minWidth: 0, width: '100%' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '0.35rem' }}>
             <span
               style={{
-                fontSize: '0.725rem',
-                fontWeight: 700,
-                padding: '0.2rem 0.55rem',
+                backgroundColor: '#fef3c7',
+                color: '#92400e',
+                border: '1px solid #fde68a',
                 borderRadius: '9999px',
-                backgroundColor: '#1e293b',
-                color: '#38bdf8',
-                border: '1px solid #334155',
-                letterSpacing: '0.05em',
+                padding: '0.2rem 0.65rem',
+                fontSize: '0.72rem',
+                fontWeight: 800,
+                letterSpacing: '0.04em',
                 textTransform: 'uppercase',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.3rem',
               }}
             >
-              Phase 7 Budget Management
+              <span>👑</span> Super Admin Exclusive • Budgets
             </span>
           </div>
-          <p style={{ margin: 0, color: '#94a3b8', fontSize: '0.9rem', maxWidth: '720px', lineHeight: 1.5 }}>
+          <h1
+            className="camp-header-title"
+            style={{
+              fontSize: '1.85rem',
+              fontWeight: 800,
+              margin: 0,
+              letterSpacing: '-0.025em',
+              color: '#0f172a',
+              lineHeight: 1.25,
+            }}
+          >
+            Campaigns &amp; Mobile Drives
+          </h1>
+          <p
+            className="camp-header-desc"
+            style={{
+              margin: '0.35rem 0 0 0',
+              color: '#64748b',
+              fontSize: '0.875rem',
+              lineHeight: 1.4,
+              maxWidth: '820px',
+            }}
+          >
             Authoritative mobile donation drive operations with integer-paise budget controls, audit revision history, and linked expense cost tracking.
           </p>
         </div>
 
         {isSuperAdmin ? (
           <button
+            className="camp-header-action-btn"
             onClick={() => setIsModalOpen(true)}
             style={{
-              backgroundColor: '#dc2626',
+              backgroundColor: '#d97706',
               color: '#ffffff',
               border: 'none',
               borderRadius: '8px',
               padding: '0.65rem 1.25rem',
-              fontWeight: 600,
-              fontSize: '0.9rem',
+              fontWeight: 700,
+              fontSize: '0.875rem',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
               gap: '0.5rem',
-              boxShadow: '0 4px 12px rgba(220, 38, 38, 0.3)',
-              transition: 'all 0.2s',
+              boxShadow: '0 2px 8px rgba(217, 119, 6, 0.3)',
+              transition: 'all 0.15s ease-in-out',
             }}
-            onMouseOver={(e) => ((e.currentTarget as HTMLButtonElement).style.backgroundColor = '#b91c1c')}
-            onMouseOut={(e) => ((e.currentTarget as HTMLButtonElement).style.backgroundColor = '#dc2626')}
+            onMouseOver={(e) => ((e.currentTarget as HTMLButtonElement).style.backgroundColor = '#b45309')}
+            onMouseOut={(e) => ((e.currentTarget as HTMLButtonElement).style.backgroundColor = '#d97706')}
           >
-            <span>+</span> Schedule Campaign & Add Budget
+            <span>+</span> Schedule Campaign &amp; Add Budget
           </button>
         ) : (
           <div
             style={{
-              backgroundColor: '#0f172a',
-              border: '1px solid #334155',
+              backgroundColor: '#ffffff',
+              border: '1px solid #fde68a',
               borderRadius: '8px',
               padding: '0.65rem 1rem',
               display: 'flex',
               alignItems: 'center',
               gap: '0.75rem',
               maxWidth: '440px',
+              boxShadow: '0 1px 3px rgba(180, 83, 9, 0.06)',
             }}
           >
             <span style={{ fontSize: '1.25rem' }}>🛡️</span>
             <div>
-              <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#f8fafc' }}>
+              <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#0f172a' }}>
                 Admin Operations Portal
               </div>
-              <div style={{ fontSize: '0.75rem', color: '#94a3b8', lineHeight: 1.3 }}>
+              <div style={{ fontSize: '0.75rem', color: '#64748b', lineHeight: 1.3 }}>
                 Campaigns scheduled by Super Admin. Click <strong>+ Add Expense</strong> on any campaign below to log field bills.
               </div>
             </div>
@@ -355,23 +533,23 @@ export default function AdminCampaignsPage() {
       {successMessage && (
         <div
           style={{
-            backgroundColor: '#064e3b',
-            border: '1px solid #059669',
-            color: '#a7f3d0',
-            borderRadius: '8px',
+            backgroundColor: '#ecfdf5',
+            border: '1px solid #a7f3d0',
+            color: '#065f46',
+            borderRadius: '10px',
             padding: '0.85rem 1.25rem',
             marginBottom: '1.5rem',
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
-            fontSize: '0.9rem',
-            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.2)',
+            fontSize: '0.875rem',
+            boxShadow: '0 1px 3px rgba(16, 185, 129, 0.08)',
           }}
         >
           <span>✅ {successMessage}</span>
           <button
             onClick={() => setSuccessMessage(null)}
-            style={{ background: 'none', border: 'none', color: '#a7f3d0', cursor: 'pointer', fontSize: '1.1rem', fontWeight: 700 }}
+            style={{ background: 'none', border: 'none', color: '#065f46', cursor: 'pointer', fontSize: '1.1rem', fontWeight: 700 }}
           >
             ✕
           </button>
@@ -379,68 +557,61 @@ export default function AdminCampaignsPage() {
       )}
 
       {/* KPI Ribbon */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-          gap: '1rem',
-          marginBottom: '1.75rem',
-        }}
-      >
-        <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '10px', padding: '1.15rem' }}>
-          <div style={{ color: '#94a3b8', fontSize: '0.775rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.4rem' }}>
+      <div className="camp-kpi-grid">
+        <div className="camp-kpi-card" style={{ backgroundColor: '#ffffff', border: '1px solid #fde68a', borderRadius: '12px', padding: '1.15rem', boxShadow: '0 1px 3px rgba(180, 83, 9, 0.06)' }}>
+          <div style={{ color: '#92400e', fontSize: '0.72rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.4rem' }}>
             Total Campaigns
           </div>
-          <div style={{ fontSize: '1.75rem', fontWeight: 800, color: '#f8fafc' }}>{kpis.total}</div>
-          <div style={{ color: '#64748b', fontSize: '0.8rem', marginTop: '0.25rem' }}>
+          <div className="camp-kpi-val" style={{ fontSize: '1.65rem', fontWeight: 900, color: '#0f172a' }}>{kpis.total}</div>
+          <div style={{ color: '#64748b', fontSize: '0.75rem', marginTop: '0.25rem' }}>
             {kpis.active} active • {kpis.planned} planned
           </div>
         </div>
 
-        <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '10px', padding: '1.15rem' }}>
-          <div style={{ color: '#94a3b8', fontSize: '0.775rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.4rem' }}>
+        <div className="camp-kpi-card" style={{ backgroundColor: '#ffffff', border: '1px solid #fde68a', borderRadius: '12px', padding: '1.15rem', boxShadow: '0 1px 3px rgba(180, 83, 9, 0.06)' }}>
+          <div style={{ color: '#92400e', fontSize: '0.72rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.4rem' }}>
             Total Approved Budget
           </div>
-          <div style={{ fontSize: '1.75rem', fontWeight: 800, color: '#38bdf8' }}>
+          <div className="camp-kpi-val" style={{ fontSize: '1.65rem', fontWeight: 900, color: '#b45309' }}>
             {formatCurrency(kpis.totalBudget)}
           </div>
-          <div style={{ color: '#64748b', fontSize: '0.8rem', marginTop: '0.25rem' }}>
-            Baseline & revisions
+          <div style={{ color: '#64748b', fontSize: '0.75rem', marginTop: '0.25rem' }}>
+            Baseline &amp; revisions
           </div>
         </div>
 
-        <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '10px', padding: '1.15rem' }}>
-          <div style={{ color: '#94a3b8', fontSize: '0.775rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.4rem' }}>
+        <div className="camp-kpi-card" style={{ backgroundColor: '#ffffff', border: '1px solid #fde68a', borderRadius: '12px', padding: '1.15rem', boxShadow: '0 1px 3px rgba(180, 83, 9, 0.06)' }}>
+          <div style={{ color: '#92400e', fontSize: '0.72rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.4rem' }}>
             Actual Expenditure
           </div>
-          <div style={{ fontSize: '1.75rem', fontWeight: 800, color: '#f59e0b' }}>
+          <div className="camp-kpi-val" style={{ fontSize: '1.65rem', fontWeight: 900, color: '#d97706' }}>
             {formatCurrency(kpis.totalExp)}
           </div>
-          <div style={{ color: '#64748b', fontSize: '0.8rem', marginTop: '0.25rem' }}>
+          <div style={{ color: '#64748b', fontSize: '0.75rem', marginTop: '0.25rem' }}>
             {kpis.overallUtilization}% overall utilization
           </div>
         </div>
 
-        <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '10px', padding: '1.15rem' }}>
-          <div style={{ color: '#94a3b8', fontSize: '0.775rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.4rem' }}>
+        <div className="camp-kpi-card" style={{ backgroundColor: '#ffffff', border: '1px solid #a7f3d0', borderRadius: '12px', padding: '1.15rem', boxShadow: '0 1px 3px rgba(16, 185, 129, 0.08)' }}>
+          <div style={{ color: '#059669', fontSize: '0.72rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.4rem' }}>
             Completed Donations
           </div>
-          <div style={{ fontSize: '1.75rem', fontWeight: 800, color: '#10b981' }}>
+          <div className="camp-kpi-val" style={{ fontSize: '1.65rem', fontWeight: 900, color: '#065f46' }}>
             {kpis.totalUnits}
           </div>
-          <div style={{ color: '#64748b', fontSize: '0.8rem', marginTop: '0.25rem' }}>
+          <div style={{ color: '#64748b', fontSize: '0.75rem', marginTop: '0.25rem' }}>
             Physical collected units
           </div>
         </div>
 
-        <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '10px', padding: '1.15rem' }}>
-          <div style={{ color: '#94a3b8', fontSize: '0.775rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.4rem' }}>
+        <div className="camp-kpi-card" style={{ backgroundColor: '#ffffff', border: '1px solid #fde68a', borderRadius: '12px', padding: '1.15rem', boxShadow: '0 1px 3px rgba(180, 83, 9, 0.06)' }}>
+          <div style={{ color: '#92400e', fontSize: '0.72rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.4rem' }}>
             Avg Cost / Donation
           </div>
-          <div style={{ fontSize: '1.75rem', fontWeight: 800, color: '#c084fc' }}>
+          <div className="camp-kpi-val" style={{ fontSize: '1.65rem', fontWeight: 900, color: '#7c3aed' }}>
             {kpis.avgCostPerUnit !== null ? formatCurrency(kpis.avgCostPerUnit) : 'N/A'}
           </div>
-          <div style={{ color: '#64748b', fontSize: '0.8rem', marginTop: '0.25rem' }}>
+          <div style={{ color: '#64748b', fontSize: '0.75rem', marginTop: '0.25rem' }}>
             Approved expenses / unit
           </div>
         </div>
@@ -448,10 +619,11 @@ export default function AdminCampaignsPage() {
 
       {/* Filter and Search Bar */}
       <div
+        className="camp-filter-wrap"
         style={{
-          backgroundColor: '#0f172a',
-          border: '1px solid #1e293b',
-          borderRadius: '10px',
+          backgroundColor: '#ffffff',
+          border: '1px solid #fde68a',
+          borderRadius: '12px',
           padding: '1rem',
           marginBottom: '1.5rem',
           display: 'flex',
@@ -459,9 +631,10 @@ export default function AdminCampaignsPage() {
           gap: '0.85rem',
           alignItems: 'center',
           justifyContent: 'space-between',
+          boxShadow: '0 1px 3px rgba(180, 83, 9, 0.06)',
         }}
       >
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', alignItems: 'center' }}>
+        <div className="camp-filter-controls" style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', alignItems: 'center' }}>
           {/* Search Box */}
           <div style={{ position: 'relative' }}>
             <input
@@ -470,9 +643,9 @@ export default function AdminCampaignsPage() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               style={{
-                backgroundColor: '#1e293b',
-                color: '#f8fafc',
-                border: '1px solid #334155',
+                backgroundColor: '#fffdf5',
+                color: '#0f172a',
+                border: '1px solid #fde68a',
                 borderRadius: '6px',
                 padding: '0.5rem 0.85rem',
                 fontSize: '0.875rem',
@@ -487,9 +660,9 @@ export default function AdminCampaignsPage() {
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
             style={{
-              backgroundColor: '#1e293b',
-              color: '#f8fafc',
-              border: '1px solid #334155',
+              backgroundColor: '#fffdf5',
+              color: '#0f172a',
+              border: '1px solid #fde68a',
               borderRadius: '6px',
               padding: '0.5rem 0.85rem',
               fontSize: '0.875rem',
@@ -511,9 +684,9 @@ export default function AdminCampaignsPage() {
               value={cityFilter}
               onChange={(e) => setCityFilter(e.target.value)}
               style={{
-                backgroundColor: '#1e293b',
-                color: '#f8fafc',
-                border: '1px solid #334155',
+                backgroundColor: '#fffdf5',
+                color: '#0f172a',
+                border: '1px solid #fde68a',
                 borderRadius: '6px',
                 padding: '0.5rem 0.85rem',
                 fontSize: '0.875rem',
@@ -539,12 +712,13 @@ export default function AdminCampaignsPage() {
               }}
               style={{
                 backgroundColor: 'transparent',
-                color: '#94a3b8',
-                border: '1px dashed #475569',
+                color: '#92400e',
+                border: '1px dashed #d97706',
                 borderRadius: '6px',
                 padding: '0.45rem 0.75rem',
                 fontSize: '0.8rem',
                 cursor: 'pointer',
+                fontWeight: 600,
               }}
             >
               Reset Filters
@@ -552,7 +726,7 @@ export default function AdminCampaignsPage() {
           )}
         </div>
 
-        <div style={{ color: '#94a3b8', fontSize: '0.85rem' }}>
+        <div className="camp-filter-count" style={{ color: '#64748b', fontSize: '0.85rem' }}>
           Showing <strong>{campaigns.length}</strong> campaigns
         </div>
       </div>
@@ -561,10 +735,10 @@ export default function AdminCampaignsPage() {
       {error && (
         <div
           style={{
-            backgroundColor: '#450a0a',
-            border: '1px solid #dc2626',
-            color: '#fecaca',
-            borderRadius: '8px',
+            backgroundColor: '#fef2f2',
+            border: '1px solid #fecaca',
+            color: '#991b1b',
+            borderRadius: '10px',
             padding: '1rem',
             marginBottom: '1.5rem',
             fontSize: '0.9rem',
@@ -578,61 +752,73 @@ export default function AdminCampaignsPage() {
       {campaigns.filter((c) => c.status === CampaignStatus.PLANNED).length > 0 && (
         <div
           style={{
-            backgroundColor: '#0f172a',
-            border: '1px solid #d97706',
-            borderRadius: '10px',
+            backgroundColor: '#ffffff',
+            border: '1px solid #fde68a',
+            borderRadius: '12px',
             padding: '1.25rem',
             marginBottom: '1.75rem',
-            boxShadow: '0 4px 12px rgba(217, 119, 6, 0.15)',
+            boxShadow: '0 2px 8px rgba(180, 83, 9, 0.08)',
           }}
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
               <span style={{ fontSize: '1.25rem' }}>📢</span>
               <div>
-                <h2 style={{ fontSize: '1.05rem', fontWeight: 700, color: '#fbbf24', margin: 0 }}>
+                <h2 style={{ fontSize: '1.05rem', fontWeight: 800, color: '#92400e', margin: 0 }}>
                   Newly Scheduled Campaigns Awaiting Field Execution & Expense Logging ({campaigns.filter((c) => c.status === CampaignStatus.PLANNED).length})
                 </h2>
-                <span style={{ fontSize: '0.775rem', color: '#94a3b8' }}>
+                <span style={{ fontSize: '0.775rem', color: '#64748b' }}>
                   Campaigns scheduled and budgeted by Super Admin. Field officers can record all operational bills & invoices below.
                 </span>
               </div>
             </div>
             <span
               style={{
-                fontSize: '0.7rem',
+                fontSize: '0.72rem',
                 fontWeight: 700,
-                padding: '0.2rem 0.6rem',
+                padding: '0.25rem 0.65rem',
                 borderRadius: '9999px',
-                backgroundColor: '#78350f',
-                color: '#fef3c7',
-                border: '1px solid #b45309',
+                backgroundColor: '#fef3c7',
+                color: '#92400e',
+                border: '1px solid #fde68a',
               }}
             >
               Action Required: Record Incurred Expenses
             </span>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1rem' }}>
             {campaigns
               .filter((c) => c.status === CampaignStatus.PLANNED)
               .map((camp) => (
                 <div
                   key={camp._id}
                   style={{
-                    backgroundColor: '#1e293b',
-                    border: '1px solid #334155',
-                    borderRadius: '8px',
+                    backgroundColor: '#fffdf5',
+                    border: '1px solid #fde68a',
+                    borderRadius: '10px',
                     padding: '1.1rem',
                     display: 'flex',
                     flexDirection: 'column',
                     justifyContent: 'space-between',
                     gap: '0.85rem',
+                    boxShadow: '0 1px 2px rgba(180, 83, 9, 0.04)',
                   }}
                 >
                   <div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.4rem' }}>
-                      <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#38bdf8', fontFamily: 'monospace' }}>
+                      <span
+                        style={{
+                          fontSize: '0.75rem',
+                          fontWeight: 700,
+                          color: '#92400e',
+                          fontFamily: 'monospace',
+                          backgroundColor: '#fef3c7',
+                          border: '1px solid #fde68a',
+                          padding: '0.15rem 0.45rem',
+                          borderRadius: '4px',
+                        }}
+                      >
                         {camp.campaignCode}
                       </span>
                       <span
@@ -641,30 +827,30 @@ export default function AdminCampaignsPage() {
                           fontWeight: 700,
                           padding: '0.15rem 0.5rem',
                           borderRadius: '9999px',
-                          backgroundColor: '#78350f',
-                          color: '#fef3c7',
-                          border: '1px solid #b45309',
+                          backgroundColor: '#eff6ff',
+                          color: '#1d4ed8',
+                          border: '1px solid #bfdbfe',
                         }}
                       >
                         Planned & Scheduled
                       </span>
                     </div>
-                    <h3 style={{ fontSize: '1rem', fontWeight: 700, color: '#f8fafc', margin: '0 0 0.4rem 0' }}>
+                    <h3 style={{ fontSize: '1rem', fontWeight: 800, color: '#0f172a', margin: '0 0 0.4rem 0' }}>
                       {camp.name}
                     </h3>
-                    <div style={{ fontSize: '0.8rem', color: '#94a3b8', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                      <div>📍 <strong>Venue:</strong> {camp.venue}, {camp.city}</div>
-                      <div>📅 <strong>Dates:</strong> {new Date(camp.startDate).toLocaleDateString()} &ndash; {new Date(camp.endDate).toLocaleDateString()}</div>
-                      <div>🎯 <strong>Target:</strong> {camp.targetDonations || 0} Donation Units</div>
+                    <div style={{ fontSize: '0.8rem', color: '#475569', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                      <div>📍 <strong style={{ color: '#1e293b' }}>Venue:</strong> {camp.venue}, {camp.city}</div>
+                      <div>📅 <strong style={{ color: '#1e293b' }}>Dates:</strong> {formatDate(camp.startDate)} &ndash; {formatDate(camp.endDate)}</div>
+                      <div>🎯 <strong style={{ color: '#1e293b' }}>Target:</strong> {camp.targetDonations || 0} Donation Units</div>
                     </div>
                   </div>
 
-                  <div style={{ borderTop: '1px solid #334155', paddingTop: '0.75rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ borderTop: '1px solid #fde68a', paddingTop: '0.75rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
                     <div>
-                      <div style={{ fontSize: '0.675rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 600 }}>
+                      <div style={{ fontSize: '0.675rem', color: '#64748b', textTransform: 'uppercase', fontWeight: 700 }}>
                         Approved Budget
                       </div>
-                      <div style={{ fontSize: '1.15rem', fontWeight: 800, color: '#10b981' }}>
+                      <div style={{ fontSize: '1.15rem', fontWeight: 800, color: '#047857' }}>
                         ₹{(camp.approvedBudget || 0).toLocaleString('en-IN')}
                       </div>
                     </div>
@@ -677,22 +863,22 @@ export default function AdminCampaignsPage() {
                           setIsAddExpenseModalOpen(true);
                         }}
                         style={{
-                          backgroundColor: '#10b981',
+                          backgroundColor: '#d97706',
                           color: '#ffffff',
                           border: 'none',
-                          padding: '0.5rem 0.95rem',
+                          padding: '0.45rem 0.85rem',
                           borderRadius: '6px',
-                          fontSize: '0.825rem',
+                          fontSize: '0.8rem',
                           fontWeight: 700,
                           cursor: 'pointer',
                           display: 'inline-flex',
                           alignItems: 'center',
                           gap: '0.35rem',
-                          boxShadow: '0 2px 8px rgba(16, 185, 129, 0.3)',
+                          boxShadow: '0 2px 6px rgba(217, 119, 6, 0.25)',
                           transition: 'all 0.15s',
                         }}
-                        onMouseOver={(e) => ((e.currentTarget as HTMLButtonElement).style.backgroundColor = '#059669')}
-                        onMouseOut={(e) => ((e.currentTarget as HTMLButtonElement).style.backgroundColor = '#10b981')}
+                        onMouseOver={(e) => ((e.currentTarget as HTMLButtonElement).style.backgroundColor = '#b45309')}
+                        onMouseOut={(e) => ((e.currentTarget as HTMLButtonElement).style.backgroundColor = '#d97706')}
                       >
                         <span>+</span> Add Expense
                       </button>
@@ -700,17 +886,18 @@ export default function AdminCampaignsPage() {
                       <Link
                         href={`/admin/campaigns/${camp._id}`}
                         style={{
-                          backgroundColor: '#334155',
-                          color: '#38bdf8',
+                          backgroundColor: '#ffffff',
+                          color: '#92400e',
+                          border: '1px solid #fde68a',
                           textDecoration: 'none',
-                          padding: '0.5rem 0.85rem',
+                          padding: '0.45rem 0.75rem',
                           borderRadius: '6px',
                           fontSize: '0.8rem',
-                          fontWeight: 600,
+                          fontWeight: 700,
                           transition: 'all 0.15s',
                         }}
-                        onMouseOver={(e) => ((e.currentTarget as HTMLAnchorElement).style.backgroundColor = '#475569')}
-                        onMouseOut={(e) => ((e.currentTarget as HTMLAnchorElement).style.backgroundColor = '#334155')}
+                        onMouseOver={(e) => ((e.currentTarget as HTMLAnchorElement).style.backgroundColor = '#fef3c7')}
+                        onMouseOut={(e) => ((e.currentTarget as HTMLAnchorElement).style.backgroundColor = '#ffffff')}
                       >
                         Details →
                       </Link>
@@ -725,17 +912,17 @@ export default function AdminCampaignsPage() {
       {/* Campaigns Table */}
       <div
         style={{
-          backgroundColor: '#0f172a',
-          border: '1px solid #1e293b',
-          borderRadius: '10px',
+          backgroundColor: '#ffffff',
+          border: '1px solid #fde68a',
+          borderRadius: '12px',
           overflow: 'hidden',
-          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.2)',
+          boxShadow: '0 1px 3px rgba(180, 83, 9, 0.06)',
         }}
       >
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
+        <div className="camp-table-scroll admin-table-scroll">
+          <table style={{ width: '100%', minWidth: '980px', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
             <thead>
-              <tr style={{ backgroundColor: '#1e293b', borderBottom: '1px solid #334155', color: '#94a3b8', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              <tr style={{ backgroundColor: '#fef3c7', borderBottom: '1px solid #fde68a', color: '#92400e', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                 <th style={{ padding: '0.85rem 1.25rem' }}>Campaign</th>
                 <th style={{ padding: '0.85rem 1.25rem' }}>Location & Dates</th>
                 <th style={{ padding: '0.85rem 1.25rem' }}>Status</th>
@@ -749,16 +936,16 @@ export default function AdminCampaignsPage() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={8} style={{ padding: '3rem', textAlign: 'center', color: '#94a3b8' }}>
-                    <div style={{ display: 'inline-block', width: '24px', height: '24px', border: '3px solid #38bdf8', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
-                    <div style={{ marginTop: '0.5rem', fontSize: '0.85rem' }}>Loading campaigns...</div>
+                  <td colSpan={8} style={{ padding: '3rem', textAlign: 'center', color: '#64748b' }}>
+                    <div style={{ display: 'inline-block', width: '26px', height: '26px', border: '3px solid #d97706', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+                    <div style={{ marginTop: '0.5rem', fontSize: '0.85rem', fontWeight: 600, color: '#92400e' }}>Loading campaigns...</div>
                   </td>
                 </tr>
               ) : campaigns.length === 0 ? (
                 <tr>
                   <td colSpan={8} style={{ padding: '3.5rem 1rem', textAlign: 'center', color: '#64748b' }}>
                     <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>🎪</div>
-                    <strong style={{ display: 'block', color: '#94a3b8', fontSize: '1rem', marginBottom: '0.25rem' }}>
+                    <strong style={{ display: 'block', color: '#0f172a', fontSize: '1rem', marginBottom: '0.25rem' }}>
                       No campaigns found
                     </strong>
                     <span>Schedule your first blood donation campaign to begin tracking budgets.</span>
@@ -766,7 +953,7 @@ export default function AdminCampaignsPage() {
                 </tr>
               ) : (
                 campaigns.map((camp) => {
-                  const badge = CAMPAIGN_STATUS_BADGE_COLORS[camp.status] || CAMPAIGN_STATUS_BADGE_COLORS[CampaignStatus.PLANNED];
+                  const badge = getStatusBadge(camp.status);
                   const actual = camp.actualExpenditure || 0;
                   const budget = camp.approvedBudget || 0;
                   const util = budget > 0 ? Math.round((actual / budget) * 100) : 0;
@@ -779,10 +966,10 @@ export default function AdminCampaignsPage() {
                     <tr
                       key={camp._id}
                       style={{
-                        borderBottom: '1px solid #1e293b',
+                        borderBottom: '1px solid #fef3c7',
                         transition: 'background-color 0.15s',
                       }}
-                      onMouseOver={(e) => ((e.currentTarget as HTMLTableRowElement).style.backgroundColor = '#131d31')}
+                      onMouseOver={(e) => ((e.currentTarget as HTMLTableRowElement).style.backgroundColor = '#fffdf5')}
                       onMouseOut={(e) => ((e.currentTarget as HTMLTableRowElement).style.backgroundColor = 'transparent')}
                     >
                       {/* Campaign Code & Name */}
@@ -793,9 +980,9 @@ export default function AdminCampaignsPage() {
                               fontFamily: 'monospace',
                               fontWeight: 700,
                               fontSize: '0.8rem',
-                              color: '#38bdf8',
-                              backgroundColor: '#0369a120',
-                              border: '1px solid #0284c740',
+                              color: '#92400e',
+                              backgroundColor: '#fef3c7',
+                              border: '1px solid #fde68a',
                               padding: '0.15rem 0.45rem',
                               borderRadius: '4px',
                             }}
@@ -803,14 +990,25 @@ export default function AdminCampaignsPage() {
                             {camp.campaignCode}
                           </span>
                         </div>
-                        <strong style={{ color: '#f8fafc', fontSize: '0.925rem', display: 'block' }}>
-                          {camp.name}
-                        </strong>
+                        <Link
+                          href={`/admin/campaigns/${camp._id}`}
+                          style={{
+                            color: '#0f172a',
+                            fontSize: '0.925rem',
+                            fontWeight: 800,
+                            display: 'block',
+                            textDecoration: 'none',
+                          }}
+                          onMouseOver={(e) => ((e.currentTarget as HTMLAnchorElement).style.color = '#d97706')}
+                          onMouseOut={(e) => ((e.currentTarget as HTMLAnchorElement).style.color = '#0f172a')}
+                        >
+                          {camp.name} ↗
+                        </Link>
                       </td>
 
                       {/* Location & Dates */}
                       <td style={{ padding: '1rem 1.25rem' }}>
-                        <div style={{ color: '#e2e8f0', fontWeight: 500 }}>
+                        <div style={{ color: '#0f172a', fontWeight: 600 }}>
                           {camp.venue}, {camp.city}
                         </div>
                         <div style={{ color: '#64748b', fontSize: '0.78rem', marginTop: '0.2rem' }}>
@@ -829,7 +1027,7 @@ export default function AdminCampaignsPage() {
                               borderRadius: '9999px',
                               padding: '0.2rem 0.6rem',
                               fontSize: '0.75rem',
-                              fontWeight: 600,
+                              fontWeight: 700,
                             }}
                           >
                             {CAMPAIGN_STATUS_LABELS[camp.status]}
@@ -841,9 +1039,9 @@ export default function AdminCampaignsPage() {
                             value={camp.status}
                             onChange={(e) => handleQuickStatusChange(camp, e.target.value as CampaignStatus)}
                             style={{
-                              backgroundColor: '#1e293b',
-                              color: '#94a3b8',
-                              border: '1px solid #334155',
+                              backgroundColor: '#fffdf5',
+                              color: '#0f172a',
+                              border: '1px solid #fde68a',
                               borderRadius: '4px',
                               fontSize: '0.7rem',
                               padding: '0.15rem 0.35rem',
@@ -864,10 +1062,10 @@ export default function AdminCampaignsPage() {
                       {/* Donations Progress */}
                       <td style={{ padding: '1rem 1.25rem' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.775rem', marginBottom: '0.3rem' }}>
-                          <span style={{ color: '#10b981', fontWeight: 600 }}>{completed} done</span>
+                          <span style={{ color: '#047857', fontWeight: 700 }}>{completed} done</span>
                           <span style={{ color: '#64748b' }}>Target: {target}</span>
                         </div>
-                        <div style={{ width: '100%', height: '6px', backgroundColor: '#334155', borderRadius: '9999px', overflow: 'hidden' }}>
+                        <div style={{ width: '100%', height: '6px', backgroundColor: '#e2e8f0', borderRadius: '9999px', overflow: 'hidden' }}>
                           <div
                             style={{
                               width: `${donationProgress}%`,
@@ -881,7 +1079,7 @@ export default function AdminCampaignsPage() {
 
                       {/* Approved Budget */}
                       <td style={{ padding: '1rem 1.25rem' }}>
-                        <div style={{ fontWeight: 700, color: '#f8fafc', fontSize: '0.925rem' }}>
+                        <div style={{ fontWeight: 800, color: '#0f172a', fontSize: '0.925rem' }}>
                           {formatCurrency(budget)}
                         </div>
                         <div style={{ color: '#64748b', fontSize: '0.75rem', marginTop: '0.15rem' }}>
@@ -892,20 +1090,20 @@ export default function AdminCampaignsPage() {
                       {/* Expenditure & Utilization */}
                       <td style={{ padding: '1rem 1.25rem' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.3rem' }}>
-                          <span style={{ fontWeight: 600, color: isOver ? '#ef4444' : '#f59e0b' }}>
+                          <span style={{ fontWeight: 700, color: isOver ? '#b91c1c' : '#92400e' }}>
                             {formatCurrency(actual)}
                           </span>
                           <span
                             style={{
                               fontSize: '0.75rem',
-                              fontWeight: 700,
-                              color: isOver ? '#ef4444' : util > 80 ? '#f59e0b' : '#10b981',
+                              fontWeight: 800,
+                              color: isOver ? '#b91c1c' : util > 80 ? '#b45309' : '#047857',
                             }}
                           >
                             {util}%
                           </span>
                         </div>
-                        <div style={{ width: '100%', height: '6px', backgroundColor: '#334155', borderRadius: '9999px', overflow: 'hidden' }}>
+                        <div style={{ width: '100%', height: '6px', backgroundColor: '#e2e8f0', borderRadius: '9999px', overflow: 'hidden' }}>
                           <div
                             style={{
                               width: `${Math.min(100, util)}%`,
@@ -919,7 +1117,7 @@ export default function AdminCampaignsPage() {
 
                       {/* Cost / Unit */}
                       <td style={{ padding: '1rem 1.25rem' }}>
-                        <span style={{ fontWeight: 600, color: camp.costPerCompletedDonation ? '#c084fc' : '#64748b' }}>
+                        <span style={{ fontWeight: 700, color: camp.costPerCompletedDonation ? '#7c3aed' : '#64748b' }}>
                           {camp.costPerCompletedDonation !== null && camp.costPerCompletedDonation !== undefined
                             ? formatCurrency(camp.costPerCompletedDonation)
                             : 'N/A'}
@@ -936,21 +1134,22 @@ export default function AdminCampaignsPage() {
                               setIsAddExpenseModalOpen(true);
                             }}
                             style={{
-                              backgroundColor: '#064e3b',
-                              color: '#34d399',
-                              border: '1px solid #059669',
+                              backgroundColor: '#d97706',
+                              color: '#ffffff',
+                              border: 'none',
                               padding: '0.45rem 0.75rem',
                               borderRadius: '6px',
                               fontSize: '0.78rem',
-                              fontWeight: 600,
+                              fontWeight: 700,
                               cursor: 'pointer',
                               display: 'inline-flex',
                               alignItems: 'center',
                               gap: '0.35rem',
+                              boxShadow: '0 1px 3px rgba(217, 119, 6, 0.25)',
                               transition: 'all 0.15s',
                             }}
-                            onMouseOver={(e) => ((e.currentTarget as HTMLButtonElement).style.backgroundColor = '#047857')}
-                            onMouseOut={(e) => ((e.currentTarget as HTMLButtonElement).style.backgroundColor = '#064e3b')}
+                            onMouseOver={(e) => ((e.currentTarget as HTMLButtonElement).style.backgroundColor = '#b45309')}
+                            onMouseOut={(e) => ((e.currentTarget as HTMLButtonElement).style.backgroundColor = '#d97706')}
                           >
                             <span>+</span> Add Expense
                           </button>
@@ -959,26 +1158,24 @@ export default function AdminCampaignsPage() {
                             href={`/admin/campaigns/${camp._id}`}
                             style={{
                               display: 'inline-block',
-                              backgroundColor: '#1e293b',
-                              color: '#38bdf8',
-                              border: '1px solid #334155',
+                              backgroundColor: '#ffffff',
+                              color: '#92400e',
+                              border: '1px solid #fde68a',
                               padding: '0.45rem 0.85rem',
                               borderRadius: '6px',
                               fontSize: '0.8rem',
-                              fontWeight: 600,
+                              fontWeight: 700,
                               textDecoration: 'none',
                               transition: 'all 0.15s',
                             }}
                             onMouseOver={(e) => {
-                              (e.currentTarget as HTMLAnchorElement).style.backgroundColor = '#0284c7';
-                              (e.currentTarget as HTMLAnchorElement).style.color = '#ffffff';
+                              (e.currentTarget as HTMLAnchorElement).style.backgroundColor = '#fef3c7';
                             }}
                             onMouseOut={(e) => {
-                              (e.currentTarget as HTMLAnchorElement).style.backgroundColor = '#1e293b';
-                              (e.currentTarget as HTMLAnchorElement).style.color = '#38bdf8';
+                              (e.currentTarget as HTMLAnchorElement).style.backgroundColor = '#ffffff';
                             }}
                           >
-                            Command Center →
+                            Manage & Approvals →
                           </Link>
                         </div>
                       </td>
@@ -1000,7 +1197,7 @@ export default function AdminCampaignsPage() {
             left: 0,
             right: 0,
             bottom: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.75)',
+            backgroundColor: 'rgba(15, 23, 42, 0.65)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -1009,23 +1206,26 @@ export default function AdminCampaignsPage() {
           }}
         >
           <div
+            className="camp-modal-box"
             style={{
-              backgroundColor: '#0f172a',
-              border: '1px solid #334155',
-              borderRadius: '12px',
+              backgroundColor: '#ffffff',
+              border: '1px solid #fde68a',
+              borderRadius: '14px',
               width: '100%',
               maxWidth: '560px',
+              maxHeight: '90vh',
+              overflowY: 'auto',
               padding: '1.75rem',
-              color: '#f8fafc',
-              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)',
+              color: '#0f172a',
+              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
               <div>
-                <h2 style={{ fontSize: '1.25rem', fontWeight: 700, margin: '0 0 0.25rem 0', color: '#f8fafc' }}>
+                <h2 style={{ fontSize: '1.25rem', fontWeight: 800, margin: '0 0 0.25rem 0', color: '#0f172a' }}>
                   Schedule Campaign & Allocate Budget
                 </h2>
-                <span style={{ fontSize: '0.75rem', color: '#38bdf8', fontWeight: 600 }}>
+                <span style={{ fontSize: '0.75rem', color: '#92400e', fontWeight: 700 }}>
                   🛡️ Super Admin Exclusive Authority
                 </span>
               </div>
@@ -1034,10 +1234,11 @@ export default function AdminCampaignsPage() {
                 style={{
                   background: 'none',
                   border: 'none',
-                  color: '#94a3b8',
+                  color: '#64748b',
                   fontSize: '1.25rem',
                   cursor: 'pointer',
                   padding: '0.25rem',
+                  lineHeight: 1,
                 }}
               >
                 ✕
@@ -1047,10 +1248,10 @@ export default function AdminCampaignsPage() {
             {modalError && (
               <div
                 style={{
-                  backgroundColor: '#450a0a',
-                  border: '1px solid #dc2626',
-                  color: '#fecaca',
-                  borderRadius: '6px',
+                  backgroundColor: '#fef2f2',
+                  border: '1px solid #fecaca',
+                  color: '#991b1b',
+                  borderRadius: '8px',
                   padding: '0.75rem',
                   marginBottom: '1rem',
                   fontSize: '0.85rem',
@@ -1063,7 +1264,7 @@ export default function AdminCampaignsPage() {
             <form onSubmit={handleCreateSubmit}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#94a3b8', marginBottom: '0.35rem' }}>
+                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#475569', marginBottom: '0.35rem' }}>
                     Campaign Name *
                   </label>
                   <input
@@ -1074,20 +1275,21 @@ export default function AdminCampaignsPage() {
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     style={{
                       width: '100%',
-                      backgroundColor: '#1e293b',
-                      border: '1px solid #334155',
+                      backgroundColor: '#fffdf5',
+                      border: '1px solid #fde68a',
                       borderRadius: '6px',
                       padding: '0.55rem 0.75rem',
-                      color: '#f8fafc',
+                      color: '#0f172a',
                       fontSize: '0.875rem',
                       outline: 'none',
+                      boxSizing: 'border-box',
                     }}
                   />
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div className="camp-modal-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                   <div>
-                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#94a3b8', marginBottom: '0.35rem' }}>
+                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#475569', marginBottom: '0.35rem' }}>
                       Venue *
                     </label>
                     <input
@@ -1098,19 +1300,20 @@ export default function AdminCampaignsPage() {
                       onChange={(e) => setFormData({ ...formData, venue: e.target.value })}
                       style={{
                         width: '100%',
-                        backgroundColor: '#1e293b',
-                        border: '1px solid #334155',
+                        backgroundColor: '#fffdf5',
+                        border: '1px solid #fde68a',
                         borderRadius: '6px',
                         padding: '0.55rem 0.75rem',
-                        color: '#f8fafc',
+                        color: '#0f172a',
                         fontSize: '0.875rem',
                         outline: 'none',
+                        boxSizing: 'border-box',
                       }}
                     />
                   </div>
 
                   <div>
-                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#94a3b8', marginBottom: '0.35rem' }}>
+                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#475569', marginBottom: '0.35rem' }}>
                       City *
                     </label>
                     <input
@@ -1121,21 +1324,22 @@ export default function AdminCampaignsPage() {
                       onChange={(e) => setFormData({ ...formData, city: e.target.value })}
                       style={{
                         width: '100%',
-                        backgroundColor: '#1e293b',
-                        border: '1px solid #334155',
+                        backgroundColor: '#fffdf5',
+                        border: '1px solid #fde68a',
                         borderRadius: '6px',
                         padding: '0.55rem 0.75rem',
-                        color: '#f8fafc',
+                        color: '#0f172a',
                         fontSize: '0.875rem',
                         outline: 'none',
+                        boxSizing: 'border-box',
                       }}
                     />
                   </div>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div className="camp-modal-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                   <div>
-                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#94a3b8', marginBottom: '0.35rem' }}>
+                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#475569', marginBottom: '0.35rem' }}>
                       Start Date *
                     </label>
                     <input
@@ -1145,19 +1349,20 @@ export default function AdminCampaignsPage() {
                       onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
                       style={{
                         width: '100%',
-                        backgroundColor: '#1e293b',
-                        border: '1px solid #334155',
+                        backgroundColor: '#fffdf5',
+                        border: '1px solid #fde68a',
                         borderRadius: '6px',
                         padding: '0.55rem 0.75rem',
-                        color: '#f8fafc',
+                        color: '#0f172a',
                         fontSize: '0.875rem',
                         outline: 'none',
+                        boxSizing: 'border-box',
                       }}
                     />
                   </div>
 
                   <div>
-                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#94a3b8', marginBottom: '0.35rem' }}>
+                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#475569', marginBottom: '0.35rem' }}>
                       End Date *
                     </label>
                     <input
@@ -1167,21 +1372,22 @@ export default function AdminCampaignsPage() {
                       onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
                       style={{
                         width: '100%',
-                        backgroundColor: '#1e293b',
-                        border: '1px solid #334155',
+                        backgroundColor: '#fffdf5',
+                        border: '1px solid #fde68a',
                         borderRadius: '6px',
                         padding: '0.55rem 0.75rem',
-                        color: '#f8fafc',
+                        color: '#0f172a',
                         fontSize: '0.875rem',
                         outline: 'none',
+                        boxSizing: 'border-box',
                       }}
                     />
                   </div>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div className="camp-modal-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                   <div>
-                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#94a3b8', marginBottom: '0.35rem' }}>
+                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#475569', marginBottom: '0.35rem' }}>
                       Target Donations (Units) *
                     </label>
                     <input
@@ -1192,19 +1398,20 @@ export default function AdminCampaignsPage() {
                       onChange={(e) => setFormData({ ...formData, targetDonations: Number(e.target.value) })}
                       style={{
                         width: '100%',
-                        backgroundColor: '#1e293b',
-                        border: '1px solid #334155',
+                        backgroundColor: '#fffdf5',
+                        border: '1px solid #fde68a',
                         borderRadius: '6px',
                         padding: '0.55rem 0.75rem',
-                        color: '#f8fafc',
+                        color: '#0f172a',
                         fontSize: '0.875rem',
                         outline: 'none',
+                        boxSizing: 'border-box',
                       }}
                     />
                   </div>
 
                   <div>
-                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#94a3b8', marginBottom: '0.35rem' }}>
+                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#475569', marginBottom: '0.35rem' }}>
                       Approved Initial Budget (₹) *
                     </label>
                     <input
@@ -1215,23 +1422,24 @@ export default function AdminCampaignsPage() {
                       onChange={(e) => setFormData({ ...formData, initialBudget: Number(e.target.value) })}
                       style={{
                         width: '100%',
-                        backgroundColor: '#1e293b',
-                        border: '1px solid #334155',
+                        backgroundColor: '#fffdf5',
+                        border: '1px solid #fde68a',
                         borderRadius: '6px',
                         padding: '0.55rem 0.75rem',
-                        color: '#f8fafc',
+                        color: '#0f172a',
                         fontSize: '0.875rem',
                         outline: 'none',
+                        boxSizing: 'border-box',
                       }}
                     />
-                    <span style={{ fontSize: '0.7rem', color: '#38bdf8' }}>
+                    <span style={{ fontSize: '0.7rem', color: '#92400e', fontWeight: 600 }}>
                       Super Admin allocated baseline budget (stored in integer paise)
                     </span>
                   </div>
                 </div>
 
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#94a3b8', marginBottom: '0.35rem' }}>
+                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#475569', marginBottom: '0.35rem' }}>
                     Description & Objectives
                   </label>
                   <textarea
@@ -1241,30 +1449,32 @@ export default function AdminCampaignsPage() {
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                     style={{
                       width: '100%',
-                      backgroundColor: '#1e293b',
-                      border: '1px solid #334155',
+                      backgroundColor: '#fffdf5',
+                      border: '1px solid #fde68a',
                       borderRadius: '6px',
                       padding: '0.55rem 0.75rem',
-                      color: '#f8fafc',
+                      color: '#0f172a',
                       fontSize: '0.875rem',
                       outline: 'none',
                       resize: 'vertical',
+                      boxSizing: 'border-box',
                     }}
                   />
                 </div>
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1.5rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1.5rem', flexWrap: 'wrap' }}>
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
                   style={{
-                    backgroundColor: 'transparent',
-                    border: '1px solid #334155',
-                    color: '#94a3b8',
+                    backgroundColor: '#ffffff',
+                    border: '1px solid #fde68a',
+                    color: '#64748b',
                     borderRadius: '6px',
-                    padding: '0.55rem 1rem',
+                    padding: '0.55rem 1.15rem',
                     fontSize: '0.875rem',
+                    fontWeight: 600,
                     cursor: 'pointer',
                   }}
                 >
@@ -1274,15 +1484,16 @@ export default function AdminCampaignsPage() {
                   type="submit"
                   disabled={submitting}
                   style={{
-                    backgroundColor: '#dc2626',
+                    backgroundColor: '#d97706',
                     border: 'none',
                     color: '#ffffff',
                     borderRadius: '6px',
                     padding: '0.55rem 1.25rem',
                     fontSize: '0.875rem',
-                    fontWeight: 600,
+                    fontWeight: 700,
                     cursor: submitting ? 'not-allowed' : 'pointer',
                     opacity: submitting ? 0.7 : 1,
+                    boxShadow: '0 2px 8px rgba(217, 119, 6, 0.3)',
                   }}
                 >
                   {submitting ? 'Scheduling...' : 'Schedule Campaign & Allocate Budget'}
@@ -1302,7 +1513,7 @@ export default function AdminCampaignsPage() {
             left: 0,
             right: 0,
             bottom: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.75)',
+            backgroundColor: 'rgba(15, 23, 42, 0.65)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -1311,26 +1522,27 @@ export default function AdminCampaignsPage() {
           }}
         >
           <div
+            className="camp-modal-box"
             style={{
-              backgroundColor: '#0f172a',
-              border: '1px solid #334155',
-              borderRadius: '12px',
+              backgroundColor: '#ffffff',
+              border: '1px solid #fde68a',
+              borderRadius: '14px',
               width: '100%',
               maxWidth: '600px',
               maxHeight: '90vh',
               overflowY: 'auto',
               padding: '1.75rem',
-              color: '#f8fafc',
-              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)',
+              color: '#0f172a',
+              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
               <div>
-                <h2 style={{ fontSize: '1.25rem', fontWeight: 700, margin: '0 0 0.25rem 0', color: '#f8fafc' }}>
+                <h2 style={{ fontSize: '1.25rem', fontWeight: 800, margin: '0 0 0.25rem 0', color: '#0f172a' }}>
                   Add Campaign Expenditure
                 </h2>
-                <span style={{ fontSize: '0.8rem', color: '#94a3b8' }}>
-                  Campaign: <strong>{selectedCampaignForExpense.name}</strong> ({selectedCampaignForExpense.campaignCode})
+                <span style={{ fontSize: '0.8rem', color: '#64748b' }}>
+                  Campaign: <strong style={{ color: '#0f172a' }}>{selectedCampaignForExpense.name}</strong> (<span style={{ color: '#92400e', fontWeight: 700 }}>{selectedCampaignForExpense.campaignCode}</span>)
                 </span>
               </div>
               <button
@@ -1338,7 +1550,7 @@ export default function AdminCampaignsPage() {
                   setIsAddExpenseModalOpen(false);
                   setSelectedCampaignForExpense(null);
                 }}
-                style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '1.25rem', cursor: 'pointer' }}
+                style={{ background: 'none', border: 'none', color: '#64748b', fontSize: '1.25rem', cursor: 'pointer', padding: '0.25rem', lineHeight: 1 }}
               >
                 ✕
               </button>
@@ -1347,10 +1559,10 @@ export default function AdminCampaignsPage() {
             {addExpenseError && (
               <div
                 style={{
-                  backgroundColor: '#450a0a',
-                  border: '1px solid #dc2626',
-                  color: '#fecaca',
-                  borderRadius: '6px',
+                  backgroundColor: '#fef2f2',
+                  border: '1px solid #fecaca',
+                  color: '#991b1b',
+                  borderRadius: '8px',
                   padding: '0.75rem',
                   marginBottom: '1rem',
                   fontSize: '0.85rem',
@@ -1360,10 +1572,32 @@ export default function AdminCampaignsPage() {
               </div>
             )}
 
+            {isSuperAdmin && (
+              <div
+                style={{
+                  backgroundColor: '#ecfdf5',
+                  border: '1px solid #a7f3d0',
+                  color: '#065f46',
+                  borderRadius: '8px',
+                  padding: '0.65rem 0.85rem',
+                  marginBottom: '1rem',
+                  fontSize: '0.8rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                }}
+              >
+                <span style={{ fontSize: '1.1rem' }}>🛡️</span>
+                <span>
+                  <strong>Super Admin Direct Authorization:</strong> This expenditure will be directly authorized and recorded into approved liabilities without requiring secondary verification.
+                </span>
+              </div>
+            )}
+
             <form onSubmit={handleAddExpenseSubmit}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#94a3b8', marginBottom: '0.35rem' }}>
+                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#475569', marginBottom: '0.35rem' }}>
                     Expenditure Title / Item *
                   </label>
                   <input
@@ -1374,20 +1608,21 @@ export default function AdminCampaignsPage() {
                     onChange={(e) => setExpenseFormData({ ...expenseFormData, title: e.target.value })}
                     style={{
                       width: '100%',
-                      backgroundColor: '#1e293b',
-                      border: '1px solid #334155',
+                      backgroundColor: '#fffdf5',
+                      border: '1px solid #fde68a',
                       borderRadius: '6px',
                       padding: '0.55rem 0.75rem',
-                      color: '#f8fafc',
+                      color: '#0f172a',
                       fontSize: '0.875rem',
                       outline: 'none',
+                      boxSizing: 'border-box',
                     }}
                   />
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '1rem' }}>
+                <div className="camp-modal-grid" style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '1rem' }}>
                   <div>
-                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#94a3b8', marginBottom: '0.35rem' }}>
+                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#475569', marginBottom: '0.35rem' }}>
                       Category *
                     </label>
                     <select
@@ -1395,14 +1630,15 @@ export default function AdminCampaignsPage() {
                       onChange={(e) => setExpenseFormData({ ...expenseFormData, category: e.target.value as ExpenseCategory })}
                       style={{
                         width: '100%',
-                        backgroundColor: '#1e293b',
-                        border: '1px solid #334155',
+                        backgroundColor: '#fffdf5',
+                        border: '1px solid #fde68a',
                         borderRadius: '6px',
                         padding: '0.55rem 0.75rem',
-                        color: '#f8fafc',
+                        color: '#0f172a',
                         fontSize: '0.875rem',
                         outline: 'none',
                         cursor: 'pointer',
+                        boxSizing: 'border-box',
                       }}
                     >
                       {Object.values(ExpenseCategory).map((cat) => (
@@ -1414,7 +1650,7 @@ export default function AdminCampaignsPage() {
                   </div>
 
                   <div>
-                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#94a3b8', marginBottom: '0.35rem' }}>
+                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#475569', marginBottom: '0.35rem' }}>
                       Amount (₹) *
                     </label>
                     <input
@@ -1427,21 +1663,22 @@ export default function AdminCampaignsPage() {
                       onChange={(e) => setExpenseFormData({ ...expenseFormData, amount: e.target.value })}
                       style={{
                         width: '100%',
-                        backgroundColor: '#1e293b',
-                        border: '1px solid #334155',
+                        backgroundColor: '#fffdf5',
+                        border: '1px solid #fde68a',
                         borderRadius: '6px',
                         padding: '0.55rem 0.75rem',
-                        color: '#f8fafc',
+                        color: '#0f172a',
                         fontSize: '0.875rem',
                         outline: 'none',
+                        boxSizing: 'border-box',
                       }}
                     />
                   </div>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div className="camp-modal-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                   <div>
-                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#94a3b8', marginBottom: '0.35rem' }}>
+                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#475569', marginBottom: '0.35rem' }}>
                       Invoice / Bill Number *
                     </label>
                     <input
@@ -1452,19 +1689,20 @@ export default function AdminCampaignsPage() {
                       onChange={(e) => setExpenseFormData({ ...expenseFormData, invoiceNumber: e.target.value })}
                       style={{
                         width: '100%',
-                        backgroundColor: '#1e293b',
-                        border: '1px solid #334155',
+                        backgroundColor: '#fffdf5',
+                        border: '1px solid #fde68a',
                         borderRadius: '6px',
                         padding: '0.55rem 0.75rem',
-                        color: '#f8fafc',
+                        color: '#0f172a',
                         fontSize: '0.875rem',
                         outline: 'none',
+                        boxSizing: 'border-box',
                       }}
                     />
                   </div>
 
                   <div>
-                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#94a3b8', marginBottom: '0.35rem' }}>
+                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#475569', marginBottom: '0.35rem' }}>
                       Vendor / Merchant Name *
                     </label>
                     <input
@@ -1475,21 +1713,22 @@ export default function AdminCampaignsPage() {
                       onChange={(e) => setExpenseFormData({ ...expenseFormData, vendorName: e.target.value })}
                       style={{
                         width: '100%',
-                        backgroundColor: '#1e293b',
-                        border: '1px solid #334155',
+                        backgroundColor: '#fffdf5',
+                        border: '1px solid #fde68a',
                         borderRadius: '6px',
                         padding: '0.55rem 0.75rem',
-                        color: '#f8fafc',
+                        color: '#0f172a',
                         fontSize: '0.875rem',
                         outline: 'none',
+                        boxSizing: 'border-box',
                       }}
                     />
                   </div>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div className="camp-modal-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                   <div>
-                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#94a3b8', marginBottom: '0.35rem' }}>
+                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#475569', marginBottom: '0.35rem' }}>
                       Invoice / Incurred Date *
                     </label>
                     <input
@@ -1499,19 +1738,20 @@ export default function AdminCampaignsPage() {
                       onChange={(e) => setExpenseFormData({ ...expenseFormData, expenseDate: e.target.value })}
                       style={{
                         width: '100%',
-                        backgroundColor: '#1e293b',
-                        border: '1px solid #334155',
+                        backgroundColor: '#fffdf5',
+                        border: '1px solid #fde68a',
                         borderRadius: '6px',
                         padding: '0.55rem 0.75rem',
-                        color: '#f8fafc',
+                        color: '#0f172a',
                         fontSize: '0.875rem',
                         outline: 'none',
+                        boxSizing: 'border-box',
                       }}
                     />
                   </div>
 
                   <div>
-                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#94a3b8', marginBottom: '0.35rem' }}>
+                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#475569', marginBottom: '0.35rem' }}>
                       Vendor GSTIN (Optional)
                     </label>
                     <input
@@ -1521,20 +1761,21 @@ export default function AdminCampaignsPage() {
                       onChange={(e) => setExpenseFormData({ ...expenseFormData, gstinNumber: e.target.value })}
                       style={{
                         width: '100%',
-                        backgroundColor: '#1e293b',
-                        border: '1px solid #334155',
+                        backgroundColor: '#fffdf5',
+                        border: '1px solid #fde68a',
                         borderRadius: '6px',
                         padding: '0.55rem 0.75rem',
-                        color: '#f8fafc',
+                        color: '#0f172a',
                         fontSize: '0.875rem',
                         outline: 'none',
+                        boxSizing: 'border-box',
                       }}
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#94a3b8', marginBottom: '0.35rem' }}>
+                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#475569', marginBottom: '0.35rem' }}>
                     Invoice / Receipt Document Attachment
                   </label>
                   <input
@@ -1546,13 +1787,14 @@ export default function AdminCampaignsPage() {
                     }}
                     style={{
                       width: '100%',
-                      backgroundColor: '#1e293b',
-                      border: '1px dashed #334155',
+                      backgroundColor: '#fffdf5',
+                      border: '1px dashed #d97706',
                       borderRadius: '6px',
                       padding: '0.65rem',
-                      color: '#94a3b8',
+                      color: '#475569',
                       fontSize: '0.85rem',
                       cursor: 'pointer',
+                      boxSizing: 'border-box',
                     }}
                   />
                   <span style={{ fontSize: '0.725rem', color: '#64748b' }}>
@@ -1561,7 +1803,7 @@ export default function AdminCampaignsPage() {
                 </div>
 
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#94a3b8', marginBottom: '0.35rem' }}>
+                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#475569', marginBottom: '0.35rem' }}>
                     Description & Item Breakdown (Optional)
                   </label>
                   <textarea
@@ -1571,20 +1813,21 @@ export default function AdminCampaignsPage() {
                     onChange={(e) => setExpenseFormData({ ...expenseFormData, description: e.target.value })}
                     style={{
                       width: '100%',
-                      backgroundColor: '#1e293b',
-                      border: '1px solid #334155',
+                      backgroundColor: '#fffdf5',
+                      border: '1px solid #fde68a',
                       borderRadius: '6px',
                       padding: '0.55rem 0.75rem',
-                      color: '#f8fafc',
+                      color: '#0f172a',
                       fontSize: '0.875rem',
                       outline: 'none',
                       resize: 'vertical',
+                      boxSizing: 'border-box',
                     }}
                   />
                 </div>
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1.5rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1.5rem', flexWrap: 'wrap' }}>
                 <button
                   type="button"
                   onClick={() => {
@@ -1592,12 +1835,13 @@ export default function AdminCampaignsPage() {
                     setSelectedCampaignForExpense(null);
                   }}
                   style={{
-                    backgroundColor: 'transparent',
-                    border: '1px solid #334155',
-                    color: '#94a3b8',
+                    backgroundColor: '#ffffff',
+                    border: '1px solid #fde68a',
+                    color: '#64748b',
                     borderRadius: '6px',
-                    padding: '0.55rem 1rem',
+                    padding: '0.55rem 1.15rem',
                     fontSize: '0.875rem',
+                    fontWeight: 600,
                     cursor: 'pointer',
                   }}
                 >
@@ -1607,18 +1851,23 @@ export default function AdminCampaignsPage() {
                   type="submit"
                   disabled={addingExpense}
                   style={{
-                    backgroundColor: '#10b981',
+                    backgroundColor: '#d97706',
                     border: 'none',
                     color: '#ffffff',
                     borderRadius: '6px',
                     padding: '0.55rem 1.25rem',
                     fontSize: '0.875rem',
-                    fontWeight: 600,
+                    fontWeight: 700,
                     cursor: addingExpense ? 'not-allowed' : 'pointer',
                     opacity: addingExpense ? 0.7 : 1,
+                    boxShadow: '0 2px 8px rgba(217, 119, 6, 0.3)',
                   }}
                 >
-                  {addingExpense ? 'Saving Expenditure...' : 'Save & Submit Expenditure'}
+                  {addingExpense
+                    ? 'Saving Expenditure...'
+                    : isSuperAdmin
+                    ? 'Directly Authorize & Approve Expenditure'
+                    : 'Save & Submit Expenditure'}
                 </button>
               </div>
             </form>
