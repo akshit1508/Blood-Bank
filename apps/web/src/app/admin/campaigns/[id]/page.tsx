@@ -50,6 +50,9 @@ import {
   removeVolunteerFromCampaign,
   fetchVolunteers,
 } from '@/lib/volunteer-api';
+import BloodDonationCertificateModal, {
+  BloodDonationCertificateData,
+} from '@/components/admin/BloodDonationCertificateModal';
 
 export default function CampaignCommandCenterPage() {
   const params = useParams();
@@ -125,6 +128,10 @@ export default function CampaignCommandCenterPage() {
   const [recordingDonation, setRecordingDonation] = useState<boolean>(false);
   const [recordDonationError, setRecordDonationError] = useState<string | null>(null);
   const [recordDonationSuccess, setRecordDonationSuccess] = useState<string | null>(null);
+
+  // Certificate Modal State
+  const [isCertificateModalOpen, setIsCertificateModalOpen] = useState<boolean>(false);
+  const [certificateData, setCertificateData] = useState<BloodDonationCertificateData | null>(null);
 
   // Campaign donor fields
   const [walkInName, setWalkInName] = useState<string>('');
@@ -529,15 +536,69 @@ export default function CampaignCommandCenterPage() {
       setBloodReport(updatedBlood);
       setFinancials(updatedFin);
 
-      setTimeout(() => {
-        setIsRecordDonationModalOpen(false);
-        setRecordDonationSuccess(null);
-      }, 1200);
+      // Prepare Certificate Data
+      const donorName =
+        res.donor?.fullName ||
+        (donationDonorType === 'REGISTERED'
+          ? registeredDonors.find((d) => d._id === selectedDonorId)?.fullName
+          : walkInName.trim()) ||
+        'Valued Donor';
+      const donorCode =
+        res.donor?.donorCode ||
+        (donationDonorType === 'REGISTERED'
+          ? registeredDonors.find((d) => d._id === selectedDonorId)?.donorCode
+          : undefined);
+      const donorPhone =
+        res.donor?.phone ||
+        (donationDonorType === 'REGISTERED'
+          ? registeredDonors.find((d) => d._id === selectedDonorId)?.phone
+          : walkInPhone.trim()) ||
+        '';
+      const bloodGroup = res.donor?.bloodGroup || res.unit?.bloodGroup || walkInBloodGroup;
+      const unitCode = res.unit?.unitCode || `UNIT-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+      const certNum = `CERT-${campaign.campaignCode}-${unitCode.slice(-6)}`;
+
+      setCertificateData({
+        certificateNumber: certNum,
+        donorName,
+        donorCode,
+        donorPhone,
+        bloodGroup,
+        donationDate: new Date().toISOString(),
+        campaignName: campaign.name,
+        venue: `${campaign.venue}, ${campaign.city}`,
+        unitCode,
+        volume: res.unit?.volume || Number(unitVolume) || 450,
+        componentType: res.unit?.componentType || donationComponentType,
+      });
+
+      // Close record donation modal and immediately open certificate modal
+      setIsRecordDonationModalOpen(false);
+      setRecordDonationSuccess(null);
+      setIsCertificateModalOpen(true);
     } catch (err: any) {
       setRecordDonationError(err.message || 'Failed to record donation.');
     } finally {
       setRecordingDonation(false);
     }
+  };
+
+  const handleOpenUnitCertificate = (u: CampaignBloodUnitItem) => {
+    if (!campaign) return;
+    setCertificateData({
+      certificateNumber: `CERT-${campaign.campaignCode}-${u.unitCode.slice(-6)}`,
+      donorName: u.donorName || 'Valued Donor',
+      donorCode: u.donorCode,
+      donorPhone: '',
+      bloodGroup: u.bloodGroup || 'O+',
+      donationDate: u.collectionDate,
+      campaignName: campaign.name,
+      venue: `${campaign.venue}, ${campaign.city}`,
+      unitCode: u.unitCode,
+      volume: u.volume || 450,
+      componentType: u.componentType,
+    });
+    setIsCertificateModalOpen(true);
   };
 
   const handleUnitTestingDecision = async (unitId: string, decision: 'APPROVED' | 'REJECTED') => {
@@ -2664,77 +2725,95 @@ export default function CampaignCommandCenterPage() {
 
                           {/* Action */}
                           <td style={{ padding: '0.75rem 0.65rem', textAlign: 'right' }}>
-                            {u.isInInventory ? (
-                              <Link
-                                href="/admin/inventory"
-                                style={{
-                                  color: '#92400e',
-                                  textDecoration: 'none',
-                                  fontSize: '0.8rem',
-                                  fontWeight: 600,
-                                }}
-                              >
-                                View in Vault →
-                              </Link>
-                            ) : u.testingDecision === 'APPROVED' ? (
+                            <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
                               <button
-                                onClick={handleIntakePassedUnits}
-                                disabled={intakingInventory}
+                                type="button"
+                                onClick={() => handleOpenUnitCertificate(u)}
                                 style={{
-                                  backgroundColor: '#0284c7',
-                                  color: '#ffffff',
-                                  border: 'none',
+                                  backgroundColor: '#fffdf5',
+                                  color: '#92400e',
+                                  border: '1px solid #fde68a',
                                   borderRadius: '4px',
                                   padding: '0.25rem 0.55rem',
-                                  fontSize: '0.75rem',
+                                  fontSize: '0.725rem',
                                   fontWeight: 600,
-                                  cursor: intakingInventory ? 'not-allowed' : 'pointer',
+                                  cursor: 'pointer',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '0.25rem',
                                 }}
+                                title="Generate & View Blood Donation Certificate"
                               >
-                                Intake Unit
+                                <span>📜</span> Certificate
                               </button>
-                            ) : u.testingDecision === 'PENDING' ? (
-                              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.35rem' }}>
-                                <button
-                                  onClick={() => handleUnitTestingDecision(u._id, 'APPROVED')}
-                                  disabled={updatingUnitId === u._id}
+
+                              {u.isInInventory ? (
+                                <Link
+                                  href="/admin/inventory"
                                   style={{
-                                    backgroundColor: '#059669',
+                                    color: '#0284c7',
+                                    textDecoration: 'none',
+                                    fontSize: '0.75rem',
+                                    fontWeight: 600,
+                                  }}
+                                >
+                                  In Vault →
+                                </Link>
+                              ) : u.testingDecision === 'APPROVED' ? (
+                                <button
+                                  onClick={handleIntakePassedUnits}
+                                  disabled={intakingInventory}
+                                  style={{
+                                    backgroundColor: '#0284c7',
                                     color: '#ffffff',
                                     border: 'none',
                                     borderRadius: '4px',
                                     padding: '0.25rem 0.55rem',
                                     fontSize: '0.725rem',
-                                    fontWeight: 700,
-                                    cursor: updatingUnitId === u._id ? 'not-allowed' : 'pointer',
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    gap: '0.2rem',
+                                    fontWeight: 600,
+                                    cursor: intakingInventory ? 'not-allowed' : 'pointer',
                                   }}
-                                  title="Mark screening passed — safe for inventory intake"
                                 >
-                                  ✓ Safe (Pass)
+                                  Intake Unit
                                 </button>
-                                <button
-                                  onClick={() => handleUnitTestingDecision(u._id, 'REJECTED')}
-                                  disabled={updatingUnitId === u._id}
-                                  style={{
-                                    backgroundColor: 'transparent',
-                                    color: '#f87171',
-                                    border: '1px solid #7f1d1d',
-                                    borderRadius: '4px',
-                                    padding: '0.25rem 0.5rem',
-                                    fontSize: '0.725rem',
-                                    cursor: updatingUnitId === u._id ? 'not-allowed' : 'pointer',
-                                  }}
-                                  title="Mark as contaminated or positive screen (Discarded)"
-                                >
-                                  ✕ Contaminated
-                                </button>
-                              </div>
-                            ) : (
-                              <span style={{ color: '#475569', fontSize: '0.75rem' }}>—</span>
-                            )}
+                              ) : u.testingDecision === 'PENDING' ? (
+                                <div style={{ display: 'flex', gap: '0.35rem' }}>
+                                  <button
+                                    onClick={() => handleUnitTestingDecision(u._id, 'APPROVED')}
+                                    disabled={updatingUnitId === u._id}
+                                    style={{
+                                      backgroundColor: '#059669',
+                                      color: '#ffffff',
+                                      border: 'none',
+                                      borderRadius: '4px',
+                                      padding: '0.25rem 0.55rem',
+                                      fontSize: '0.725rem',
+                                      fontWeight: 700,
+                                      cursor: updatingUnitId === u._id ? 'not-allowed' : 'pointer',
+                                    }}
+                                    title="Mark screening passed"
+                                  >
+                                    ✓ Safe
+                                  </button>
+                                  <button
+                                    onClick={() => handleUnitTestingDecision(u._id, 'REJECTED')}
+                                    disabled={updatingUnitId === u._id}
+                                    style={{
+                                      backgroundColor: 'transparent',
+                                      color: '#dc2626',
+                                      border: '1px solid #fecaca',
+                                      borderRadius: '4px',
+                                      padding: '0.25rem 0.5rem',
+                                      fontSize: '0.725rem',
+                                      cursor: updatingUnitId === u._id ? 'not-allowed' : 'pointer',
+                                    }}
+                                    title="Mark as contaminated"
+                                  >
+                                    ✕ Discard
+                                  </button>
+                                </div>
+                              ) : null}
+                            </div>
                           </td>
                         </tr>
                       );
@@ -5472,6 +5551,13 @@ export default function CampaignCommandCenterPage() {
           </div>
         </div>
       )}
+
+      {/* 📜 Blood Donation Certificate Modal */}
+      <BloodDonationCertificateModal
+        isOpen={isCertificateModalOpen}
+        onClose={() => setIsCertificateModalOpen(false)}
+        data={certificateData}
+      />
 
       <style jsx global>{`
         .camp-table-scroll {

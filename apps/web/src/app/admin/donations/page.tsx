@@ -21,6 +21,9 @@ import {
 } from '@/lib/blood-unit-api';
 import { evaluateDonationInterval } from '@/lib/eligibility';
 import { fetchCampaigns, CampaignItem } from '@/lib/campaign-api';
+import BloodDonationCertificateModal, {
+  BloodDonationCertificateData,
+} from '@/components/admin/BloodDonationCertificateModal';
 
 const BLOOD_GROUPS = [
   BloodGroup.A_POSITIVE,
@@ -90,6 +93,10 @@ export default function AdminDonationsPage() {
   const [recordLoading, setRecordLoading] = useState(false);
   const [recordError, setRecordError] = useState<string | null>(null);
   const [recordErrorDetails, setRecordErrorDetails] = useState<any | null>(null);
+
+  // Certificate Modal State
+  const [isCertificateModalOpen, setIsCertificateModalOpen] = useState(false);
+  const [certificateData, setCertificateData] = useState<BloodDonationCertificateData | null>(null);
 
   // Donor search inside modal
   const [modalDonorSearch, setModalDonorSearch] = useState('');
@@ -384,6 +391,23 @@ export default function AdminDonationsPage() {
         notes: notes.trim() || undefined,
       });
 
+      // Prepare Certificate Data
+      const donor = selectedDonorForDonation;
+      const certNum = `CERT-${created.donationCode || Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+      setCertificateData({
+        certificateNumber: certNum,
+        donorName: donor.fullName,
+        donorCode: donor.donorCode,
+        donorPhone: donor.phone || '',
+        bloodGroup: donor.bloodGroup || 'O+',
+        donationDate: created.donationDate || new Date().toISOString(),
+        campaignName: selCamp?.name || undefined,
+        venue: selCamp ? `${selCamp.venue}, ${selCamp.city}` : 'Central Blood Transfusion Center',
+        unitCode: created.donationCode,
+        volume: 450,
+        componentType: created.donationType || 'Whole Blood',
+      });
+
       // Reset modal state
       setShowRecordModal(false);
       setSelectedDonorForDonation(null);
@@ -393,6 +417,9 @@ export default function AdminDonationsPage() {
       setNotes('');
       setQuantity(1);
       setRecordErrorDetails(null);
+
+      // Open Certificate Modal
+      setIsCertificateModalOpen(true);
 
       // Refresh donations list and active donors
       await Promise.all([loadDonations(), loadActiveDonors()]);
@@ -405,6 +432,25 @@ export default function AdminDonationsPage() {
     } finally {
       setRecordLoading(false);
     }
+  };
+
+  const handleOpenDonationCertificate = (donation: Donation) => {
+    const donor = donation.donorId;
+    const certNum = `CERT-${donation.donationCode || donation._id.slice(-6).toUpperCase()}`;
+    setCertificateData({
+      certificateNumber: certNum,
+      donorName: donor?.fullName || 'Valued Donor',
+      donorCode: donor?.donorCode,
+      donorPhone: donor?.phone || '',
+      bloodGroup: donor?.bloodGroup || 'O+',
+      donationDate: donation.donationDate || donation.createdAt,
+      campaignName: donation.campaignCode ? `Campaign ${donation.campaignCode}` : undefined,
+      venue: 'Central Blood Transfusion Center',
+      unitCode: donation.donationCode,
+      volume: 450,
+      componentType: donation.donationType || 'Whole Blood',
+    });
+    setIsCertificateModalOpen(true);
   };
 
   return (
@@ -1267,21 +1313,43 @@ export default function AdminDonationsPage() {
                             textAlign: 'right',
                           }}
                         >
-                          <button
-                            onClick={() => setSelectedDonation(item)}
-                            style={{
-                              background: isSelected ? '#b91c1c' : '#2563eb',
-                              color: '#ffffff',
-                              border: 'none',
-                              padding: '0.35rem 0.75rem',
-                              borderRadius: '4px',
-                              cursor: 'pointer',
-                              fontSize: '0.75rem',
-                              fontWeight: 500,
-                            }}
-                          >
-                            {isSelected ? 'Viewing' : 'View / Process'}
-                          </button>
+                          <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '0.4rem' }}>
+                            <button
+                              type="button"
+                              onClick={() => handleOpenDonationCertificate(item)}
+                              style={{
+                                background: '#fffdf5',
+                                color: '#92400e',
+                                border: '1px solid #fde68a',
+                                padding: '0.35rem 0.65rem',
+                                borderRadius: '4px',
+                                cursor: 'pointer',
+                                fontSize: '0.75rem',
+                                fontWeight: 600,
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '0.25rem',
+                              }}
+                              title="Generate & View Blood Donation Certificate"
+                            >
+                              <span>📜</span> Certificate
+                            </button>
+                            <button
+                              onClick={() => setSelectedDonation(item)}
+                              style={{
+                                background: isSelected ? '#b91c1c' : '#2563eb',
+                                color: '#ffffff',
+                                border: 'none',
+                                padding: '0.35rem 0.75rem',
+                                borderRadius: '4px',
+                                cursor: 'pointer',
+                                fontSize: '0.75rem',
+                                fontWeight: 500,
+                              }}
+                            >
+                              {isSelected ? 'Viewing' : 'View / Process'}
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -1603,6 +1671,33 @@ export default function AdminDonationsPage() {
                   <div style={{ textAlign: 'center', marginBottom: selectedDonation.status === DonationStatus.COMPLETED ? '0.75rem' : 0 }}>
                     This donation is in terminal state ({selectedDonation.status}).
                   </div>
+
+                  {selectedDonation.status === DonationStatus.COMPLETED && (
+                    <div style={{ marginBottom: '0.75rem' }}>
+                      <button
+                        type="button"
+                        onClick={() => handleOpenDonationCertificate(selectedDonation)}
+                        style={{
+                          width: '100%',
+                          backgroundColor: '#fef2f2',
+                          color: '#dc2626',
+                          border: '1px solid #fecaca',
+                          padding: '0.55rem 0.75rem',
+                          borderRadius: '6px',
+                          fontSize: '0.8rem',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '0.5rem',
+                          boxShadow: '0 1px 2px rgba(220, 38, 38, 0.05)',
+                        }}
+                      >
+                        <span style={{ fontSize: '1.05rem' }}>📜</span> Generate & Send Certificate
+                      </button>
+                    </div>
+                  )}
 
                   {selectedDonation.status === DonationStatus.COMPLETED && (
                     <div
@@ -2580,6 +2675,13 @@ export default function AdminDonationsPage() {
           </div>
         </div>
       )}
+
+      {/* Blood Donation Certificate Modal */}
+      <BloodDonationCertificateModal
+        isOpen={isCertificateModalOpen}
+        onClose={() => setIsCertificateModalOpen(false)}
+        data={certificateData}
+      />
     </div>
   );
 }
