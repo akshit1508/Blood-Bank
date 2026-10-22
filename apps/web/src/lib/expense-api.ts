@@ -79,6 +79,7 @@ export interface ExpenseItem {
   expenseCode: string;
   title: string;
   category: ExpenseCategory;
+  customCategory?: string;
   costCenter: CostCenter;
   expenseDate: string;
   amount: number;
@@ -136,8 +137,10 @@ export interface ExpenseSummaryStats {
 
 export interface CreateExpensePayload {
   title: string;
-  category: ExpenseCategory;
+  category: ExpenseCategory | string;
+  customCategory?: string;
   costCenter: CostCenter;
+  campaignId?: string;
   expenseDate: string;
   amount: number;
   vendorId?: string;

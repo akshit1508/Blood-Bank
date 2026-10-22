@@ -19,8 +19,14 @@ export class CreateExpenseDto {
   @MaxLength(150)
   title: string;
 
-  @IsEnum(ExpenseCategory)
-  category: ExpenseCategory;
+  @IsString()
+  @IsNotEmpty()
+  category: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(100)
+  customCategory?: string;
 
   @IsEnum(CostCenter)
   costCenter: CostCenter;
@@ -75,9 +81,14 @@ export class UpdateExpenseDto {
   @MaxLength(150)
   title?: string;
 
-  @IsEnum(ExpenseCategory)
+  @IsString()
   @IsOptional()
-  category?: ExpenseCategory;
+  category?: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(100)
+  customCategory?: string;
 
   @IsEnum(CostCenter)
   @IsOptional()

@@ -151,10 +151,23 @@ export class ExpensesService implements OnModuleInit {
       } catch {}
     }
 
+    let categoryEnum = ExpenseCategory.OTHER;
+    let customCategoryName = dto.customCategory?.trim();
+
+    if (Object.values(ExpenseCategory).includes(dto.category as ExpenseCategory)) {
+      categoryEnum = dto.category as ExpenseCategory;
+    } else {
+      categoryEnum = ExpenseCategory.OTHER;
+      if (!customCategoryName) {
+        customCategoryName = dto.category ? String(dto.category).trim() : undefined;
+      }
+    }
+
     const expense = await this.expenseModel.create({
       expenseCode,
       title: dto.title.trim(),
-      category: dto.category,
+      category: categoryEnum,
+      customCategory: customCategoryName || undefined,
       costCenter: dto.costCenter,
       expenseDate,
       amount: CurrencyUtil.toInr(amountPaise),
@@ -491,7 +504,17 @@ export class ExpensesService implements OnModuleInit {
     }
 
     if (dto.title !== undefined) expense.title = dto.title.trim();
-    if (dto.category !== undefined) expense.category = dto.category;
+    if (dto.category !== undefined) {
+      if (Object.values(ExpenseCategory).includes(dto.category as ExpenseCategory)) {
+        expense.category = dto.category as ExpenseCategory;
+        expense.customCategory = dto.customCategory?.trim() || undefined;
+      } else {
+        expense.category = ExpenseCategory.OTHER;
+        expense.customCategory = dto.customCategory?.trim() || dto.category.trim();
+      }
+    } else if (dto.customCategory !== undefined) {
+      expense.customCategory = dto.customCategory.trim() || undefined;
+    }
     if (dto.costCenter !== undefined) expense.costCenter = dto.costCenter;
     if (dto.expenseDate !== undefined) expense.expenseDate = new Date(dto.expenseDate);
     if (dto.amount !== undefined) {

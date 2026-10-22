@@ -1,8 +1,16 @@
 'use client';
 
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import {
+  PlusCircle,
+  Plus,
+  X,
+  Check,
+  FolderPlus,
+  Sparkles,
+} from 'lucide-react';
 import {
   ExpenseCategory,
   CostCenter,
@@ -22,6 +30,86 @@ import {
 } from '@/lib/expense-api';
 import { fetchCampaigns } from '@/lib/campaign-api';
 
+export const STANDARD_EXPENDITURES_BY_CATEGORY: Record<ExpenseCategory, string[]> = {
+  [ExpenseCategory.MEDICAL_SUPPLIES]: [
+    '500 Triple Blood Bags with CPDA-1',
+    '350ml Single Blood Collection Bags with Anticoagulant',
+    '450ml Quadruple Blood Bags with SAGM Additive Solution',
+    'Blood Collection Vacuum Tubes (EDTA, Serum Gel, Citrate)',
+    'Sterile Phlebotomy Needles & Blood Lancets (16G)',
+    'Blood Tubing Strippers, Hand Sealers & Aluminum Clips',
+    'Sterile Alcohol Swabs & Povidone Iodine Prep Pads',
+    'Latex-Free Phlebotomy Tourniquets & Venipuncture Spot Bandages',
+    'Blood Donor Recliner Chair Armrest Covers & Disposables',
+  ],
+  [ExpenseCategory.LABORATORY_TESTING]: [
+    'HIV 1&2 4th Generation ELISA Diagnostic Screening Kits',
+    'Hepatitis B Surface Antigen (HBsAg) ELISA Diagnostic Kits',
+    'Hepatitis C Virus (HCV) Antibody Diagnostic Reagent Kits',
+    'Syphilis (VDRL / RPR) Serological Screening Reagent Packs',
+    'Malaria Antigen (Pf/Pv) Rapid Diagnostic Cards',
+    'Monoclonal Blood Grouping Antisera (Anti-A, Anti-B, Anti-D)',
+    'Crossmatching & Coombs Anti-Human Globulin (AHG) Reagents',
+    'Laboratory Internal Quality Control (IQC) Sera & Standards',
+    'Disposable Pipette Tips, Test Tubes & Microplates',
+  ],
+  [ExpenseCategory.FACILITIES_EQUIPMENT]: [
+    'Refrigerated Blood Component Centrifuge AMC & Annual Calibration',
+    'Blood Bank Walk-in Refrigerator (+4°C) Servicing & Gas Top-up',
+    'Deep Plasma Freezer (-40°C / -80°C) Temperature Calibration & Validation',
+    'High-Frequency Dielectric Tube Sealer Maintenance & Battery',
+    'Platelet Agitator & Temperature-Controlled Incubator Maintenance',
+    'Laminar Airflow & Biosafety Cabinet HEPA Filter Certification',
+    'Central Blood Bank UPS Battery Bank Replacement & Inverter AMC',
+    'Emergency Diesel Generator AMC & Automatic Transfer Switch Service',
+  ],
+  [ExpenseCategory.LOGISTICS_TRANSPORT]: [
+    'Insulated Secondary Blood Transport Coolers & Hard Ice Packs',
+    'Digital Temperature Data Loggers & Calibrated Cold-Chain Sensors',
+    'Mobile Blood Donation Van Fuel & Routine Maintenance',
+    'Specialized Medical Courier Charges for External Testing Samples',
+    'Emergency Blood Component Dispatch & Hospital Delivery Van Fuel',
+  ],
+  [ExpenseCategory.STAFF_CAMP_MEALS]: [
+    'Post-Donation Fruit Juices & Glucose Drink Packs for Donors',
+    'High-Protein Biscuits & Wholesome Nutritional Snacks for Donors',
+    'Donor Appreciation Certificates, Lapel Pins & Recognition Badges',
+    'Mobile Donation Drive Canopy Tents, Chairs & Table Rental',
+    'Camp Packaged Drinking Water Bottles & Biodegradable Paper Cups',
+  ],
+  [ExpenseCategory.ADMIN_OFFICE]: [
+    'Thermal Barcode Labels & Donor Identification Wristbands',
+    'Thermal Transfer Wax-Resin Ribbon Rolls for Barcode Printers',
+    'Donor Blood Group Identification Cards & Lamination Pouches',
+    'Administrative Stationery, Register Books & Archival Binders',
+    'Blood Bank ERP Software Annual License & Cloud Backup',
+  ],
+  [ExpenseCategory.UTILITIES_WASTE]: [
+    'Authorized Biomedical Waste Management & Incineration Agency Charges',
+    'Color-Coded Biohazard Waste Bags (Red, Yellow, Blue, White)',
+    'Puncture-Proof Sharps Disposal Translucent Containers',
+    'Hospital-Grade Sodium Hypochlorite 10% Disinfectant Solution',
+    'Commercial Electricity Tariff for Non-Stop Cold-Chain Storage',
+  ],
+  [ExpenseCategory.OTHER]: [
+    'Nitrile Examination Gloves & Sterile Surgical Gloves',
+    'Medical Staff Protective Disposable Aprons & Face Shields',
+    'Hospital-Grade Floor Sanitization & Housekeeping Consumables',
+    'Emergency First Aid Kit & Vasovagal Syncope Emergency Meds',
+  ],
+};
+
+export const DEFAULT_CATEGORY_COST_CENTER: Record<ExpenseCategory, CostCenter> = {
+  [ExpenseCategory.MEDICAL_SUPPLIES]: CostCenter.BLOOD_BANK_OPERATIONS,
+  [ExpenseCategory.LABORATORY_TESTING]: CostCenter.LABORATORY_SERVICES,
+  [ExpenseCategory.FACILITIES_EQUIPMENT]: CostCenter.BLOOD_BANK_OPERATIONS,
+  [ExpenseCategory.LOGISTICS_TRANSPORT]: CostCenter.STORAGE_COLD_CHAIN,
+  [ExpenseCategory.STAFF_CAMP_MEALS]: CostCenter.MOBILE_DONATION_CAMPS,
+  [ExpenseCategory.ADMIN_OFFICE]: CostCenter.ADMIN_OVERHEAD,
+  [ExpenseCategory.UTILITIES_WASTE]: CostCenter.BLOOD_BANK_OPERATIONS,
+  [ExpenseCategory.OTHER]: CostCenter.BLOOD_BANK_OPERATIONS,
+};
+
 interface ExpenseFormProps {
   portalRole: 'ADMIN' | 'SUPER_ADMIN';
   expenseId?: string; // If editing an existing draft/rejected expense
@@ -40,6 +128,7 @@ export default function ExpenseFormContent({ portalRole, expenseId }: ExpenseFor
   // Form Fields
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState<ExpenseCategory>(ExpenseCategory.MEDICAL_SUPPLIES);
+  const [customCategoryName, setCustomCategoryName] = useState<string | null>(null);
   const [costCenter, setCostCenter] = useState<CostCenter>(CostCenter.BLOOD_BANK_OPERATIONS);
   const [campaignId, setCampaignId] = useState<string>('');
   const [campaignsList, setCampaignsList] = useState<Array<{ _id: string; name: string; campaignCode: string; status: string }>>([]);
@@ -51,6 +140,17 @@ export default function ExpenseFormContent({ portalRole, expenseId }: ExpenseFor
   const [taxAmount, setTaxAmount] = useState<string>('');
   const [description, setDescription] = useState('');
   const [correctionNotes, setCorrectionNotes] = useState('');
+
+  // Dropdown preset selection & custom categories state
+  const [selectedPreset, setSelectedPreset] = useState<string>('');
+  const [customEntries, setCustomEntries] = useState<Array<{ categoryName: string; title: string; costCenter: CostCenter }>>([]);
+
+  // Add New Category Modal State
+  const [isAddCategoryModalOpen, setIsAddCategoryModalOpen] = useState(false);
+  const [newCategoryInput, setNewCategoryInput] = useState('');
+  const [newTitleInput, setNewTitleInput] = useState('');
+  const [newCostCenterInput, setNewCostCenterInput] = useState<CostCenter>(CostCenter.BLOOD_BANK_OPERATIONS);
+  const [modalError, setModalError] = useState<string | null>(null);
 
   // Receipt state
   const [existingReceipt, setExistingReceipt] = useState<any | null>(null);
@@ -81,6 +181,19 @@ export default function ExpenseFormContent({ portalRole, expenseId }: ExpenseFor
       .catch(() => {});
   }, []);
 
+  // Load custom categories from localStorage
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('bb_custom_expense_entries_v1');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) {
+          setCustomEntries(parsed);
+        }
+      }
+    } catch {}
+  }, []);
+
   // Load existing expense if edit mode
   useEffect(() => {
     if (!expenseId) return;
@@ -91,10 +204,25 @@ export default function ExpenseFormContent({ portalRole, expenseId }: ExpenseFor
         const data = await fetchExpenseById(expenseId!);
         setTitle(data.title);
         setCategory(data.category);
+        if ((data as any).customCategory) {
+          setCustomCategoryName((data as any).customCategory);
+        }
         setCostCenter(data.costCenter);
         if ((data as any).campaignId) {
           setCampaignId(String((data as any).campaignId));
         }
+
+        // Set matching preset in dropdown
+        const cat = data.category;
+        const matchingStandard = (STANDARD_EXPENDITURES_BY_CATEGORY[cat] || []).find((t) => t === data.title);
+        if (matchingStandard) {
+          setSelectedPreset(`standard::${cat}::${data.title}::${data.costCenter}`);
+        } else if ((data as any).customCategory) {
+          setSelectedPreset(`custom::${(data as any).customCategory}::${data.title}::${data.costCenter}`);
+        } else {
+          setSelectedPreset(`custom::Other::${data.title}::${data.costCenter}`);
+        }
+
         setExpenseDate(new Date(data.expenseDate).toISOString().slice(0, 10));
         setAmount(String(data.amount));
         setVendorName(data.vendorName);
@@ -113,6 +241,100 @@ export default function ExpenseFormContent({ portalRole, expenseId }: ExpenseFor
     }
     load();
   }, [expenseId]);
+
+  const isTitleInPresets = useMemo(() => {
+    if (!title) return true;
+    for (const cat of Object.values(ExpenseCategory)) {
+      if ((STANDARD_EXPENDITURES_BY_CATEGORY[cat] || []).includes(title)) {
+        return true;
+      }
+    }
+    return customEntries.some((ce) => ce.title === title);
+  }, [title, customEntries]);
+
+  // Handler for selecting an expenditure preset from the dropdown
+  const handlePresetSelect = (value: string) => {
+    setSelectedPreset(value);
+    if (!value) {
+      setTitle('');
+      return;
+    }
+
+    if (value.startsWith('custom::')) {
+      const parts = value.split('::');
+      const catName = parts[1];
+      const presetTitle = parts[2];
+      const presetCostCenter = (parts[3] as CostCenter) || CostCenter.BLOOD_BANK_OPERATIONS;
+
+      setTitle(presetTitle);
+      setCategory(ExpenseCategory.OTHER);
+      setCustomCategoryName(catName);
+      setCostCenter(presetCostCenter);
+    } else if (value.startsWith('standard::')) {
+      const parts = value.split('::');
+      const cat = parts[1] as ExpenseCategory;
+      const presetTitle = parts[2];
+      const presetCostCenter = (parts[3] as CostCenter) || CostCenter.BLOOD_BANK_OPERATIONS;
+
+      setTitle(presetTitle);
+      setCategory(cat);
+      setCustomCategoryName(null);
+      setCostCenter(presetCostCenter);
+    }
+  };
+
+  // Handler for adding a new custom category + title from modal
+  const handleAddCustomCategory = (e: React.FormEvent) => {
+    e.preventDefault();
+    setModalError(null);
+
+    const catName = newCategoryInput.trim();
+    const titleVal = newTitleInput.trim();
+
+    if (!catName) {
+      setModalError('Please enter a valid Category Name.');
+      return;
+    }
+    if (!titleVal) {
+      setModalError('Please enter a representative Expenditure Title for this category.');
+      return;
+    }
+
+    const newEntry = {
+      categoryName: catName,
+      title: titleVal,
+      costCenter: newCostCenterInput,
+    };
+
+    const updated = [newEntry, ...customEntries];
+    setCustomEntries(updated);
+    try {
+      localStorage.setItem('bb_custom_expense_entries_v1', JSON.stringify(updated));
+    } catch {}
+
+    // Auto-select in form
+    setTitle(titleVal);
+    setCategory(ExpenseCategory.OTHER);
+    setCustomCategoryName(catName);
+    setCostCenter(newCostCenterInput);
+    setSelectedPreset(`custom::${catName}::${titleVal}::${newCostCenterInput}`);
+
+    // Reset and close
+    setNewCategoryInput('');
+    setNewTitleInput('');
+    setIsAddCategoryModalOpen(false);
+    setSuccessMessage(`New category "${catName}" and title added to dropdown and selected!`);
+    setTimeout(() => setSuccessMessage(null), 4000);
+  };
+
+  const uniqueCustomCategories = useMemo(() => {
+    const set = new Set<string>();
+    customEntries.forEach((c) => set.add(c.categoryName));
+    if (customCategoryName && !set.has(customCategoryName)) {
+      set.add(customCategoryName);
+    }
+    return Array.from(set);
+  }, [customEntries, customCategoryName]);
 
   // Debounced duplicate invoice warning check
   useEffect(() => {
@@ -168,6 +390,7 @@ export default function ExpenseFormContent({ portalRole, expenseId }: ExpenseFor
       const payload = {
         title: title.trim(),
         category,
+        customCategory: customCategoryName?.trim() || undefined,
         costCenter,
         expenseDate,
         amount: parsedAmount,
@@ -229,6 +452,7 @@ export default function ExpenseFormContent({ portalRole, expenseId }: ExpenseFor
       const payload = {
         title: title.trim(),
         category,
+        customCategory: customCategoryName?.trim() || undefined,
         costCenter,
         expenseDate,
         amount: parsedAmount,
@@ -466,48 +690,92 @@ export default function ExpenseFormContent({ portalRole, expenseId }: ExpenseFor
           </h3>
 
           <div>
-            <label style={{ display: 'block', fontSize: '0.775rem', fontWeight: 600, color: '#334155', marginBottom: '0.35rem' }}>
-              Expenditure Title *
-            </label>
-            <input
-              type="text"
-              placeholder="e.g. 500 Triple Blood Bags with CPDA-1"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              style={{ width: '100%', padding: '0.55rem', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '0.85rem' }}
-            />
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
+              <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#334155' }}>
+                Expenditure Title *
+              </label>
+              <button
+                type="button"
+                onClick={() => setIsAddCategoryModalOpen(true)}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.35rem',
+                  backgroundColor: '#f5f3ff',
+                  color: '#6d28d9',
+                  border: '1px solid #ddd6fe',
+                  borderRadius: '6px',
+                  padding: '0.25rem 0.65rem',
+                  fontSize: '0.75rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                }}
+                title="Add a new category or custom expenditure title"
+              >
+                <PlusCircle size={14} />
+                <span>+ Add New Category</span>
+              </button>
+            </div>
+
+            {/* Categorized Titles Dropdown */}
+            <select
+              value={selectedPreset}
+              onChange={(e) => handlePresetSelect(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '0.6rem 0.75rem',
+                border: '1px solid #cbd5e1',
+                borderRadius: '6px',
+                fontSize: '0.85rem',
+                backgroundColor: '#ffffff',
+                color: '#1e293b',
+                fontWeight: 600,
+              }}
+            >
+              <option value="">-- Select from standard expenditure types by category --</option>
+              {title && !isTitleInPresets && (
+                <option value={selectedPreset || `custom::${customCategoryName || 'Custom'}::${title}::${costCenter}`}>
+                  {title} {customCategoryName ? `[${customCategoryName}]` : ''}
+                </option>
+              )}
+              {customEntries.length > 0 && (
+                <optgroup label="⭐ Custom Categories & Titles">
+                  {customEntries.map((ce, idx) => (
+                    <option key={`custom-${idx}`} value={`custom::${ce.categoryName}::${ce.title}::${ce.costCenter}`}>
+                      {ce.title} &mdash; [{ce.categoryName}]
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+              {Object.values(ExpenseCategory).map((cat) => {
+                const items = STANDARD_EXPENDITURES_BY_CATEGORY[cat] || [];
+                return (
+                  <optgroup key={cat} label={`📂 ${EXPENSE_CATEGORY_LABELS[cat]}`}>
+                    {items.map((itemTitle, idx) => (
+                      <option key={`${cat}-${idx}`} value={`standard::${cat}::${itemTitle}::${DEFAULT_CATEGORY_COST_CENTER[cat]}`}>
+                        {itemTitle}
+                      </option>
+                    ))}
+                  </optgroup>
+                );
+              })}
+            </select>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-            <div>
-              <label style={{ display: 'block', fontSize: '0.775rem', fontWeight: 600, color: '#334155', marginBottom: '0.35rem' }}>
-                Category *
-              </label>
-              <select
-                value={category}
-                onChange={(e) => setCategory(e.target.value as any)}
-                style={{ width: '100%', padding: '0.55rem', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '0.825rem', backgroundColor: '#ffffff' }}
-              >
-                {Object.values(ExpenseCategory).map((c) => (
-                  <option key={c} value={c}>{EXPENSE_CATEGORY_LABELS[c]}</option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label style={{ display: 'block', fontSize: '0.775rem', fontWeight: 600, color: '#334155', marginBottom: '0.35rem' }}>
-                Cost Center *
-              </label>
-              <select
-                value={costCenter}
-                onChange={(e) => setCostCenter(e.target.value as any)}
-                style={{ width: '100%', padding: '0.55rem', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '0.825rem', backgroundColor: '#ffffff' }}
-              >
-                {Object.values(CostCenter).map((cc) => (
-                  <option key={cc} value={cc}>{COST_CENTER_LABELS[cc]}</option>
-                ))}
-              </select>
-            </div>
+          <div>
+            <label style={{ display: 'block', fontSize: '0.775rem', fontWeight: 600, color: '#334155', marginBottom: '0.35rem' }}>
+              Cost Center *
+            </label>
+            <select
+              value={costCenter}
+              onChange={(e) => setCostCenter(e.target.value as any)}
+              style={{ width: '100%', padding: '0.55rem', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '0.825rem', backgroundColor: '#ffffff' }}
+            >
+              {Object.values(CostCenter).map((cc) => (
+                <option key={cc} value={cc}>{COST_CENTER_LABELS[cc]}</option>
+              ))}
+            </select>
           </div>
 
           {/* Campaign Selector if Mobile Donation Camps or campaigns exist */}
@@ -758,6 +1026,232 @@ export default function ExpenseFormContent({ portalRole, expenseId }: ExpenseFor
             : 'Submit for Super Admin Review'}
         </button>
       </div>
+
+      {/* Add New Category & Title Modal */}
+      {isAddCategoryModalOpen && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(15, 23, 42, 0.65)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 99999,
+            padding: '1rem',
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setIsAddCategoryModalOpen(false);
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: '#ffffff',
+              borderRadius: '12px',
+              maxWidth: '520px',
+              width: '100%',
+              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+              overflow: 'hidden',
+            }}
+          >
+            {/* Modal Header */}
+            <div
+              style={{
+                padding: '1.25rem 1.5rem',
+                backgroundColor: '#faf5ff',
+                borderBottom: '1px solid #f3e8ff',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                <div
+                  style={{
+                    width: '36px',
+                    height: '36px',
+                    borderRadius: '8px',
+                    backgroundColor: '#ede9fe',
+                    color: '#7c3aed',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <FolderPlus size={20} />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: '#0f172a' }}>
+                    Add New Category &amp; Title
+                  </h3>
+                  <p style={{ margin: '0.15rem 0 0 0', fontSize: '0.75rem', color: '#64748b' }}>
+                    Create a custom expenditure category and title to add to your dropdown.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsAddCategoryModalOpen(false)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#64748b',
+                  cursor: 'pointer',
+                  padding: '0.25rem',
+                  borderRadius: '4px',
+                }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <form onSubmit={handleAddCustomCategory} style={{ padding: '1.5rem' }}>
+              {modalError && (
+                <div
+                  style={{
+                    padding: '0.65rem 0.85rem',
+                    backgroundColor: '#fee2e2',
+                    border: '1px solid #fca5a5',
+                    borderRadius: '6px',
+                    color: '#991b1b',
+                    fontSize: '0.8rem',
+                    marginBottom: '1rem',
+                  }}
+                >
+                  ⚠️ {modalError}
+                </div>
+              )}
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.775rem', fontWeight: 700, color: '#1e293b', marginBottom: '0.35rem' }}>
+                    New Category Name *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. IT &amp; Telephony Infrastructure, Security Services..."
+                    value={newCategoryInput}
+                    onChange={(e) => setNewCategoryInput(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '0.6rem',
+                      border: '1px solid #cbd5e1',
+                      borderRadius: '6px',
+                      fontSize: '0.85rem',
+                      outline: 'none',
+                    }}
+                  />
+                  <span style={{ fontSize: '0.725rem', color: '#64748b', display: 'block', marginTop: '0.25rem' }}>
+                    This category will appear in the Category dropdown and group your titles.
+                  </span>
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.775rem', fontWeight: 700, color: '#1e293b', marginBottom: '0.35rem' }}>
+                    Expenditure Title *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Annual Cloud Backup &amp; SSL Security Certificate..."
+                    value={newTitleInput}
+                    onChange={(e) => setNewTitleInput(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '0.6rem',
+                      border: '1px solid #cbd5e1',
+                      borderRadius: '6px',
+                      fontSize: '0.85rem',
+                      outline: 'none',
+                    }}
+                  />
+                  <span style={{ fontSize: '0.725rem', color: '#64748b', display: 'block', marginTop: '0.25rem' }}>
+                    Itemized procurement or expense title to add to the dropdown.
+                  </span>
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.775rem', fontWeight: 700, color: '#1e293b', marginBottom: '0.35rem' }}>
+                    Default Cost Center *
+                  </label>
+                  <select
+                    value={newCostCenterInput}
+                    onChange={(e) => setNewCostCenterInput(e.target.value as CostCenter)}
+                    style={{
+                      width: '100%',
+                      padding: '0.6rem',
+                      border: '1px solid #cbd5e1',
+                      borderRadius: '6px',
+                      fontSize: '0.825rem',
+                      backgroundColor: '#ffffff',
+                    }}
+                  >
+                    {Object.values(CostCenter).map((cc) => (
+                      <option key={cc} value={cc}>
+                        {COST_CENTER_LABELS[cc]}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Modal Actions */}
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'flex-end',
+                  gap: '0.75rem',
+                  marginTop: '1.5rem',
+                  paddingTop: '1rem',
+                  borderTop: '1px solid #f1f5f9',
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={() => setIsAddCategoryModalOpen(false)}
+                  style={{
+                    padding: '0.55rem 1rem',
+                    backgroundColor: '#f1f5f9',
+                    border: '1px solid #cbd5e1',
+                    borderRadius: '6px',
+                    fontSize: '0.825rem',
+                    fontWeight: 600,
+                    color: '#475569',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  style={{
+                    padding: '0.55rem 1.25rem',
+                    backgroundColor: '#7c3aed',
+                    border: 'none',
+                    borderRadius: '6px',
+                    fontSize: '0.825rem',
+                    fontWeight: 700,
+                    color: '#ffffff',
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.4rem',
+                    boxShadow: '0 2px 4px rgba(124, 58, 237, 0.25)',
+                  }}
+                >
+                  <Plus size={15} />
+                  <span>Add to Dropdown &amp; Select</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

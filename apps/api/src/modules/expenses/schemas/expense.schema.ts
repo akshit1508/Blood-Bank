@@ -93,6 +93,9 @@ export class Expense {
   })
   category: ExpenseCategory;
 
+  @Prop({ required: false, trim: true })
+  customCategory?: string;
+
   @Prop({
     required: true,
     enum: Object.values(CostCenter),

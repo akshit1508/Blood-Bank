@@ -842,7 +842,7 @@ export default function ExpenseDirectoryContent({ portalRole }: ExpenseDirectory
                     <td style={{ padding: '0.85rem 1rem' }}>
                       <div style={{ fontWeight: 600, color: '#0f172a' }}>{item.title}</div>
                       <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
-                        {EXPENSE_CATEGORY_LABELS[item.category] || item.category}
+                        {item.customCategory ? `${item.customCategory} (Custom)` : (EXPENSE_CATEGORY_LABELS[item.category] || item.category)}
                       </div>
                     </td>
                     <td style={{ padding: '0.85rem 1rem', color: '#334155', fontWeight: 500 }}>
