@@ -3,6 +3,7 @@ import {
   NotFoundException,
   BadRequestException,
   ConflictException,
+  Optional,
 } from '@nestjs/common';
 import { InjectModel, InjectConnection } from '@nestjs/mongoose';
 import { Model, Types, Connection, ClientSession, isValidObjectId } from 'mongoose';
@@ -34,6 +35,11 @@ import {
   BloodUnitDocument,
 } from '../blood-units/schemas/blood-unit.schema';
 import { BloodUnitStatus } from '../blood-units/constants/blood-unit.constants';
+import { AuditLogsService } from '../audit-logs/audit-logs.service';
+import {
+  AuditActionType,
+  AuditEntityType,
+} from '../audit-logs/constants/audit-log.constants';
 
 @Injectable()
 export class BloodIssuesService {
@@ -52,6 +58,8 @@ export class BloodIssuesService {
     private readonly bloodUnitModel: Model<BloodUnitDocument>,
     @InjectConnection()
     private readonly connection: Connection,
+    @Optional()
+    private readonly auditLogsService?: AuditLogsService,
   ) {}
 
   /**
@@ -86,6 +94,7 @@ export class BloodIssuesService {
   async issueReservation(
     reservationIdentifier: string,
     createDto?: CreateBloodIssueDto,
+    actor?: any,
   ) {
     // 1. Locate reservation by ObjectId or reservationCode
     let reservation: ReservationDocument | null = null;
@@ -299,6 +308,9 @@ export class BloodIssuesService {
               reason: `Issued for blood request ${bloodRequest.requestCode} (Reservation: ${reservation.reservationCode}, Issue: ${issueCode})${
                 createDto?.remarks ? `. Remarks: ${createDto.remarks}` : ''
               }`,
+              changedBy: actor?._id || actor?.id ? new Types.ObjectId(actor._id || actor.id) : undefined,
+              changedByName: actor?.fullName || actor?.name || undefined,
+              changedByRole: actor?.role || undefined,
             },
           ],
           { session: session || undefined },
@@ -332,7 +344,10 @@ export class BloodIssuesService {
             issuedUnits,
             status: BloodIssueStatus.COMPLETED,
             issuedAt: new Date(),
-            issuedBy: createDto?.issuedBy?.trim() || createDto?.recipientName?.trim() || undefined,
+            issuedBy: actor?.fullName || actor?.name || createDto?.issuedBy?.trim() || createDto?.recipientName?.trim() || undefined,
+            issuedByStaffId: actor?._id || actor?.id ? new Types.ObjectId(actor._id || actor.id) : undefined,
+            issuedByName: actor?.fullName || actor?.name || undefined,
+            issuedByRole: actor?.role || undefined,
             remarks: createDto?.remarks?.trim() || createDto?.notes?.trim() || undefined,
           },
         ],
@@ -341,6 +356,27 @@ export class BloodIssuesService {
 
       if (session) {
         await session.commitTransaction();
+      }
+
+      if (this.auditLogsService) {
+        await this.auditLogsService.logEvent({
+          actorId: actor?._id || actor?.id,
+          actorName: actor?.fullName || actor?.name,
+          actorEmail: actor?.email,
+          actorRole: actor?.role,
+          action: AuditActionType.BLOOD_ISSUED,
+          entityType: AuditEntityType.BLOOD_ISSUE,
+          entityId: bloodIssue._id.toString(),
+          entityIdentifier: bloodIssue.issueCode,
+          description: `Issued ${issuedUnits.length} unit(s) for blood request ${bloodRequest.requestCode} (Reservation ${reservation.reservationCode})`,
+          afterState: {
+            issueCode: bloodIssue.issueCode,
+            requestCode: bloodRequest.requestCode,
+            reservationCode: reservation.reservationCode,
+            issuedUnitsCount: issuedUnits.length,
+          },
+          metadata: { units: issuedUnits.map((u) => u.unitCode) },
+        });
       }
 
       return {
@@ -362,6 +398,9 @@ export class BloodIssuesService {
         })),
         issuedAt: bloodIssue.issuedAt,
         issuedBy: bloodIssue.issuedBy || null,
+        issuedByStaffId: bloodIssue.issuedByStaffId || null,
+        issuedByName: bloodIssue.issuedByName || null,
+        issuedByRole: bloodIssue.issuedByRole || null,
         remarks: bloodIssue.remarks || null,
         createdAt: bloodIssue.createdAt,
       };

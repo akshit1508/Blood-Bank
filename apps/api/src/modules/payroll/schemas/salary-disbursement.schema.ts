@@ -57,6 +57,9 @@ export class SalaryDisbursement {
   disbursedByName: string;
 
   @Prop({ required: false, trim: true })
+  disbursedByRole?: string;
+
+  @Prop({ required: false, trim: true })
   notes?: string;
 
   @Prop({ required: false, trim: true })

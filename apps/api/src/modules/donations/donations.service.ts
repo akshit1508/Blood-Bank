@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  Optional,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, isValidObjectId, Types } from 'mongoose';
@@ -21,6 +22,9 @@ import {
   calculateNextEligibleDate,
 } from '../../common/constants/eligibility.constants';
 
+import { AuditLogsService } from '../audit-logs/audit-logs.service';
+import { AuditActionType, AuditEntityType } from '../audit-logs/constants/audit-log.constants';
+
 export interface PaginatedDonations {
   items: Donation[];
   page: number;
@@ -36,6 +40,8 @@ export class DonationsService {
     private readonly donationModel: Model<DonationDocument>,
     @InjectModel(Donor.name)
     private readonly donorModel: Model<DonorDocument>,
+    @Optional()
+    private readonly auditLogsService?: AuditLogsService,
   ) {}
 
   /**
@@ -54,7 +60,7 @@ export class DonationsService {
    * Validates that the referenced donor exists.
    * Enforces initial status: RECORDED.
    */
-  async create(createDto: CreateDonationDto): Promise<Donation> {
+  async create(createDto: CreateDonationDto, actor?: any): Promise<Donation> {
     if (!isValidObjectId(createDto.donorId)) {
       throw new BadRequestException('Invalid donor ID format');
     }
@@ -134,7 +140,7 @@ export class DonationsService {
       }
     }
 
-    const donation = new this.donationModel({
+    const donationData: any = {
       donationCode,
       donorId: new Types.ObjectId(createDto.donorId),
       donationDate: new Date(createDto.donationDate),
@@ -144,9 +150,29 @@ export class DonationsService {
       campaignId: createDto.campaignId ? new Types.ObjectId(createDto.campaignId) : undefined,
       campaignCode: createDto.campaignCode?.trim() || undefined,
       notes: createDto.notes?.trim() || undefined,
-    });
+    };
 
+    if (actor && actor.id) {
+      donationData.recordedBy = actor.id;
+      donationData.recordedByName = actor.fullName;
+      donationData.recordedByRole = actor.role;
+    }
+
+    const donation = new this.donationModel(donationData);
     const saved = await donation.save();
+
+    if (actor && actor.id) {
+      await this.auditLogsService?.logEvent({
+        actor,
+        action: AuditActionType.DONATION_RECORDED,
+        entityType: AuditEntityType.DONATION,
+        entityId: saved._id.toString(),
+        entityIdentifier: saved.donationCode,
+        description: `Staff recorded blood donation ${saved.donationCode} (${saved.quantity} units of ${saved.donationType}) for donor ${(donor as any).fullName}`,
+        afterState: { donationCode: saved.donationCode, donorId: saved.donorId, quantity: saved.quantity, status: saved.status },
+      });
+    }
+
     return await saved.populate('donorId');
   }
 
@@ -283,6 +309,7 @@ export class DonationsService {
   async updateStatus(
     id: string,
     updateStatusDto: UpdateDonationStatusDto,
+    actor?: any,
   ): Promise<Donation> {
     const donation = await this.findOne(id);
     const currentStatus = donation.status;
@@ -303,10 +330,26 @@ export class DonationsService {
       );
     }
 
+    const updateFields: any = { status: targetStatus };
+    if (actor && actor.id) {
+      if (targetStatus === DonationStatus.PROCESSING) {
+        updateFields.processedBy = actor.id;
+        updateFields.processedByName = actor.fullName;
+      } else if (targetStatus === DonationStatus.COMPLETED) {
+        updateFields.completedBy = actor.id;
+        updateFields.completedByName = actor.fullName;
+        updateFields.completedAt = new Date();
+      } else if (targetStatus === DonationStatus.CANCELLED) {
+        updateFields.cancelledBy = actor.id;
+        updateFields.cancelledByName = actor.fullName;
+        updateFields.cancelledAt = new Date();
+      }
+    }
+
     const updated = await this.donationModel
       .findByIdAndUpdate(
         (donation as any)._id,
-        { $set: { status: targetStatus } },
+        { $set: updateFields },
         { new: true },
       )
       .populate('donorId')
@@ -316,6 +359,19 @@ export class DonationsService {
       throw new NotFoundException(
         `Donation with identifier '${id}' was not found during update`,
       );
+    }
+
+    if (actor && actor.id) {
+      await this.auditLogsService?.logEvent({
+        actor,
+        action: targetStatus === DonationStatus.CANCELLED ? AuditActionType.DONATION_CANCELLED : AuditActionType.DONATION_STATUS_CHANGED,
+        entityType: AuditEntityType.DONATION,
+        entityId: (updated as any)._id.toString(),
+        entityIdentifier: updated.donationCode,
+        description: `Staff transitioned donation ${updated.donationCode} from ${currentStatus} to ${targetStatus}`,
+        beforeState: { status: currentStatus },
+        afterState: { status: targetStatus },
+      });
     }
 
     return updated;

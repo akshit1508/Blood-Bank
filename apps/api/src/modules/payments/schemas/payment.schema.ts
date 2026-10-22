@@ -65,11 +65,20 @@ export class Payment {
   @Prop({ required: true, trim: true })
   createdByName: string;
 
+  @Prop({ required: false, trim: true })
+  createdByRole?: string;
+
   @Prop({ required: false, default: null })
   cancelledAt?: Date;
 
   @Prop({ type: Types.ObjectId, ref: 'AdminUser', required: false, default: null })
   cancelledBy?: Types.ObjectId;
+
+  @Prop({ required: false, trim: true })
+  cancelledByName?: string;
+
+  @Prop({ required: false, trim: true })
+  cancelledByRole?: string;
 
   @Prop({ required: false, trim: true, default: null })
   cancellationReason?: string;

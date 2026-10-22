@@ -21,6 +21,7 @@ import {
   buildBloodRequestWhatsAppUrl,
 } from '@/lib/blood-request-api';
 import { generateInvoice } from '@/lib/billing-api';
+import StaffAttributionBadge from '@/components/admin/StaffAttributionBadge';
 
 const WhatsAppIcon = ({ size = 15 }: { size?: number }) => (
   <svg
@@ -703,6 +704,34 @@ export default function AdminBloodRequestsPage() {
                   {selectedRequest.status}
                 </span>
               </div>
+              {(selectedRequest.verifiedByName || selectedRequest.approvedByName || selectedRequest.rejectedByName) && (
+                <div style={{ margin: '0.5rem 0', padding: '0.5rem', background: '#f8fafc', borderRadius: '6px', border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                  {selectedRequest.verifiedByName && (
+                    <StaffAttributionBadge
+                      label="Verified by"
+                      name={selectedRequest.verifiedByName}
+                      role={selectedRequest.verifiedByRole || 'ADMIN'}
+                      timestamp={selectedRequest.verifiedAt}
+                    />
+                  )}
+                  {selectedRequest.approvedByName && (
+                    <StaffAttributionBadge
+                      label="Approved by"
+                      name={selectedRequest.approvedByName}
+                      role={selectedRequest.approvedByRole || 'ADMIN'}
+                      timestamp={selectedRequest.approvedAt}
+                    />
+                  )}
+                  {selectedRequest.rejectedByName && (
+                    <StaffAttributionBadge
+                      label="Rejected by"
+                      name={selectedRequest.rejectedByName}
+                      role={selectedRequest.rejectedByRole || 'ADMIN'}
+                      timestamp={selectedRequest.rejectedAt}
+                    />
+                  )}
+                </div>
+              )}
               <div style={{ marginBottom: '0.5rem' }}>
                 <span style={{ color: '#64748b' }}>Required Date:</span>{' '}
                 <strong>{new Date(selectedRequest.requiredDate).toLocaleDateString()}</strong>
@@ -1640,7 +1669,15 @@ export default function AdminBloodRequestsPage() {
 
                       <div style={{ fontSize: '0.75rem', color: '#475569', marginBottom: '0.35rem' }}>
                         <strong>Reservation Ref:</strong> {issue.reservationCode}
-                        {issue.issuedBy && <span> &bull; <strong>Issued By:</strong> {issue.issuedBy}</span>}
+                      </div>
+
+                      <div style={{ marginBottom: '0.35rem' }}>
+                        <StaffAttributionBadge
+                          label="Issued by"
+                          name={issue.issuedByName || issue.issuedBy}
+                          role={issue.issuedByRole || 'RECEPTIONIST'}
+                          timestamp={issue.issuedAt}
+                        />
                       </div>
 
                       {issue.remarks && (

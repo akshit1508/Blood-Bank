@@ -4,6 +4,7 @@ import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
+  Optional,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, isValidObjectId, Types } from 'mongoose';
@@ -18,6 +19,9 @@ import {
 } from './constants/blood-unit.constants';
 import { DonationStatus } from '../donations/constants/donation.constants';
 import { AdminRole } from '../auth/schemas/admin-user.schema';
+
+import { AuditLogsService } from '../audit-logs/audit-logs.service';
+import { AuditActionType, AuditEntityType } from '../audit-logs/constants/audit-log.constants';
 
 export interface PaginatedBloodUnits {
   items: BloodUnit[];
@@ -36,6 +40,8 @@ export class BloodUnitsService {
     private readonly donationModel: Model<DonationDocument>,
     @InjectModel(Donor.name)
     private readonly donorModel: Model<DonorDocument>,
+    @Optional()
+    private readonly auditLogsService?: AuditLogsService,
   ) {}
 
   /**
@@ -60,7 +66,7 @@ export class BloodUnitsService {
    * 5. Initial status is strictly TESTING.
    * 6. Unit code is generated server-side.
    */
-  async create(createDto: CreateBloodUnitDto): Promise<BloodUnit> {
+  async create(createDto: CreateBloodUnitDto, actor?: any): Promise<BloodUnit> {
     if (!isValidObjectId(createDto.donationId)) {
       throw new BadRequestException({
         message: 'Invalid donation ID format',
@@ -152,7 +158,7 @@ export class BloodUnitsService {
 
     // 9. Instantiate and save blood unit
     try {
-      const bloodUnit = new this.bloodUnitModel({
+      const unitData: any = {
         unitCode,
         donationId: donation._id,
         donorId: donor._id,
@@ -164,9 +170,29 @@ export class BloodUnitsService {
         status: BloodUnitStatus.TESTING,
         storageLocation: createDto.storageLocation?.trim() || undefined,
         notes: createDto.notes?.trim() || undefined,
-      });
+      };
 
+      if (actor && actor.id) {
+        unitData.createdBy = actor.id;
+        unitData.createdByName = actor.fullName;
+        unitData.createdByRole = actor.role;
+      }
+
+      const bloodUnit = new this.bloodUnitModel(unitData);
       const saved = await bloodUnit.save();
+
+      if (actor && actor.id) {
+        await this.auditLogsService?.logEvent({
+          actor,
+          action: AuditActionType.BLOOD_UNIT_CREATED,
+          entityType: AuditEntityType.BLOOD_UNIT,
+          entityId: saved._id.toString(),
+          entityIdentifier: saved.unitCode,
+          description: `Staff member created blood unit ${saved.unitCode} (${saved.bloodGroup} ${saved.componentType}) from donation ${donation.donationCode}`,
+          afterState: { unitCode: saved.unitCode, bloodGroup: saved.bloodGroup, status: saved.status },
+        });
+      }
+
       return (await saved.populate([
         {
           path: 'donorId',

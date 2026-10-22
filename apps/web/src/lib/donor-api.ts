@@ -48,6 +48,15 @@ export interface Donor {
   city?: string;
   emergencyContact?: EmergencyContact;
   status: DonorStatus;
+  registeredBy?: string;
+  registeredByName?: string;
+  registeredByRole?: string;
+  verifiedBy?: string;
+  verifiedByName?: string;
+  verifiedByRole?: string;
+  verifiedAt?: string;
+  updatedByName?: string;
+  updatedByRole?: string;
   createdAt: string;
   updatedAt: string;
 }

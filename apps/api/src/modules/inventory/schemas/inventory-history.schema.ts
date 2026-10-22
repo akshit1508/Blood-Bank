@@ -39,9 +39,20 @@ export class InventoryHistory {
   })
   reason?: string;
 
+  // --- Staff User Attribution & Accountability ---
+  @Prop({ type: Types.ObjectId, ref: 'AdminUser', required: false, index: true })
+  changedBy?: Types.ObjectId;
+
+  @Prop({ required: false, trim: true })
+  changedByName?: string;
+
+  @Prop({ required: false, trim: true })
+  changedByRole?: string;
+
   changedAt: Date;
 }
 
 export const InventoryHistorySchema = SchemaFactory.createForClass(InventoryHistory);
 
 InventoryHistorySchema.index({ inventoryId: 1, changedAt: -1 });
+InventoryHistorySchema.index({ changedBy: 1 });

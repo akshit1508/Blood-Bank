@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
+import { Document, Types } from 'mongoose';
 import {
   BloodComponent,
   BloodGroup,
@@ -149,6 +149,51 @@ export class BloodRequest {
 
   @Prop()
   documentVerifiedAt?: Date;
+
+  @Prop({ type: Types.ObjectId, ref: 'AdminUser' })
+  verifiedBy?: Types.ObjectId;
+
+  @Prop({ trim: true })
+  verifiedByName?: string;
+
+  @Prop({ trim: true })
+  verifiedByRole?: string;
+
+  @Prop()
+  verifiedAt?: Date;
+
+  @Prop({ type: Types.ObjectId, ref: 'AdminUser' })
+  approvedBy?: Types.ObjectId;
+
+  @Prop({ trim: true })
+  approvedByName?: string;
+
+  @Prop({ trim: true })
+  approvedByRole?: string;
+
+  @Prop()
+  approvedAt?: Date;
+
+  @Prop({ type: Types.ObjectId, ref: 'AdminUser' })
+  rejectedBy?: Types.ObjectId;
+
+  @Prop({ trim: true })
+  rejectedByName?: string;
+
+  @Prop({ trim: true })
+  rejectedByRole?: string;
+
+  @Prop()
+  rejectedAt?: Date;
+
+  @Prop({ type: Types.ObjectId, ref: 'AdminUser' })
+  statusUpdatedBy?: Types.ObjectId;
+
+  @Prop({ trim: true })
+  statusUpdatedByName?: string;
+
+  @Prop({ trim: true })
+  statusUpdatedByRole?: string;
 
   createdAt: Date;
   updatedAt: Date;

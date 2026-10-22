@@ -4,6 +4,7 @@ import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
+  Optional,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types, isValidObjectId } from 'mongoose';
@@ -30,6 +31,11 @@ import {
 import { TariffsService } from './tariffs.service';
 import { CurrencyUtil } from '../../../common/utils/currency.util';
 import { AdminRole } from '../../auth/schemas/admin-user.schema';
+import { AuditLogsService } from '../../audit-logs/audit-logs.service';
+import {
+  AuditActionType,
+  AuditEntityType,
+} from '../../audit-logs/constants/audit-log.constants';
 
 @Injectable()
 export class InvoicesService {
@@ -41,6 +47,8 @@ export class InvoicesService {
     @InjectModel(BloodRequest.name)
     private readonly bloodRequestModel: Model<BloodRequestDocument>,
     private readonly tariffsService: TariffsService,
+    @Optional()
+    private readonly auditLogsService?: AuditLogsService,
   ) {}
 
   /**
@@ -205,9 +213,30 @@ export class InvoicesService {
         invoiceDate: new Date(),
         billedBy: user?.id ? new Types.ObjectId(user.id) : new Types.ObjectId(),
         billedByName: user?.fullName || user?.email || 'Billing Officer',
+        billedByRole: (user as any)?.role || undefined,
         notes: dto?.notes?.trim() || undefined,
       },
     ]);
+
+    if (this.auditLogsService) {
+      await this.auditLogsService.logEvent({
+        actorId: user?.id,
+        actorName: user?.fullName || user?.email,
+        actorEmail: user?.email,
+        actorRole: (user as any)?.role,
+        action: AuditActionType.INVOICE_GENERATED,
+        entityType: AuditEntityType.INVOICE,
+        entityId: (created._id as any).toString(),
+        entityIdentifier: invoiceNumber,
+        description: `Billing invoice ${invoiceNumber} generated for blood issue ${bloodIssue.issueCode} (Amount: ₹${CurrencyUtil.toInr(netPayablePaise)})`,
+        afterState: {
+          invoiceNumber,
+          issueCode: bloodIssue.issueCode,
+          netPayablePaise,
+          outstandingPaise,
+        },
+      });
+    }
 
     return this.findOne((created._id as any).toString());
   }
@@ -449,6 +478,27 @@ export class InvoicesService {
 
     await invoice.save();
 
+    if (this.auditLogsService) {
+      await this.auditLogsService.logEvent({
+        actorId: user?.id,
+        actorName: user?.fullName || user?.email,
+        actorEmail: user?.email,
+        actorRole: userRole,
+        action: AuditActionType.INVOICE_WAIVER_APPLIED,
+        entityType: AuditEntityType.INVOICE,
+        entityId: (invoice._id as any).toString(),
+        entityIdentifier: invoice.invoiceNumber,
+        description: `Waiver of ₹${CurrencyUtil.toInr(waiverPaise)} applied to invoice ${invoice.invoiceNumber} (${dto.category}): ${dto.reason}`,
+        afterState: {
+          waiverPaise: newWaiverPaise,
+          netPayablePaise: newNetPayablePaise,
+          outstandingPaise: newOutstandingPaise,
+          status: nextStatus,
+        },
+        metadata: { category: dto.category, reason: dto.reason },
+      });
+    }
+
     return this.findOne((invoice._id as any).toString());
   }
 
@@ -491,14 +541,34 @@ export class InvoicesService {
       });
     }
 
+    const previousStatus = invoice.status;
     invoice.status = InvoiceStatus.CANCELLED;
     invoice.cancelledAt = new Date();
     invoice.cancelledBy = user?.id ? new Types.ObjectId(user.id) : undefined;
+    invoice.cancelledByName = user?.fullName || user?.email || undefined;
+    invoice.cancelledByRole = (user as any)?.role || undefined;
     invoice.cancellationReason = dto.reason.trim();
     invoice.outstandingPaise = 0;
     invoice.outstandingAmount = 0;
 
     await invoice.save();
+
+    if (this.auditLogsService) {
+      await this.auditLogsService.logEvent({
+        actorId: user?.id,
+        actorName: user?.fullName || user?.email,
+        actorEmail: user?.email,
+        actorRole: (user as any)?.role,
+        action: AuditActionType.INVOICE_CANCELLED,
+        entityType: AuditEntityType.INVOICE,
+        entityId: (invoice._id as any).toString(),
+        entityIdentifier: invoice.invoiceNumber,
+        description: `Invoice ${invoice.invoiceNumber} cancelled: ${dto.reason}`,
+        beforeState: { status: previousStatus },
+        afterState: { status: InvoiceStatus.CANCELLED, cancellationReason: dto.reason },
+        metadata: { reason: dto.reason },
+      });
+    }
 
     return this.findOne((invoice._id as any).toString());
   }
@@ -549,8 +619,13 @@ export class InvoicesService {
         documentRef: w.documentRef || null,
       })),
       invoiceDate: inv.invoiceDate,
+      billedBy: inv.billedBy?.toString(),
       billedByName: inv.billedByName,
+      billedByRole: inv.billedByRole || null,
       notes: inv.notes || null,
+      cancelledBy: inv.cancelledBy?.toString(),
+      cancelledByName: inv.cancelledByName || null,
+      cancelledByRole: inv.cancelledByRole || null,
       cancelledAt: inv.cancelledAt || null,
       cancellationReason: inv.cancellationReason || null,
       createdAt: inv.createdAt,

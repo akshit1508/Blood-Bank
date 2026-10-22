@@ -18,6 +18,7 @@ import {
 } from './constants/donation.constants';
 import { BloodGroup } from '../donors/constants/donor.constants';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { CurrentAdmin } from '../auth/decorators/current-admin.decorator';
 import { AdminRole } from '../auth/schemas/admin-user.schema';
 
 @Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN)
@@ -28,12 +29,15 @@ export class DonationsController {
   /**
    * Internal staff recording of a blood donation.
    * POST /api/donations
-   * ACCESS: INTERNAL STAFF/ADMIN (Pending Auth Guard implementation)
+   * ACCESS: INTERNAL STAFF/ADMIN
    */
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  async create(@Body() createDonationDto: CreateDonationDto) {
-    const donation = await this.donationsService.create(createDonationDto);
+  async create(
+    @Body() createDonationDto: CreateDonationDto,
+    @CurrentAdmin() admin: any,
+  ) {
+    const donation = await this.donationsService.create(createDonationDto, admin);
     return {
       statusCode: HttpStatus.CREATED,
       message: 'Blood donation recorded successfully',
@@ -94,10 +98,12 @@ export class DonationsController {
   async updateStatus(
     @Param('id') id: string,
     @Body() updateDonationStatusDto: UpdateDonationStatusDto,
+    @CurrentAdmin() admin: any,
   ) {
     const updated = await this.donationsService.updateStatus(
       id,
       updateDonationStatusDto,
+      admin,
     );
     return {
       statusCode: HttpStatus.OK,

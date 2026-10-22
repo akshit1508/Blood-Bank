@@ -3,6 +3,7 @@ import {
   NotFoundException,
   BadRequestException,
   ConflictException,
+  Optional,
 } from '@nestjs/common';
 import { InjectModel, InjectConnection } from '@nestjs/mongoose';
 import { Model, Types, Connection, ClientSession, isValidObjectId } from 'mongoose';
@@ -33,6 +34,11 @@ import {
   BloodUnitDocument,
 } from '../blood-units/schemas/blood-unit.schema';
 import { BloodUnitStatus } from '../blood-units/constants/blood-unit.constants';
+import { AuditLogsService } from '../audit-logs/audit-logs.service';
+import {
+  AuditActionType,
+  AuditEntityType,
+} from '../audit-logs/constants/audit-log.constants';
 
 @Injectable()
 export class ReservationsService {
@@ -49,6 +55,8 @@ export class ReservationsService {
     private readonly bloodUnitModel: Model<BloodUnitDocument>,
     @InjectConnection()
     private readonly connection: Connection,
+    @Optional()
+    private readonly auditLogsService?: AuditLogsService,
   ) {}
 
   /**
@@ -77,6 +85,7 @@ export class ReservationsService {
   async createReservation(
     bloodRequestId: string,
     createDto: CreateReservationDto,
+    actor?: any,
   ) {
     // Step 1: Find and validate blood request
     let request: BloodRequestDocument | null = null;
@@ -309,6 +318,9 @@ export class ReservationsService {
               fromStatus: InventoryStatus.AVAILABLE,
               toStatus: InventoryStatus.RESERVED,
               reason: `Reserved for blood request ${request.requestCode} (${reservationCode})`,
+              changedBy: actor?._id || actor?.id ? new Types.ObjectId(actor._id || actor.id) : undefined,
+              changedByName: actor?.fullName || actor?.name || undefined,
+              changedByRole: actor?.role || undefined,
             },
           ],
           { session: session || undefined },
@@ -328,6 +340,9 @@ export class ReservationsService {
             status: ReservationStatus.ACTIVE,
             reservedAt: new Date(),
             expiresAt: null,
+            reservedBy: actor?._id || actor?.id ? new Types.ObjectId(actor._id || actor.id) : undefined,
+            reservedByName: actor?.fullName || actor?.name || undefined,
+            reservedByRole: actor?.role || undefined,
           },
         ],
         { session: session || undefined },
@@ -353,11 +368,33 @@ export class ReservationsService {
         await session.commitTransaction();
       }
 
+      if (this.auditLogsService) {
+        await this.auditLogsService.logEvent({
+          actorId: actor?._id || actor?.id,
+          actorName: actor?.fullName || actor?.name,
+          actorEmail: actor?.email,
+          actorRole: actor?.role,
+          action: AuditActionType.BLOOD_RESERVED,
+          entityType: AuditEntityType.RESERVATION,
+          entityId: reservation._id.toString(),
+          entityIdentifier: reservation.reservationCode,
+          description: `Reserved ${uniqueIds.length} blood unit(s) for request ${request.requestCode}`,
+          afterState: {
+            reservationCode: reservation.reservationCode,
+            requestCode: request.requestCode,
+            unitCount: uniqueIds.length,
+          },
+          metadata: { units: reservedUnits.map((u) => u.unitCode) },
+        });
+      }
+
       return {
         reservationCode: reservation.reservationCode,
         bloodRequestId: (request._id as any).toString(),
         requestCode: reservation.requestCode,
         status: reservation.status,
+        reservedBy: reservation.reservedBy,
+        reservedByName: reservation.reservedByName,
         reservedUnits: reservation.reservedUnits.map((item) => ({
           inventoryId: item.inventoryId ? item.inventoryId.toString() : '',
           bloodUnitId: item.bloodUnitId ? item.bloodUnitId.toString() : '',
@@ -400,6 +437,7 @@ export class ReservationsService {
   async cancelReservation(
     reservationIdentifier: string,
     cancelDto: CancelReservationDto,
+    actor?: any,
   ) {
     let reservation: ReservationDocument | null = null;
     if (isValidObjectId(reservationIdentifier)) {
@@ -447,6 +485,9 @@ export class ReservationsService {
             status: ReservationStatus.CANCELLED,
             cancelledAt: new Date(),
             cancellationReason,
+            cancelledBy: actor?._id || actor?.id ? new Types.ObjectId(actor._id || actor.id) : undefined,
+            cancelledByName: actor?.fullName || actor?.name || undefined,
+            cancelledByRole: actor?.role || undefined,
           },
         },
         { new: true, session: session || undefined },
@@ -467,6 +508,9 @@ export class ReservationsService {
               fromStatus: InventoryStatus.RESERVED,
               toStatus: InventoryStatus.AVAILABLE,
               reason: `Reservation ${reservation.reservationCode} cancelled: ${cancellationReason}`,
+              changedBy: actor?._id || actor?.id ? new Types.ObjectId(actor._id || actor.id) : undefined,
+              changedByName: actor?.fullName || actor?.name || undefined,
+              changedByRole: actor?.role || undefined,
             },
           ],
           { session: session || undefined },
@@ -513,6 +557,21 @@ export class ReservationsService {
         await session.commitTransaction();
       }
 
+      if (this.auditLogsService) {
+        await this.auditLogsService.logEvent({
+          actorId: actor?._id || actor?.id,
+          actorName: actor?.fullName || actor?.name,
+          actorEmail: actor?.email,
+          actorRole: actor?.role,
+          action: AuditActionType.RESERVATION_CANCELLED,
+          entityType: AuditEntityType.RESERVATION,
+          entityId: reservation._id.toString(),
+          entityIdentifier: reservation.reservationCode,
+          description: `Reservation ${reservation.reservationCode} cancelled: ${cancellationReason}`,
+          metadata: { cancellationReason },
+        });
+      }
+
       return {
         reservationCode: updatedReservation!.reservationCode,
         bloodRequestId: (updatedReservation!.bloodRequestId as any).toString(),
@@ -520,6 +579,8 @@ export class ReservationsService {
         status: updatedReservation!.status,
         cancelledAt: updatedReservation!.cancelledAt,
         cancellationReason: updatedReservation!.cancellationReason,
+        cancelledBy: updatedReservation!.cancelledBy,
+        cancelledByName: updatedReservation!.cancelledByName,
         reservedUnits: updatedReservation!.reservedUnits.map((item) => ({
           inventoryId: item.inventoryId ? item.inventoryId.toString() : '',
           bloodUnitId: item.bloodUnitId ? item.bloodUnitId.toString() : '',

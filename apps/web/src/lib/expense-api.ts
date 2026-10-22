@@ -98,11 +98,17 @@ export interface ExpenseItem {
   creatorId: string;
   creatorEmail: string;
   creatorRole: string;
+  creatorName?: string;
   campaignId?: string;
   acquisitionId?: string;
+  submittedBy?: string;
+  submittedByName?: string;
+  submittedByRole?: string;
   submittedAt?: string;
   reviewedBy?: string;
   reviewedByEmail?: string;
+  reviewedByName?: string;
+  reviewedByRole?: string;
   reviewedAt?: string;
   rejectionReason?: string;
   approvalRemarks?: string;

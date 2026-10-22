@@ -69,11 +69,17 @@ export class MonthlyPayrollRun {
   @Prop({ required: true, trim: true })
   generatedByName: string;
 
+  @Prop({ required: false, trim: true })
+  generatedByRole?: string;
+
   @Prop({ type: Types.ObjectId, ref: 'AdminUser', required: false })
   approvedBy?: Types.ObjectId;
 
   @Prop({ required: false, trim: true })
   approvedByName?: string;
+
+  @Prop({ required: false, trim: true })
+  approvedByRole?: string;
 
   @Prop({ required: false })
   approvedAt?: Date;

@@ -117,6 +117,25 @@ export class BloodUnit {
   @Prop({ required: false, trim: true })
   notes?: string;
 
+  // --- Staff User Attribution & Accountability ---
+  @Prop({ type: Types.ObjectId, ref: 'AdminUser', required: false, index: true })
+  createdBy?: Types.ObjectId;
+
+  @Prop({ required: false, trim: true })
+  createdByName?: string;
+
+  @Prop({ required: false, trim: true })
+  createdByRole?: string;
+
+  @Prop({ type: Types.ObjectId, ref: 'AdminUser', required: false })
+  statusUpdatedBy?: Types.ObjectId;
+
+  @Prop({ required: false, trim: true })
+  statusUpdatedByName?: string;
+
+  @Prop({ required: false })
+  statusUpdatedAt?: Date;
+
   createdAt: Date;
   updatedAt: Date;
 }
@@ -128,6 +147,7 @@ BloodUnitSchema.index({ createdAt: -1 });
 BloodUnitSchema.index({ status: 1, bloodGroup: 1 });
 BloodUnitSchema.index({ collectionDate: -1 });
 BloodUnitSchema.index({ sourceType: 1, externalReceiptId: 1 });
+BloodUnitSchema.index({ createdBy: 1 });
 // Partial unique index: donationId must be unique ONLY when it is an actual ObjectId
 BloodUnitSchema.index(
   { donationId: 1 },

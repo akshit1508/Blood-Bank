@@ -16,6 +16,7 @@ import { QueryReservationsDto } from './dto/query-reservations.dto';
 import { BloodIssuesService } from '../blood-issues/blood-issues.service';
 import { CreateBloodIssueDto } from '../blood-issues/dto/create-blood-issue.dto';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { CurrentAdmin } from '../auth/decorators/current-admin.decorator';
 import { AdminRole } from '../auth/schemas/admin-user.schema';
 
 @Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN, AdminRole.FINANCE_RECEPTIONIST)
@@ -62,8 +63,9 @@ export class ReservationsController {
   async cancel(
     @Param('id') id: string,
     @Body() cancelDto: CancelReservationDto,
+    @CurrentAdmin() admin: any,
   ) {
-    const data = await this.reservationsService.cancelReservation(id, cancelDto);
+    const data = await this.reservationsService.cancelReservation(id, cancelDto, admin);
     return {
       statusCode: HttpStatus.OK,
       message: 'Reservation cancelled successfully; units released back to available inventory',
@@ -80,8 +82,9 @@ export class ReservationsController {
   async issue(
     @Param('id') id: string,
     @Body() createDto: CreateBloodIssueDto,
+    @CurrentAdmin() admin: any,
   ) {
-    const data = await this.bloodIssuesService.issueReservation(id, createDto);
+    const data = await this.bloodIssuesService.issueReservation(id, createDto, admin);
     return {
       statusCode: HttpStatus.CREATED,
       message: 'Blood units issued successfully',

@@ -32,15 +32,55 @@ export class CreateAdminDto {
 
   @IsString()
   @IsNotEmpty({ message: 'Role is required' })
-  @IsIn([AdminRole.ADMIN, AdminRole.LAB_TECHNICIAN, AdminRole.FINANCE_RECEPTIONIST], {
-    message: 'Role must be either ADMIN, LAB_TECHNICIAN, or FINANCE_RECEPTIONIST',
+  @IsIn([AdminRole.SUPER_ADMIN, AdminRole.ADMIN, AdminRole.LAB_TECHNICIAN, AdminRole.FINANCE_RECEPTIONIST], {
+    message: 'Role must be either SUPER_ADMIN, ADMIN, LAB_TECHNICIAN, or FINANCE_RECEPTIONIST',
   })
-  role: AdminRole.ADMIN | AdminRole.LAB_TECHNICIAN | AdminRole.FINANCE_RECEPTIONIST;
+  role: AdminRole;
+}
+
+export class UpdateAdminDto {
+  @IsString()
+  @IsOptional()
+  fullName?: string;
+
+  @IsString()
+  @IsOptional()
+  designation?: string;
+
+  @IsString()
+  @IsOptional()
+  @IsIn([AdminRole.SUPER_ADMIN, AdminRole.ADMIN, AdminRole.LAB_TECHNICIAN, AdminRole.FINANCE_RECEPTIONIST], {
+    message: 'Role must be either SUPER_ADMIN, ADMIN, LAB_TECHNICIAN, or FINANCE_RECEPTIONIST',
+  })
+  role?: AdminRole;
+
+  @IsString()
+  @IsOptional()
+  @MinLength(6, { message: 'Password must be at least 6 characters' })
+  password?: string;
+
+  @IsBoolean()
+  @IsOptional()
+  isActive?: boolean;
 }
 
 export class UpdateAdminStatusDto {
   @IsBoolean({ message: 'isActive must be a boolean' })
   @IsNotEmpty({ message: 'isActive is required' })
   isActive: boolean;
+}
+
+export class QueryAdminDto {
+  @IsString()
+  @IsOptional()
+  search?: string;
+
+  @IsString()
+  @IsOptional()
+  role?: AdminRole;
+
+  @IsString()
+  @IsOptional()
+  status?: string; // 'all' | 'active' | 'inactive'
 }
 

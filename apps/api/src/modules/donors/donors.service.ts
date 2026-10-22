@@ -3,6 +3,7 @@ import {
   NotFoundException,
   ConflictException,
   BadRequestException,
+  Optional,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, isValidObjectId } from 'mongoose';
@@ -20,11 +21,16 @@ import {
   MAX_WHOLE_BLOOD_DONOR_AGE,
 } from '../../common/constants/eligibility.constants';
 
+import { AuditLogsService } from '../audit-logs/audit-logs.service';
+import { AuditActionType, AuditEntityType } from '../audit-logs/constants/audit-log.constants';
+
 @Injectable()
 export class DonorsService {
   constructor(
     @InjectModel(Donor.name)
     private readonly donorModel: Model<DonorDocument>,
+    @Optional()
+    private readonly auditLogsService?: AuditLogsService,
   ) {}
 
   /**
@@ -42,7 +48,7 @@ export class DonorsService {
    * Registers a new donor from the public registration form or staff intake.
    * Checks for duplicate active registrations by normalized phone number.
    */
-  async create(createDto: CreateDonorDto): Promise<{ success: boolean; donorCode: string; message: string }> {
+  async create(createDto: CreateDonorDto, actor?: any): Promise<{ success: boolean; donorCode: string; message: string }> {
     // Authoritative Server-Side Age Validation
     if (createDto.dateOfBirth) {
       const birthDate = new Date(createDto.dateOfBirth);
@@ -82,16 +88,36 @@ export class DonorsService {
       }
     }
 
-    const donor = new this.donorModel({
+    const donorData: any = {
       ...createDto,
       donorCode,
       phone: normalizedPhone,
       email: createDto.email?.trim().toLowerCase() || undefined,
       dateOfBirth: createDto.dateOfBirth ? new Date(createDto.dateOfBirth) : undefined,
       status: DonorStatus.PENDING_REVIEW,
-    });
+    };
 
+    if (actor && actor.id) {
+      donorData.registeredBy = actor.id;
+      donorData.registeredByName = actor.fullName;
+      donorData.registeredByRole = actor.role;
+      donorData.registeredAt = new Date();
+    }
+
+    const donor = new this.donorModel(donorData);
     await donor.save();
+
+    if (actor && actor.id) {
+      await this.auditLogsService?.logEvent({
+        actor,
+        action: AuditActionType.DONOR_REGISTERED,
+        entityType: AuditEntityType.DONOR,
+        entityId: donor._id.toString(),
+        entityIdentifier: donorCode,
+        description: `Staff member registered voluntary donor ${createDto.fullName} (${donorCode}) with blood group ${createDto.bloodGroup}`,
+        afterState: { donorCode, fullName: createDto.fullName, bloodGroup: createDto.bloodGroup, status: donor.status },
+      });
+    }
 
     return {
       success: true,
@@ -169,6 +195,7 @@ export class DonorsService {
   async updateStatus(
     id: string,
     updateStatusDto: UpdateDonorStatusDto,
+    actor?: any,
   ): Promise<Donor> {
     const donor = await this.findOne(id);
     const currentStatus = donor.status;
@@ -189,16 +216,45 @@ export class DonorsService {
       );
     }
 
+    const updateFields: any = { status: targetStatus };
+    if (actor && actor.id) {
+      updateFields.updatedBy = actor.id;
+      updateFields.updatedByName = actor.fullName;
+
+      if (currentStatus === DonorStatus.PENDING_REVIEW && targetStatus === DonorStatus.ACTIVE) {
+        updateFields.verifiedBy = actor.id;
+        updateFields.verifiedByName = actor.fullName;
+        updateFields.verifiedByRole = actor.role;
+        updateFields.verifiedAt = new Date();
+      }
+    }
+
     const updated = await this.donorModel
       .findByIdAndUpdate(
         (donor as any)._id,
-        { $set: { status: targetStatus } },
+        { $set: updateFields },
         { new: true },
       )
       .exec();
 
     if (!updated) {
       throw new NotFoundException(`Donor with identifier '${id}' was not found`);
+    }
+
+    if (actor && actor.id) {
+      const isVerification = currentStatus === DonorStatus.PENDING_REVIEW && targetStatus === DonorStatus.ACTIVE;
+      await this.auditLogsService?.logEvent({
+        actor,
+        action: isVerification ? AuditActionType.DONOR_VERIFIED : AuditActionType.DONOR_STATUS_UPDATED,
+        entityType: AuditEntityType.DONOR,
+        entityId: (updated as any)._id.toString(),
+        entityIdentifier: updated.donorCode,
+        description: isVerification
+          ? `Staff verified donor ${updated.fullName} (${updated.donorCode}) as ACTIVE`
+          : `Staff updated donor status for ${updated.fullName} (${updated.donorCode}) from ${currentStatus} to ${targetStatus}`,
+        beforeState: { status: currentStatus },
+        afterState: { status: targetStatus },
+      });
     }
 
     return updated;

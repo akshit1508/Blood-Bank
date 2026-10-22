@@ -5,13 +5,20 @@ import {
   Patch,
   Param,
   Body,
+  Query,
   Headers,
   UnauthorizedException,
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { AdminLoginDto, CreateAdminDto, UpdateAdminStatusDto } from './dto/admin-auth.dto';
+import {
+  AdminLoginDto,
+  CreateAdminDto,
+  UpdateAdminDto,
+  UpdateAdminStatusDto,
+  QueryAdminDto,
+} from './dto/admin-auth.dto';
 import { AdminRole } from './schemas/admin-user.schema';
 import { Public } from './decorators/public.decorator';
 import { Roles } from './decorators/roles.decorator';
@@ -67,13 +74,14 @@ export class AuthController {
 
   /**
    * Retrieves all staff accounts (sanitized, zero password hashes).
+   * Supports search queries by name/email/designation and role/status filtering.
    * Restricted to SUPER_ADMIN.
    * GET /api/auth/admins
    */
   @Roles(AdminRole.SUPER_ADMIN)
   @Get('admins')
-  async getAdmins() {
-    const admins = await this.authService.findAllAdmins();
+  async getAdmins(@Query() query: QueryAdminDto) {
+    const admins = await this.authService.findAllAdmins(query);
     return {
       success: true,
       data: admins,
@@ -81,13 +89,36 @@ export class AuthController {
   }
 
   /**
-   * Provisions a staff account (ADMIN or LAB_TECHNICIAN). Restricted strictly to SUPER_ADMIN.
+   * Provisions a staff account under any allowed role.
+   * Restricted strictly to SUPER_ADMIN.
    * POST /api/auth/create-admin
    */
   @Roles(AdminRole.SUPER_ADMIN)
   @Post('create-admin')
-  async createAdmin(@Body() createDto: CreateAdminDto) {
-    const result = await this.authService.createOrUpdateAdmin(createDto);
+  async createAdmin(
+    @Body() createDto: CreateAdminDto,
+    @CurrentAdmin() currentAdmin: any,
+  ) {
+    const result = await this.authService.createOrUpdateAdmin(createDto, currentAdmin);
+    return {
+      success: true,
+      data: result,
+    };
+  }
+
+  /**
+   * Updates a staff account's full name, designation, role, status, or resets password.
+   * Restricted strictly to SUPER_ADMIN.
+   * PATCH /api/auth/admins/:id
+   */
+  @Roles(AdminRole.SUPER_ADMIN)
+  @Patch('admins/:id')
+  async updateAdmin(
+    @Param('id') id: string,
+    @Body() dto: UpdateAdminDto,
+    @CurrentAdmin() currentAdmin: any,
+  ) {
+    const result = await this.authService.updateAdmin(id, dto, currentAdmin);
     return {
       success: true,
       data: result,

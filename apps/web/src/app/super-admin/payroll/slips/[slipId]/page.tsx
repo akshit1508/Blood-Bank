@@ -12,6 +12,7 @@ import {
   SalarySlipPaymentStatus,
   DISBURSEMENT_PAYMENT_METHOD_LABELS,
 } from '@/lib/payroll-api';
+import StaffAttributionBadge from '@/components/admin/StaffAttributionBadge';
 
 interface PageProps {
   params: { slipId: string };
@@ -511,6 +512,7 @@ export default function SalarySlipPrintPage({ params }: PageProps) {
                   <th style={{ padding: '0.5rem 0.75rem', color: '#64748b' }}>Date</th>
                   <th style={{ padding: '0.5rem 0.75rem', color: '#64748b' }}>Method</th>
                   <th style={{ padding: '0.5rem 0.75rem', color: '#64748b' }}>Transaction / UTR Ref</th>
+                  <th style={{ padding: '0.5rem 0.75rem', color: '#64748b' }}>Disbursed by</th>
                   <th style={{ padding: '0.5rem 0.75rem', color: '#64748b', textAlign: 'right' }}>Amount</th>
                 </tr>
               </thead>
@@ -528,6 +530,13 @@ export default function SalarySlipPrintPage({ params }: PageProps) {
                     </td>
                     <td style={{ padding: '0.6rem 0.75rem', fontFamily: 'monospace', fontWeight: 600, color: '#0f172a' }}>
                       {d.transactionReference}
+                    </td>
+                    <td style={{ padding: '0.6rem 0.75rem' }}>
+                      <StaffAttributionBadge
+                        name={d.disbursedByName}
+                        role={d.disbursedByRole || 'SUPER_ADMIN'}
+                        size="xs"
+                      />
                     </td>
                     <td style={{ padding: '0.6rem 0.75rem', textAlign: 'right', fontWeight: 800, color: '#16a34a' }}>
                       {formatINR(d.amount)}

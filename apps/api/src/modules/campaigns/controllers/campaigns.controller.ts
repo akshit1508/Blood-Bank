@@ -236,8 +236,16 @@ export class CampaignsController {
   @Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN)
   @Post(':id/intake-inventory')
   @HttpCode(HttpStatus.OK)
-  async intakeCampaignInventory(@Param('id') id: string) {
-    const data = await this.campaignsService.intakePassedUnitsToInventory(id);
+  async intakeCampaignInventory(
+    @Param('id') id: string,
+    @CurrentAdmin() admin: any,
+  ) {
+    const data = await this.campaignsService.intakePassedUnitsToInventory(id, {
+      id: admin.id || admin._id,
+      fullName: admin.fullName || 'Admin Staff',
+      email: admin.email,
+      role: admin.role,
+    });
     return {
       statusCode: HttpStatus.OK,
       message: data.message,
@@ -255,8 +263,14 @@ export class CampaignsController {
   async recordDonation(
     @Param('id') id: string,
     @Body() dto: RecordCampaignDonationDto,
+    @CurrentAdmin() admin: any,
   ) {
-    const data = await this.campaignsService.recordCampaignDonation(id, dto);
+    const data = await this.campaignsService.recordCampaignDonation(id, dto, {
+      id: admin.id || admin._id,
+      fullName: admin.fullName || 'Admin Staff',
+      email: admin.email,
+      role: admin.role,
+    });
     return {
       statusCode: HttpStatus.CREATED,
       message: data.message,

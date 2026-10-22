@@ -2,9 +2,10 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  Optional,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, isValidObjectId } from 'mongoose';
+import { Model, isValidObjectId, Types } from 'mongoose';
 import {
   BloodRequest,
   BloodRequestDocument,
@@ -23,6 +24,11 @@ import {
   BloodRequestStatus,
 } from './blood-request.constants';
 import { InventoryService } from '../modules/inventory/inventory.service';
+import { AuditLogsService } from '../modules/audit-logs/audit-logs.service';
+import {
+  AuditActionType,
+  AuditEntityType,
+} from '../modules/audit-logs/constants/audit-log.constants';
 
 @Injectable()
 export class BloodRequestService {
@@ -32,6 +38,8 @@ export class BloodRequestService {
     @InjectModel(BloodIssue.name)
     private readonly bloodIssueModel: Model<BloodIssueDocument>,
     private readonly inventoryService: InventoryService,
+    @Optional()
+    private readonly auditLogsService?: AuditLogsService,
   ) {}
 
   /**
@@ -134,6 +142,7 @@ export class BloodRequestService {
   async updateStatus(
     id: string,
     updateStatusDto: UpdateBloodRequestStatusDto,
+    actor?: any,
   ): Promise<BloodRequest> {
     const request = await this.findOne(id);
     const currentStatus = request.status;
@@ -179,16 +188,40 @@ export class BloodRequestService {
       );
     }
 
+    const updateFields: any = {
+      status: targetStatus,
+      statusReason: updateStatusDto.statusReason || '',
+      statusUpdatedAt: new Date(),
+    };
+
+    if (actor?._id || actor?.id) {
+      const actorObjectId = new Types.ObjectId(actor._id || actor.id);
+      updateFields.statusUpdatedBy = actorObjectId;
+      updateFields.statusUpdatedByName = actor.fullName || actor.name || undefined;
+      updateFields.statusUpdatedByRole = actor.role || undefined;
+
+      if (targetStatus === BloodRequestStatus.VERIFIED) {
+        updateFields.verifiedBy = actorObjectId;
+        updateFields.verifiedByName = actor.fullName || actor.name || undefined;
+        updateFields.verifiedByRole = actor.role || undefined;
+        updateFields.verifiedAt = new Date();
+      } else if (targetStatus === BloodRequestStatus.APPROVED) {
+        updateFields.approvedBy = actorObjectId;
+        updateFields.approvedByName = actor.fullName || actor.name || undefined;
+        updateFields.approvedByRole = actor.role || undefined;
+        updateFields.approvedAt = new Date();
+      } else if (targetStatus === BloodRequestStatus.REJECTED) {
+        updateFields.rejectedBy = actorObjectId;
+        updateFields.rejectedByName = actor.fullName || actor.name || undefined;
+        updateFields.rejectedByRole = actor.role || undefined;
+        updateFields.rejectedAt = new Date();
+      }
+    }
+
     const updated = await this.bloodRequestModel
       .findByIdAndUpdate(
         (request as any)._id,
-        {
-          $set: {
-            status: targetStatus,
-            statusReason: updateStatusDto.statusReason || '',
-            statusUpdatedAt: new Date(),
-          },
-        },
+        { $set: updateFields },
         { new: true },
       )
       .exec();
@@ -197,6 +230,31 @@ export class BloodRequestService {
       throw new NotFoundException(
         `Blood request with identifier '${id}' was not found during update`,
       );
+    }
+
+    if (this.auditLogsService) {
+      let action = AuditActionType.BLOOD_REQUEST_CREATED;
+      if (targetStatus === BloodRequestStatus.VERIFIED) {
+        action = AuditActionType.BLOOD_REQUEST_VERIFIED;
+      } else if (targetStatus === BloodRequestStatus.APPROVED) {
+        action = AuditActionType.BLOOD_REQUEST_APPROVED;
+      } else if (targetStatus === BloodRequestStatus.REJECTED) {
+        action = AuditActionType.BLOOD_REQUEST_REJECTED;
+      }
+
+      await this.auditLogsService.logEvent({
+        actorId: actor?._id || actor?.id,
+        actorName: actor?.fullName || actor?.name,
+        actorEmail: actor?.email,
+        actorRole: actor?.role,
+        action,
+        entityType: AuditEntityType.BLOOD_REQUEST,
+        entityId: updated._id.toString(),
+        entityIdentifier: updated.requestCode,
+        description: `Blood request status updated to ${targetStatus}${updateStatusDto.statusReason ? `: ${updateStatusDto.statusReason}` : ''}`,
+        beforeState: { status: currentStatus },
+        afterState: { status: targetStatus, statusReason: updateStatusDto.statusReason },
+      });
     }
 
     return updated;
@@ -215,6 +273,7 @@ export class BloodRequestService {
   async completeRequest(
     id: string,
     completeDto?: CompleteBloodRequestDto,
+    actor?: any,
   ): Promise<BloodRequest> {
     const request = await this.findOne(id);
 
@@ -263,16 +322,22 @@ export class BloodRequestService {
       ? `Fulfillment completed. ${completeDto.notes.trim()}`
       : `Fulfillment completed successfully (${totalIssuedUnitsCount} unit(s) verified issued).`;
 
+    const updateFields: any = {
+      status: BloodRequestStatus.COMPLETED,
+      statusReason: completionReason,
+      statusUpdatedAt: new Date(),
+    };
+
+    if (actor?._id || actor?.id) {
+      updateFields.statusUpdatedBy = new Types.ObjectId(actor._id || actor.id);
+      updateFields.statusUpdatedByName = actor.fullName || actor.name || undefined;
+      updateFields.statusUpdatedByRole = actor.role || undefined;
+    }
+
     const updated = await this.bloodRequestModel
       .findByIdAndUpdate(
         (request as any)._id,
-        {
-          $set: {
-            status: BloodRequestStatus.COMPLETED,
-            statusReason: completionReason,
-            statusUpdatedAt: new Date(),
-          },
-        },
+        { $set: updateFields },
         { new: true },
       )
       .exec();
@@ -281,6 +346,22 @@ export class BloodRequestService {
       throw new NotFoundException(
         `Blood request with identifier '${id}' was not found during completion`,
       );
+    }
+
+    if (this.auditLogsService) {
+      await this.auditLogsService.logEvent({
+        actorId: actor?._id || actor?.id,
+        actorName: actor?.fullName || actor?.name,
+        actorEmail: actor?.email,
+        actorRole: actor?.role,
+        action: AuditActionType.BLOOD_REQUEST_APPROVED,
+        entityType: AuditEntityType.BLOOD_REQUEST,
+        entityId: updated._id.toString(),
+        entityIdentifier: updated.requestCode,
+        description: `Blood request fulfilled and completed (${totalIssuedUnitsCount} unit(s) issued)`,
+        beforeState: { status: request.status },
+        afterState: { status: BloodRequestStatus.COMPLETED, statusReason: completionReason },
+      });
     }
 
     return updated;

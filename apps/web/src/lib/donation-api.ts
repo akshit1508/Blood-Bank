@@ -39,6 +39,18 @@ export interface Donation {
   campaignId?: string;
   campaignCode?: string;
   notes?: string;
+  recordedBy?: string;
+  recordedByName?: string;
+  recordedByRole?: string;
+  completedBy?: string;
+  completedByName?: string;
+  completedByRole?: string;
+  completedAt?: string;
+  cancelledBy?: string;
+  cancelledByName?: string;
+  cancelledByRole?: string;
+  cancelledAt?: string;
+  cancellationReason?: string;
   createdAt: string;
   updatedAt: string;
 }

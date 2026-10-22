@@ -32,6 +32,11 @@ import {
 } from './constants/testing.constants';
 import { BloodUnitStatus } from '../blood-units/constants/blood-unit.constants';
 import { AdminRole } from '../auth/schemas/admin-user.schema';
+import { AuditLogsService } from '../audit-logs/audit-logs.service';
+import {
+  AuditActionType,
+  AuditEntityType,
+} from '../audit-logs/constants/audit-log.constants';
 
 export interface PaginatedBloodTesting {
   items: BloodTesting[];
@@ -51,6 +56,8 @@ export class TestingService {
     @Optional()
     @InjectModel(Inventory.name)
     private readonly inventoryModel?: Model<InventoryDocument>,
+    @Optional()
+    private readonly auditLogsService?: AuditLogsService,
   ) {}
 
   /**
@@ -75,7 +82,7 @@ export class TestingService {
    * 5. Initializes required tests in PENDING status.
    * 6. Lifecycle starts as IN_PROGRESS, decision PENDING.
    */
-  async create(createDto: CreateTestingDto): Promise<BloodTesting> {
+  async create(createDto: CreateTestingDto, actor?: any): Promise<BloodTesting> {
     if (!isValidObjectId(createDto.bloodUnitId)) {
       throw new BadRequestException({
         message: 'Invalid blood unit ID format',
@@ -148,7 +155,10 @@ export class TestingService {
         status: TestingStatus.IN_PROGRESS,
         decision: TestingDecision.PENDING,
         startedAt: new Date(),
-        performedBy: createDto.performedBy?.trim() || undefined,
+        performedBy: createDto.performedBy?.trim() || actor?.fullName || actor?.name || undefined,
+        startedBy: actor?._id || actor?.id ? new Types.ObjectId(actor._id || actor.id) : undefined,
+        startedByName: actor?.fullName || actor?.name || undefined,
+        startedByRole: actor?.role || undefined,
         remarks: createDto.remarks?.trim() || undefined,
       });
 
@@ -192,6 +202,7 @@ export class TestingService {
     testingId: string,
     testCode: string,
     updateDto: UpdateTestResultDto,
+    actor?: any,
   ): Promise<BloodTesting> {
     if (!isValidObjectId(testingId)) {
       throw new BadRequestException({
@@ -253,8 +264,35 @@ export class TestingService {
     if (updateDto.remarks !== undefined) {
       targetTest.remarks = updateDto.remarks.trim() || undefined;
     }
+    if (actor?._id || actor?.id) {
+      targetTest.performedBy = new Types.ObjectId(actor._id || actor.id);
+      targetTest.performedByName = actor.fullName || actor.name || undefined;
+      targetTest.performedByRole = actor.role || undefined;
+    }
 
     const saved = await testing.save();
+
+    if (this.auditLogsService) {
+      await this.auditLogsService.logEvent({
+        actorId: actor?._id || actor?.id,
+        actorName: actor?.fullName || actor?.name,
+        actorEmail: actor?.email,
+        actorRole: actor?.role,
+        action: AuditActionType.TEST_RESULT_RECORDED,
+        entityType: AuditEntityType.BLOOD_TESTING,
+        entityId: testing._id.toString(),
+        entityIdentifier: testing.testingCode,
+        description: `Screening test result recorded for ${targetTest.testName} (${testCode}): ${updateDto.status}`,
+        afterState: {
+          testCode,
+          testName: targetTest.testName,
+          status: updateDto.status,
+          result: updateDto.result,
+        },
+        metadata: { testCode, status: updateDto.status, result: updateDto.result },
+      });
+    }
+
     return (await saved.populate([
       {
         path: 'bloodUnitId',
@@ -287,6 +325,7 @@ export class TestingService {
   async completeTesting(
     testingId: string,
     dto: CompleteTestingDto,
+    actor?: any,
   ): Promise<BloodTesting> {
     if (!isValidObjectId(testingId)) {
       throw new BadRequestException({
@@ -372,6 +411,22 @@ export class TestingService {
       testing.rejectionReason = autoRejectionReason;
     }
 
+    testing.completedBy = actor?._id || actor?.id ? new Types.ObjectId(actor._id || actor.id) : undefined;
+    testing.completedByName = actor?.fullName || actor?.name || undefined;
+    testing.completedByRole = actor?.role || undefined;
+
+    if (finalDecision === TestingDecision.APPROVED) {
+      testing.verifiedBy = actor?._id || actor?.id ? new Types.ObjectId(actor._id || actor.id) : undefined;
+      testing.verifiedByName = actor?.fullName || actor?.name || undefined;
+      testing.verifiedByRole = actor?.role || undefined;
+      testing.verifiedAt = new Date();
+    } else {
+      testing.rejectedBy = actor?._id || actor?.id ? new Types.ObjectId(actor._id || actor.id) : undefined;
+      testing.rejectedByName = actor?.fullName || actor?.name || undefined;
+      testing.rejectedByRole = actor?.role || undefined;
+      testing.rejectedAt = new Date();
+    }
+
     const saved = await testing.save();
 
     // If all tests pass and unit is APPROVED, automatically add to central Inventory with its unit code
@@ -384,11 +439,40 @@ export class TestingService {
           await this.inventoryModel.create({
             bloodUnitId: testing.bloodUnitId,
             status: InventoryStatus.AVAILABLE,
+            receivedBy: actor?._id || actor?.id ? new Types.ObjectId(actor._id || actor.id) : undefined,
+            receivedByName: actor?.fullName || actor?.name || undefined,
+            receivedByRole: actor?.role || undefined,
+            receivedAt: new Date(),
           });
         }
       } catch {
         // Silently catch to avoid blocking testing completion
       }
+    }
+
+    if (this.auditLogsService) {
+      await this.auditLogsService.logEvent({
+        actorId: actor?._id || actor?.id,
+        actorName: actor?.fullName || actor?.name,
+        actorEmail: actor?.email,
+        actorRole: actor?.role,
+        action:
+          finalDecision === TestingDecision.APPROVED
+            ? AuditActionType.TESTING_APPROVED
+            : AuditActionType.TESTING_REJECTED,
+        entityType: AuditEntityType.BLOOD_TESTING,
+        entityId: testing._id.toString(),
+        entityIdentifier: testing.testingCode,
+        description: `Laboratory testing finalized with decision '${finalDecision}' for unit ${updatedUnit.unitCode}`,
+        afterState: {
+          testingCode: testing.testingCode,
+          status: testing.status,
+          decision: finalDecision,
+          bloodUnitId: updatedUnit._id.toString(),
+          unitCode: updatedUnit.unitCode,
+        },
+        metadata: { rejectionReason: autoRejectionReason },
+      });
     }
     return (await saved.populate([
       {

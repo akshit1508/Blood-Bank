@@ -46,6 +46,10 @@ export interface BloodUnit {
   status: BloodUnitStatus;
   storageLocation?: string;
   notes?: string;
+  createdByName?: string;
+  createdByRole?: string;
+  statusUpdatedByName?: string;
+  statusUpdatedByRole?: string;
   createdAt: string;
   updatedAt: string;
 }

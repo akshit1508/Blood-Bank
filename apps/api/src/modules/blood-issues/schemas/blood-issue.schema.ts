@@ -88,6 +88,15 @@ export class BloodIssue {
   @Prop({ type: String, trim: true, required: false })
   issuedBy?: string;
 
+  @Prop({ type: Types.ObjectId, ref: 'AdminUser', required: false })
+  issuedByStaffId?: Types.ObjectId;
+
+  @Prop({ type: String, trim: true, required: false })
+  issuedByName?: string;
+
+  @Prop({ type: String, trim: true, required: false })
+  issuedByRole?: string;
+
   @Prop({ type: String, trim: true, required: false })
   remarks?: string;
 

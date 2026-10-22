@@ -117,7 +117,7 @@ export interface AdminAccountSummary {
   email: string;
   fullName: string;
   designation: string;
-  role: 'SUPER_ADMIN' | 'ADMIN' | 'LAB_TECHNICIAN';
+  role: 'SUPER_ADMIN' | 'ADMIN' | 'LAB_TECHNICIAN' | 'FINANCE_RECEPTIONIST';
   isActive: boolean;
   lastLoginAt: string | null;
   createdAt: string;
@@ -128,16 +128,41 @@ export interface CreateStaffInput {
   password: string;
   fullName: string;
   designation?: string;
-  role: 'ADMIN' | 'LAB_TECHNICIAN' | 'FINANCE_RECEPTIONIST';
+  role: 'SUPER_ADMIN' | 'ADMIN' | 'LAB_TECHNICIAN' | 'FINANCE_RECEPTIONIST';
+}
+
+export interface UpdateStaffInput {
+  fullName?: string;
+  designation?: string;
+  role?: 'SUPER_ADMIN' | 'ADMIN' | 'LAB_TECHNICIAN' | 'FINANCE_RECEPTIONIST';
+  password?: string;
+  isActive?: boolean;
+}
+
+export interface QueryStaffParams {
+  search?: string;
+  role?: string;
+  status?: string;
 }
 
 /**
- * Retrieves list of all staff accounts.
+ * Retrieves list of all staff accounts with optional search and filters.
  * Restricted to SUPER_ADMIN.
  * GET /api/auth/admins
  */
-export async function fetchAdminAccounts(): Promise<AdminAccountSummary[]> {
-  const res = await fetch(`${API_BASE_URL}/auth/admins`, {
+export async function fetchAdminAccounts(params?: QueryStaffParams): Promise<AdminAccountSummary[]> {
+  const url = new URL(`${API_BASE_URL}/auth/admins`);
+  if (params?.search && params.search.trim()) {
+    url.searchParams.set('search', params.search.trim());
+  }
+  if (params?.role && params.role !== 'ALL') {
+    url.searchParams.set('role', params.role);
+  }
+  if (params?.status && params.status !== 'all') {
+    url.searchParams.set('status', params.status);
+  }
+
+  const res = await fetch(url.toString(), {
     method: 'GET',
     headers: {
       Accept: 'application/json',
@@ -155,11 +180,11 @@ export async function fetchAdminAccounts(): Promise<AdminAccountSummary[]> {
 }
 
 /**
- * Provisions a new staff account (ADMIN or LAB_TECHNICIAN).
+ * Provisions a new staff account under any allowed role.
  * Restricted to SUPER_ADMIN.
  * POST /api/auth/create-admin
  */
-export async function createStaffAccount(input: CreateStaffInput): Promise<{ message: string }> {
+export async function createStaffAccount(input: CreateStaffInput): Promise<{ message: string; data?: AdminAccountSummary }> {
   const res = await fetch(`${API_BASE_URL}/auth/create-admin`, {
     method: 'POST',
     headers: {
@@ -179,6 +204,36 @@ export async function createStaffAccount(input: CreateStaffInput): Promise<{ mes
   }
 
   return body.data || { message: 'Account created successfully' };
+}
+
+/**
+ * Updates an existing staff account's full name, designation, role, status, or credentials.
+ * Restricted to SUPER_ADMIN.
+ * PATCH /api/auth/admins/:id
+ */
+export async function updateStaffAccount(
+  adminId: string,
+  input: UpdateStaffInput,
+): Promise<{ message: string; data: AdminAccountSummary }> {
+  const res = await fetch(`${API_BASE_URL}/auth/admins/${encodeURIComponent(adminId)}`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+      ...getAuthHeaders(),
+    },
+    body: JSON.stringify(input),
+  });
+
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const errorMsg = Array.isArray(body.message)
+      ? body.message.join(', ')
+      : body.message || 'Failed to update staff account';
+    throw new Error(errorMsg);
+  }
+
+  return body.data || { message: 'Staff account updated successfully' };
 }
 
 /**

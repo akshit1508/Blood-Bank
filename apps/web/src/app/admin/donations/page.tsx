@@ -24,6 +24,7 @@ import { fetchCampaigns, CampaignItem } from '@/lib/campaign-api';
 import BloodDonationCertificateModal, {
   BloodDonationCertificateData,
 } from '@/components/admin/BloodDonationCertificateModal';
+import StaffAttributionBadge from '@/components/admin/StaffAttributionBadge';
 
 const BLOOD_GROUPS = [
   BloodGroup.A_POSITIVE,
@@ -1228,7 +1229,16 @@ export default function AdminDonationsPage() {
                             color: '#0f172a',
                           }}
                         >
-                          {item.donationCode}
+                          <div>{item.donationCode}</div>
+                          {item.recordedByName && (
+                            <div style={{ marginTop: '0.25rem' }}>
+                              <StaffAttributionBadge
+                                label="By"
+                                name={item.recordedByName}
+                                role={item.recordedByRole || 'ADMIN'}
+                              />
+                            </div>
+                          )}
                         </td>
                         <td style={{ padding: '0.75rem 1rem' }}>
                           <span
@@ -1515,6 +1525,36 @@ export default function AdminDonationsPage() {
                 <span>
                   {new Date(selectedDonation.createdAt).toLocaleString()}
                 </span>
+              </div>
+
+              <div style={{ margin: '0.65rem 0', padding: '0.65rem', background: '#f8fafc', borderRadius: '6px', border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                <StaffAttributionBadge
+                  label="Recorded by"
+                  name={selectedDonation.recordedByName}
+                  role={selectedDonation.recordedByRole || 'ADMIN'}
+                  timestamp={selectedDonation.createdAt}
+                />
+                {selectedDonation.completedByName && (
+                  <StaffAttributionBadge
+                    label="Completed by"
+                    name={selectedDonation.completedByName}
+                    role={selectedDonation.completedByRole || 'ADMIN'}
+                    timestamp={selectedDonation.completedAt}
+                  />
+                )}
+                {selectedDonation.cancelledByName && (
+                  <StaffAttributionBadge
+                    label="Cancelled by"
+                    name={selectedDonation.cancelledByName}
+                    role={selectedDonation.cancelledByRole || 'ADMIN'}
+                    timestamp={selectedDonation.cancelledAt}
+                  />
+                )}
+                {selectedDonation.cancellationReason && (
+                  <div style={{ fontSize: '0.725rem', color: '#dc2626', fontStyle: 'italic' }}>
+                    Reason: {selectedDonation.cancellationReason}
+                  </div>
+                )}
               </div>
 
               <hr

@@ -195,12 +195,15 @@ describe('ReceptionistService', () => {
       const updated = await service.verifyDocuments(
         fakeDoc._id.toString(),
         { status: 'VERIFIED', notes: 'Checked ID counter' },
-        { fullName: 'Reception Staff' },
+        { id: new Types.ObjectId().toString(), fullName: 'Reception Staff', role: 'FINANCE_RECEPTIONIST' },
       );
 
       expect(mockSave).toHaveBeenCalled();
       expect(updated.documentVerificationStatus).toBe('VERIFIED');
       expect(updated.documentVerifiedBy).toBe('Reception Staff');
+      expect(updated.verifiedByName).toBe('Reception Staff');
+      expect(updated.verifiedByRole).toBe('FINANCE_RECEPTIONIST');
+      expect(updated.verifiedAt).toBeDefined();
       expect(updated.documentVerifiedAt).toBeDefined();
     });
   });

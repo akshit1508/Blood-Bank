@@ -353,7 +353,7 @@ export default function AdminSidebar({
           { name: 'Employee Directory', href: '/super-admin/employees', icon: icons.staff },
           { name: 'Staff Management', href: '/super-admin/admins', icon: icons.staff },
           { name: 'Roles & Permissions', href: '/super-admin/admins', icon: icons.security },
-          { name: 'Audit Logs', icon: icons.audit, isComingSoon: true, badge: 'Coming Soon' },
+          { name: 'Audit Logs', href: '/super-admin/audit-logs', icon: icons.audit },
           { name: 'System Settings', icon: icons.settings, isComingSoon: true, badge: 'Coming Soon' },
         ],
       },
@@ -450,6 +450,12 @@ export default function AdminSidebar({
         items: [
           { name: 'Billing Desk', href: '/admin/finance/billing', icon: icons.finance },
           { name: 'Submit Expense', href: '/admin/finance/expenses/new', icon: icons.receipt },
+        ],
+      },
+      {
+        label: 'GOVERNANCE',
+        items: [
+          { name: 'Audit Logs', href: '/admin/audit-logs', icon: icons.audit },
         ],
       },
     ];

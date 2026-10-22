@@ -13,6 +13,7 @@ import { InventoryService } from './inventory.service';
 import { QueryInventoryDto } from './dto/query-inventory.dto';
 import { DiscardInventoryDto } from './dto/discard-inventory.dto';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { CurrentAdmin } from '../auth/decorators/current-admin.decorator';
 import { AdminRole } from '../auth/schemas/admin-user.schema';
 
 /**
@@ -30,8 +31,11 @@ export class InventoryController {
   @Post('from-blood-unit/:bloodUnitId')
   @Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN)
   @HttpCode(HttpStatus.CREATED)
-  async createFromBloodUnit(@Param('bloodUnitId') bloodUnitId: string) {
-    const item = await this.inventoryService.createFromBloodUnit(bloodUnitId);
+  async createFromBloodUnit(
+    @Param('bloodUnitId') bloodUnitId: string,
+    @CurrentAdmin() admin: any,
+  ) {
+    const item = await this.inventoryService.createFromBloodUnit(bloodUnitId, admin);
     return {
       statusCode: HttpStatus.CREATED,
       message: 'Blood unit added to available inventory successfully',
@@ -129,8 +133,9 @@ export class InventoryController {
   async discardItem(
     @Param('id') id: string,
     @Body() dto: DiscardInventoryDto,
+    @CurrentAdmin() admin: any,
   ) {
-    const item = await this.inventoryService.discardItem(id, dto);
+    const item = await this.inventoryService.discardItem(id, dto, admin);
     return {
       statusCode: HttpStatus.OK,
       message: 'Inventory unit discarded successfully',
@@ -148,8 +153,9 @@ export class InventoryController {
   async discardItemPost(
     @Param('id') id: string,
     @Body() dto: DiscardInventoryDto,
+    @CurrentAdmin() admin: any,
   ) {
-    const item = await this.inventoryService.discardItem(id, dto);
+    const item = await this.inventoryService.discardItem(id, dto, admin);
     return {
       statusCode: HttpStatus.OK,
       message: 'Inventory unit discarded successfully',

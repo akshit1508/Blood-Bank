@@ -19,6 +19,7 @@ import { CreateReservationDto } from '../modules/reservations/dto/create-reserva
 import { BloodIssuesService } from '../modules/blood-issues/blood-issues.service';
 import { Public } from '../modules/auth/decorators/public.decorator';
 import { Roles } from '../modules/auth/decorators/roles.decorator';
+import { CurrentAdmin } from '../modules/auth/decorators/current-admin.decorator';
 import { AdminRole } from '../modules/auth/schemas/admin-user.schema';
 
 @Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN, AdminRole.FINANCE_RECEPTIONIST)
@@ -87,10 +88,12 @@ export class BloodRequestController {
   async createReservation(
     @Param('id') id: string,
     @Body() createDto: CreateReservationDto,
+    @CurrentAdmin() admin: any,
   ) {
     const result = await this.reservationsService.createReservation(
       id,
       createDto,
+      admin,
     );
     return {
       statusCode: HttpStatus.CREATED,
@@ -146,10 +149,12 @@ export class BloodRequestController {
   async updateStatus(
     @Param('id') id: string,
     @Body() updateStatusDto: UpdateBloodRequestStatusDto,
+    @CurrentAdmin() admin: any,
   ) {
     const updated = await this.bloodRequestService.updateStatus(
       id,
       updateStatusDto,
+      admin,
     );
     return {
       statusCode: HttpStatus.OK,
@@ -167,10 +172,12 @@ export class BloodRequestController {
   async complete(
     @Param('id') id: string,
     @Body() completeDto: CompleteBloodRequestDto,
+    @CurrentAdmin() admin: any,
   ) {
     const completed = await this.bloodRequestService.completeRequest(
       id,
       completeDto,
+      admin,
     );
     return {
       statusCode: HttpStatus.OK,

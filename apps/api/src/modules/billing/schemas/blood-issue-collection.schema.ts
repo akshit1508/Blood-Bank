@@ -62,6 +62,9 @@ export class BloodIssueCollection {
   collectedByName: string;
 
   @Prop({ required: false, trim: true })
+  collectedByRole?: string;
+
+  @Prop({ required: false, trim: true })
   notes?: string;
 
   @Prop({ required: false, trim: true })
@@ -75,6 +78,12 @@ export class BloodIssueCollection {
 
   @Prop({ type: Types.ObjectId, ref: 'AdminUser', required: false })
   reversedBy?: Types.ObjectId;
+
+  @Prop({ required: false, trim: true })
+  reversedByName?: string;
+
+  @Prop({ required: false, trim: true })
+  reversedByRole?: string;
 
   @Prop({ required: false, trim: true })
   reversalReason?: string;

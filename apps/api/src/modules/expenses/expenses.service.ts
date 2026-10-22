@@ -5,6 +5,7 @@ import {
   ForbiddenException,
   Logger,
   OnModuleInit,
+  Optional,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types, isValidObjectId } from 'mongoose';
@@ -29,6 +30,11 @@ import { StorageService } from './storage/storage.service';
 import { AdminRole } from '../auth/schemas/admin-user.schema';
 import { Vendor, VendorDocument } from '../vendors/schemas/vendor.schema';
 import { CurrencyUtil } from '../../common/utils/currency.util';
+import { AuditLogsService } from '../audit-logs/audit-logs.service';
+import {
+  AuditActionType,
+  AuditEntityType,
+} from '../audit-logs/constants/audit-log.constants';
 
 @Injectable()
 export class ExpensesService implements OnModuleInit {
@@ -40,6 +46,8 @@ export class ExpensesService implements OnModuleInit {
     @InjectModel(Vendor.name)
     private readonly vendorModel: Model<VendorDocument>,
     private readonly storageService: StorageService,
+    @Optional()
+    private readonly auditLogsService?: AuditLogsService,
   ) {}
 
   async onModuleInit() {
@@ -166,10 +174,29 @@ export class ExpensesService implements OnModuleInit {
       status: ExpenseStatus.DRAFT,
       creatorId: new Types.ObjectId(currentAdmin.id || currentAdmin._id),
       creatorEmail: currentAdmin.email,
+      creatorName: currentAdmin.fullName || currentAdmin.name || 'Admin Staff',
       creatorRole: currentAdmin.role,
       auditHistory: [auditEvent],
       isDeleted: false,
     });
+
+    this.auditLogsService?.logEvent({
+      action: AuditActionType.EXPENSE_CREATED,
+      entityType: AuditEntityType.EXPENSE,
+      entityId: expense._id.toString(),
+      entityIdentifier: expense.expenseCode,
+      actorId: currentAdmin.id || currentAdmin._id,
+      actorName: currentAdmin.fullName || currentAdmin.name || 'Admin Staff',
+      actorEmail: currentAdmin.email,
+      actorRole: currentAdmin.role,
+      description: `Expense ${expense.expenseCode} created in DRAFT status for ${expense.vendorName}`,
+      afterState: {
+        status: expense.status,
+        amount: expense.amount,
+        vendorName: expense.vendorName,
+        category: expense.category,
+      },
+    }).catch(() => null);
 
     return expense;
   }
@@ -647,9 +674,14 @@ export class ExpensesService implements OnModuleInit {
 
     if (autoApprove) {
       expense.status = ExpenseStatus.APPROVED;
+      expense.submittedBy = new Types.ObjectId(currentAdmin.id || currentAdmin._id);
+      expense.submittedByName = currentAdmin.fullName || currentAdmin.name || 'Super Admin';
+      expense.submittedByRole = currentAdmin.role;
       expense.submittedAt = new Date();
       expense.reviewedBy = new Types.ObjectId(currentAdmin.id || currentAdmin._id);
       expense.reviewedByEmail = currentAdmin.email;
+      expense.reviewedByName = currentAdmin.fullName || currentAdmin.name || 'Super Admin';
+      expense.reviewedByRole = currentAdmin.role;
       expense.reviewedAt = new Date();
       if (dto.submissionRemarks?.trim()) {
         expense.approvalRemarks = dto.submissionRemarks.trim();
@@ -669,6 +701,9 @@ export class ExpensesService implements OnModuleInit {
       } as any);
     } else {
       expense.status = ExpenseStatus.SUBMITTED;
+      expense.submittedBy = new Types.ObjectId(currentAdmin.id || currentAdmin._id);
+      expense.submittedByName = currentAdmin.fullName || currentAdmin.name || 'Admin Staff';
+      expense.submittedByRole = currentAdmin.role;
       expense.submittedAt = new Date();
 
       expense.auditHistory.push({
@@ -683,7 +718,25 @@ export class ExpensesService implements OnModuleInit {
       } as any);
     }
 
-    return await expense.save();
+    const saved = await expense.save();
+
+    this.auditLogsService?.logEvent({
+      action: autoApprove ? AuditActionType.EXPENSE_APPROVED : AuditActionType.EXPENSE_SUBMITTED,
+      entityType: AuditEntityType.EXPENSE,
+      entityId: saved._id.toString(),
+      entityIdentifier: saved.expenseCode,
+      actorId: currentAdmin.id || currentAdmin._id,
+      actorName: currentAdmin.fullName || currentAdmin.name || (autoApprove ? 'Super Admin' : 'Admin Staff'),
+      actorEmail: currentAdmin.email,
+      actorRole: currentAdmin.role,
+      description: autoApprove
+        ? `Expense ${saved.expenseCode} directly approved by Super Admin`
+        : `Expense ${saved.expenseCode} submitted for approval`,
+      beforeState: { status: ExpenseStatus.DRAFT },
+      afterState: { status: saved.status, amount: saved.amount },
+    }).catch(() => null);
+
+    return saved;
   }
 
   /**
@@ -711,9 +764,14 @@ export class ExpensesService implements OnModuleInit {
 
     if (isSuperAdmin) {
       expense.status = ExpenseStatus.APPROVED;
+      expense.submittedBy = new Types.ObjectId(currentAdmin.id || currentAdmin._id);
+      expense.submittedByName = currentAdmin.fullName || currentAdmin.name || 'Super Admin';
+      expense.submittedByRole = currentAdmin.role;
       expense.submittedAt = new Date();
       expense.reviewedBy = new Types.ObjectId(currentAdmin.id || currentAdmin._id);
       expense.reviewedByEmail = currentAdmin.email;
+      expense.reviewedByName = currentAdmin.fullName || currentAdmin.name || 'Super Admin';
+      expense.reviewedByRole = currentAdmin.role;
       expense.reviewedAt = new Date();
       expense.approvalRemarks = `Directly approved by Super Admin upon revision: ${dto.submissionRemarks.trim()}`;
 
@@ -729,6 +787,9 @@ export class ExpensesService implements OnModuleInit {
       } as any);
     } else {
       expense.status = ExpenseStatus.SUBMITTED;
+      expense.submittedBy = new Types.ObjectId(currentAdmin.id || currentAdmin._id);
+      expense.submittedByName = currentAdmin.fullName || currentAdmin.name || 'Admin Staff';
+      expense.submittedByRole = currentAdmin.role;
       expense.submittedAt = new Date();
 
       expense.auditHistory.push({
@@ -743,7 +804,25 @@ export class ExpensesService implements OnModuleInit {
       } as any);
     }
 
-    return await expense.save();
+    const saved = await expense.save();
+
+    this.auditLogsService?.logEvent({
+      action: isSuperAdmin ? AuditActionType.EXPENSE_APPROVED : AuditActionType.EXPENSE_SUBMITTED,
+      entityType: AuditEntityType.EXPENSE,
+      entityId: saved._id.toString(),
+      entityIdentifier: saved.expenseCode,
+      actorId: currentAdmin.id || currentAdmin._id,
+      actorName: currentAdmin.fullName || currentAdmin.name || (isSuperAdmin ? 'Super Admin' : 'Admin Staff'),
+      actorEmail: currentAdmin.email,
+      actorRole: currentAdmin.role,
+      description: isSuperAdmin
+        ? `Expense ${saved.expenseCode} revised and approved by Super Admin`
+        : `Expense ${saved.expenseCode} resubmitted with corrections`,
+      beforeState: { status: ExpenseStatus.REJECTED },
+      afterState: { status: saved.status },
+    }).catch(() => null);
+
+    return saved;
   }
 
   /**
@@ -774,6 +853,8 @@ export class ExpensesService implements OnModuleInit {
     expense.status = ExpenseStatus.APPROVED;
     expense.reviewedBy = new Types.ObjectId(currentAdminId);
     expense.reviewedByEmail = currentAdmin.email;
+    expense.reviewedByName = currentAdmin.fullName || currentAdmin.name || 'Super Admin';
+    expense.reviewedByRole = currentAdmin.role;
     expense.reviewedAt = new Date();
     if (dto.approvalRemarks?.trim()) {
       expense.approvalRemarks = dto.approvalRemarks.trim();
@@ -790,7 +871,23 @@ export class ExpensesService implements OnModuleInit {
       timestamp: new Date(),
     } as any);
 
-    return await expense.save();
+    const saved = await expense.save();
+
+    this.auditLogsService?.logEvent({
+      action: AuditActionType.EXPENSE_APPROVED,
+      entityType: AuditEntityType.EXPENSE,
+      entityId: saved._id.toString(),
+      entityIdentifier: saved.expenseCode,
+      actorId: currentAdmin.id || currentAdmin._id,
+      actorName: currentAdmin.fullName || currentAdmin.name || 'Super Admin',
+      actorEmail: currentAdmin.email,
+      actorRole: currentAdmin.role,
+      description: `Expense ${saved.expenseCode} approved by ${currentAdmin.fullName || currentAdmin.name || 'Super Admin'}`,
+      beforeState: { status: ExpenseStatus.SUBMITTED },
+      afterState: { status: ExpenseStatus.APPROVED, remarks: dto.approvalRemarks },
+    }).catch(() => null);
+
+    return saved;
   }
 
   /**
@@ -828,6 +925,8 @@ export class ExpensesService implements OnModuleInit {
     expense.status = ExpenseStatus.REJECTED;
     expense.reviewedBy = new Types.ObjectId(currentAdminId);
     expense.reviewedByEmail = currentAdmin.email;
+    expense.reviewedByName = currentAdmin.fullName || currentAdmin.name || 'Super Admin';
+    expense.reviewedByRole = currentAdmin.role;
     expense.reviewedAt = new Date();
     expense.rejectionReason = dto.rejectionReason.trim();
 
@@ -842,7 +941,23 @@ export class ExpensesService implements OnModuleInit {
       timestamp: new Date(),
     } as any);
 
-    return await expense.save();
+    const saved = await expense.save();
+
+    this.auditLogsService?.logEvent({
+      action: AuditActionType.EXPENSE_REJECTED,
+      entityType: AuditEntityType.EXPENSE,
+      entityId: saved._id.toString(),
+      entityIdentifier: saved.expenseCode,
+      actorId: currentAdmin.id || currentAdmin._id,
+      actorName: currentAdmin.fullName || currentAdmin.name || 'Super Admin',
+      actorEmail: currentAdmin.email,
+      actorRole: currentAdmin.role,
+      description: `Expense ${saved.expenseCode} rejected: ${dto.rejectionReason.trim()}`,
+      beforeState: { status: ExpenseStatus.SUBMITTED },
+      afterState: { status: ExpenseStatus.REJECTED, rejectionReason: dto.rejectionReason },
+    }).catch(() => null);
+
+    return saved;
   }
 
   /**
@@ -881,6 +996,20 @@ export class ExpensesService implements OnModuleInit {
     } as any);
 
     await expense.save();
+
+    this.auditLogsService?.logEvent({
+      action: AuditActionType.EXPENSE_CANCELLED,
+      entityType: AuditEntityType.EXPENSE,
+      entityId: expense._id.toString(),
+      entityIdentifier: expense.expenseCode,
+      actorId: currentAdmin.id || currentAdmin._id,
+      actorName: currentAdmin.fullName || currentAdmin.name || 'Admin Staff',
+      actorEmail: currentAdmin.email,
+      actorRole: currentAdmin.role,
+      description: `Draft expense ${expense.expenseCode} cancelled/deleted`,
+      beforeState: { status: ExpenseStatus.DRAFT, isDeleted: false },
+      afterState: { status: ExpenseStatus.CANCELLED, isDeleted: true },
+    }).catch(() => null);
 
     // If a draft receipt file was stored, clean it up
     if (expense.receipt?.fileId) {

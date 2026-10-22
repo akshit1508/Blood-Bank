@@ -38,6 +38,7 @@ import StatusBadge from '@/components/admin/StatusBadge';
 import EmptyState from '@/components/admin/EmptyState';
 import { TableSkeleton } from '@/components/admin/LoadingSkeleton';
 import UnifiedDateFilterBar from '@/components/admin/UnifiedDateFilterBar';
+import StaffAttributionBadge from '@/components/admin/StaffAttributionBadge';
 
 function generateUUID(): string {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
@@ -1214,6 +1215,37 @@ export default function ExpenseDirectoryContent({ portalRole }: ExpenseDirectory
               </div>
             )}
 
+            {/* Staff Attribution Block */}
+            <div style={{ marginBottom: '1.25rem', padding: '0.85rem 1rem', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px' }}>
+              <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', marginBottom: '0.5rem', letterSpacing: '0.025em' }}>
+                Staff Attribution &amp; Audit Trail
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                <StaffAttributionBadge
+                  label="Created By"
+                  name={selectedExpense.creatorName || selectedExpense.creatorEmail}
+                  role={selectedExpense.creatorRole}
+                  timestamp={selectedExpense.createdAt}
+                />
+                {selectedExpense.submittedByName && (
+                  <StaffAttributionBadge
+                    label="Submitted By"
+                    name={selectedExpense.submittedByName}
+                    role={selectedExpense.submittedByRole}
+                    timestamp={selectedExpense.submittedAt}
+                  />
+                )}
+                {(selectedExpense.reviewedByName || selectedExpense.reviewedByEmail) && (
+                  <StaffAttributionBadge
+                    label={selectedExpense.status === ExpenseStatus.APPROVED ? 'Approved By' : 'Reviewed By'}
+                    name={selectedExpense.reviewedByName || selectedExpense.reviewedByEmail}
+                    role={selectedExpense.reviewedByRole || 'SUPER_ADMIN'}
+                    timestamp={selectedExpense.reviewedAt}
+                  />
+                )}
+              </div>
+            </div>
+
             {/* Receipt Download Action */}
             <div style={{ marginBottom: '1.5rem', padding: '0.85rem', border: '1px dashed #cbd5e1', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
@@ -1453,12 +1485,29 @@ export default function ExpenseDirectoryContent({ portalRole }: ExpenseDirectory
                               </span>
                             </td>
                             <td style={{ padding: '0.55rem 0.75rem', fontSize: '0.725rem', color: '#64748b' }}>
-                              {p.status === 'CANCELLED' && p.cancellationReason ? (
-                                <span style={{ color: '#dc2626', fontStyle: 'italic' }}>
-                                  Cancelled: {p.cancellationReason}
-                                </span>
+                              {p.status === 'CANCELLED' ? (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                                  <StaffAttributionBadge
+                                    label="Cancelled by"
+                                    name={p.cancelledByName}
+                                    role={p.cancelledByRole}
+                                    timestamp={p.cancelledAt}
+                                  />
+                                  {p.cancellationReason && (
+                                    <span style={{ color: '#dc2626', fontStyle: 'italic', fontSize: '0.7rem' }}>
+                                      Reason: {p.cancellationReason}
+                                    </span>
+                                  )}
+                                </div>
                               ) : (
-                                <span>By {p.createdByName} {p.notes ? `• "${p.notes}"` : ''}</span>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                                  <StaffAttributionBadge
+                                    label="Disbursed by"
+                                    name={p.createdByName}
+                                    role={p.createdByRole || 'SUPER_ADMIN'}
+                                  />
+                                  {p.notes && <span style={{ fontSize: '0.7rem', color: '#64748b' }}>&ldquo;{p.notes}&rdquo;</span>}
+                                </div>
                               )}
                             </td>
                             {portalRole === 'SUPER_ADMIN' && (

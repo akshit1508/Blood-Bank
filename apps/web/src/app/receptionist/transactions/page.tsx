@@ -257,6 +257,7 @@ export default function ReceptionistTransactionsHistoryPage() {
                   <th style={{ padding: '0.75rem 1rem' }}>Date & Time</th>
                   <th style={{ padding: '0.75rem 1rem' }}>Payment Method</th>
                   <th style={{ padding: '0.75rem 1rem' }}>Reference / UTR</th>
+                  <th style={{ padding: '0.75rem 1rem' }}>Cashier</th>
                   <th style={{ padding: '0.75rem 1rem', textAlign: 'right' }}>Amount Collected</th>
                   <th style={{ padding: '0.75rem 1rem', textAlign: 'center' }}>Receipt Action</th>
                 </tr>
@@ -323,6 +324,14 @@ export default function ReceptionistTransactionsHistoryPage() {
                       </td>
                       <td style={{ padding: '0.75rem 1rem', fontFamily: 'monospace', fontSize: '0.75rem', color: '#94a3b8' }}>
                         {col.referenceNumber || 'N/A'}
+                      </td>
+                      <td style={{ padding: '0.75rem 1rem' }}>
+                        <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#f8fafc', display: 'block' }}>
+                          {col.collectedByName || 'Finance Receptionist'}
+                        </span>
+                        <span style={{ fontSize: '0.65rem', color: '#64748b' }}>
+                          {col.collectedByRole ? col.collectedByRole.replace(/_/g, ' ') : 'RECEPTIONIST'}
+                        </span>
                       </td>
                       <td style={{ padding: '0.75rem 1rem', textAlign: 'right', fontFamily: 'monospace', fontWeight: 800, color: '#6ee7b7', fontSize: '0.9rem' }}>
                         ₹{(col.amount || 0).toLocaleString()}
@@ -522,8 +531,13 @@ export default function ReceptionistTransactionsHistoryPage() {
                   </span>
                 </div>
                 <div style={{ textAlign: 'right' }}>
-                  <span style={{ color: '#64748b', display: 'block' }}>Desk:</span>
-                  <span style={{ color: '#334155' }}>Finance Reception Desk</span>
+                  <span style={{ color: '#64748b', display: 'block' }}>Desk / Cashier:</span>
+                  <span style={{ color: '#0f172a', fontWeight: 600 }}>{selectedReceipt.collectedByName || 'Finance Reception Desk'}</span>
+                  {selectedReceipt.collectedByRole && (
+                    <span style={{ display: 'block', color: '#64748b', fontSize: '0.65rem' }}>
+                      ({selectedReceipt.collectedByRole.replace(/_/g, ' ')})
+                    </span>
+                  )}
                 </div>
               </div>
 

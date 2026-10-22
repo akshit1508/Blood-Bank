@@ -73,11 +73,29 @@ export class Reservation {
   @Prop({ type: Date, required: false, default: null })
   expiresAt?: Date | null;
 
+  @Prop({ type: Types.ObjectId, ref: 'AdminUser' })
+  reservedBy?: Types.ObjectId;
+
+  @Prop({ trim: true })
+  reservedByName?: string;
+
+  @Prop({ trim: true })
+  reservedByRole?: string;
+
   @Prop({ type: Date, required: false })
   cancelledAt?: Date;
 
   @Prop({ type: String, trim: true, required: false })
   cancellationReason?: string;
+
+  @Prop({ type: Types.ObjectId, ref: 'AdminUser' })
+  cancelledBy?: Types.ObjectId;
+
+  @Prop({ trim: true })
+  cancelledByName?: string;
+
+  @Prop({ trim: true })
+  cancelledByRole?: string;
 
   createdAt: Date;
   updatedAt: Date;

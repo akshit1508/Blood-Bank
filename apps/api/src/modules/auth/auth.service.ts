@@ -2,15 +2,27 @@ import {
   Injectable,
   UnauthorizedException,
   BadRequestException,
+  NotFoundException,
   Logger,
   OnModuleInit,
+  Optional,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { ConfigService } from '@nestjs/config';
 import { Model } from 'mongoose';
 import * as crypto from 'crypto';
 import { AdminUser, AdminUserDocument, AdminRole } from './schemas/admin-user.schema';
-import { AdminLoginDto, CreateAdminDto } from './dto/admin-auth.dto';
+import {
+  AdminLoginDto,
+  CreateAdminDto,
+  UpdateAdminDto,
+  QueryAdminDto,
+} from './dto/admin-auth.dto';
+import { AuditLogsService } from '../audit-logs/audit-logs.service';
+import {
+  AuditActionType,
+  AuditEntityType,
+} from '../audit-logs/constants/audit-log.constants';
 
 @Injectable()
 export class AuthService implements OnModuleInit {
@@ -20,6 +32,8 @@ export class AuthService implements OnModuleInit {
     @InjectModel(AdminUser.name)
     private readonly adminModel: Model<AdminUserDocument>,
     private readonly configService: ConfigService,
+    @Optional()
+    private readonly auditLogsService?: AuditLogsService,
   ) {}
 
   async onModuleInit() {
@@ -292,21 +306,45 @@ export class AuthService implements OnModuleInit {
 
   /**
    * Retrieves all staff accounts excluding sensitive password hashes and salts.
+   * Supports searching by name/email/designation and filtering by role/status.
    * Restricted to SUPER_ADMIN.
    */
-  async findAllAdmins() {
+  async findAllAdmins(query?: QueryAdminDto) {
+    const filter: any = {};
+
+    if (query?.search && query.search.trim()) {
+      const s = query.search.trim();
+      filter.$or = [
+        { fullName: { $regex: s, $options: 'i' } },
+        { email: { $regex: s, $options: 'i' } },
+        { designation: { $regex: s, $options: 'i' } },
+      ];
+    }
+
+    if (query?.role) {
+      filter.role = query.role;
+    }
+
+    if (query?.status === 'active') {
+      filter.isActive = true;
+    } else if (query?.status === 'inactive') {
+      filter.isActive = false;
+    }
+
     return this.adminModel
-      .find({})
+      .find(filter)
       .select('-passwordHash -passwordSalt')
       .sort({ createdAt: -1 })
       .lean();
   }
 
   /**
-   * Creates a new staff account (ADMIN or LAB_TECHNICIAN only).
+   * Provisions a new staff account under any allowed role (including peer SUPER_ADMIN).
+   * Generates secure scrypt password hash and salt.
+   * Emits audit log event attributing the creating Super Admin.
    * Restricted to SUPER_ADMIN.
    */
-  async createOrUpdateAdmin(createDto: CreateAdminDto) {
+  async createOrUpdateAdmin(createDto: CreateAdminDto, creatorAdmin?: any) {
     const email = createDto.email.toLowerCase().trim();
     const existing = await this.adminModel.findOne({ email });
 
@@ -318,23 +356,53 @@ export class AuthService implements OnModuleInit {
       });
     }
 
-    // Explicitly reject SUPER_ADMIN creation
-    if ((createDto.role as any) === AdminRole.SUPER_ADMIN) {
-      throw new BadRequestException('Cannot create Super Admin accounts through staff management.');
-    }
-
     const { hash, salt } = this.hashPassword(createDto.password);
+
+    const defaultDesignation = (role: AdminRole) => {
+      switch (role) {
+        case AdminRole.SUPER_ADMIN:
+          return 'Director of Blood Bank & Operations';
+        case AdminRole.LAB_TECHNICIAN:
+          return 'Laboratory Technician';
+        case AdminRole.FINANCE_RECEPTIONIST:
+          return 'Patient Reception & Billing Officer';
+        default:
+          return 'Blood Bank Officer';
+      }
+    };
 
     const created = await this.adminModel.create({
       email,
       passwordHash: hash,
       passwordSalt: salt,
-      fullName: createDto.fullName,
-      designation: createDto.designation || (createDto.role === AdminRole.LAB_TECHNICIAN ? 'Laboratory Technician' : 'Blood Bank Officer'),
+      fullName: createDto.fullName.trim(),
+      designation: createDto.designation?.trim() || defaultDesignation(createDto.role),
       role: createDto.role,
       isActive: true,
       lastLoginAt: null,
     });
+
+    if (this.auditLogsService && creatorAdmin && (creatorAdmin.id || creatorAdmin._id)) {
+      await this.auditLogsService.logEvent({
+        actorId: creatorAdmin.id || creatorAdmin._id,
+        actorName: creatorAdmin.fullName || 'Super Administrator',
+        actorEmail: creatorAdmin.email || 'superadmin@bloodbank.org',
+        actorRole: creatorAdmin.role || AdminRole.SUPER_ADMIN,
+        action: AuditActionType.STAFF_ACCOUNT_CREATED,
+        entityType: AuditEntityType.STAFF_ACCOUNT,
+        entityId: created._id.toString(),
+        entityIdentifier: created.email,
+        description: `Super Admin provisioned staff account for ${created.fullName} (${created.email}) with role ${created.role}`,
+        afterState: {
+          id: created._id.toString(),
+          email: created.email,
+          fullName: created.fullName,
+          designation: created.designation,
+          role: created.role,
+          isActive: created.isActive,
+        },
+      });
+    }
 
     return {
       id: created._id,
@@ -344,6 +412,124 @@ export class AuthService implements OnModuleInit {
       role: created.role,
       isActive: created.isActive,
       message: `Staff account '${email}' created successfully as ${createDto.role}.`,
+    };
+  }
+
+  /**
+   * Updates an existing staff account's details, role, status, or resets credentials.
+   * Enforces role integrity and safeguards against Super Admin lock-out and self-demotion.
+   * Restricted to SUPER_ADMIN.
+   */
+  async updateAdmin(targetId: string, updateDto: UpdateAdminDto, currentAdmin: any) {
+    const target = await this.adminModel.findById(targetId);
+    if (!target) {
+      throw new NotFoundException(`Staff account with ID '${targetId}' not found.`);
+    }
+
+    const previousState = {
+      fullName: target.fullName,
+      designation: target.designation,
+      role: target.role,
+      isActive: target.isActive,
+    };
+
+    const isSelf = String(target._id).trim() === String(currentAdmin?.id || currentAdmin?._id).trim();
+
+    // 1. Role Update Safeguards
+    if (updateDto.role && updateDto.role !== target.role) {
+      if (target.role === AdminRole.SUPER_ADMIN && updateDto.role !== AdminRole.SUPER_ADMIN) {
+        if (isSelf) {
+          throw new BadRequestException('Security violation: You cannot demote your own Super Admin account.');
+        }
+
+        const activeSuperAdmins = await this.adminModel.countDocuments({
+          role: AdminRole.SUPER_ADMIN,
+          isActive: true,
+        });
+
+        if (activeSuperAdmins <= 1) {
+          throw new BadRequestException(
+            'Security violation: Cannot demote the last remaining active Super Administrator.',
+          );
+        }
+      }
+      target.role = updateDto.role;
+    }
+
+    // 2. Status Update Safeguards
+    if (updateDto.isActive !== undefined && updateDto.isActive !== target.isActive) {
+      if (isSelf && !updateDto.isActive) {
+        throw new BadRequestException('Security violation: You cannot deactivate your own active account.');
+      }
+
+      if (target.role === AdminRole.SUPER_ADMIN && !updateDto.isActive) {
+        const activeSuperAdmins = await this.adminModel.countDocuments({
+          role: AdminRole.SUPER_ADMIN,
+          isActive: true,
+        });
+
+        if (activeSuperAdmins <= 1) {
+          throw new BadRequestException(
+            'Security violation: Cannot deactivate the last remaining active Super Administrator.',
+          );
+        }
+      }
+      target.isActive = updateDto.isActive;
+    }
+
+    // 3. Name & Designation Updates
+    if (updateDto.fullName && updateDto.fullName.trim()) {
+      target.fullName = updateDto.fullName.trim();
+    }
+    if (updateDto.designation !== undefined) {
+      target.designation = updateDto.designation.trim();
+    }
+
+    // 4. Secure Password Reset
+    let passwordChanged = false;
+    if (updateDto.password && updateDto.password.trim()) {
+      if (updateDto.password.trim().length < 6) {
+        throw new BadRequestException('Password must be at least 6 characters long.');
+      }
+      const { hash, salt } = this.hashPassword(updateDto.password.trim());
+      target.passwordHash = hash;
+      target.passwordSalt = salt;
+      passwordChanged = true;
+    }
+
+    await target.save();
+
+    if (this.auditLogsService && currentAdmin && (currentAdmin.id || currentAdmin._id)) {
+      await this.auditLogsService.logEvent({
+        actorId: currentAdmin.id || currentAdmin._id,
+        actorName: currentAdmin.fullName || 'Super Administrator',
+        actorEmail: currentAdmin.email || 'superadmin@bloodbank.org',
+        actorRole: currentAdmin.role || AdminRole.SUPER_ADMIN,
+        action: AuditActionType.STAFF_ACCOUNT_UPDATED,
+        entityType: AuditEntityType.STAFF_ACCOUNT,
+        entityId: target._id.toString(),
+        entityIdentifier: target.email,
+        description: `Super Admin updated staff account for ${target.fullName} (${target.email})${passwordChanged ? ' (password reset)' : ''}`,
+        beforeState: previousState,
+        afterState: {
+          fullName: target.fullName,
+          designation: target.designation,
+          role: target.role,
+          isActive: target.isActive,
+          passwordReset: passwordChanged,
+        },
+      });
+    }
+
+    return {
+      id: target._id,
+      email: target.email,
+      fullName: target.fullName,
+      designation: target.designation,
+      role: target.role,
+      isActive: target.isActive,
+      lastLoginAt: target.lastLoginAt,
+      message: `Staff account '${target.email}' updated successfully.`,
     };
   }
 
@@ -375,8 +561,25 @@ export class AuthService implements OnModuleInit {
       }
     }
 
+    const previousStatus = target.isActive;
     target.isActive = isActive;
     await target.save();
+
+    if (this.auditLogsService && currentAdminId) {
+      await this.auditLogsService.logEvent({
+        actorId: currentAdminId,
+        actorName: 'Super Administrator',
+        actorEmail: 'superadmin@bloodbank.org',
+        actorRole: AdminRole.SUPER_ADMIN,
+        action: AuditActionType.STAFF_ACCOUNT_STATUS_CHANGED,
+        entityType: AuditEntityType.STAFF_ACCOUNT,
+        entityId: target._id.toString(),
+        entityIdentifier: target.email,
+        description: `Staff account ${target.email} status changed to ${isActive ? 'ACTIVE' : 'DEACTIVATED'}`,
+        beforeState: { isActive: previousStatus },
+        afterState: { isActive },
+      });
+    }
 
     return {
       id: target._id,

@@ -69,6 +69,9 @@ export class Campaign {
   @Prop({ required: true, trim: true })
   createdByName: string;
 
+  @Prop({ required: false, trim: true })
+  createdByRole?: string;
+
   @Prop({ trim: true })
   description?: string;
 

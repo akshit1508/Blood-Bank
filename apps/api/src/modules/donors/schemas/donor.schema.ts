@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
+import { Document, Types } from 'mongoose';
 import { BloodGroup, DonorStatus, Gender } from '../constants/donor.constants';
 
 export type DonorDocument = Donor & Document;
@@ -64,6 +64,37 @@ export class Donor {
   })
   status: DonorStatus;
 
+  // --- Staff User Attribution & Accountability ---
+  @Prop({ type: Types.ObjectId, ref: 'AdminUser', required: false, index: true })
+  registeredBy?: Types.ObjectId;
+
+  @Prop({ required: false, trim: true })
+  registeredByName?: string;
+
+  @Prop({ required: false, trim: true })
+  registeredByRole?: string;
+
+  @Prop({ required: false })
+  registeredAt?: Date;
+
+  @Prop({ type: Types.ObjectId, ref: 'AdminUser', required: false, index: true })
+  verifiedBy?: Types.ObjectId;
+
+  @Prop({ required: false, trim: true })
+  verifiedByName?: string;
+
+  @Prop({ required: false, trim: true })
+  verifiedByRole?: string;
+
+  @Prop({ required: false })
+  verifiedAt?: Date;
+
+  @Prop({ type: Types.ObjectId, ref: 'AdminUser', required: false })
+  updatedBy?: Types.ObjectId;
+
+  @Prop({ required: false, trim: true })
+  updatedByName?: string;
+
   createdAt: Date;
   updatedAt: Date;
 }
@@ -71,3 +102,5 @@ export class Donor {
 export const DonorSchema = SchemaFactory.createForClass(Donor);
 
 DonorSchema.index({ createdAt: -1 });
+DonorSchema.index({ registeredBy: 1 });
+DonorSchema.index({ verifiedBy: 1 });

@@ -23,6 +23,7 @@ import {
   createInventoryFromBloodUnit,
   getFriendlyInventoryErrorMessage,
 } from '@/lib/inventory-api';
+import StaffAttributionBadge from '@/components/admin/StaffAttributionBadge';
 
 const STATUS_BADGES: Record<
   TestingStatus,
@@ -1609,12 +1610,52 @@ export default function AdminTestingPage() {
                           : 'In progress'}
                       </span>
                     </div>
-                    {selectedTesting.performedBy && (
+                    {selectedTesting.startedByName && (
+                      <div style={{ gridColumn: '1 / -1' }}>
+                        <StaffAttributionBadge
+                          label="Session Initiated by"
+                          name={selectedTesting.startedByName}
+                          role={selectedTesting.startedByRole || 'LAB_TECHNICIAN'}
+                          timestamp={selectedTesting.startedAt}
+                        />
+                      </div>
+                    )}
+                    {selectedTesting.performedBy && !selectedTesting.startedByName && (
                       <div style={{ gridColumn: '1 / -1' }}>
                         <span style={{ color: '#64748b', display: 'block', fontSize: '0.75rem' }}>Technician / Pathologist:</span>
                         <span style={{ color: '#0f172a', fontWeight: 500 }}>
                           {selectedTesting.performedBy}
                         </span>
+                      </div>
+                    )}
+                    {selectedTesting.verifiedByName && (
+                      <div style={{ gridColumn: '1 / -1' }}>
+                        <StaffAttributionBadge
+                          label={selectedTesting.decision === TestingDecision.APPROVED ? 'Verified & Approved by' : 'Verified & Finalized by'}
+                          name={selectedTesting.verifiedByName}
+                          role={selectedTesting.verifiedByRole || 'LAB_TECHNICIAN'}
+                          timestamp={selectedTesting.verifiedAt || selectedTesting.completedAt}
+                        />
+                      </div>
+                    )}
+                    {selectedTesting.rejectedByName && !selectedTesting.verifiedByName && (
+                      <div style={{ gridColumn: '1 / -1' }}>
+                        <StaffAttributionBadge
+                          label="Rejected by"
+                          name={selectedTesting.rejectedByName}
+                          role={selectedTesting.rejectedByRole || 'LAB_TECHNICIAN'}
+                          timestamp={selectedTesting.completedAt}
+                        />
+                      </div>
+                    )}
+                    {selectedTesting.completedByName && !selectedTesting.verifiedByName && !selectedTesting.rejectedByName && (
+                      <div style={{ gridColumn: '1 / -1' }}>
+                        <StaffAttributionBadge
+                          label="Finalized by"
+                          name={selectedTesting.completedByName}
+                          role={selectedTesting.completedByRole || 'LAB_TECHNICIAN'}
+                          timestamp={selectedTesting.completedAt}
+                        />
                       </div>
                     )}
                     {selectedTesting.remarks && (
@@ -1760,12 +1801,14 @@ export default function AdminTestingPage() {
                                 </span>{' '}
                                 {test.result && `(${test.result})`}
                               </div>
-                              {test.testedAt && (
-                                <div style={{ marginTop: '0.2rem' }}>
-                                  Tested At:{' '}
-                                  {new Date(test.testedAt).toLocaleString()}
-                                </div>
-                              )}
+                              <div style={{ marginTop: '0.35rem' }}>
+                                <StaffAttributionBadge
+                                  label="Tested by"
+                                  name={test.performedByName}
+                                  role={test.performedByRole || 'LAB_TECHNICIAN'}
+                                  timestamp={test.testedAt}
+                                />
+                              </div>
                               {test.remarks && (
                                 <div style={{ marginTop: '0.2rem' }}>
                                   Remarks: {test.remarks}

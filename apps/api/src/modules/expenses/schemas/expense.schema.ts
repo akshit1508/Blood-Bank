@@ -187,8 +187,20 @@ export class Expense {
   @Prop({ required: true, trim: true })
   creatorEmail: string;
 
+  @Prop({ required: false, trim: true })
+  creatorName?: string;
+
   @Prop({ required: true, trim: true })
   creatorRole: string;
+
+  @Prop({ type: Types.ObjectId, ref: 'AdminUser', required: false })
+  submittedBy?: Types.ObjectId;
+
+  @Prop({ required: false, trim: true })
+  submittedByName?: string;
+
+  @Prop({ required: false, trim: true })
+  submittedByRole?: string;
 
   @Prop({ required: false })
   submittedAt?: Date;
@@ -198,6 +210,12 @@ export class Expense {
 
   @Prop({ required: false, trim: true })
   reviewedByEmail?: string;
+
+  @Prop({ required: false, trim: true })
+  reviewedByName?: string;
+
+  @Prop({ required: false, trim: true })
+  reviewedByRole?: string;
 
   @Prop({ required: false })
   reviewedAt?: Date;

@@ -26,6 +26,7 @@ import StatCard from '@/components/admin/StatCard';
 import StatusBadge from '@/components/admin/StatusBadge';
 import EmptyState from '@/components/admin/EmptyState';
 import { TableSkeleton } from '@/components/admin/LoadingSkeleton';
+import StaffAttributionBadge from '@/components/admin/StaffAttributionBadge';
 
 interface BillingDeskContentProps {
   portalRole: 'ADMIN' | 'SUPER_ADMIN';
@@ -559,9 +560,24 @@ export default function BillingDeskContent({ portalRole }: BillingDeskContentPro
                     >
                       <td style={{ padding: '0.85rem 1rem' }}>
                         <div style={{ fontWeight: 600, color: '#0f172a' }}>{inv.invoiceNumber}</div>
-                        <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
+                        <div style={{ fontSize: '0.75rem', color: '#64748b', marginBottom: '0.25rem' }}>
                           Issue: {inv.issueCode} &bull; {new Date(inv.invoiceDate).toLocaleDateString('en-IN')}
                         </div>
+                        <StaffAttributionBadge
+                          label="Billed by"
+                          name={inv.billedByName}
+                          role={inv.billedByRole || 'RECEPTIONIST'}
+                        />
+                        {inv.status === InvoiceStatus.CANCELLED && inv.cancelledByName && (
+                          <div style={{ marginTop: '0.2rem' }}>
+                            <StaffAttributionBadge
+                              label="Cancelled by"
+                              name={inv.cancelledByName}
+                              role={inv.cancelledByRole || 'ADMIN'}
+                              timestamp={inv.cancelledAt}
+                            />
+                          </div>
+                        )}
                       </td>
                       <td style={{ padding: '0.85rem 1rem' }}>
                         <div style={{ fontWeight: 500, color: '#1e293b' }}>{inv.patient.name} ({inv.patient.age}y, {inv.patient.gender})</div>
@@ -795,8 +811,21 @@ export default function BillingDeskContent({ portalRole }: BillingDeskContentPro
                       <td style={{ padding: '0.85rem 1rem', textAlign: 'right', fontWeight: 600, color: '#16a34a' }}>
                         {formatINR(col.amount)}
                       </td>
-                      <td style={{ padding: '0.85rem 1rem', color: '#475569' }}>
-                        {col.collectedByName}
+                      <td style={{ padding: '0.85rem 1rem' }}>
+                        <StaffAttributionBadge
+                          name={col.collectedByName}
+                          role={col.collectedByRole || 'RECEPTIONIST'}
+                        />
+                        {col.isReversed && (
+                          <div style={{ marginTop: '0.2rem' }}>
+                            <StaffAttributionBadge
+                              label="Reversed by"
+                              name={col.reversedByName}
+                              role={col.reversedByRole || 'ADMIN'}
+                              timestamp={col.reversedAt}
+                            />
+                          </div>
+                        )}
                       </td>
                       <td style={{ padding: '0.85rem 1rem', color: '#64748b', fontSize: '0.8rem' }}>
                         {new Date(col.paymentDate).toLocaleString('en-IN')}
@@ -912,7 +941,12 @@ export default function BillingDeskContent({ portalRole }: BillingDeskContentPro
                       <td style={{ padding: '0.75rem 1rem' }}>{COLLECTION_PAYMENT_METHOD_LABELS[tx.paymentMethod] || tx.paymentMethod}</td>
                       <td style={{ padding: '0.75rem 1rem', color: '#64748b' }}>{tx.referenceNumber}</td>
                       <td style={{ padding: '0.75rem 1rem', textAlign: 'right', fontWeight: 600, color: '#16a34a' }}>{formatINR(tx.amount)}</td>
-                      <td style={{ padding: '0.75rem 1rem' }}>{tx.collectedByName}</td>
+                      <td style={{ padding: '0.75rem 1rem' }}>
+                        <StaffAttributionBadge
+                          name={tx.collectedByName}
+                          role="RECEPTIONIST"
+                        />
+                      </td>
                       <td style={{ padding: '0.75rem 1rem', color: '#64748b', fontSize: '0.8rem' }}>{new Date(tx.paymentDate).toLocaleTimeString('en-IN')}</td>
                     </tr>
                   ))}

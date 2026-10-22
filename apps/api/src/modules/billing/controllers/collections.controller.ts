@@ -35,6 +35,7 @@ export class CollectionsController {
       id: admin?.id || admin?._id,
       email: admin?.email,
       fullName: admin?.fullName,
+      role: admin?.role,
     });
     return {
       statusCode: HttpStatus.CREATED,

@@ -46,6 +46,11 @@ import {
 } from '../../expenses/constants/expense.constants';
 import { DonationStatus } from '../../donations/constants/donation.constants';
 import { CurrencyUtil } from '../../../common/utils/currency.util';
+import { AuditLogsService } from '../../audit-logs/audit-logs.service';
+import {
+  AuditActionType,
+  AuditEntityType,
+} from '../../audit-logs/constants/audit-log.constants';
 
 @Injectable()
 export class CampaignsService {
@@ -70,6 +75,8 @@ export class CampaignsService {
     @Optional()
     @InjectModel(Donor.name)
     private readonly donorModel?: Model<DonorDocument>,
+    @Optional()
+    private readonly auditLogsService?: AuditLogsService,
   ) {}
 
   /**
@@ -135,6 +142,7 @@ export class CampaignsService {
       budgetVersion: 1,
       createdBy: new Types.ObjectId(adminUser.id),
       createdByName: adminUser.fullName,
+      createdByRole: adminUser.role,
       description: dto.description?.trim() || undefined,
     });
 
@@ -160,6 +168,24 @@ export class CampaignsService {
       });
       await initialRevision.save();
     }
+
+    this.auditLogsService?.logEvent({
+      action: AuditActionType.CAMPAIGN_CREATED,
+      entityType: AuditEntityType.CAMPAIGN,
+      entityId: savedCampaign._id.toString(),
+      entityIdentifier: savedCampaign.campaignCode,
+      actorId: adminUser.id,
+      actorName: adminUser.fullName,
+      actorEmail: adminUser.email,
+      actorRole: adminUser.role,
+      description: `Campaign ${savedCampaign.campaignCode} (${savedCampaign.name}) created with initial budget ₹${savedCampaign.approvedBudget}`,
+      afterState: {
+        campaignCode: savedCampaign.campaignCode,
+        name: savedCampaign.name,
+        approvedBudget: savedCampaign.approvedBudget,
+        status: savedCampaign.status,
+      },
+    }).catch(() => null);
 
     return savedCampaign;
   }
@@ -294,6 +320,20 @@ export class CampaignsService {
     });
 
     const savedRevision = await revision.save();
+
+    this.auditLogsService?.logEvent({
+      action: AuditActionType.BUDGET_REVISED,
+      entityType: AuditEntityType.CAMPAIGN,
+      entityId: campaign._id.toString(),
+      entityIdentifier: campaign.campaignCode,
+      actorId: adminUser.id,
+      actorName: adminUser.fullName,
+      actorEmail: adminUser.email,
+      actorRole: adminUser.role,
+      description: `Campaign ${campaign.campaignCode} budget revised from ₹${previousBudget} to ₹${newBudget} (delta: ₹${delta}). Reason: ${dto.reason.trim()}`,
+      beforeState: { approvedBudget: previousBudget, approvedBudgetPaise: previousBudgetPaise },
+      afterState: { approvedBudget: newBudget, approvedBudgetPaise: newBudgetPaise, reason: dto.reason.trim() },
+    }).catch(() => null);
 
     return { campaign: updatedCampaign, revision: savedRevision };
   }
@@ -915,7 +955,10 @@ export class CampaignsService {
   /**
    * Intakes all laboratory-approved blood units from this campaign into Central Inventory with their unit codes.
    */
-  async intakePassedUnitsToInventory(campaignId: string) {
+  async intakePassedUnitsToInventory(
+    campaignId: string,
+    adminUser?: { id: string; fullName: string; role: string; email?: string },
+  ) {
     if (!isValidObjectId(campaignId)) {
       throw new BadRequestException('Invalid campaign ID format.');
     }
@@ -959,9 +1002,27 @@ export class CampaignsService {
         await this.inventoryModel.create({
           bloodUnitId: unit._id,
           status: InventoryStatus.AVAILABLE,
+          receivedBy: adminUser ? new Types.ObjectId(adminUser.id) : undefined,
+          receivedByName: adminUser?.fullName || 'Campaign Staff',
+          receivedByRole: adminUser?.role || 'ADMIN',
         });
         newlyIntaken++;
         intakenCodes.push(unit.unitCode);
+
+        if (adminUser) {
+          this.auditLogsService?.logEvent({
+            action: AuditActionType.INVENTORY_INTAKE_COMPLETED,
+            entityType: AuditEntityType.INVENTORY,
+            entityId: unit._id.toString(),
+            entityIdentifier: unit.unitCode,
+            actorId: adminUser.id,
+            actorName: adminUser.fullName,
+            actorEmail: adminUser.email,
+            actorRole: adminUser.role,
+            description: `Blood unit ${unit.unitCode} enrolled into central inventory from campaign ${campaign.campaignCode}`,
+            afterState: { status: InventoryStatus.AVAILABLE, campaignCode: campaign.campaignCode },
+          }).catch(() => null);
+        }
       }
     }
 
@@ -1030,6 +1091,7 @@ export class CampaignsService {
   async recordCampaignDonation(
     campaignId: string,
     dto: RecordCampaignDonationDto,
+    adminUser?: { id: string; fullName: string; role: string; email?: string },
   ) {
     if (!isValidObjectId(campaignId)) {
       throw new BadRequestException('Invalid campaign ID format.');
@@ -1069,6 +1131,9 @@ export class CampaignsService {
           phone: dto.donorPhone.trim(),
           email: dto.donorEmail?.trim().toLowerCase() || undefined,
           status: 'ACTIVE',
+          registeredBy: adminUser ? new Types.ObjectId(adminUser.id) : undefined,
+          registeredByName: adminUser?.fullName || 'Campaign Staff',
+          registeredByRole: adminUser?.role || 'ADMIN',
         });
         donor = await donor.save();
       }
@@ -1095,6 +1160,9 @@ export class CampaignsService {
       quantity: dto.quantity || 1,
       status: DonationStatus.COMPLETED,
       notes: dto.notes?.trim() || undefined,
+      recordedBy: adminUser ? new Types.ObjectId(adminUser.id) : undefined,
+      recordedByName: adminUser?.fullName || 'Campaign Staff',
+      recordedByRole: adminUser?.role || 'ADMIN',
     });
     const savedDonation = await donation.save();
 
@@ -1125,6 +1193,9 @@ export class CampaignsService {
       expiryDate: new Date(donationDate.getTime() + 35 * 24 * 60 * 60 * 1000),
       storageLocation: dto.storageLocation || 'MOBILE_CAMP_TRANSPORT_COOLER',
       status: unitStatus,
+      createdBy: adminUser ? new Types.ObjectId(adminUser.id) : undefined,
+      createdByName: adminUser?.fullName || 'Campaign Staff',
+      createdByRole: adminUser?.role || 'ADMIN',
     });
     const savedUnit = await bloodUnit.save();
 
@@ -1165,6 +1236,9 @@ export class CampaignsService {
           ? TestingDecision.REJECTED
           : TestingDecision.PENDING,
         startedAt: now,
+        startedBy: adminUser ? new Types.ObjectId(adminUser.id) : undefined,
+        startedByName: adminUser?.fullName || 'Campaign Staff',
+        startedByRole: adminUser?.role || 'ADMIN',
         completedAt: isApproved || isRejected ? now : undefined,
         remarks: isApproved
           ? 'Passed on-site rapid screening at campaign'
@@ -1173,6 +1247,21 @@ export class CampaignsService {
           : 'Enrolled in central laboratory testing pipeline',
       });
       savedTesting = await testingRecord.save();
+    }
+
+    if (adminUser) {
+      this.auditLogsService?.logEvent({
+        action: AuditActionType.DONATION_RECORDED,
+        entityType: AuditEntityType.DONATION,
+        entityId: savedDonation._id.toString(),
+        entityIdentifier: savedDonation.donationCode,
+        actorId: adminUser.id,
+        actorName: adminUser.fullName,
+        actorEmail: adminUser.email,
+        actorRole: adminUser.role,
+        description: `Campaign donation ${savedDonation.donationCode} recorded for campaign ${campaign.campaignCode}. Unit ${unitCode} issued.`,
+        afterState: { donationCode: savedDonation.donationCode, unitCode, campaignCode: campaign.campaignCode },
+      }).catch(() => null);
     }
 
     return {

@@ -248,8 +248,10 @@ export interface MonthlyPayrollRun {
   totalOutstanding: number;
   generatedBy: string;
   generatedByName: string;
+  generatedByRole?: string;
   approvedBy?: string;
   approvedByName?: string;
+  approvedByRole?: string;
   approvedAt?: string;
   notes?: string;
   createdAt: string;
@@ -319,6 +321,7 @@ export interface SalaryDisbursement {
   recipientIfscCode: string;
   disbursedBy: string;
   disbursedByName: string;
+  disbursedByRole?: string;
   notes?: string;
   receiptDocumentRef?: string;
   createdAt: string;

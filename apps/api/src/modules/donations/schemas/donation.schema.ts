@@ -48,6 +48,43 @@ export class Donation {
   @Prop({ trim: true })
   notes?: string;
 
+  // --- Staff User Attribution & Accountability ---
+  @Prop({ type: Types.ObjectId, ref: 'AdminUser', required: false, index: true })
+  recordedBy?: Types.ObjectId;
+
+  @Prop({ required: false, trim: true })
+  recordedByName?: string;
+
+  @Prop({ required: false, trim: true })
+  recordedByRole?: string;
+
+  @Prop({ type: Types.ObjectId, ref: 'AdminUser', required: false })
+  processedBy?: Types.ObjectId;
+
+  @Prop({ required: false, trim: true })
+  processedByName?: string;
+
+  @Prop({ type: Types.ObjectId, ref: 'AdminUser', required: false })
+  completedBy?: Types.ObjectId;
+
+  @Prop({ required: false, trim: true })
+  completedByName?: string;
+
+  @Prop({ required: false })
+  completedAt?: Date;
+
+  @Prop({ type: Types.ObjectId, ref: 'AdminUser', required: false })
+  cancelledBy?: Types.ObjectId;
+
+  @Prop({ required: false, trim: true })
+  cancelledByName?: string;
+
+  @Prop({ required: false })
+  cancelledAt?: Date;
+
+  @Prop({ required: false, trim: true })
+  cancellationReason?: string;
+
   createdAt: Date;
   updatedAt: Date;
 }
@@ -58,3 +95,4 @@ DonationSchema.index({ createdAt: -1 });
 DonationSchema.index({ donorId: 1, createdAt: -1 });
 DonationSchema.index({ status: 1, donationDate: -1 });
 DonationSchema.index({ campaignId: 1, status: 1 });
+DonationSchema.index({ recordedBy: 1 });

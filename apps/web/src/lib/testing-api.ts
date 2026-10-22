@@ -22,6 +22,9 @@ export interface IndividualTestResult {
   status: TestResultStatus;
   testedAt?: string;
   remarks?: string;
+  performedBy?: string;
+  performedByName?: string;
+  performedByRole?: string;
 }
 
 export interface BloodUnitSummary {
@@ -67,7 +70,20 @@ export interface BloodTesting {
   status: TestingStatus;
   decision: TestingDecision;
   startedAt: string;
+  startedBy?: string;
+  startedByName?: string;
+  startedByRole?: string;
   completedAt?: string;
+  completedBy?: string;
+  completedByName?: string;
+  completedByRole?: string;
+  verifiedBy?: string;
+  verifiedByName?: string;
+  verifiedByRole?: string;
+  verifiedAt?: string;
+  rejectedBy?: string;
+  rejectedByName?: string;
+  rejectedByRole?: string;
   performedBy?: string;
   rejectionReason?: string;
   remarks?: string;

@@ -68,6 +68,8 @@ export class PayrollController {
     const data = await this.payrollService.generateMonthlyPayroll(dto, {
       id: admin?.id || admin?._id,
       fullName: admin?.fullName || 'Super Admin',
+      email: admin?.email,
+      role: admin?.role,
     });
     return {
       statusCode: HttpStatus.CREATED,
@@ -117,6 +119,8 @@ export class PayrollController {
     const data = await this.payrollService.approvePayrollRun(id, dto, {
       id: admin?.id || admin?._id,
       fullName: admin?.fullName || 'Super Admin',
+      email: admin?.email,
+      role: admin?.role,
     });
     return {
       statusCode: HttpStatus.OK,
@@ -138,6 +142,8 @@ export class PayrollController {
     const data = await this.payrollService.batchDisburseRun(id, dto, {
       id: admin?.id || admin?._id,
       fullName: admin?.fullName || 'Super Admin',
+      email: admin?.email,
+      role: admin?.role,
     });
     return {
       statusCode: HttpStatus.OK,
@@ -187,6 +193,8 @@ export class PayrollController {
     const data = await this.payrollService.disburseSalarySlip(slipId, dto, {
       id: admin?.id || admin?._id,
       fullName: admin?.fullName || 'Super Admin',
+      email: admin?.email,
+      role: admin?.role,
     });
     return {
       statusCode: HttpStatus.OK,
@@ -222,6 +230,8 @@ export class PayrollController {
     const data = await this.payrollService.directPayEmployee(employeeId, dto, {
       id: admin?.id || admin?._id,
       fullName: admin?.fullName || 'Super Admin',
+      email: admin?.email,
+      role: admin?.role,
     });
     return {
       statusCode: HttpStatus.OK,

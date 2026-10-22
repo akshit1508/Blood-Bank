@@ -13,6 +13,7 @@ import { BloodUnitsService } from './blood-units.service';
 import { CreateBloodUnitDto } from './dto/create-blood-unit.dto';
 import { QueryBloodUnitsDto } from './dto/query-blood-units.dto';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { CurrentAdmin } from '../auth/decorators/current-admin.decorator';
 import { AdminRole } from '../auth/schemas/admin-user.schema';
 
 /**
@@ -29,8 +30,11 @@ export class BloodUnitsController {
   @Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN)
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  async create(@Body() createBloodUnitDto: CreateBloodUnitDto) {
-    const bloodUnit = await this.bloodUnitsService.create(createBloodUnitDto);
+  async create(
+    @Body() createBloodUnitDto: CreateBloodUnitDto,
+    @CurrentAdmin() admin: any,
+  ) {
+    const bloodUnit = await this.bloodUnitsService.create(createBloodUnitDto, admin);
     return {
       statusCode: HttpStatus.CREATED,
       message: 'Blood unit created successfully and queued for testing',

@@ -117,8 +117,11 @@ export interface BloodIssueInvoice {
   waivers: InvoiceWaiver[];
   invoiceDate: string;
   billedByName: string;
+  billedByRole?: string;
   notes?: string;
   cancelledAt?: string;
+  cancelledByName?: string;
+  cancelledByRole?: string;
   cancellationReason?: string;
   createdAt: string;
   updatedAt: string;
@@ -136,9 +139,12 @@ export interface BloodIssueCollection {
   paymentDate: string;
   idempotencyKey: string;
   collectedByName: string;
+  collectedByRole?: string;
   notes?: string;
   isReversed: boolean;
   reversedAt?: string;
+  reversedByName?: string;
+  reversedByRole?: string;
   reversalReason?: string;
   createdAt: string;
 }

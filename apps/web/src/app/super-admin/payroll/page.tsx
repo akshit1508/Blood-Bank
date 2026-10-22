@@ -25,6 +25,7 @@ import {
   DisbursementPaymentMethod,
   DISBURSEMENT_PAYMENT_METHOD_LABELS,
 } from '@/lib/payroll-api';
+import StaffAttributionBadge from '@/components/admin/StaffAttributionBadge';
 
 export default function PayrollDashboardPage() {
   const router = useRouter();
@@ -1420,6 +1421,23 @@ export default function PayrollDashboardPage() {
                           <div style={{ fontWeight: 700, color: '#0f172a' }}>{run.runCode}</div>
                           <div style={{ color: '#64748b', fontSize: '0.75rem', marginTop: '0.15rem' }}>
                             Period: {run.payrollPeriod} ({new Date(run.periodStartDate).toLocaleDateString()} - {new Date(run.periodEndDate).toLocaleDateString()})
+                          </div>
+                          <div style={{ marginTop: '0.35rem', display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                            <StaffAttributionBadge
+                              label="Prepared by"
+                              name={run.generatedByName}
+                              role={run.generatedByRole || 'SUPER_ADMIN'}
+                              size="xs"
+                            />
+                            {run.approvedByName && (
+                              <StaffAttributionBadge
+                                label="Approved by"
+                                name={run.approvedByName}
+                                role={run.approvedByRole || 'SUPER_ADMIN'}
+                                timestamp={run.approvedAt}
+                                size="xs"
+                              />
+                            )}
                           </div>
                         </td>
                         <td style={{ padding: '1rem' }}>

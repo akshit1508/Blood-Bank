@@ -6,6 +6,7 @@ import {
   InternalServerErrorException,
   Logger,
   OnApplicationBootstrap,
+  Optional,
 } from '@nestjs/common';
 import { InjectModel, InjectConnection } from '@nestjs/mongoose';
 import { Model, Types, Connection, isValidObjectId } from 'mongoose';
@@ -23,6 +24,12 @@ import {
   BloodAcquisitionDocument,
 } from '../blood-acquisitions/schemas/blood-acquisition.schema';
 
+import { AuditLogsService } from '../audit-logs/audit-logs.service';
+import {
+  AuditActionType,
+  AuditEntityType,
+} from '../audit-logs/constants/audit-log.constants';
+
 @Injectable()
 export class PaymentsService implements OnApplicationBootstrap {
   private readonly logger = new Logger(PaymentsService.name);
@@ -38,6 +45,8 @@ export class PaymentsService implements OnApplicationBootstrap {
     private readonly bloodAcquisitionModel: Model<BloodAcquisitionDocument>,
     @InjectConnection()
     private readonly connection: Connection,
+    @Optional()
+    private readonly auditLogsService?: AuditLogsService,
   ) {}
 
   /**
@@ -180,7 +189,7 @@ export class PaymentsService implements OnApplicationBootstrap {
       attempt++;
       const session = await this.connection.startSession();
       try {
-        let createdPayment: Payment | null = null;
+        let createdPayment: any = null;
 
         await session.withTransaction(async () => {
           // Atomic conditional balance update on Expense using effectiveNetLiabilityPaise
@@ -242,6 +251,7 @@ export class PaymentsService implements OnApplicationBootstrap {
                 requestPayloadHash: payloadHash,
                 createdBy: new Types.ObjectId(currentAdmin.id || currentAdmin._id),
                 createdByName: currentAdmin.fullName || 'Super Admin',
+                createdByRole: currentAdmin.role || 'SUPER_ADMIN',
               },
             ],
             { session }
@@ -277,6 +287,29 @@ export class PaymentsService implements OnApplicationBootstrap {
         });
 
         await session.endSession();
+
+        if (this.auditLogsService && createdPayment) {
+          await this.auditLogsService.logEvent({
+            actorId: currentAdmin.id || currentAdmin._id,
+            actorName: currentAdmin.fullName || 'Super Admin',
+            actorEmail: currentAdmin.email,
+            actorRole: currentAdmin.role || 'SUPER_ADMIN',
+            action: AuditActionType.DISBURSEMENT_RECORDED,
+            entityType: AuditEntityType.PAYMENT,
+            entityId: createdPayment._id.toString(),
+            entityIdentifier: dto.referenceNumber.trim(),
+            description: `Payment disbursement of ₹${derivedInrAmount.toFixed(2)} recorded for expense ${expense.expenseCode} (${expense.vendorName})`,
+            afterState: {
+              amountPaise: paymentPaise,
+              amount: derivedInrAmount,
+              paymentMethod: dto.paymentMethod,
+              referenceNumber: dto.referenceNumber.trim(),
+              status: PaymentStatus.COMPLETED,
+            },
+            metadata: { expenseCode: expense.expenseCode, vendorName: expense.vendorName },
+          });
+        }
+
         return createdPayment!;
       } catch (error: any) {
         await session.endSession();
@@ -354,6 +387,8 @@ export class PaymentsService implements OnApplicationBootstrap {
               status: PaymentStatus.CANCELLED,
               cancelledAt: new Date(),
               cancelledBy: new Types.ObjectId(currentAdmin.id || currentAdmin._id),
+              cancelledByName: currentAdmin.fullName || currentAdmin.email || 'Super Admin',
+              cancelledByRole: currentAdmin.role || 'SUPER_ADMIN',
               cancellationReason: dto.reason.trim(),
             },
           },
@@ -425,6 +460,24 @@ export class PaymentsService implements OnApplicationBootstrap {
       });
 
       await session.endSession();
+
+      if (this.auditLogsService && cancelledResult) {
+        await this.auditLogsService.logEvent({
+          actorId: currentAdmin.id || currentAdmin._id,
+          actorName: currentAdmin.fullName || currentAdmin.email || 'Super Admin',
+          actorEmail: currentAdmin.email,
+          actorRole: currentAdmin.role || 'SUPER_ADMIN',
+          action: AuditActionType.DISBURSEMENT_CANCELLED,
+          entityType: AuditEntityType.PAYMENT,
+          entityId: (cancelledResult as any)._id?.toString() || paymentId,
+          entityIdentifier: (cancelledResult as any).referenceNumber || paymentId,
+          description: `Disbursement of ₹${(cancelledResult as any).amount?.toFixed(2)} cancelled: ${dto.reason.trim()}`,
+          beforeState: { status: PaymentStatus.COMPLETED },
+          afterState: { status: PaymentStatus.CANCELLED, cancellationReason: dto.reason.trim() },
+          metadata: { reason: dto.reason.trim() },
+        });
+      }
+
       return cancelledResult!;
     } catch (error) {
       await session.endSession();

@@ -12,6 +12,7 @@ import { BloodIssuesService } from './blood-issues.service';
 import { CreateBloodIssueDto } from './dto/create-blood-issue.dto';
 import { QueryBloodIssuesDto } from './dto/query-blood-issues.dto';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { CurrentAdmin } from '../auth/decorators/current-admin.decorator';
 import { AdminRole } from '../auth/schemas/admin-user.schema';
 
 @Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN, AdminRole.FINANCE_RECEPTIONIST)
@@ -67,10 +68,12 @@ export class BloodIssuesController {
   async issueReservation(
     @Param('reservationId') reservationId: string,
     @Body() createDto: CreateBloodIssueDto,
+    @CurrentAdmin() admin: any,
   ) {
     const data = await this.bloodIssuesService.issueReservation(
       reservationId,
       createDto,
+      admin,
     );
     return {
       statusCode: HttpStatus.CREATED,

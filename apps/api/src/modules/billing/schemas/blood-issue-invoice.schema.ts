@@ -211,6 +211,9 @@ export class BloodIssueInvoice {
   billedByName: string;
 
   @Prop({ required: false, trim: true })
+  billedByRole?: string;
+
+  @Prop({ required: false, trim: true })
   notes?: string;
 
   @Prop({ required: false })
@@ -218,6 +221,12 @@ export class BloodIssueInvoice {
 
   @Prop({ type: Types.ObjectId, ref: 'AdminUser', required: false })
   cancelledBy?: Types.ObjectId;
+
+  @Prop({ required: false, trim: true })
+  cancelledByName?: string;
+
+  @Prop({ required: false, trim: true })
+  cancelledByRole?: string;
 
   @Prop({ required: false, trim: true })
   cancellationReason?: string;

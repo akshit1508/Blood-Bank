@@ -16,6 +16,7 @@ import { UpdateTestResultDto } from './dto/update-test-result.dto';
 import { CompleteTestingDto } from './dto/complete-testing.dto';
 import { QueryTestingDto } from './dto/query-testing.dto';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { CurrentAdmin } from '../auth/decorators/current-admin.decorator';
 import { AdminRole } from '../auth/schemas/admin-user.schema';
 
 /**
@@ -32,8 +33,11 @@ export class TestingController {
    */
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  async create(@Body() createTestingDto: CreateTestingDto) {
-    const testing = await this.testingService.create(createTestingDto);
+  async create(
+    @Body() createTestingDto: CreateTestingDto,
+    @CurrentAdmin() admin: any,
+  ) {
+    const testing = await this.testingService.create(createTestingDto, admin);
     return {
       statusCode: HttpStatus.CREATED,
       message: 'Testing record initiated successfully',
@@ -102,11 +106,13 @@ export class TestingController {
     @Param('id') id: string,
     @Param('testCode') testCode: string,
     @Body() updateDto: UpdateTestResultDto,
+    @CurrentAdmin() admin: any,
   ) {
     const updated = await this.testingService.updateTestResult(
       id,
       testCode,
       updateDto,
+      admin,
     );
     return {
       statusCode: HttpStatus.OK,
@@ -124,10 +130,12 @@ export class TestingController {
   async completeTesting(
     @Param('id') id: string,
     @Body() completeDto: CompleteTestingDto,
+    @CurrentAdmin() admin: any,
   ) {
     const completed = await this.testingService.completeTesting(
       id,
       completeDto,
+      admin,
     );
     return {
       statusCode: HttpStatus.OK,

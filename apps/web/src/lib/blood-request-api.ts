@@ -65,6 +65,18 @@ export interface BloodRequest {
   status: BloodRequestStatus;
   statusReason?: string;
   statusUpdatedAt?: string;
+  verifiedBy?: string;
+  verifiedByName?: string;
+  verifiedByRole?: string;
+  verifiedAt?: string;
+  approvedBy?: string;
+  approvedByName?: string;
+  approvedByRole?: string;
+  approvedAt?: string;
+  rejectedBy?: string;
+  rejectedByName?: string;
+  rejectedByRole?: string;
+  rejectedAt?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -386,6 +398,9 @@ export interface BloodIssueData {
   issuedUnits: IssuedUnit[];
   issuedAt: string;
   issuedBy?: string | null;
+  issuedByStaffId?: string | null;
+  issuedByName?: string | null;
+  issuedByRole?: string | null;
   remarks?: string | null;
   createdAt: string;
 }

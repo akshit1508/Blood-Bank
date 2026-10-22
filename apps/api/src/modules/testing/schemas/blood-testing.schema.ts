@@ -29,6 +29,15 @@ export class IndividualTestResult {
   @Prop()
   testedAt?: Date;
 
+  @Prop({ type: Types.ObjectId, ref: 'AdminUser' })
+  performedBy?: Types.ObjectId;
+
+  @Prop({ trim: true })
+  performedByName?: string;
+
+  @Prop({ trim: true })
+  performedByRole?: string;
+
   @Prop({ trim: true })
   remarks?: string;
 }
@@ -107,6 +116,48 @@ export class BloodTesting {
 
   @Prop({ trim: true })
   performedBy?: string;
+
+  @Prop({ type: Types.ObjectId, ref: 'AdminUser' })
+  startedBy?: Types.ObjectId;
+
+  @Prop({ trim: true })
+  startedByName?: string;
+
+  @Prop({ trim: true })
+  startedByRole?: string;
+
+  @Prop({ type: Types.ObjectId, ref: 'AdminUser' })
+  verifiedBy?: Types.ObjectId;
+
+  @Prop({ trim: true })
+  verifiedByName?: string;
+
+  @Prop({ trim: true })
+  verifiedByRole?: string;
+
+  @Prop()
+  verifiedAt?: Date;
+
+  @Prop({ type: Types.ObjectId, ref: 'AdminUser' })
+  rejectedBy?: Types.ObjectId;
+
+  @Prop({ trim: true })
+  rejectedByName?: string;
+
+  @Prop({ trim: true })
+  rejectedByRole?: string;
+
+  @Prop()
+  rejectedAt?: Date;
+
+  @Prop({ type: Types.ObjectId, ref: 'AdminUser' })
+  completedBy?: Types.ObjectId;
+
+  @Prop({ trim: true })
+  completedByName?: string;
+
+  @Prop({ trim: true })
+  completedByRole?: string;
 
   @Prop({ trim: true })
   rejectionReason?: string;

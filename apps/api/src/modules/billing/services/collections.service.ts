@@ -3,6 +3,7 @@ import {
   NotFoundException,
   BadRequestException,
   ConflictException,
+  Optional,
 } from '@nestjs/common';
 import { InjectModel, InjectConnection } from '@nestjs/mongoose';
 import { Model, Types, Connection, ClientSession, isValidObjectId } from 'mongoose';
@@ -25,6 +26,11 @@ import {
 } from '../dto/collection.dto';
 import { QueryCollectionsDto } from '../dto/query-billing.dto';
 import { CurrencyUtil } from '../../../common/utils/currency.util';
+import { AuditLogsService } from '../../audit-logs/audit-logs.service';
+import {
+  AuditActionType,
+  AuditEntityType,
+} from '../../audit-logs/constants/audit-log.constants';
 
 @Injectable()
 export class CollectionsService {
@@ -35,6 +41,8 @@ export class CollectionsService {
     private readonly invoiceModel: Model<BloodIssueInvoiceDocument>,
     @InjectConnection()
     private readonly connection: Connection,
+    @Optional()
+    private readonly auditLogsService?: AuditLogsService,
   ) {}
 
   /**
@@ -72,7 +80,7 @@ export class CollectionsService {
   async recordCollection(
     invoiceIdentifier: string,
     dto: RecordCollectionDto,
-    user: { id?: string; email?: string; fullName?: string },
+    user?: { id?: string; email?: string; fullName?: string; role?: string },
   ) {
     const amountPaise = CurrencyUtil.toPaise(dto.amount);
     if (amountPaise <= 0) {
@@ -225,6 +233,7 @@ export class CollectionsService {
             requestPayloadHash: payloadHash,
             collectedBy: user?.id ? new Types.ObjectId(user.id) : new Types.ObjectId(),
             collectedByName: user?.fullName || user?.email || 'Cashier',
+            collectedByRole: user?.role || undefined,
             notes: dto.notes?.trim() || undefined,
             isReversed: false,
           },
@@ -234,6 +243,28 @@ export class CollectionsService {
 
       if (session) {
         await session.commitTransaction();
+      }
+
+      if (this.auditLogsService) {
+        await this.auditLogsService.logEvent({
+          actorId: user?.id,
+          actorName: user?.fullName || user?.email,
+          actorEmail: user?.email,
+          actorRole: user?.role,
+          action: AuditActionType.PAYMENT_COLLECTED,
+          entityType: AuditEntityType.COLLECTION,
+          entityId: (collection._id as any).toString(),
+          entityIdentifier: receiptNumber,
+          description: `Payment collection of ₹${CurrencyUtil.toInr(amountPaise)} recorded for invoice ${invoice.invoiceNumber} via ${dto.paymentMethod} (Receipt: ${receiptNumber})`,
+          afterState: {
+            receiptNumber,
+            invoiceNumber: invoice.invoiceNumber,
+            amountPaise,
+            paymentMethod: dto.paymentMethod,
+            newOutstandingPaise,
+          },
+          metadata: { referenceNumber: dto.referenceNumber, idempotencyKey },
+        });
       }
 
       return this.mapCollectionToDto(collection);
@@ -369,9 +400,14 @@ export class CollectionsService {
       referenceNumber: col.referenceNumber,
       paymentDate: col.paymentDate,
       idempotencyKey: col.idempotencyKey,
+      collectedBy: col.collectedBy?.toString(),
       collectedByName: col.collectedByName,
+      collectedByRole: col.collectedByRole || null,
       notes: col.notes || null,
       isReversed: col.isReversed || false,
+      reversedBy: col.reversedBy?.toString(),
+      reversedByName: col.reversedByName || null,
+      reversedByRole: col.reversedByRole || null,
       reversedAt: col.reversedAt || null,
       reversalReason: col.reversalReason || null,
       createdAt: col.createdAt,

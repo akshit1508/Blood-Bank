@@ -15,6 +15,7 @@ import { UpdateDonorStatusDto } from './dto/update-donor-status.dto';
 import { BloodGroup, DonorStatus } from './constants/donor.constants';
 import { Public } from '../auth/decorators/public.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { CurrentAdmin } from '../auth/decorators/current-admin.decorator';
 import { AdminRole } from '../auth/schemas/admin-user.schema';
 
 @Controller('donors')
@@ -29,8 +30,11 @@ export class DonorsController {
   @Public()
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  async create(@Body() createDonorDto: CreateDonorDto) {
-    const result = await this.donorsService.create(createDonorDto);
+  async create(
+    @Body() createDonorDto: CreateDonorDto,
+    @CurrentAdmin() admin?: any,
+  ) {
+    const result = await this.donorsService.create(createDonorDto, admin);
     return {
       statusCode: HttpStatus.CREATED,
       message: result.message,
@@ -89,10 +93,12 @@ export class DonorsController {
   async updateStatus(
     @Param('id') id: string,
     @Body() updateDonorStatusDto: UpdateDonorStatusDto,
+    @CurrentAdmin() admin: any,
   ) {
     const updated = await this.donorsService.updateStatus(
       id,
       updateDonorStatusDto,
+      admin,
     );
     return {
       statusCode: HttpStatus.OK,

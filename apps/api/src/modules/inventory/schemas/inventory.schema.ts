@@ -39,6 +39,25 @@ export class Inventory {
   })
   discardedAt?: Date;
 
+  // --- Staff User Attribution & Accountability ---
+  @Prop({ type: Types.ObjectId, ref: 'AdminUser', required: false, index: true })
+  receivedBy?: Types.ObjectId;
+
+  @Prop({ required: false, trim: true })
+  receivedByName?: string;
+
+  @Prop({ type: Types.ObjectId, ref: 'AdminUser', required: false })
+  lastAdjustedBy?: Types.ObjectId;
+
+  @Prop({ required: false, trim: true })
+  lastAdjustedByName?: string;
+
+  @Prop({ type: Types.ObjectId, ref: 'AdminUser', required: false })
+  discardedBy?: Types.ObjectId;
+
+  @Prop({ required: false, trim: true })
+  discardedByName?: string;
+
   createdAt: Date;
   updatedAt: Date;
 }
@@ -46,3 +65,4 @@ export class Inventory {
 export const InventorySchema = SchemaFactory.createForClass(Inventory);
 
 InventorySchema.index({ createdAt: -1 });
+InventorySchema.index({ receivedBy: 1 });

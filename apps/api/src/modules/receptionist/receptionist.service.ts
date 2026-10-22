@@ -3,6 +3,7 @@ import {
   NotFoundException,
   BadRequestException,
   Logger,
+  Optional,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types, isValidObjectId } from 'mongoose';
@@ -34,6 +35,11 @@ import {
   VerifyDocumentsDto,
 } from './dto/receptionist-query.dto';
 import { BloodRequestStatus } from '../../blood-requests/blood-request.constants';
+import { AuditLogsService } from '../audit-logs/audit-logs.service';
+import {
+  AuditActionType,
+  AuditEntityType,
+} from '../audit-logs/constants/audit-log.constants';
 
 @Injectable()
 export class ReceptionistService {
@@ -50,6 +56,8 @@ export class ReceptionistService {
     private readonly bloodRequestModel: Model<BloodRequestDocument>,
     @InjectModel(Inventory.name)
     private readonly inventoryModel: Model<InventoryDocument>,
+    @Optional()
+    private readonly auditLogsService?: AuditLogsService,
   ) {}
 
   /**
@@ -475,20 +483,48 @@ export class ReceptionistService {
       throw new NotFoundException(`Blood request '${requestId}' not found`);
     }
 
+    const previousStatus = request.status;
     request.documentVerificationStatus = dto.status;
     request.documentVerifiedBy = admin?.fullName || 'Finance Receptionist';
     request.documentVerifiedAt = new Date();
 
-    if (dto.status === 'VERIFIED' && request.status === BloodRequestStatus.REQUESTED) {
-      request.status = BloodRequestStatus.VERIFIED;
-      request.statusReason = `Documents verified by ${admin?.fullName || 'Receptionist'}${dto.notes ? ': ' + dto.notes : ''}`;
-      request.statusUpdatedAt = new Date();
+    if (dto.status === 'VERIFIED') {
+      if (admin?.id || admin?._id) {
+        request.verifiedBy = new Types.ObjectId(admin.id || admin._id);
+      }
+      request.verifiedByName = admin?.fullName || 'Finance Receptionist';
+      request.verifiedByRole = admin?.role || 'FINANCE_RECEPTIONIST';
+      request.verifiedAt = new Date();
+
+      if (request.status === BloodRequestStatus.REQUESTED) {
+        request.status = BloodRequestStatus.VERIFIED;
+        request.statusReason = `Documents verified by ${admin?.fullName || 'Receptionist'}${dto.notes ? ': ' + dto.notes : ''}`;
+        request.statusUpdatedAt = new Date();
+      }
     } else if (dto.status === 'REJECTED' && request.status === BloodRequestStatus.REQUESTED) {
       request.statusReason = `Documents flagged as incomplete: ${dto.notes || 'Missing required clinical documentation'}`;
       request.statusUpdatedAt = new Date();
     }
 
     await request.save();
+
+    if (this.auditLogsService && (admin?.id || admin?._id)) {
+      await this.auditLogsService.logEvent({
+        actorId: admin.id || admin._id,
+        actorName: admin.fullName || 'Finance Receptionist',
+        actorEmail: admin.email || 'reception@bloodbank.system',
+        actorRole: admin.role || 'FINANCE_RECEPTIONIST',
+        action: AuditActionType.BLOOD_REQUEST_VERIFIED,
+        entityType: AuditEntityType.BLOOD_REQUEST,
+        entityId: request._id.toString(),
+        entityIdentifier: request.requestCode,
+        description: `Blood request ${request.requestCode} documents marked as ${dto.status} by ${admin.fullName || 'Receptionist'}`,
+        beforeState: { documentVerificationStatus: 'PENDING', status: previousStatus },
+        afterState: { documentVerificationStatus: dto.status, status: request.status },
+        metadata: { notes: dto.notes },
+      });
+    }
+
     return request;
   }
 }

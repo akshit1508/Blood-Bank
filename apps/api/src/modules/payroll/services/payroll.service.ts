@@ -3,6 +3,7 @@ import {
   NotFoundException,
   BadRequestException,
   ConflictException,
+  Optional,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
@@ -38,6 +39,11 @@ import {
   EmployeeStatus,
 } from '../constants/payroll.constants';
 import { CurrencyUtil } from '../../../common/utils/currency.util';
+import { AuditLogsService } from '../../audit-logs/audit-logs.service';
+import {
+  AuditActionType,
+  AuditEntityType,
+} from '../../audit-logs/constants/audit-log.constants';
 
 @Injectable()
 export class PayrollService {
@@ -52,6 +58,8 @@ export class PayrollService {
     private readonly employeeModel: Model<EmployeeDocument>,
     @InjectModel(SalaryStructure.name)
     private readonly structureModel: Model<SalaryStructureDocument>,
+    @Optional()
+    private readonly auditLogsService?: AuditLogsService,
   ) {}
 
   /**
@@ -59,7 +67,7 @@ export class PayrollService {
    */
   async generateMonthlyPayroll(
     dto: GeneratePayrollRunDto,
-    adminUser: { id: string; fullName: string },
+    adminUser: { id: string; fullName: string; email?: string; role?: string },
   ): Promise<MonthlyPayrollRunDocument> {
     const period = dto.payrollPeriod.trim();
 
@@ -224,11 +232,31 @@ export class PayrollService {
       totalOutstanding: CurrencyUtil.toInr(totalNetPayablePaise),
       generatedBy: new Types.ObjectId(adminUser.id),
       generatedByName: adminUser.fullName,
+      generatedByRole: adminUser.role,
       notes: dto.notes,
     });
 
     const savedRun = await run.save();
     await this.slipModel.insertMany(slipsToInsert);
+
+    this.auditLogsService?.logEvent({
+      action: AuditActionType.PAYROLL_GENERATED,
+      entityType: AuditEntityType.PAYROLL,
+      entityId: savedRun._id.toString(),
+      entityIdentifier: savedRun.runCode,
+      actorId: adminUser.id,
+      actorName: adminUser.fullName,
+      actorEmail: adminUser.email,
+      actorRole: adminUser.role,
+      description: `Monthly payroll run ${savedRun.runCode} generated for period ${savedRun.payrollPeriod} (${savedRun.totalEmployees} employees, total net: ₹${savedRun.totalNetPayable})`,
+      afterState: {
+        runCode: savedRun.runCode,
+        payrollPeriod: savedRun.payrollPeriod,
+        totalEmployees: savedRun.totalEmployees,
+        totalNetPayable: savedRun.totalNetPayable,
+        status: savedRun.status,
+      },
+    }).catch(() => null);
 
     return savedRun;
   }
@@ -239,7 +267,7 @@ export class PayrollService {
   async approvePayrollRun(
     runId: string,
     dto: ApprovePayrollRunDto,
-    adminUser: { id: string; fullName: string },
+    adminUser: { id: string; fullName: string; email?: string; role?: string },
   ): Promise<MonthlyPayrollRunDocument> {
     const run = await this.runModel.findById(runId);
     if (!run) {
@@ -255,12 +283,29 @@ export class PayrollService {
     run.status = PayrollRunStatus.APPROVED;
     run.approvedBy = new Types.ObjectId(adminUser.id);
     run.approvedByName = adminUser.fullName;
+    run.approvedByRole = adminUser.role;
     run.approvedAt = new Date();
     if (dto.notes) {
       run.notes = run.notes ? `${run.notes}\n[Approved]: ${dto.notes}` : dto.notes;
     }
 
-    return await run.save();
+    const savedRun = await run.save();
+
+    this.auditLogsService?.logEvent({
+      action: AuditActionType.PAYROLL_APPROVED,
+      entityType: AuditEntityType.PAYROLL,
+      entityId: savedRun._id.toString(),
+      entityIdentifier: savedRun.runCode,
+      actorId: adminUser.id,
+      actorName: adminUser.fullName,
+      actorEmail: adminUser.email,
+      actorRole: adminUser.role,
+      description: `Monthly payroll run ${savedRun.runCode} approved by ${adminUser.fullName}`,
+      beforeState: { status: PayrollRunStatus.DRAFT },
+      afterState: { status: PayrollRunStatus.APPROVED, approvedAt: savedRun.approvedAt },
+    }).catch(() => null);
+
+    return savedRun;
   }
 
   /**
@@ -269,7 +314,7 @@ export class PayrollService {
   async disburseSalarySlip(
     slipId: string,
     dto: DisburseSalarySlipDto,
-    adminUser: { id: string; fullName: string },
+    adminUser: { id: string; fullName: string; email?: string; role?: string },
   ): Promise<{ slip: SalarySlipDocument; disbursement: SalaryDisbursementDocument; run: MonthlyPayrollRunDocument }> {
     const slip = await this.slipModel.findById(slipId);
     if (!slip) {
@@ -328,6 +373,7 @@ export class PayrollService {
       recipientIfscCode: slip.employeeSnapshot.ifscCode,
       disbursedBy: new Types.ObjectId(adminUser.id),
       disbursedByName: adminUser.fullName,
+      disbursedByRole: adminUser.role,
       notes: dto.notes,
       receiptDocumentRef: dto.receiptDocumentRef,
     });
@@ -355,6 +401,25 @@ export class PayrollService {
       : PayrollRunStatus.PARTIALLY_DISBURSED;
     await run.save();
 
+    this.auditLogsService?.logEvent({
+      action: AuditActionType.SALARY_DISBURSED,
+      entityType: AuditEntityType.SALARY_DISBURSEMENT,
+      entityId: savedDisbursement._id.toString(),
+      entityIdentifier: savedDisbursement.disbursementNumber,
+      actorId: adminUser.id,
+      actorName: adminUser.fullName,
+      actorEmail: adminUser.email,
+      actorRole: adminUser.role,
+      description: `Salary disbursement ${savedDisbursement.disbursementNumber} (₹${savedDisbursement.amount}) recorded for slip ${slip.slipNumber} (${slip.employeeSnapshot.fullName})`,
+      afterState: {
+        disbursementNumber: savedDisbursement.disbursementNumber,
+        slipNumber: slip.slipNumber,
+        amount: savedDisbursement.amount,
+        paymentMethod: savedDisbursement.paymentMethod,
+        transactionReference: savedDisbursement.transactionReference,
+      },
+    }).catch(() => null);
+
     return { slip, disbursement: savedDisbursement, run };
   }
 
@@ -364,7 +429,7 @@ export class PayrollService {
   async batchDisburseRun(
     runId: string,
     dto: BatchDisbursePayrollDto,
-    adminUser: { id: string; fullName: string },
+    adminUser: { id: string; fullName: string; email?: string; role?: string },
   ): Promise<{ run: MonthlyPayrollRunDocument; processedCount: number; totalDisbursed: number }> {
     const run = await this.runModel.findById(runId);
     if (!run) {
@@ -664,7 +729,7 @@ export class PayrollService {
   async directPayEmployee(
     employeeId: string,
     dto: DirectPayEmployeeDto,
-    adminUser: { id: string; fullName: string },
+    adminUser: { id: string; fullName: string; email?: string; role?: string },
   ): Promise<any> {
     const employee = await this.employeeModel.findById(employeeId);
     if (!employee) {
@@ -710,8 +775,10 @@ export class PayrollService {
         totalOutstanding: 0,
         generatedBy: new Types.ObjectId(adminUser.id),
         generatedByName: adminUser.fullName,
+        generatedByRole: adminUser.role,
         approvedBy: new Types.ObjectId(adminUser.id),
         approvedByName: adminUser.fullName,
+        approvedByRole: adminUser.role,
         approvedAt: new Date(),
         notes: `Direct payout batch for ${period}`,
       });
@@ -724,6 +791,7 @@ export class PayrollService {
       if (!run.approvedAt) {
         run.approvedBy = new Types.ObjectId(adminUser.id);
         run.approvedByName = adminUser.fullName;
+        run.approvedByRole = adminUser.role;
         run.approvedAt = new Date();
       }
       await run.save();

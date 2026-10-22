@@ -3,6 +3,7 @@ import {
   NotFoundException,
   BadRequestException,
   ConflictException,
+  Optional,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types, isValidObjectId } from 'mongoose';
@@ -44,6 +45,12 @@ import {
   BloodUnitSourceType,
 } from '../blood-acquisitions/constants/blood-acquisition.constants';
 
+import { AuditLogsService } from '../audit-logs/audit-logs.service';
+import {
+  AuditActionType,
+  AuditEntityType,
+} from '../audit-logs/constants/audit-log.constants';
+
 @Injectable()
 export class InventoryService {
   constructor(
@@ -57,6 +64,8 @@ export class InventoryService {
     private readonly bloodTestingModel: Model<BloodTestingDocument>,
     @InjectModel(BloodAcquisition.name)
     private readonly bloodAcquisitionModel: Model<BloodAcquisitionDocument>,
+    @Optional()
+    private readonly auditLogsService?: AuditLogsService,
   ) {}
 
   /**
@@ -100,6 +109,16 @@ export class InventoryService {
       status: inventory.status,
       discardReason: inventory.discardReason || null,
       discardedAt: inventory.discardedAt || null,
+      discardedBy: inventory.discardedBy || null,
+      discardedByName: inventory.discardedByName || null,
+      discardedByRole: inventory.discardedByRole || null,
+      receivedBy: inventory.receivedBy || null,
+      receivedByName: inventory.receivedByName || null,
+      receivedByRole: inventory.receivedByRole || null,
+      receivedAt: inventory.receivedAt || null,
+      lastAdjustedBy: inventory.lastAdjustedBy || null,
+      lastAdjustedByName: inventory.lastAdjustedByName || null,
+      lastAdjustedAt: inventory.lastAdjustedAt || null,
       isExpired,
       isExpiringSoon,
       createdAt: inventory.createdAt,
@@ -149,6 +168,9 @@ export class InventoryService {
             fromStatus: h.fromStatus,
             toStatus: h.toStatus,
             reason: h.reason,
+            changedBy: h.changedBy || null,
+            changedByName: h.changedByName || null,
+            changedByRole: h.changedByRole || null,
             changedAt: h.changedAt,
           }))
         : undefined,
@@ -163,12 +185,16 @@ export class InventoryService {
     toStatus: InventoryStatus,
     fromStatus: InventoryStatus | null = null,
     reason?: string,
+    actor?: any,
   ) {
     return this.inventoryHistoryModel.create({
       inventoryId,
       fromStatus,
       toStatus,
       reason,
+      changedBy: actor?._id || actor?.id ? new Types.ObjectId(actor._id || actor.id) : undefined,
+      changedByName: actor?.fullName || actor?.name || undefined,
+      changedByRole: actor?.role || undefined,
     });
   }
 
@@ -184,7 +210,7 @@ export class InventoryService {
    * 6. Authoritative physical fields (bloodGroup, componentType, collectionDate, etc.) remain in Blood Unit.
    * 7. Initial inventory status is strictly AVAILABLE.
    */
-  async createFromBloodUnit(bloodUnitId: string) {
+  async createFromBloodUnit(bloodUnitId: string, actor?: any) {
     if (!isValidObjectId(bloodUnitId)) {
       throw new BadRequestException({
         message: 'Invalid blood unit ID format',
@@ -312,6 +338,10 @@ export class InventoryService {
     const inventory = await this.inventoryModel.create({
       bloodUnitId: bloodUnit._id,
       status: InventoryStatus.AVAILABLE,
+      receivedBy: actor?._id || actor?.id ? new Types.ObjectId(actor._id || actor.id) : undefined,
+      receivedByName: actor?.fullName || actor?.name || undefined,
+      receivedByRole: actor?.role || undefined,
+      receivedAt: new Date(),
     });
 
     // 6. Record Initial History Entry
@@ -324,7 +354,27 @@ export class InventoryService {
       InventoryStatus.AVAILABLE,
       null,
       initialReason,
+      actor,
     );
+
+    await this.auditLogsService?.logEvent({
+      actorId: actor?._id || actor?.id,
+      actorName: actor?.fullName || actor?.name,
+      actorEmail: actor?.email,
+      actorRole: actor?.role,
+      action: AuditActionType.INVENTORY_INTAKE_COMPLETED,
+      entityType: AuditEntityType.INVENTORY,
+      entityId: inventory._id.toString(),
+      entityIdentifier: bloodUnit.unitCode,
+      description: `Blood unit ${bloodUnit.unitCode} added to available inventory`,
+      afterState: {
+        status: inventory.status,
+        bloodUnitId: bloodUnit._id.toString(),
+        unitCode: bloodUnit.unitCode,
+        bloodGroup: bloodUnit.bloodGroup,
+        componentType: bloodUnit.componentType,
+      },
+    });
 
     return this.formatInventoryItem(inventory, bloodUnit, testingRecord);
   }
@@ -582,7 +632,7 @@ export class InventoryService {
    * 5. Physical Blood Unit status remains unaffected (distinct lifecycles).
    * 6. Transition is recorded in InventoryHistory.
    */
-  async discardItem(id: string, dto: DiscardInventoryDto) {
+  async discardItem(id: string, dto: DiscardInventoryDto, actor?: any) {
     if (!isValidObjectId(id)) {
       throw new BadRequestException({
         message: 'Invalid inventory ID format',
@@ -627,6 +677,9 @@ export class InventoryService {
             status: InventoryStatus.DISCARDED,
             discardReason: reason,
             discardedAt: new Date(),
+            discardedBy: actor?._id || actor?.id ? new Types.ObjectId(actor._id || actor.id) : undefined,
+            discardedByName: actor?.fullName || actor?.name || undefined,
+            discardedByRole: actor?.role || undefined,
           },
         },
         { new: true },
@@ -659,9 +712,29 @@ export class InventoryService {
       InventoryStatus.DISCARDED,
       previousStatus,
       reason,
+      actor,
     );
 
     const rawUnit = updated.bloodUnitId as any;
+
+    await this.auditLogsService?.logEvent({
+      actorId: actor?._id || actor?.id,
+      actorName: actor?.fullName || actor?.name,
+      actorEmail: actor?.email,
+      actorRole: actor?.role,
+      action: AuditActionType.INVENTORY_DISCARDED,
+      entityType: AuditEntityType.INVENTORY,
+      entityId: updated._id.toString(),
+      entityIdentifier: rawUnit?.unitCode || id,
+      description: `Inventory unit discarded: ${reason}`,
+      beforeState: { status: previousStatus },
+      afterState: {
+        status: InventoryStatus.DISCARDED,
+        discardReason: reason,
+      },
+      metadata: { reason },
+    });
+
     const testing = rawUnit?._id
       ? await this.bloodTestingModel
           .findOne({ bloodUnitId: rawUnit._id })

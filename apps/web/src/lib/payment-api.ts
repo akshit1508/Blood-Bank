@@ -39,6 +39,9 @@ export interface Payment {
   status: PaymentStatus;
   idempotencyKey: string;
   createdByName: string;
+  createdByRole?: string;
+  cancelledByName?: string;
+  cancelledByRole?: string;
   cancelledAt?: string;
   cancellationReason?: string;
   createdAt: string;
