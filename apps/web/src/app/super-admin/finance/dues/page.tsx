@@ -19,6 +19,7 @@ import {
   CreditCard,
   Building2,
 } from 'lucide-react';
+import StaffAttributionBadge from '@/components/admin/StaffAttributionBadge';
 
 export default function SuperAdminDuesPage() {
   const [report, setReport] = useState<OutstandingDuesReport | null>(null);
@@ -783,19 +784,56 @@ export default function SuperAdminDuesPage() {
                                       {exp.agingBucket || '0-30 Days'} ({exp.ageDays || 0}d)
                                     </span>
                                   </td>
-                                  <td style={{ padding: '0.65rem 0.75rem', whiteSpace: 'nowrap' }}>
-                                    <span
-                                      style={{
-                                        fontSize: '0.7rem',
-                                        fontWeight: 700,
-                                        padding: '0.2rem 0.5rem',
-                                        borderRadius: '4px',
-                                        backgroundColor: exp.status === 'SUBMITTED' ? '#fef3c7' : '#ecfdf5',
-                                        color: exp.status === 'SUBMITTED' ? '#92400e' : '#065f46',
-                                      }}
-                                    >
-                                      {exp.status === 'SUBMITTED' ? 'Pending Approval' : 'Approved'}
-                                    </span>
+                                  <td style={{ padding: '0.65rem 0.75rem' }}>
+                                    {exp.status === 'SUBMITTED' ? (
+                                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                                        <span
+                                          style={{
+                                            fontSize: '0.7rem',
+                                            fontWeight: 700,
+                                            padding: '0.15rem 0.45rem',
+                                            borderRadius: '4px',
+                                            backgroundColor: '#fef3c7',
+                                            color: '#92400e',
+                                            width: 'fit-content',
+                                          }}
+                                        >
+                                          Pending Approval
+                                        </span>
+                                        {(exp.submittedByName || exp.creatorName) && (
+                                          <StaffAttributionBadge
+                                            label="Submitted by"
+                                            name={exp.submittedByName || exp.creatorName}
+                                            role={exp.submittedByRole || exp.creatorRole || 'ADMIN'}
+                                            timestamp={exp.submittedAt}
+                                            size="xs"
+                                          />
+                                        )}
+                                      </div>
+                                    ) : (
+                                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                                        <span
+                                          style={{
+                                            fontSize: '0.7rem',
+                                            fontWeight: 700,
+                                            padding: '0.15rem 0.45rem',
+                                            borderRadius: '4px',
+                                            backgroundColor: '#ecfdf5',
+                                            color: '#065f46',
+                                            width: 'fit-content',
+                                          }}
+                                        >
+                                          Approved
+                                        </span>
+                                        <StaffAttributionBadge
+                                          label="Approved by"
+                                          name={exp.reviewedByName || exp.creatorName || 'Super Admin'}
+                                          role={exp.reviewedByRole || 'SUPER_ADMIN'}
+                                          timestamp={exp.reviewedAt}
+                                          size="xs"
+                                        />
+                                      </div>
+                                    )}
                                   </td>
                                   <td style={{ padding: '0.65rem 0.75rem', textAlign: 'right', fontWeight: 600, color: '#0f172a', whiteSpace: 'nowrap' }}>
                                     {formatINR(exp.amount)}

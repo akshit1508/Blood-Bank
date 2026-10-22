@@ -524,6 +524,7 @@ export class PaymentsService implements OnApplicationBootstrap {
     const [payments, total] = await Promise.all([
       this.paymentModel
         .find(filter)
+        .populate('expenseId', 'expenseCode title status reviewedByName reviewedByRole reviewedAt creatorName creatorRole')
         .sort({ paymentDate: -1, createdAt: -1 })
         .skip(skip)
         .limit(limit)
@@ -558,7 +559,7 @@ export class PaymentsService implements OnApplicationBootstrap {
 
     const expense = await this.expenseModel
       .findById(payment.expenseId)
-      .select('expenseCode title amount amountPaise paidAmount paidAmountPaise paymentStatus invoiceNumber expenseDate')
+      .select('expenseCode title amount amountPaise paidAmount paidAmountPaise paymentStatus invoiceNumber expenseDate status reviewedByName reviewedByRole reviewedAt approvalRemarks creatorName creatorRole submittedByName submittedByRole submittedAt')
       .lean()
       .exec();
 
@@ -680,6 +681,14 @@ export class PaymentsService implements OnApplicationBootstrap {
         acquisitionId: exp.acquisitionId,
         vendorId: exp.vendorId,
         vendorName: exp.vendorName,
+        reviewedByName: exp.reviewedByName,
+        reviewedByRole: exp.reviewedByRole,
+        reviewedAt: exp.reviewedAt,
+        creatorName: exp.creatorName,
+        creatorRole: exp.creatorRole,
+        submittedByName: exp.submittedByName,
+        submittedByRole: exp.submittedByRole,
+        submittedAt: exp.submittedAt,
         ageDays,
         agingBucket,
       });

@@ -548,18 +548,57 @@ function PaymentsContent() {
                           {formatINR(remaining)}
                         </td>
                         <td style={{ padding: '0.75rem 1rem' }}>
-                          <span
-                            style={{
-                              padding: '0.2rem 0.5rem',
-                              borderRadius: '4px',
-                              fontSize: '0.7rem',
-                              fontWeight: 700,
-                              backgroundColor: exp.status === ExpenseStatus.SUBMITTED ? '#fef3c7' : '#ecfdf5',
-                              color: exp.status === ExpenseStatus.SUBMITTED ? '#92400e' : '#065f46',
-                            }}
-                          >
-                            {exp.status === ExpenseStatus.SUBMITTED ? 'Pending Approval' : 'Approved'}
-                          </span>
+                          {exp.status === ExpenseStatus.SUBMITTED ? (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                              <span
+                                style={{
+                                  display: 'inline-block',
+                                  width: 'fit-content',
+                                  padding: '0.15rem 0.45rem',
+                                  borderRadius: '4px',
+                                  fontSize: '0.7rem',
+                                  fontWeight: 700,
+                                  backgroundColor: '#fef3c7',
+                                  color: '#92400e',
+                                }}
+                              >
+                                Pending Approval
+                              </span>
+                              {(exp.submittedByName || exp.creatorName) && (
+                                <StaffAttributionBadge
+                                  label="Submitted by"
+                                  name={exp.submittedByName || exp.creatorName}
+                                  role={exp.submittedByRole || exp.creatorRole || 'ADMIN'}
+                                  timestamp={exp.submittedAt}
+                                  size="xs"
+                                />
+                              )}
+                            </div>
+                          ) : (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                              <span
+                                style={{
+                                  display: 'inline-block',
+                                  width: 'fit-content',
+                                  padding: '0.15rem 0.45rem',
+                                  borderRadius: '4px',
+                                  fontSize: '0.7rem',
+                                  fontWeight: 700,
+                                  backgroundColor: '#ecfdf5',
+                                  color: '#065f46',
+                                }}
+                              >
+                                Approved
+                              </span>
+                              <StaffAttributionBadge
+                                label="Approved by"
+                                name={exp.reviewedByName || exp.creatorName || 'Super Admin'}
+                                role={exp.reviewedByRole || 'SUPER_ADMIN'}
+                                timestamp={exp.reviewedAt}
+                                size="xs"
+                              />
+                            </div>
+                          )}
                         </td>
                         <td style={{ padding: '0.75rem 1rem', textAlign: 'right' }}>
                           <button
@@ -730,14 +769,35 @@ function PaymentsContent() {
                 </tr>
               </thead>
               <tbody>
-                {filteredPayments.map((p) => (
-                  <tr key={p._id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                    <td style={{ padding: '0.85rem 1rem', color: '#64748b' }}>
-                      {new Date(p.paymentDate).toLocaleDateString('en-IN')}
-                    </td>
-                    <td style={{ padding: '0.85rem 1rem', fontWeight: 700, color: '#0f172a' }}>
-                      {p.vendorName}
-                    </td>
+                {filteredPayments.map((p) => {
+                  const linkedExp: any = typeof p.expenseId === 'object' && p.expenseId !== null ? p.expenseId : p.expense;
+                  const approverName = linkedExp?.reviewedByName || linkedExp?.creatorName;
+                  const approverRole = linkedExp?.reviewedByRole || 'SUPER_ADMIN';
+                  const approverAt = linkedExp?.reviewedAt;
+                  return (
+                    <tr key={p._id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                      <td style={{ padding: '0.85rem 1rem', color: '#64748b' }}>
+                        {new Date(p.paymentDate).toLocaleDateString('en-IN')}
+                      </td>
+                      <td style={{ padding: '0.85rem 1rem' }}>
+                        <div style={{ fontWeight: 700, color: '#0f172a' }}>{p.vendorName}</div>
+                        {linkedExp && (
+                          <div style={{ marginTop: '0.25rem', display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+                            <span style={{ fontSize: '0.725rem', fontFamily: 'monospace', color: '#475569' }}>
+                              Bill: {linkedExp.expenseCode}
+                            </span>
+                            {approverName && (
+                              <StaffAttributionBadge
+                                label="Approved by"
+                                name={approverName}
+                                role={approverRole}
+                                timestamp={approverAt}
+                                size="xs"
+                              />
+                            )}
+                          </div>
+                        )}
+                      </td>
                     <td style={{ padding: '0.85rem 1rem' }}>
                       <span
                         style={{
@@ -830,8 +890,9 @@ function PaymentsContent() {
                       </div>
                     </td>
                   </tr>
-                ))}
-              </tbody>
+                );
+              })}
+            </tbody>
             </table>
           </div>
         )}
@@ -895,9 +956,10 @@ function PaymentsContent() {
                         {approvedExpenses.map((exp) => {
                           const rem = exp.amount - (exp.paidAmount || 0);
                           const isPending = exp.status === ExpenseStatus.SUBMITTED;
+                          const approver = exp.reviewedByName || exp.creatorName || 'Super Admin';
                           return (
                             <option key={exp._id} value={exp._id}>
-                              {exp.expenseCode} &bull; {exp.title} &bull; {exp.vendorName} &bull; Bal: {formatINR(rem)} {isPending ? '— [Pending Approval]' : '— [Approved]'}
+                              {exp.expenseCode} &bull; {exp.title} &bull; {exp.vendorName} &bull; Bal: {formatINR(rem)} {isPending ? '— [Pending Approval]' : `— [Approved by ${approver}]`}
                             </option>
                           );
                         })}
@@ -906,7 +968,7 @@ function PaymentsContent() {
 
                     {selectedExpense && (
                       <>
-                        <div style={{ backgroundColor: '#f8fafc', padding: '0.85rem 1rem', borderRadius: '6px', border: '1px solid #e2e8f0', fontSize: '0.8rem', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.75rem' }}>
+                        <div style={{ backgroundColor: '#f8fafc', padding: '0.85rem 1rem', borderRadius: '6px', border: '1px solid #e2e8f0', fontSize: '0.8rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '0.75rem' }}>
                           <div>
                             <span style={{ color: '#64748b', display: 'block' }}>Total Invoiced</span>
                             <strong style={{ color: '#0f172a' }}>{formatINR(selectedExpense.amount)}</strong>
@@ -918,6 +980,28 @@ function PaymentsContent() {
                           <div>
                             <span style={{ color: '#64748b', display: 'block' }}>Remaining Due</span>
                             <strong style={{ color: '#be123c' }}>{formatINR(remainingPayable)}</strong>
+                          </div>
+                          <div>
+                            <span style={{ color: '#64748b', display: 'block', marginBottom: '0.2rem' }}>
+                              {selectedExpense.status === ExpenseStatus.SUBMITTED ? 'Submitted By' : 'Approved By'}
+                            </span>
+                            {selectedExpense.status === ExpenseStatus.SUBMITTED ? (
+                              <StaffAttributionBadge
+                                label="Submitted by"
+                                name={selectedExpense.submittedByName || selectedExpense.creatorName || 'Admin'}
+                                role={selectedExpense.submittedByRole || 'ADMIN'}
+                                timestamp={selectedExpense.submittedAt}
+                                size="xs"
+                              />
+                            ) : (
+                              <StaffAttributionBadge
+                                label="Approved by"
+                                name={selectedExpense.reviewedByName || selectedExpense.creatorName || 'Super Admin'}
+                                role={selectedExpense.reviewedByRole || 'SUPER_ADMIN'}
+                                timestamp={selectedExpense.reviewedAt}
+                                size="xs"
+                              />
+                            )}
                           </div>
                         </div>
 
@@ -1215,6 +1299,62 @@ function PaymentsContent() {
                     role={selectedPaymentDetail.createdByRole || 'SUPER_ADMIN'}
                   />
                 </div>
+
+                {selectedPaymentDetail.expense && (
+                  <div style={{ backgroundColor: '#f8fafc', padding: '0.85rem 1rem', borderRadius: '8px', border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.25rem' }}>
+                    <div style={{ fontWeight: 700, color: '#334155', fontSize: '0.775rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      Linked Bill &amp; Expense Approval
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ color: '#64748b', fontSize: '0.8rem' }}>Expense Bill:</span>
+                      <span style={{ fontWeight: 700, color: '#0f172a', fontFamily: 'monospace', fontSize: '0.85rem' }}>
+                        {selectedPaymentDetail.expense.expenseCode} &bull; {selectedPaymentDetail.expense.title}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ color: '#64748b', fontSize: '0.8rem' }}>Approval Status:</span>
+                      <span
+                        style={{
+                          padding: '0.15rem 0.45rem',
+                          borderRadius: '4px',
+                          fontSize: '0.7rem',
+                          fontWeight: 700,
+                          backgroundColor: selectedPaymentDetail.expense.status === 'SUBMITTED' ? '#fef3c7' : '#ecfdf5',
+                          color: selectedPaymentDetail.expense.status === 'SUBMITTED' ? '#92400e' : '#065f46',
+                        }}
+                      >
+                        {selectedPaymentDetail.expense.status === 'SUBMITTED' ? 'Pending Approval' : 'Approved'}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ color: '#64748b', fontSize: '0.8rem' }}>
+                        {selectedPaymentDetail.expense.status === 'SUBMITTED' ? 'Submitted By:' : 'Approved By:'}
+                      </span>
+                      {selectedPaymentDetail.expense.status === 'SUBMITTED' ? (
+                        <StaffAttributionBadge
+                          label="Submitted by"
+                          name={selectedPaymentDetail.expense.submittedByName || selectedPaymentDetail.expense.creatorName || 'Admin'}
+                          role={selectedPaymentDetail.expense.submittedByRole || 'ADMIN'}
+                          timestamp={selectedPaymentDetail.expense.submittedAt}
+                          size="xs"
+                        />
+                      ) : (
+                        <StaffAttributionBadge
+                          label="Approved by"
+                          name={selectedPaymentDetail.expense.reviewedByName || selectedPaymentDetail.expense.creatorName || 'Super Admin'}
+                          role={selectedPaymentDetail.expense.reviewedByRole || 'SUPER_ADMIN'}
+                          timestamp={selectedPaymentDetail.expense.reviewedAt}
+                          size="xs"
+                        />
+                      )}
+                    </div>
+                    {selectedPaymentDetail.expense.approvalRemarks && (
+                      <div style={{ fontSize: '0.775rem', color: '#64748b', fontStyle: 'italic', marginTop: '0.2rem' }}>
+                        Remarks: &ldquo;{selectedPaymentDetail.expense.approvalRemarks}&rdquo;
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {selectedPaymentDetail.status === 'CANCELLED' && (
                   <div style={{ backgroundColor: '#fff1f2', padding: '0.75rem 1rem', borderRadius: '8px', border: '1px solid #fecdd3' }}>

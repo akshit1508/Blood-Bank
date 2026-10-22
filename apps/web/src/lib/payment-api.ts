@@ -25,9 +25,21 @@ export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
   [PaymentMethod.CASH]: 'Cash Voucher',
 };
 
+export interface PopulatedExpenseSummary {
+  _id: string;
+  expenseCode: string;
+  title: string;
+  status?: string;
+  reviewedByName?: string;
+  reviewedByRole?: string;
+  reviewedAt?: string;
+  creatorName?: string;
+  creatorRole?: string;
+}
+
 export interface Payment {
   _id: string;
-  expenseId: string;
+  expenseId: string | PopulatedExpenseSummary;
   vendorId: string;
   vendorName: string;
   amountPaise: number;
@@ -53,6 +65,16 @@ export interface Payment {
     paymentStatus: string;
     invoiceNumber: string;
     expenseDate: string;
+    status?: string;
+    reviewedByName?: string;
+    reviewedByRole?: string;
+    reviewedAt?: string;
+    approvalRemarks?: string;
+    creatorName?: string;
+    creatorRole?: string;
+    submittedByName?: string;
+    submittedByRole?: string;
+    submittedAt?: string;
   };
 }
 
@@ -95,6 +117,14 @@ export interface OutstandingCreditor {
     vendorName: string;
     ageDays?: number;
     agingBucket?: string;
+    reviewedByName?: string;
+    reviewedByRole?: string;
+    reviewedAt?: string;
+    creatorName?: string;
+    creatorRole?: string;
+    submittedByName?: string;
+    submittedByRole?: string;
+    submittedAt?: string;
   }>;
 }
 
