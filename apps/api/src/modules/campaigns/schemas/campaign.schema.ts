@@ -72,6 +72,15 @@ export class Campaign {
   @Prop({ required: false, trim: true })
   createdByRole?: string;
 
+  @Prop({ type: Types.ObjectId, ref: 'AdminUser', required: false })
+  budgetApprovedBy?: Types.ObjectId;
+
+  @Prop({ required: false, trim: true })
+  budgetApprovedByName?: string;
+
+  @Prop({ required: false })
+  budgetApprovedAt?: Date;
+
   @Prop({ trim: true })
   description?: string;
 

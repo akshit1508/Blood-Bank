@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Put,
+  Delete,
   Param,
   Body,
   Query,
@@ -211,6 +212,28 @@ export class CampaignsController {
       message: 'Expense successfully unlinked from campaign',
       data,
     };
+  }
+
+  @Roles(AdminRole.SUPER_ADMIN)
+  @Post(':id/revise-budget')
+  @HttpCode(HttpStatus.OK)
+  async reviseBudgetAlias(
+    @Param('id') id: string,
+    @Body() dto: ReviseCampaignBudgetDto,
+    @CurrentAdmin() admin: any,
+  ) {
+    return this.reviseBudget(id, dto, admin);
+  }
+
+  @Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN)
+  @Delete(':id/expenses/:expenseId/unlink')
+  @HttpCode(HttpStatus.OK)
+  async unlinkExpenseRoute(
+    @Param('id') id: string,
+    @Param('expenseId') expenseId: string,
+    @CurrentAdmin() admin: any,
+  ) {
+    return this.unlinkExpense(id, { expenseId }, admin);
   }
 
   /**

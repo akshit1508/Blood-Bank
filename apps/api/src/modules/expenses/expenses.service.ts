@@ -114,17 +114,6 @@ export class ExpensesService implements OnModuleInit {
       throw new BadRequestException('Invalid expense date format.');
     }
 
-    const auditEvent = {
-      action: ExpenseAuditEventType.CREATED,
-      fromStatus: null,
-      toStatus: ExpenseStatus.DRAFT,
-      performedBy: new Types.ObjectId(currentAdmin.id || currentAdmin._id),
-      performedByEmail: currentAdmin.email,
-      performedByName: currentAdmin.fullName || 'Admin Staff',
-      notes: 'Initial expense draft created.',
-      timestamp: new Date(),
-    };
-
     const amountPaise = CurrencyUtil.toPaise(dto.amount);
     let linkedVendorId: Types.ObjectId | undefined = undefined;
 
@@ -163,6 +152,54 @@ export class ExpensesService implements OnModuleInit {
       }
     }
 
+    const isSuperAdmin = currentAdmin.role === AdminRole.SUPER_ADMIN;
+    const isCampaignExpense = Boolean(linkedCampaignId);
+
+    let initialStatus = ExpenseStatus.DRAFT;
+    let initialAuditNotes = 'Initial expense draft created.';
+    let initialAuditToStatus = ExpenseStatus.DRAFT;
+    let approvedAtDate: Date | undefined = undefined;
+    let approvalRemarksText: string | undefined = undefined;
+    let reviewedById: Types.ObjectId | undefined = undefined;
+    let reviewedByNameText: string | undefined = undefined;
+    let reviewedByRoleText: string | undefined = undefined;
+    let submittedAtDate: Date | undefined = undefined;
+    let submittedByAdminId: Types.ObjectId | undefined = undefined;
+    let submittedByNameText: string | undefined = undefined;
+    let submittedByRoleText: string | undefined = undefined;
+
+    if (isCampaignExpense) {
+      if (isSuperAdmin) {
+        initialStatus = ExpenseStatus.APPROVED;
+        initialAuditToStatus = ExpenseStatus.APPROVED;
+        initialAuditNotes = 'Direct campaign expenditure entry authorized upon creation by Super Admin.';
+        approvedAtDate = new Date();
+        approvalRemarksText = 'Direct Super Admin expenditure entry authorized upon creation.';
+        reviewedById = new Types.ObjectId(currentAdmin.id || currentAdmin._id);
+        reviewedByNameText = currentAdmin.fullName || currentAdmin.name || 'Super Admin';
+        reviewedByRoleText = currentAdmin.role;
+      } else {
+        initialStatus = ExpenseStatus.SUBMITTED;
+        initialAuditToStatus = ExpenseStatus.SUBMITTED;
+        initialAuditNotes = 'Campaign expenditure submitted by Admin for Super Admin review.';
+        submittedAtDate = new Date();
+        submittedByAdminId = new Types.ObjectId(currentAdmin.id || currentAdmin._id);
+        submittedByNameText = currentAdmin.fullName || currentAdmin.name || 'Admin Staff';
+        submittedByRoleText = currentAdmin.role;
+      }
+    }
+
+    const auditEvent = {
+      action: ExpenseAuditEventType.CREATED,
+      fromStatus: null,
+      toStatus: initialAuditToStatus,
+      performedBy: new Types.ObjectId(currentAdmin.id || currentAdmin._id),
+      performedByEmail: currentAdmin.email,
+      performedByName: currentAdmin.fullName || 'Admin Staff',
+      notes: initialAuditNotes,
+      timestamp: new Date(),
+    };
+
     const expense = await this.expenseModel.create({
       expenseCode,
       title: dto.title.trim(),
@@ -184,11 +221,20 @@ export class ExpensesService implements OnModuleInit {
       description: dto.description ? dto.description.trim() : undefined,
       campaignId: linkedCampaignId,
       campaignCode: linkedCampaignCode,
-      status: ExpenseStatus.DRAFT,
+      status: initialStatus,
       creatorId: new Types.ObjectId(currentAdmin.id || currentAdmin._id),
       creatorEmail: currentAdmin.email,
       creatorName: currentAdmin.fullName || currentAdmin.name || 'Admin Staff',
       creatorRole: currentAdmin.role,
+      submittedBy: submittedByAdminId,
+      submittedByName: submittedByNameText,
+      submittedByRole: submittedByRoleText,
+      submittedAt: submittedAtDate,
+      reviewedBy: reviewedById,
+      reviewedByName: reviewedByNameText,
+      reviewedByRole: reviewedByRoleText,
+      reviewedAt: approvedAtDate,
+      approvalRemarks: approvalRemarksText,
       auditHistory: [auditEvent],
       isDeleted: false,
     });
@@ -202,7 +248,7 @@ export class ExpensesService implements OnModuleInit {
       actorName: currentAdmin.fullName || currentAdmin.name || 'Admin Staff',
       actorEmail: currentAdmin.email,
       actorRole: currentAdmin.role,
-      description: `Expense ${expense.expenseCode} created in DRAFT status for ${expense.vendorName}`,
+      description: `Expense ${expense.expenseCode} created in ${expense.status} status for ${expense.vendorName}`,
       afterState: {
         status: expense.status,
         amount: expense.amount,
@@ -568,12 +614,14 @@ export class ExpensesService implements OnModuleInit {
 
     const expense = await this.findById(id);
 
-    if (expense.status === ExpenseStatus.APPROVED) {
-      throw new BadRequestException('Cannot modify receipt of an approved expense.');
-    }
+    if (expense.receipt?.fileId) {
+      if (expense.status === ExpenseStatus.APPROVED) {
+        throw new BadRequestException('Cannot modify receipt of an approved expense.');
+      }
 
-    if (expense.status === ExpenseStatus.SUBMITTED) {
-      throw new BadRequestException('Cannot replace receipt while expense is under review.');
+      if (expense.status === ExpenseStatus.SUBMITTED) {
+        throw new BadRequestException('Cannot replace receipt while expense is under review.');
+      }
     }
 
     const fileId = `${new Types.ObjectId().toString()}`;

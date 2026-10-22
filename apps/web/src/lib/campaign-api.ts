@@ -58,6 +58,9 @@ export interface CampaignItem {
   initialBudgetPaise: number;
   approvedBudgetPaise: number;
   approvedBudget: number;
+  budgetApprovedBy?: string;
+  budgetApprovedByName?: string;
+  budgetApprovedAt?: string;
   currency: string;
   budgetVersion: number;
   budgetRevisionCount: number;
@@ -171,6 +174,14 @@ export interface CampaignFinancials {
     invoiceNumber?: string;
     description?: string;
     creatorName?: string;
+    creatorRole?: string;
+    submittedByName?: string;
+    submittedByRole?: string;
+    submittedAt?: string;
+    reviewedByName?: string;
+    reviewedByRole?: string;
+    reviewedAt?: string;
+    approvalRemarks?: string;
     rejectionReason?: string;
     receipt?: {
       fileId: string;
@@ -346,7 +357,7 @@ export async function reviseCampaignBudget(
   id: string,
   payload: ReviseBudgetPayload,
 ): Promise<{ campaign: CampaignItem; revision: CampaignBudgetRevisionItem }> {
-  const res = await fetch(`${API_BASE_URL}/campaigns/${encodeURIComponent(id)}/revise-budget`, {
+  const res = await fetch(`${API_BASE_URL}/campaigns/${encodeURIComponent(id)}/budget-revisions`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -430,12 +441,14 @@ export async function linkExpenseToCampaign(campaignId: string, expenseId: strin
  * Unlink an expense from a campaign.
  */
 export async function unlinkExpenseFromCampaign(campaignId: string, expenseId: string): Promise<any> {
-  const res = await fetch(`${API_BASE_URL}/campaigns/${encodeURIComponent(campaignId)}/expenses/${encodeURIComponent(expenseId)}/unlink`, {
-    method: 'DELETE',
+  const res = await fetch(`${API_BASE_URL}/campaigns/${encodeURIComponent(campaignId)}/unlink-expense`, {
+    method: 'POST',
     headers: {
+      'Content-Type': 'application/json',
       Accept: 'application/json',
       ...getAuthHeaders(),
     },
+    body: JSON.stringify({ expenseId }),
   });
 
   const json = await res.json();
@@ -452,9 +465,11 @@ export async function unlinkExpenseFromCampaign(campaignId: string, expenseId: s
 export async function createCampaignExpenditure(
   campaignId: string,
   payload: CreateCampaignExpensePayload,
-  options?: { autoApprove?: boolean },
+  _options?: { autoApprove?: boolean },
 ): Promise<any> {
-  // 1. Create the expense draft linked to this campaign
+  // 1. Create the canonical expense linked to this campaign.
+  // The backend automatically places Super Admin entries into APPROVED (directly authorized)
+  // and Admin entries into SUBMITTED (pending Super Admin approval).
   const expenseRes = await fetch(`${API_BASE_URL}/expenses`, {
     method: 'POST',
     headers: {
@@ -482,72 +497,29 @@ export async function createCampaignExpenditure(
     throw new Error(expenseJson.message || 'Failed to record campaign expenditure.');
   }
 
-  const createdExpense = expenseJson.data;
+  let finalExpense = expenseJson.data;
 
-  // 2. If receipt file was attached, upload it
-  if (payload.receiptFile) {
-    const formData = new FormData();
-    formData.append('file', payload.receiptFile);
-
-    const uploadRes = await fetch(`${API_BASE_URL}/expenses/${encodeURIComponent(createdExpense._id)}/receipt`, {
-      method: 'POST',
-      headers: {
-        Accept: 'application/json',
-        ...getAuthHeaders(),
-      },
-      body: formData,
-    });
-
-    const uploadJson = await uploadRes.json();
-    if (!uploadRes.ok) {
-      throw new Error(uploadJson.message || 'Expense created, but invoice document upload failed.');
-    }
-  }
-
-  // 3. Automatically submit the expense for Super Admin review
-  let finalExpense = createdExpense;
-  try {
-    const submitRes = await fetch(`${API_BASE_URL}/expenses/${encodeURIComponent(createdExpense._id)}/submit`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-        ...getAuthHeaders(),
-      },
-      body: JSON.stringify({
-        submissionRemarks: `Campaign expense logged with invoice #${payload.invoiceNumber}`,
-      }),
-    });
-
-    const submitJson = await submitRes.json();
-    if (submitRes.ok && submitJson.data) {
-      finalExpense = submitJson.data;
-    }
-  } catch {
-    // If auto-submit fails, the draft still exists and can be reviewed
-  }
-
-  // 4. Super Admin Direct Approval: if autoApprove is true, immediately approve without requiring secondary verification
-  if (options?.autoApprove) {
+  // 2. If receipt file was attached, upload and attach it
+  if (payload.receiptFile && finalExpense?._id) {
     try {
-      const approveRes = await fetch(`${API_BASE_URL}/expenses/${encodeURIComponent(createdExpense._id)}/approve`, {
+      const formData = new FormData();
+      formData.append('file', payload.receiptFile);
+
+      const uploadRes = await fetch(`${API_BASE_URL}/expenses/${encodeURIComponent(finalExpense._id)}/receipt`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
           Accept: 'application/json',
           ...getAuthHeaders(),
         },
-        body: JSON.stringify({
-          approvalRemarks: 'Directly authorized and approved by Super Administrator upon creation.',
-        }),
+        body: formData,
       });
 
-      const approveJson = await approveRes.json();
-      if (approveRes.ok && approveJson.data) {
-        return approveJson.data;
+      const uploadJson = await uploadRes.json();
+      if (uploadRes.ok && uploadJson.data) {
+        finalExpense = uploadJson.data;
       }
     } catch {
-      // If direct approval fails, return final submitted expense
+      // Non-blocking: expense was created successfully even if receipt upload failed
     }
   }
 

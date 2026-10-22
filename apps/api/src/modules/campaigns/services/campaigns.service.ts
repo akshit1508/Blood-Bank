@@ -143,6 +143,9 @@ export class CampaignsService {
       createdBy: new Types.ObjectId(adminUser.id),
       createdByName: adminUser.fullName,
       createdByRole: adminUser.role,
+      budgetApprovedBy: new Types.ObjectId(adminUser.id),
+      budgetApprovedByName: adminUser.fullName,
+      budgetApprovedAt: new Date(),
       description: dto.description?.trim() || undefined,
     });
 
@@ -286,6 +289,9 @@ export class CampaignsService {
         $set: {
           approvedBudgetPaise: newBudgetPaise,
           approvedBudget: newBudget,
+          budgetApprovedBy: new Types.ObjectId(adminUser.id),
+          budgetApprovedByName: adminUser.fullName,
+          budgetApprovedAt: new Date(),
         },
         $inc: {
           budgetRevisionCount: 1,
