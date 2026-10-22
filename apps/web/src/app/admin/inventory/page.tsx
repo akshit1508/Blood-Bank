@@ -15,6 +15,7 @@ import {
 } from '@/lib/inventory-api';
 import { BloodGroup } from '@/lib/donor-api';
 import { BloodUnitComponent } from '@/lib/blood-unit-api';
+import StaffAttributionBadge from '@/components/admin/StaffAttributionBadge';
 
 const BLOOD_GROUPS = [
   BloodGroup.A_POSITIVE,
@@ -1264,6 +1265,37 @@ export default function AdminInventoryPage() {
                           : 'N/A'}
                       </span>
                     </div>
+                    {(selectedItem.receivedByName || selectedItem.lastAdjustedByName || selectedItem.discardedByName) && (
+                      <div style={{ gridColumn: '1 / -1', marginTop: '0.25rem', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                        {selectedItem.receivedByName && (
+                          <StaffAttributionBadge
+                            label="Intake / Received by"
+                            name={selectedItem.receivedByName}
+                            role="ADMIN"
+                            timestamp={selectedItem.createdAt}
+                            size="xs"
+                          />
+                        )}
+                        {selectedItem.lastAdjustedByName && (
+                          <StaffAttributionBadge
+                            label="Last Adjusted by"
+                            name={selectedItem.lastAdjustedByName}
+                            role="ADMIN"
+                            timestamp={selectedItem.updatedAt}
+                            size="xs"
+                          />
+                        )}
+                        {selectedItem.discardedByName && (
+                          <StaffAttributionBadge
+                            label="Discarded by"
+                            name={selectedItem.discardedByName}
+                            role="ADMIN"
+                            timestamp={selectedItem.discardedAt}
+                            size="xs"
+                          />
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -1529,6 +1561,16 @@ export default function AdminInventoryPage() {
                           {h.reason && (
                             <div style={{ color: '#475569', marginTop: '0.2rem', fontStyle: 'italic' }}>
                               &ldquo;{h.reason}&rdquo;
+                            </div>
+                          )}
+                          {h.changedByName && (
+                            <div style={{ marginTop: '0.25rem' }}>
+                              <StaffAttributionBadge
+                                label="Action by"
+                                name={h.changedByName}
+                                role={h.changedByRole || 'ADMIN'}
+                                size="xs"
+                              />
                             </div>
                           )}
                         </div>

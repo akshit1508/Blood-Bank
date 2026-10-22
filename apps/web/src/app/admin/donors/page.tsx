@@ -23,6 +23,7 @@ import {
   evaluateDonationInterval,
   IntervalEligibilityResult,
 } from '@/lib/eligibility';
+import StaffAttributionBadge from '@/components/admin/StaffAttributionBadge';
 
 const WhatsAppIcon = ({ size = 15 }: { size?: number }) => (
   <svg
@@ -731,7 +732,17 @@ export default function AdminDonorsPage() {
                           fontSize: '0.8rem',
                         }}
                       >
-                        {new Date(donor.createdAt).toLocaleDateString()}
+                        <div>{new Date(donor.createdAt).toLocaleDateString()}</div>
+                        {donor.registeredByName && (
+                          <div style={{ marginTop: '0.2rem' }}>
+                            <StaffAttributionBadge
+                              label="By"
+                              name={donor.registeredByName}
+                              role={donor.registeredByRole || 'ADMIN'}
+                              size="xs"
+                            />
+                          </div>
+                        )}
                       </td>
                       <td style={{ padding: '0.75rem 1rem', textAlign: 'right' }}>
                         <button
@@ -925,12 +936,12 @@ export default function AdminDonorsPage() {
                 )}
               </div>
 
-              {/* Section 3: Registration Status */}
+              {/* Section 3: Registration Status & Staff Attribution */}
               <div style={{ marginBottom: '1rem' }}>
                 <strong style={{ display: 'block', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.04em', color: '#64748b', marginBottom: '0.25rem' }}>
-                  3. Registration Status
+                  3. Registration Status & Staff Attribution
                 </strong>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.2rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.2rem', marginBottom: '0.5rem' }}>
                   <span
                     style={{
                       padding: '0.2rem 0.6rem',
@@ -947,6 +958,29 @@ export default function AdminDonorsPage() {
                   <span style={{ fontSize: '0.8rem', color: '#64748b' }}>
                     Registered on {new Date(selectedDonor.createdAt).toLocaleDateString()}
                   </span>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', backgroundColor: '#f8fafc', padding: '0.5rem', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
+                  <StaffAttributionBadge
+                    label="Registered by"
+                    name={selectedDonor.registeredByName}
+                    role={selectedDonor.registeredByRole || 'ADMIN'}
+                    timestamp={selectedDonor.createdAt}
+                  />
+                  {selectedDonor.verifiedByName && (
+                    <StaffAttributionBadge
+                      label="Verified by"
+                      name={selectedDonor.verifiedByName}
+                      role={selectedDonor.verifiedByRole || 'ADMIN'}
+                      timestamp={selectedDonor.verifiedAt}
+                    />
+                  )}
+                  {selectedDonor.updatedByName && (
+                    <StaffAttributionBadge
+                      label="Last updated by"
+                      name={selectedDonor.updatedByName}
+                      role={selectedDonor.updatedByRole || 'ADMIN'}
+                    />
+                  )}
                 </div>
               </div>
 

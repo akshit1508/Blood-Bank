@@ -16,6 +16,7 @@ import {
 import { fetchExpenses, fetchExpenseById, ExpenseItem, ExpenseStatus, formatINR } from '@/lib/expense-api';
 import StatCard from '@/components/admin/StatCard';
 import UnifiedDateFilterBar from '@/components/admin/UnifiedDateFilterBar';
+import StaffAttributionBadge from '@/components/admin/StaffAttributionBadge';
 
 function generateUUID(): string {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
@@ -724,6 +725,7 @@ function PaymentsContent() {
                   <th style={{ padding: '0.75rem 1rem', fontWeight: 600 }}>Reference / UTR</th>
                   <th style={{ padding: '0.75rem 1rem', fontWeight: 600, textAlign: 'right' }}>Amount (₹)</th>
                   <th style={{ padding: '0.75rem 1rem', fontWeight: 600 }}>Status</th>
+                  <th style={{ padding: '0.75rem 1rem', fontWeight: 600 }}>Disbursed By</th>
                   <th style={{ padding: '0.75rem 1rem', fontWeight: 600, textAlign: 'right' }}>Actions</th>
                 </tr>
               </thead>
@@ -770,6 +772,26 @@ function PaymentsContent() {
                       >
                         {p.status}
                       </span>
+                    </td>
+                    <td style={{ padding: '0.85rem 1rem' }}>
+                      {p.status === PaymentStatus.CANCELLED && p.cancelledByName ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                          <StaffAttributionBadge
+                            label="Cancelled by"
+                            name={p.cancelledByName}
+                            role={p.cancelledByRole || 'SUPER_ADMIN'}
+                            timestamp={p.cancelledAt}
+                            size="xs"
+                          />
+                        </div>
+                      ) : (
+                        <StaffAttributionBadge
+                          label="Disbursed by"
+                          name={p.createdByName}
+                          role={p.createdByRole || 'SUPER_ADMIN'}
+                          size="xs"
+                        />
+                      )}
                     </td>
                     <td style={{ padding: '0.85rem 1rem', textAlign: 'right' }}>
                       <div style={{ display: 'inline-flex', gap: '0.5rem' }}>
@@ -1187,14 +1209,24 @@ function PaymentsContent() {
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '0.6rem', borderBottom: '1px solid #f1f5f9' }}>
                   <span style={{ color: '#64748b', fontWeight: 500 }}>Recorded By:</span>
-                  <span style={{ color: '#0f172a', fontWeight: 600 }}>{selectedPaymentDetail.createdByName}</span>
+                  <StaffAttributionBadge
+                    label="Disbursed by"
+                    name={selectedPaymentDetail.createdByName}
+                    role={selectedPaymentDetail.createdByRole || 'SUPER_ADMIN'}
+                  />
                 </div>
 
                 {selectedPaymentDetail.status === 'CANCELLED' && (
                   <div style={{ backgroundColor: '#fff1f2', padding: '0.75rem 1rem', borderRadius: '8px', border: '1px solid #fecdd3' }}>
-                    <div style={{ color: '#9f1239', fontWeight: 800, fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                    <div style={{ color: '#9f1239', fontWeight: 800, fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.35rem', marginBottom: '0.35rem' }}>
                       <span>⚠️</span> CANCELLATION AUDIT
                     </div>
+                    <StaffAttributionBadge
+                      label="Cancelled by"
+                      name={selectedPaymentDetail.cancelledByName}
+                      role={selectedPaymentDetail.cancelledByRole || 'SUPER_ADMIN'}
+                      timestamp={selectedPaymentDetail.cancelledAt}
+                    />
                     <div style={{ color: '#be123c', fontSize: '0.825rem', marginTop: '0.35rem' }}>
                       Reason: {selectedPaymentDetail.cancellationReason}
                     </div>

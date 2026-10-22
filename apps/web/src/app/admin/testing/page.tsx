@@ -865,6 +865,7 @@ export default function AdminTestingPage() {
                       <th style={{ padding: '0.75rem 1rem' }}>Status</th>
                       <th style={{ padding: '0.75rem 1rem' }}>Decision</th>
                       <th style={{ padding: '0.75rem 1rem' }}>Started</th>
+                      <th style={{ padding: '0.75rem 1rem' }}>Staff Attribution</th>
                       <th
                         style={{
                           padding: '0.75rem 1rem',
@@ -993,6 +994,44 @@ export default function AdminTestingPage() {
                             {item.startedAt
                               ? new Date(item.startedAt).toLocaleDateString()
                               : 'N/A'}
+                          </td>
+
+                          <td style={{ padding: '0.75rem 1rem' }}>
+                            {item.verifiedByName ? (
+                              <StaffAttributionBadge
+                                label={item.decision === TestingDecision.APPROVED ? 'Approved by' : 'Verified by'}
+                                name={item.verifiedByName}
+                                role={item.verifiedByRole || 'LAB_TECHNICIAN'}
+                                timestamp={item.verifiedAt || item.completedAt}
+                                size="xs"
+                              />
+                            ) : item.rejectedByName ? (
+                              <StaffAttributionBadge
+                                label="Rejected by"
+                                name={item.rejectedByName}
+                                role={item.rejectedByRole || 'LAB_TECHNICIAN'}
+                                timestamp={item.rejectedAt || item.completedAt}
+                                size="xs"
+                              />
+                            ) : item.completedByName ? (
+                              <StaffAttributionBadge
+                                label="Completed by"
+                                name={item.completedByName}
+                                role={item.completedByRole || 'LAB_TECHNICIAN'}
+                                timestamp={item.completedAt}
+                                size="xs"
+                              />
+                            ) : item.startedByName ? (
+                              <StaffAttributionBadge
+                                label="Started by"
+                                name={item.startedByName}
+                                role={item.startedByRole || 'LAB_TECHNICIAN'}
+                                timestamp={item.startedAt}
+                                size="xs"
+                              />
+                            ) : (
+                              <StaffAttributionBadge size="xs" />
+                            )}
                           </td>
 
                           <td
@@ -1644,8 +1683,13 @@ export default function AdminTestingPage() {
                           label="Rejected by"
                           name={selectedTesting.rejectedByName}
                           role={selectedTesting.rejectedByRole || 'LAB_TECHNICIAN'}
-                          timestamp={selectedTesting.completedAt}
+                          timestamp={selectedTesting.rejectedAt || selectedTesting.completedAt}
                         />
+                        {selectedTesting.rejectionReason && (
+                          <div style={{ fontSize: '0.75rem', color: '#991b1b', marginTop: '0.25rem' }}>
+                            <strong>Rejection Reason:</strong> {selectedTesting.rejectionReason}
+                          </div>
+                        )}
                       </div>
                     )}
                     {selectedTesting.completedByName && !selectedTesting.verifiedByName && !selectedTesting.rejectedByName && (
@@ -1817,6 +1861,17 @@ export default function AdminTestingPage() {
                             </div>
                           ) : (
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                              {test.performedByName && (
+                                <div style={{ marginBottom: '0.25rem' }}>
+                                  <StaffAttributionBadge
+                                    label="Recorded by"
+                                    name={test.performedByName}
+                                    role={test.performedByRole || 'LAB_TECHNICIAN'}
+                                    timestamp={test.testedAt}
+                                    size="xs"
+                                  />
+                                </div>
+                              )}
                               {/* Status Buttons */}
                               <div>
                                 <label

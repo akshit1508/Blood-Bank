@@ -17,6 +17,8 @@ export interface InventoryHistoryItem {
   fromStatus: InventoryStatus | null;
   toStatus: InventoryStatus;
   reason?: string;
+  changedByName?: string;
+  changedByRole?: string;
   changedAt: string;
 }
 
@@ -25,6 +27,9 @@ export interface InventoryItem {
   status: InventoryStatus;
   discardReason?: string | null;
   discardedAt?: string | null;
+  receivedByName?: string;
+  lastAdjustedByName?: string;
+  discardedByName?: string;
   isExpired?: boolean;
   isExpiringSoon?: boolean;
   createdAt: string;

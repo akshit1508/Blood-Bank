@@ -1567,8 +1567,10 @@ export default function BillingDeskContent({ portalRole }: BillingDeskContentPro
                   </p>
                   <p style={{ margin: 0 }}>This is a computer-generated authorized voucher.</p>
                 </div>
-                <div style={{ textAlign: 'center', width: 140 }}>
-                  <div style={{ height: 40 }} />
+                <div style={{ textAlign: 'center', width: 180 }}>
+                  <div style={{ height: 24, fontSize: '0.75rem', color: '#475569', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {selectedInvoice.billedByName ? `${selectedInvoice.billedByName} (${selectedInvoice.billedByRole || 'RECEPTIONIST'})` : ''}
+                  </div>
                   <div style={{ borderTop: '1px solid #94a3b8', paddingTop: '0.25rem', fontWeight: 600, color: '#334155' }}>
                     Authorized Cashier
                   </div>

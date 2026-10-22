@@ -53,6 +53,7 @@ import {
 import BloodDonationCertificateModal, {
   BloodDonationCertificateData,
 } from '@/components/admin/BloodDonationCertificateModal';
+import StaffAttributionBadge from '@/components/admin/StaffAttributionBadge';
 
 export default function CampaignCommandCenterPage() {
   const params = useParams();
@@ -1026,6 +1027,17 @@ export default function CampaignCommandCenterPage() {
             <div>
               🎯 Target: <strong>{campaign.targetDonations} units</strong>
             </div>
+            {campaign.createdByName && (
+              <div>
+                <StaffAttributionBadge
+                  label="Created by"
+                  name={campaign.createdByName}
+                  role={campaign.createdByRole || 'ADMIN'}
+                  timestamp={campaign.createdAt}
+                  size="xs"
+                />
+              </div>
+            )}
           </div>
 
           {campaign.description && (
@@ -3985,8 +3997,14 @@ export default function CampaignCommandCenterPage() {
                         &ldquo;{rev.reason}&rdquo;
                       </div>
 
-                      <div style={{ color: '#64748b', fontSize: '0.775rem' }}>
-                        Revised by <strong>{rev.actorName}</strong> ({rev.actorEmail}) • Role: {rev.actorRole}
+                      <div style={{ marginTop: '0.25rem' }}>
+                        <StaffAttributionBadge
+                          label="Budget revised by"
+                          name={rev.actorName}
+                          role={rev.actorRole}
+                          timestamp={rev.timestamp}
+                          size="xs"
+                        />
                       </div>
                     </div>
 

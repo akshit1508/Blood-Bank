@@ -84,6 +84,7 @@ export interface BloodTesting {
   rejectedBy?: string;
   rejectedByName?: string;
   rejectedByRole?: string;
+  rejectedAt?: string;
   performedBy?: string;
   rejectionReason?: string;
   remarks?: string;

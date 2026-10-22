@@ -62,6 +62,9 @@ export interface CampaignItem {
   budgetVersion: number;
   budgetRevisionCount: number;
   description?: string;
+  createdBy?: string;
+  createdByName?: string;
+  createdByRole?: string;
   createdAt: string;
   updatedAt: string;
   actualExpenditure?: number;

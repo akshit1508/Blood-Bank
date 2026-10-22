@@ -573,6 +573,7 @@ export default function AdminBloodRequestsPage() {
                   <th style={{ padding: '0.75rem 1rem' }}>Priority</th>
                   <th style={{ padding: '0.75rem 1rem' }}>Status</th>
                   <th style={{ padding: '0.75rem 1rem' }}>Created</th>
+                  <th style={{ padding: '0.75rem 1rem' }}>Staff Attribution</th>
                   <th style={{ padding: '0.75rem 1rem', textAlign: 'right' }}>Action</th>
                 </tr>
               </thead>
@@ -616,6 +617,35 @@ export default function AdminBloodRequestsPage() {
                     </td>
                     <td style={{ padding: '0.75rem 1rem', color: '#64748b', fontSize: '0.8rem' }}>
                       {new Date(req.createdAt).toLocaleDateString()}
+                    </td>
+                    <td style={{ padding: '0.75rem 1rem' }}>
+                      {req.approvedByName ? (
+                        <StaffAttributionBadge
+                          label="Approved by"
+                          name={req.approvedByName}
+                          role={req.approvedByRole || 'ADMIN'}
+                          timestamp={req.approvedAt}
+                          size="xs"
+                        />
+                      ) : req.rejectedByName ? (
+                        <StaffAttributionBadge
+                          label="Rejected by"
+                          name={req.rejectedByName}
+                          role={req.rejectedByRole || 'ADMIN'}
+                          timestamp={req.rejectedAt}
+                          size="xs"
+                        />
+                      ) : req.verifiedByName ? (
+                        <StaffAttributionBadge
+                          label="Verified by"
+                          name={req.verifiedByName}
+                          role={req.verifiedByRole || 'RECEPTIONIST'}
+                          timestamp={req.verifiedAt}
+                          size="xs"
+                        />
+                      ) : (
+                        <StaffAttributionBadge size="xs" />
+                      )}
                     </td>
                     <td style={{ padding: '0.75rem 1rem', textAlign: 'right' }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.45rem' }}>
