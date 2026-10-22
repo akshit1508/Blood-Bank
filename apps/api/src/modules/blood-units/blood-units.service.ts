@@ -162,6 +162,8 @@ export class BloodUnitsService {
         unitCode,
         donationId: donation._id,
         donorId: donor._id,
+        campaignId: (donation as any).campaignId,
+        campaignCode: (donation as any).campaignCode,
         bloodGroup: donor.bloodGroup,
         componentType: resolvedComponent,
         collectionDate,
@@ -250,7 +252,15 @@ export class BloodUnitsService {
           },
           {
             path: 'donationId',
-            select: 'donationCode donationDate donationType status',
+            select: 'donationCode donationDate donationType status campaignId campaignCode',
+            populate: {
+              path: 'campaignId',
+              select: 'name campaignCode venue city startDate endDate status targetUnits',
+            },
+          },
+          {
+            path: 'campaignId',
+            select: 'name campaignCode venue city startDate endDate status targetUnits',
           },
         ])
         .sort({ createdAt: -1 })
@@ -278,7 +288,7 @@ export class BloodUnitsService {
     const safeLimit = Math.min(100, Math.max(1, Number(limit) || 50));
     const items = await this.bloodUnitModel
       .find({ status: BloodUnitStatus.TESTING })
-      .select('unitCode status bloodGroup componentType collectionDate volume storageLocation createdAt')
+      .select('unitCode status bloodGroup componentType collectionDate volume storageLocation createdAt campaignId campaignCode')
       .populate([
         {
           path: 'donorId',
@@ -286,10 +296,18 @@ export class BloodUnitsService {
         },
         {
           path: 'donationId',
-          select: 'donationCode donationDate donationType status',
+          select: 'donationCode donationDate donationType status campaignId campaignCode',
+          populate: {
+            path: 'campaignId',
+            select: 'name campaignCode venue city startDate endDate status targetUnits',
+          },
+        },
+        {
+          path: 'campaignId',
+          select: 'name campaignCode venue city startDate endDate status targetUnits',
         },
       ])
-      .sort({ collectionDate: 1 })
+      .sort({ createdAt: -1, collectionDate: -1 })
       .limit(safeLimit)
       .exec();
 
@@ -313,10 +331,10 @@ export class BloodUnitsService {
       : 'donorCode fullName bloodGroup gender status phone';
 
     const donationSelect = isLabRole
-      ? 'donationCode donationDate donationType status'
-      : 'donationCode donationDate donationType status quantity notes';
+      ? 'donationCode donationDate donationType status campaignId campaignCode'
+      : 'donationCode donationDate donationType status quantity notes campaignId campaignCode';
 
-    const populateOpts = [
+    const populateOpts: any[] = [
       {
         path: 'donorId',
         select: donorSelect,
@@ -324,6 +342,14 @@ export class BloodUnitsService {
       {
         path: 'donationId',
         select: donationSelect,
+        populate: {
+          path: 'campaignId',
+          select: 'name campaignCode venue city startDate endDate status targetUnits',
+        },
+      },
+      {
+        path: 'campaignId',
+        select: 'name campaignCode venue city startDate endDate status targetUnits',
       },
     ];
 

@@ -520,12 +520,31 @@ export default function AdminTestingPage() {
       const bg = (r.bloodUnitId?.bloodGroup || '').toLowerCase();
       const dCode = (r.donorId?.donorCode || '').toLowerCase();
       const dName = (r.donorId?.fullName || '').toLowerCase();
+      const cCode = (
+        r.campaignCode ||
+        (typeof r.campaignId === 'object' ? r.campaignId?.campaignCode : '') ||
+        r.donationId?.campaignCode ||
+        (typeof r.donationId?.campaignId === 'object'
+          ? (r.donationId.campaignId as any)?.campaignCode
+          : '') ||
+        ''
+      ).toLowerCase();
+      const cName = (
+        (typeof r.campaignId === 'object' ? r.campaignId?.name : '') ||
+        (typeof r.donationId?.campaignId === 'object'
+          ? (r.donationId.campaignId as any)?.name
+          : '') ||
+        (r as any).campaignName ||
+        ''
+      ).toLowerCase();
       return (
         tCode.includes(term) ||
         uCode.includes(term) ||
         bg.includes(term) ||
         dCode.includes(term) ||
-        dName.includes(term)
+        dName.includes(term) ||
+        cCode.includes(term) ||
+        cName.includes(term)
       );
     });
   }, [records, searchTerm]);
@@ -674,7 +693,7 @@ export default function AdminTestingPage() {
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Search Testing Code, Unit Code, Donor Code, Name..."
+            placeholder="Search Testing Code, Unit Code, Donor, Campaign..."
             style={{
               flex: 1,
               padding: '0.45rem 0.75rem',
@@ -945,6 +964,69 @@ export default function AdminTestingPage() {
                                 ? new Date(item.bloodUnitId.collectionDate).toLocaleDateString()
                                 : ''}
                             </div>
+                            {(() => {
+                              const camp =
+                                (typeof item.campaignId === 'object' && item.campaignId ? item.campaignId : null) ||
+                                (typeof item.donationId === 'object' &&
+                                typeof (item.donationId as any)?.campaignId === 'object'
+                                  ? (item.donationId as any).campaignId
+                                  : null) ||
+                                (typeof item.bloodUnitId === 'object' &&
+                                typeof (item.bloodUnitId as any)?.campaignId === 'object'
+                                  ? (item.bloodUnitId as any).campaignId
+                                  : null);
+                              const campCode =
+                                item.campaignCode ||
+                                camp?.campaignCode ||
+                                item.donationId?.campaignCode ||
+                                (item.bloodUnitId as any)?.campaignCode;
+                              const campName = camp?.name || (item as any).campaignName;
+
+                              if (!campCode && !camp) return null;
+
+                              return (
+                                <div style={{ marginTop: '0.25rem' }}>
+                                  <Link
+                                    href={
+                                      camp?._id
+                                        ? `/admin/campaigns/${camp._id}`
+                                        : `/admin/campaigns?search=${encodeURIComponent(campCode || '')}`
+                                    }
+                                    onClick={(e) => e.stopPropagation()}
+                                    title={
+                                      camp?.venue
+                                        ? `Campaign: ${campName || campCode} • Venue: ${camp.venue}, ${camp.city || ''}`
+                                        : `Campaign: ${campName || campCode}`
+                                    }
+                                    style={{
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '0.25rem',
+                                      backgroundColor: '#fef3c7',
+                                      color: '#92400e',
+                                      border: '1px solid #fde68a',
+                                      padding: '0.1rem 0.45rem',
+                                      borderRadius: '9999px',
+                                      fontSize: '0.72rem',
+                                      fontWeight: 600,
+                                      textDecoration: 'none',
+                                    }}
+                                  >
+                                    <span>⛺</span>
+                                    <span
+                                      style={{
+                                        maxWidth: '130px',
+                                        overflow: 'hidden',
+                                        textOverflow: 'ellipsis',
+                                        whiteSpace: 'nowrap',
+                                      }}
+                                    >
+                                      {campName || campCode}
+                                    </span>
+                                  </Link>
+                                </div>
+                              );
+                            })()}
                           </td>
 
                           <td style={{ padding: '0.75rem 1rem' }}>
@@ -1567,6 +1649,178 @@ export default function AdminTestingPage() {
                       </div>
                     </div>
                   </div>
+
+                  {/* Card B2: Origin Campaign & Mobile Field Drive */}
+                  {(() => {
+                    const campInfo =
+                      (typeof selectedTesting.campaignId === 'object' && selectedTesting.campaignId
+                        ? selectedTesting.campaignId
+                        : null) ||
+                      (typeof selectedTesting.donationId === 'object' &&
+                      typeof (selectedTesting.donationId as any)?.campaignId === 'object'
+                        ? (selectedTesting.donationId as any).campaignId
+                        : null) ||
+                      (typeof selectedTesting.bloodUnitId === 'object' &&
+                      typeof (selectedTesting.bloodUnitId as any)?.campaignId === 'object'
+                        ? (selectedTesting.bloodUnitId as any).campaignId
+                        : null);
+
+                    const campCode =
+                      selectedTesting.campaignCode ||
+                      campInfo?.campaignCode ||
+                      (typeof selectedTesting.donationId === 'object'
+                        ? (selectedTesting.donationId as any).campaignCode
+                        : undefined) ||
+                      (typeof selectedTesting.bloodUnitId === 'object'
+                        ? (selectedTesting.bloodUnitId as any).campaignCode
+                        : undefined);
+
+                    const campName =
+                      campInfo?.name ||
+                      (selectedTesting as any).campaignName;
+
+                    if (!campCode && !campInfo) return null;
+
+                    return (
+                      <div
+                        style={{
+                          backgroundColor: '#fffbeb',
+                          border: '1px solid #fde68a',
+                          borderRadius: '6px',
+                          padding: '0.75rem',
+                          fontSize: '0.8rem',
+                        }}
+                      >
+                        <div
+                          style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            marginBottom: '0.4rem',
+                          }}
+                        >
+                          <strong
+                            style={{
+                              fontSize: '0.75rem',
+                              textTransform: 'uppercase',
+                              letterSpacing: '0.04em',
+                              color: '#92400e',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '0.35rem',
+                            }}
+                          >
+                            <span>⛺</span> Origin Campaign &amp; Field Drive
+                          </strong>
+                          {campInfo?._id ? (
+                            <Link
+                              href={`/admin/campaigns/${campInfo._id}`}
+                              style={{
+                                fontSize: '0.72rem',
+                                color: '#b45309',
+                                fontWeight: 700,
+                                textDecoration: 'none',
+                              }}
+                            >
+                              View Campaign &rarr;
+                            </Link>
+                          ) : campCode ? (
+                            <Link
+                              href={`/admin/campaigns?search=${encodeURIComponent(campCode)}`}
+                              style={{
+                                fontSize: '0.72rem',
+                                color: '#b45309',
+                                fontWeight: 700,
+                                textDecoration: 'none',
+                              }}
+                            >
+                              View Campaign &rarr;
+                            </Link>
+                          ) : null}
+                        </div>
+                        <div
+                          style={{
+                            display: 'grid',
+                            gridTemplateColumns: '1fr 1fr',
+                            gap: '0.5rem',
+                          }}
+                        >
+                          <div>
+                            <span
+                              style={{
+                                color: '#78350f',
+                                display: 'block',
+                                fontSize: '0.75rem',
+                              }}
+                            >
+                              Campaign Name:
+                            </span>
+                            <strong style={{ color: '#451a03' }}>
+                              {campName || 'Community Donation Drive'}
+                            </strong>
+                          </div>
+                          <div>
+                            <span
+                              style={{
+                                color: '#78350f',
+                                display: 'block',
+                                fontSize: '0.75rem',
+                              }}
+                            >
+                              Campaign Code:
+                            </span>
+                            <span style={{ color: '#78350f', fontWeight: 600 }}>
+                              {campCode || 'N/A'}
+                            </span>
+                          </div>
+                          <div>
+                            <span
+                              style={{
+                                color: '#78350f',
+                                display: 'block',
+                                fontSize: '0.75rem',
+                              }}
+                            >
+                              Field Venue &amp; City:
+                            </span>
+                            <span style={{ color: '#78350f' }}>
+                              {campInfo?.venue || 'Mobile Field Site'}
+                              {campInfo?.city ? `, ${campInfo.city}` : ''}
+                            </span>
+                          </div>
+                          <div>
+                            <span
+                              style={{
+                                color: '#78350f',
+                                display: 'block',
+                                fontSize: '0.75rem',
+                              }}
+                            >
+                              Collection Status:
+                            </span>
+                            <span style={{ color: '#15803d', fontWeight: 600 }}>
+                              {campInfo?.status || 'FIELD_COLLECTED'}
+                            </span>
+                          </div>
+                          {campInfo?.startDate && (
+                            <div
+                              style={{
+                                gridColumn: '1 / -1',
+                                fontSize: '0.75rem',
+                                color: '#78350f',
+                              }}
+                            >
+                              📅 <strong>Drive Schedule:</strong>{' '}
+                              {new Date(campInfo.startDate).toLocaleDateString()}{' '}
+                              {campInfo.endDate
+                                ? `– ${new Date(campInfo.endDate).toLocaleDateString()}`
+                                : ''}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })()}
 
                   {/* Card C: Registered Donor */}
                   <div
@@ -2397,9 +2651,21 @@ export default function AdminTestingPage() {
                         typeof u.donorId === 'object' && u.donorId
                           ? (u.donorId as any).fullName
                           : '';
+                      const camp =
+                        (typeof u.campaignId === 'object' && u.campaignId ? u.campaignId : null) ||
+                        (typeof u.donationId === 'object' &&
+                        typeof (u.donationId as any)?.campaignId === 'object'
+                          ? (u.donationId as any).campaignId
+                          : null);
+                      const campCode =
+                        u.campaignCode ||
+                        camp?.campaignCode ||
+                        (typeof u.donationId === 'object' ? (u.donationId as any).campaignCode : undefined);
+
                       return (
                         <option key={u._id} value={u._id}>
                           {u.unitCode} — {u.bloodGroup} ({u.componentType})
+                          {campCode ? ` • [⛺ Camp: ${camp?.name ? `${camp.name} (${campCode})` : campCode}]` : ''}
                           {donationCode ? ` • Donation: ${donationCode}` : ''}
                           {donorName ? ` • Donor: ${donorName}` : ''}
                         </option>
@@ -2501,6 +2767,101 @@ export default function AdminTestingPage() {
                             &bull; {selectedCandidate.volume || 450} mL
                           </span>
                         </div>
+                        {(() => {
+                          const camp =
+                            (typeof selectedCandidate.campaignId === 'object' && selectedCandidate.campaignId
+                              ? selectedCandidate.campaignId
+                              : null) ||
+                            (typeof selectedCandidate.donationId === 'object' &&
+                            typeof (selectedCandidate.donationId as any)?.campaignId === 'object'
+                              ? (selectedCandidate.donationId as any).campaignId
+                              : null);
+                          const campCode =
+                            selectedCandidate.campaignCode ||
+                            camp?.campaignCode ||
+                            (typeof selectedCandidate.donationId === 'object'
+                              ? (selectedCandidate.donationId as any).campaignCode
+                              : undefined);
+                          const campName = camp?.name;
+
+                          if (!campCode && !camp) return null;
+
+                          return (
+                            <div
+                              style={{
+                                marginTop: '0.35rem',
+                                padding: '0.45rem 0.6rem',
+                                backgroundColor: '#fef3c7',
+                                border: '1px solid #fde68a',
+                                borderRadius: '4px',
+                                color: '#92400e',
+                                fontSize: '0.75rem',
+                              }}
+                            >
+                              <div
+                                style={{
+                                  display: 'flex',
+                                  justifyContent: 'space-between',
+                                  alignItems: 'center',
+                                }}
+                              >
+                                <span
+                                  style={{
+                                    fontWeight: 700,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.3rem',
+                                  }}
+                                >
+                                  <span>⛺</span> Field Camp:{' '}
+                                  {campName || campCode}
+                                </span>
+                                {campCode && (
+                                  <span
+                                    style={{
+                                      fontSize: '0.7rem',
+                                      backgroundColor: '#fef9c3',
+                                      padding: '0.05rem 0.35rem',
+                                      borderRadius: '4px',
+                                      border: '1px solid #fde047',
+                                      fontWeight: 600,
+                                    }}
+                                  >
+                                    {campCode}
+                                  </span>
+                                )}
+                              </div>
+                              {(camp?.venue || camp?.city) && (
+                                <div
+                                  style={{
+                                    marginTop: '0.2rem',
+                                    color: '#78350f',
+                                  }}
+                                >
+                                  📍 Venue: {camp?.venue || ''}
+                                  {camp?.city ? `, ${camp.city}` : ''}
+                                </div>
+                              )}
+                              {camp?.startDate && (
+                                <div
+                                  style={{
+                                    marginTop: '0.1rem',
+                                    color: '#78350f',
+                                    fontSize: '0.7rem',
+                                  }}
+                                >
+                                  📅 Schedule:{' '}
+                                  {new Date(
+                                    camp.startDate,
+                                  ).toLocaleDateString()}{' '}
+                                  {camp.endDate
+                                    ? `– ${new Date(camp.endDate).toLocaleDateString()}`
+                                    : ''}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()}
                       </div>
                     );
                   })()}

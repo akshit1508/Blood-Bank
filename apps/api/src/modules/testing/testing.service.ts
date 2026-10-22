@@ -72,6 +72,51 @@ export class TestingService {
   }
 
   /**
+   * Builds standardized populate options for BloodTesting queries, preserving
+   * campaign provenance (name, code, venue, dates) across BloodUnit and Donation.
+   */
+  private getTestingPopulateOpts(isLabRole: boolean = false): any[] {
+    const donorSelect = isLabRole
+      ? 'donorCode gender status'
+      : 'donorCode fullName bloodGroup gender status phone';
+
+    const donationSelect = isLabRole
+      ? 'donationCode donationDate donationType status quantity campaignId campaignCode'
+      : 'donationCode donationDate donationType status quantity notes campaignId campaignCode';
+
+    const campaignSelect =
+      'name campaignCode venue city startDate endDate status targetUnits';
+
+    return [
+      {
+        path: 'bloodUnitId',
+        select:
+          'unitCode status bloodGroup componentType collectionDate volume storageLocation campaignId campaignCode',
+        populate: {
+          path: 'campaignId',
+          select: campaignSelect,
+        },
+      },
+      {
+        path: 'donationId',
+        select: donationSelect,
+        populate: {
+          path: 'campaignId',
+          select: campaignSelect,
+        },
+      },
+      {
+        path: 'donorId',
+        select: donorSelect,
+      },
+      {
+        path: 'campaignId',
+        select: campaignSelect,
+      },
+    ];
+  }
+
+  /**
    * Creates a laboratory Testing Record for a physical Blood Unit in TESTING status.
    *
    * Business Rules Enforced:
@@ -91,9 +136,11 @@ export class TestingService {
     }
 
     // 1. Verify blood unit existence
-    const bloodUnit = await this.bloodUnitModel
-      .findById(createDto.bloodUnitId)
-      .exec();
+    let bloodUnitQuery: any = this.bloodUnitModel.findById(createDto.bloodUnitId);
+    if (bloodUnitQuery && typeof bloodUnitQuery.populate === 'function') {
+      bloodUnitQuery = bloodUnitQuery.populate('donationId', 'campaignId campaignCode');
+    }
+    const bloodUnit = await bloodUnitQuery.exec();
 
     if (!bloodUnit) {
       throw new NotFoundException({
@@ -146,11 +193,20 @@ export class TestingService {
 
     // 6. Instantiate and save testing record
     try {
+      const derivedCampaignId =
+        (bloodUnit as any).campaignId ||
+        (bloodUnit.donationId as any)?.campaignId;
+      const derivedCampaignCode =
+        (bloodUnit as any).campaignCode ||
+        (bloodUnit.donationId as any)?.campaignCode;
+
       const testingRecord = new this.bloodTestingModel({
         testingCode,
         bloodUnitId: bloodUnit._id,
-        donationId: bloodUnit.donationId,
+        donationId: (bloodUnit.donationId as any)?._id || bloodUnit.donationId,
         donorId: bloodUnit.donorId,
+        campaignId: derivedCampaignId,
+        campaignCode: derivedCampaignCode,
         testResults: initialTestResults,
         status: TestingStatus.IN_PROGRESS,
         decision: TestingDecision.PENDING,
@@ -163,22 +219,7 @@ export class TestingService {
       });
 
       const saved = await testingRecord.save();
-      return (await saved.populate([
-        {
-          path: 'bloodUnitId',
-          select:
-            'unitCode status bloodGroup componentType collectionDate volume storageLocation',
-        },
-        {
-          path: 'donationId',
-          select:
-            'donationCode donationDate donationType status quantity notes',
-        },
-        {
-          path: 'donorId',
-          select: 'donorCode fullName bloodGroup gender status phone',
-        },
-      ])) as BloodTesting;
+      return (await saved.populate(this.getTestingPopulateOpts(false))) as BloodTesting;
     } catch (err: any) {
       if (err.code === 11000) {
         throw new ConflictException({
@@ -293,22 +334,7 @@ export class TestingService {
       });
     }
 
-    return (await saved.populate([
-      {
-        path: 'bloodUnitId',
-        select:
-          'unitCode status bloodGroup componentType collectionDate volume storageLocation',
-      },
-      {
-        path: 'donationId',
-        select:
-          'donationCode donationDate donationType status quantity notes',
-      },
-      {
-        path: 'donorId',
-        select: 'donorCode fullName bloodGroup gender status phone',
-      },
-    ])) as BloodTesting;
+    return (await saved.populate(this.getTestingPopulateOpts(false))) as BloodTesting;
   }
 
   /**
@@ -474,22 +500,7 @@ export class TestingService {
         metadata: { rejectionReason: autoRejectionReason },
       });
     }
-    return (await saved.populate([
-      {
-        path: 'bloodUnitId',
-        select:
-          'unitCode status bloodGroup componentType collectionDate volume storageLocation',
-      },
-      {
-        path: 'donationId',
-        select:
-          'donationCode donationDate donationType status quantity notes',
-      },
-      {
-        path: 'donorId',
-        select: 'donorCode fullName bloodGroup gender status phone',
-      },
-    ])) as BloodTesting;
+    return (await saved.populate(this.getTestingPopulateOpts(false))) as BloodTesting;
   }
 
   /**
@@ -520,33 +531,10 @@ export class TestingService {
 
     const isLabRole = query?.callerRole === AdminRole.LAB_TECHNICIAN;
 
-    // For LAB_TECHNICIAN, omit donor phone and personal names, and omit donation administrative notes
-    const donorSelect = isLabRole
-      ? 'donorCode gender status'
-      : 'donorCode fullName bloodGroup gender status phone';
-
-    const donationSelect = isLabRole
-      ? 'donationCode donationDate donationType status quantity'
-      : 'donationCode donationDate donationType status quantity notes';
-
     const [items, total] = await Promise.all([
       this.bloodTestingModel
         .find(filter)
-        .populate([
-          {
-            path: 'bloodUnitId',
-            select:
-              'unitCode status bloodGroup componentType collectionDate volume storageLocation',
-          },
-          {
-            path: 'donationId',
-            select: donationSelect,
-          },
-          {
-            path: 'donorId',
-            select: donorSelect,
-          },
-        ])
+        .populate(this.getTestingPopulateOpts(isLabRole))
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
@@ -569,30 +557,7 @@ export class TestingService {
   async findOne(idOrCode: string, callerRole?: string): Promise<BloodTesting> {
     let testing: BloodTesting | null = null;
     const isLabRole = callerRole === AdminRole.LAB_TECHNICIAN;
-
-    const donorSelect = isLabRole
-      ? 'donorCode gender status'
-      : 'donorCode fullName bloodGroup gender status phone';
-
-    const donationSelect = isLabRole
-      ? 'donationCode donationDate donationType status quantity'
-      : 'donationCode donationDate donationType status quantity notes';
-
-    const populateOpts = [
-      {
-        path: 'bloodUnitId',
-        select:
-          'unitCode status bloodGroup componentType collectionDate volume storageLocation',
-      },
-      {
-        path: 'donationId',
-        select: donationSelect,
-      },
-      {
-        path: 'donorId',
-        select: donorSelect,
-      },
-    ];
+    const populateOpts = this.getTestingPopulateOpts(isLabRole);
 
     if (isValidObjectId(idOrCode)) {
       testing = await this.bloodTestingModel
@@ -631,31 +596,9 @@ export class TestingService {
 
     const isLabRole = callerRole === AdminRole.LAB_TECHNICIAN;
 
-    const donorSelect = isLabRole
-      ? 'donorCode gender status'
-      : 'donorCode fullName bloodGroup gender status phone';
-
-    const donationSelect = isLabRole
-      ? 'donationCode donationDate donationType status quantity'
-      : 'donationCode donationDate donationType status quantity notes';
-
     const testing = await this.bloodTestingModel
       .findOne({ bloodUnitId: new Types.ObjectId(bloodUnitId) })
-      .populate([
-        {
-          path: 'bloodUnitId',
-          select:
-            'unitCode status bloodGroup componentType collectionDate volume storageLocation',
-        },
-        {
-          path: 'donationId',
-          select: donationSelect,
-        },
-        {
-          path: 'donorId',
-          select: donorSelect,
-        },
-      ])
+      .populate(this.getTestingPopulateOpts(isLabRole))
       .exec();
 
     if (!testing) {

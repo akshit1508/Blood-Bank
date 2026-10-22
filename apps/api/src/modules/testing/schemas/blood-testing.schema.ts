@@ -89,6 +89,21 @@ export class BloodTesting {
   })
   donorId?: Types.ObjectId;
 
+  /**
+   * Reference to the Campaign record (if the blood unit was collected during a campaign drive).
+   */
+  @Prop({
+    type: Types.ObjectId,
+    ref: 'Campaign',
+    required: false,
+    index: true,
+    sparse: true,
+  })
+  campaignId?: Types.ObjectId;
+
+  @Prop({ required: false, trim: true, uppercase: true })
+  campaignCode?: string;
+
   @Prop({ type: [IndividualTestResultSchema], default: [] })
   testResults: IndividualTestResult[];
 

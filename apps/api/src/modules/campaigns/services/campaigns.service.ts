@@ -1186,6 +1186,8 @@ export class CampaignsService {
       unitCode,
       donationId: savedDonation._id,
       donorId: donor._id,
+      campaignId: campaign._id,
+      campaignCode: campaign.campaignCode,
       bloodGroup: resolvedBloodGroup,
       componentType: resolvedComponentType,
       volume: dto.volume || 450,
@@ -1228,6 +1230,8 @@ export class CampaignsService {
         bloodUnitId: savedUnit._id,
         donationId: savedDonation._id,
         donorId: donor._id,
+        campaignId: campaign._id,
+        campaignCode: campaign.campaignCode,
         testResults: initialTestResults,
         status: isApproved || isRejected ? TestingStatus.COMPLETED : TestingStatus.IN_PROGRESS,
         decision: isApproved

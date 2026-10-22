@@ -57,6 +57,21 @@ export class BloodUnit {
   donorId?: Types.ObjectId;
 
   /**
+   * Reference to the Campaign record (set when donation is collected during a mobile campaign drive).
+   */
+  @Prop({
+    type: Types.ObjectId,
+    ref: 'Campaign',
+    required: false,
+    index: true,
+    sparse: true,
+  })
+  campaignId?: Types.ObjectId;
+
+  @Prop({ required: false, trim: true, uppercase: true })
+  campaignCode?: string;
+
+  /**
    * Reference to the BloodAcquisition receipt record (only set when sourceType = EXTERNAL_RECEIPT).
    * NOT set for donation-based units.
    */

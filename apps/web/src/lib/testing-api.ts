@@ -27,6 +27,18 @@ export interface IndividualTestResult {
   performedByRole?: string;
 }
 
+export interface CampaignSummary {
+  _id: string;
+  name: string;
+  campaignCode: string;
+  venue?: string;
+  city?: string;
+  startDate?: string;
+  endDate?: string;
+  status?: string;
+  targetUnits?: number;
+}
+
 export interface BloodUnitSummary {
   _id: string;
   unitCode: string;
@@ -38,6 +50,8 @@ export interface BloodUnitSummary {
   storageLocation?: string;
   donationId?: DonationSummary | any;
   donorId?: DonorSummary | any;
+  campaignId?: CampaignSummary | string;
+  campaignCode?: string;
 }
 
 export interface DonationSummary {
@@ -48,6 +62,8 @@ export interface DonationSummary {
   status: string;
   quantity?: number;
   notes?: string;
+  campaignId?: CampaignSummary | string;
+  campaignCode?: string;
 }
 
 export interface DonorSummary {
@@ -66,6 +82,9 @@ export interface BloodTesting {
   bloodUnitId: BloodUnitSummary;
   donationId: DonationSummary;
   donorId: DonorSummary;
+  campaignId?: CampaignSummary | string;
+  campaignCode?: string;
+  campaignName?: string;
   testResults: IndividualTestResult[];
   status: TestingStatus;
   decision: TestingDecision;

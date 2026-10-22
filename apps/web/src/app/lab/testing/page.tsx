@@ -282,6 +282,72 @@ function InlineSpecimenPanel({
             {DECISION_BADGES[selectedTesting.decision].label}
           </span>
         </div>
+
+        {/* Campaign Provenance Banner if collected from a Donation Drive */}
+        {(() => {
+          const camp =
+            selectedTesting.campaignId ||
+            selectedTesting.bloodUnitId?.campaignId ||
+            selectedTesting.bloodUnitId?.donationId?.campaignId;
+          if (!camp) return null;
+          return (
+            <div
+              style={{
+                marginTop: '0.85rem',
+                padding: '0.7rem 0.9rem',
+                backgroundColor: '#f5f3ff',
+                border: '1px solid #ddd6fe',
+                borderRadius: '8px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: '0.5rem',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                <span
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.25rem',
+                    padding: '0.2rem 0.55rem',
+                    backgroundColor: '#7c3aed',
+                    color: '#ffffff',
+                    borderRadius: '4px',
+                    fontSize: '0.75rem',
+                    fontWeight: 800,
+                  }}
+                >
+                  ⛺ Field Campaign Specimen
+                </span>
+                <span style={{ fontSize: '0.85rem', fontWeight: 800, color: '#4c1d95' }}>
+                  {camp.name}
+                </span>
+                {camp.campaignCode && (
+                  <span
+                    style={{
+                      fontSize: '0.75rem',
+                      color: '#6d28d9',
+                      fontWeight: 700,
+                      backgroundColor: '#ede9fe',
+                      padding: '0.15rem 0.45rem',
+                      borderRadius: '4px',
+                      border: '1px solid #ddd6fe',
+                    }}
+                  >
+                    {camp.campaignCode}
+                  </span>
+                )}
+              </div>
+              {(camp.venue || camp.city) && (
+                <div style={{ fontSize: '0.75rem', color: '#6d28d9', fontWeight: 600 }}>
+                  📍 {[camp.venue, camp.city].filter(Boolean).join(', ')}
+                </div>
+              )}
+            </div>
+          );
+        })()}
       </div>
 
       {/* Section Title */}
@@ -718,6 +784,38 @@ function LabTestingWorkstationContent() {
       setDetailLoading(false);
     }
   };
+
+  // Deep-linking from query params (e.g. redirected from /lab/dashboard)
+  const recordIdParam = searchParams.get('recordId');
+  const unitIdParam = searchParams.get('unitId');
+  const [hasAutoOpened, setHasAutoOpened] = useState(false);
+
+  useEffect(() => {
+    if (hasAutoOpened || loading || awaitingLoading) return;
+
+    if (recordIdParam) {
+      setMainTab('records');
+      selectRecord(recordIdParam);
+      setHasAutoOpened(true);
+    } else if (unitIdParam) {
+      const targetUnit = awaitingUnits.find((u) => u._id === unitIdParam);
+      if (targetUnit) {
+        setMainTab('awaiting');
+        handleInitiateTesting(targetUnit);
+      } else {
+        const matchingRecord = records.find(
+          (r) =>
+            (typeof r.bloodUnitId === 'object' && r.bloodUnitId?._id === unitIdParam) ||
+            (r.bloodUnitId as any) === unitIdParam
+        );
+        if (matchingRecord) {
+          setMainTab('records');
+          selectRecord(matchingRecord._id);
+        }
+      }
+      setHasAutoOpened(true);
+    }
+  }, [recordIdParam, unitIdParam, loading, awaitingLoading, records, awaitingUnits, hasAutoOpened]);
 
   const handleUpdateTest = async (testCode: string) => {
     if (!selectedTesting) return;
@@ -1232,6 +1330,42 @@ function LabTestingWorkstationContent() {
                         <strong style={{ color: '#d97706' }}>{u.status}</strong>
                       </div>
 
+                      {/* Campaign Provenance Origin Badge */}
+                      {(() => {
+                        const camp = u.campaignId || u.donationId?.campaignId;
+                        if (!camp) return null;
+                        return (
+                          <div
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '0.4rem',
+                              padding: '0.3rem 0.6rem',
+                              backgroundColor: '#f5f3ff',
+                              border: '1px solid #ddd6fe',
+                              borderRadius: '6px',
+                              fontSize: '0.75rem',
+                              width: 'fit-content',
+                              flexWrap: 'wrap',
+                            }}
+                          >
+                            <span style={{ fontWeight: 800, color: '#6d28d9' }}>
+                              ⛺ Camp: {camp.name || camp.campaignCode}
+                            </span>
+                            {camp.campaignCode && camp.name && (
+                              <span style={{ color: '#8b5cf6', fontSize: '0.7rem' }}>
+                                ({camp.campaignCode})
+                              </span>
+                            )}
+                            {(camp.venue || camp.city) && (
+                              <span style={{ color: '#64748b', fontSize: '0.7rem' }}>
+                                &bull; {[camp.venue, camp.city].filter(Boolean).join(', ')}
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })()}
+
                       {/* Action Button: Start Panel */}
                       <div>
                         <button
@@ -1443,6 +1577,40 @@ function LabTestingWorkstationContent() {
                           <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.2rem' }}>
                             Tests Done: <strong style={{ color: completedTestsCount === 5 ? '#166534' : '#64748b' }}>{completedTestsCount}/5</strong> &bull; Initialized: {new Date(r.createdAt).toLocaleDateString()}
                           </div>
+
+                          {/* Campaign Provenance Origin Badge */}
+                          {(() => {
+                            const camp =
+                              r.campaignId ||
+                              r.bloodUnitId?.campaignId ||
+                              r.bloodUnitId?.donationId?.campaignId;
+                            if (!camp) return null;
+                            return (
+                              <div
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '0.35rem',
+                                  marginTop: '0.3rem',
+                                  padding: '0.15rem 0.5rem',
+                                  backgroundColor: '#f5f3ff',
+                                  border: '1px solid #ddd6fe',
+                                  borderRadius: '4px',
+                                  fontSize: '0.7rem',
+                                  flexWrap: 'wrap',
+                                }}
+                              >
+                                <span style={{ fontWeight: 800, color: '#6d28d9' }}>
+                                  ⛺ Camp: {camp.name || camp.campaignCode}
+                                </span>
+                                {(camp.venue || camp.city) && (
+                                  <span style={{ color: '#64748b' }}>
+                                    &bull; {[camp.venue, camp.city].filter(Boolean).join(', ')}
+                                  </span>
+                                )}
+                              </div>
+                            );
+                          })()}
                         </div>
                       </div>
 
