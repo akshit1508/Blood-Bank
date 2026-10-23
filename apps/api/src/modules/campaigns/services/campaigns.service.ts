@@ -51,6 +51,13 @@ import {
   AuditActionType,
   AuditEntityType,
 } from '../../audit-logs/constants/audit-log.constants';
+import { DonorEligibilityService } from '../../donors/services/donor-eligibility.service';
+import { ExpiryRulesService } from '../../inventory/services/expiry-rules.service';
+import {
+  MIN_WHOLE_BLOOD_DONOR_AGE,
+  MAX_WHOLE_BLOOD_DONOR_AGE,
+  calculateCompletedAge,
+} from '../../../common/constants/eligibility.constants';
 
 @Injectable()
 export class CampaignsService {
@@ -77,6 +84,10 @@ export class CampaignsService {
     private readonly donorModel?: Model<DonorDocument>,
     @Optional()
     private readonly auditLogsService?: AuditLogsService,
+    @Optional()
+    private readonly donorEligibilityService?: DonorEligibilityService,
+    @Optional()
+    private readonly expiryRulesService?: ExpiryRulesService,
   ) {}
 
   /**
@@ -1002,8 +1013,26 @@ export class CampaignsService {
 
     let newlyIntaken = 0;
     const intakenCodes: string[] = [];
+    const now = new Date();
 
     for (const unit of approvedUnits) {
+      // Safety Gate 1: Check expiration at intake point
+      if (unit.expiryDate && new Date(unit.expiryDate) < now) {
+        continue;
+      }
+
+      // Safety Gate 2: Verify certified laboratory testing completion
+      if (this.bloodTestingModel) {
+        const testing = await this.bloodTestingModel.findOne({ bloodUnitId: unit._id }).exec();
+        if (
+          !testing ||
+          testing.status !== TestingStatus.COMPLETED ||
+          testing.decision !== TestingDecision.APPROVED
+        ) {
+          continue;
+        }
+      }
+
       const existing = await this.inventoryModel.findOne({ bloodUnitId: unit._id }).exec();
       if (!existing) {
         await this.inventoryModel.create({
@@ -1109,8 +1138,12 @@ export class CampaignsService {
       throw new NotFoundException(`Campaign with ID '${campaignId}' not found.`);
     }
 
-    // 1. Resolve Donor
+    // 1. Resolve Donor & Enforce Authoritative Eligibility
     let donor: any = null;
+    const now = new Date();
+    const donationDate = dto.donationDate ? new Date(dto.donationDate) : now;
+    const resolvedDonationType = dto.donationType || 'WHOLE_BLOOD';
+
     if (dto.donorId) {
       if (!isValidObjectId(dto.donorId)) {
         throw new BadRequestException('Invalid donor ID format.');
@@ -1121,6 +1154,19 @@ export class CampaignsService {
       if (!donor) {
         throw new NotFoundException(`Donor with ID '${dto.donorId}' not found.`);
       }
+
+      // Enforce shared eligibility rules (status, age, interval, duplicate same day)
+      if (this.donorEligibilityService) {
+        await this.donorEligibilityService.validateEligibility(
+          donor,
+          donationDate,
+          resolvedDonationType,
+        );
+      } else {
+        if (donor.status === 'PENDING_REVIEW' || donor.status === 'INACTIVE') {
+          throw new BadRequestException(`Donor status '${donor.status}' is not eligible to donate.`);
+        }
+      }
     } else if (dto.donorFullName && dto.donorBloodGroup && dto.donorPhone) {
       if (!this.donorModel) {
         throw new BadRequestException('Donor model is not available.');
@@ -1129,12 +1175,31 @@ export class CampaignsService {
       // Check existing by phone
       donor = await this.donorModel.findOne({ phone: dto.donorPhone.trim() }).exec();
       if (!donor) {
+        // Validate age if dateOfBirth provided
+        const dobStr = (dto as any).donorDateOfBirth;
+        if (dobStr) {
+          const age = calculateCompletedAge(dobStr, donationDate);
+          if (age < MIN_WHOLE_BLOOD_DONOR_AGE) {
+            throw new BadRequestException({
+              message: `Donor must be at least ${MIN_WHOLE_BLOOD_DONOR_AGE} years old to donate blood (current age: ${age}).`,
+              code: 'DONOR_UNDERAGE',
+            });
+          }
+          if (age > MAX_WHOLE_BLOOD_DONOR_AGE) {
+            throw new BadRequestException({
+              message: `Donor exceeds the maximum permissible age of ${MAX_WHOLE_BLOOD_DONOR_AGE} years (current age: ${age}).`,
+              code: 'DONOR_OVERAGE',
+            });
+          }
+        }
+
         const randCode = Math.random().toString(36).substring(2, 7).toUpperCase();
         donor = new this.donorModel({
           donorCode: `DNR-${randCode}`,
           fullName: dto.donorFullName.trim(),
           bloodGroup: bloodGroup,
           gender: dto.donorGender || 'MALE',
+          dateOfBirth: dobStr ? new Date(dobStr) : undefined,
           phone: dto.donorPhone.trim(),
           email: dto.donorEmail?.trim().toLowerCase() || undefined,
           status: 'ACTIVE',
@@ -1144,6 +1209,15 @@ export class CampaignsService {
         });
         donor = await donor.save();
       }
+
+      // Enforce eligibility on donor record
+      if (this.donorEligibilityService) {
+        await this.donorEligibilityService.validateEligibility(
+          donor,
+          donationDate,
+          resolvedDonationType,
+        );
+      }
     } else {
       throw new BadRequestException(
         'Please select an existing registered donor or enter campaign donor details (Name, Blood Group, Phone).',
@@ -1151,11 +1225,16 @@ export class CampaignsService {
     }
 
     // 2. Create Donation
-    const now = new Date();
     const datePart = now.toISOString().slice(0, 10).replace(/-/g, '');
     const randPart = Math.random().toString(36).substring(2, 6).toUpperCase();
     const donationCode = `DONATION-${datePart}-${randPart}`;
-    const donationDate = dto.donationDate ? new Date(dto.donationDate) : now;
+
+    const bagBarcode = dto.bagBarcode || `BAG-${datePart}-${randPart}`;
+    const resolvedBagType = dto.bagType || 'SINGLE_350ML';
+    const isBagProblem =
+      dto.bagIntegrity === 'LEAKING' ||
+      dto.bagIntegrity === 'CLOTTED' ||
+      dto.bagIntegrity === 'DEFECTIVE';
 
     const donation = new this.donationModel({
       donationCode,
@@ -1163,10 +1242,16 @@ export class CampaignsService {
       campaignId: campaign._id,
       campaignCode: campaign.campaignCode,
       donationDate,
-      donationType: dto.donationType || 'WHOLE_BLOOD',
+      donationType: resolvedDonationType,
       quantity: dto.quantity || 1,
-      status: DonationStatus.COMPLETED,
+      status: isBagProblem ? DonationStatus.CANCELLED : DonationStatus.COMPLETED,
       notes: dto.notes?.trim() || undefined,
+      bagBarcode,
+      bagType: resolvedBagType,
+      bagIntegrity: dto.bagIntegrity || 'INTACT',
+      adverseReaction: dto.adverseReaction || 'NONE',
+      collectedVolumeMl: dto.volume || (resolvedBagType.includes('450') ? 450 : 350),
+      collectionLocation: `Campaign: ${campaign.name} (${campaign.venue})`,
       recordedBy: adminUser ? new Types.ObjectId(adminUser.id) : undefined,
       recordedByName: adminUser?.fullName || 'Campaign Staff',
       recordedByRole: adminUser?.role || 'ADMIN',
@@ -1174,20 +1259,41 @@ export class CampaignsService {
     const savedDonation = await donation.save();
 
     // 3. Create Blood Unit with unique unitCode
+    // SAFETY INVARIANT: Creating a donation or rapid screening CANNOT release a blood unit.
+    // Unit status begins strictly as TESTING (or REJECTED if bag contaminated/leaked).
     if (!this.bloodUnitModel) {
       throw new BadRequestException('BloodUnit model is not available.');
     }
 
     const unitCode = this.generateUnitCode();
     let unitStatus = BloodUnitStatus.TESTING;
-    if (dto.immediateScreeningDecision === 'APPROVED') {
-      unitStatus = BloodUnitStatus.APPROVED;
-    } else if (dto.immediateScreeningDecision === 'REJECTED') {
+    if (dto.immediateScreeningDecision === 'REJECTED' || isBagProblem) {
       unitStatus = BloodUnitStatus.REJECTED;
     }
 
     const resolvedBloodGroup = this.normalizeBloodGroup(donor.bloodGroup || dto.donorBloodGroup);
     const resolvedComponentType = this.normalizeComponentType(dto.componentType);
+
+    // Dynamic shelf-life calculation via central ExpiryRulesService
+    let calculatedExpiryDate: Date;
+    if (this.expiryRulesService) {
+      calculatedExpiryDate = await this.expiryRulesService.calculateExpiryDate(
+        donationDate,
+        resolvedComponentType as any,
+      );
+    } else {
+      const shelfDays =
+        resolvedComponentType === 'PLATELETS'
+          ? 5
+          : resolvedComponentType === 'FFP'
+            ? 365
+            : resolvedComponentType === 'PRBC'
+              ? 42
+              : 35;
+      calculatedExpiryDate = new Date(
+        donationDate.getTime() + shelfDays * 24 * 60 * 60 * 1000,
+      );
+    }
 
     const bloodUnit = new this.bloodUnitModel({
       unitCode,
@@ -1197,9 +1303,12 @@ export class CampaignsService {
       campaignCode: campaign.campaignCode,
       bloodGroup: resolvedBloodGroup,
       componentType: resolvedComponentType,
-      volume: dto.volume || 450,
+      volume: dto.volume || (resolvedBagType.includes('450') ? 450 : 350),
       collectionDate: donationDate,
-      expiryDate: new Date(donationDate.getTime() + 35 * 24 * 60 * 60 * 1000),
+      expiryDate: calculatedExpiryDate,
+      bagBarcode,
+      bagType: resolvedBagType,
+      bagIntegrity: dto.bagIntegrity || 'INTACT',
       storageLocation: dto.storageLocation || 'MOBILE_CAMP_TRANSPORT_COOLER',
       status: unitStatus,
       createdBy: adminUser ? new Types.ObjectId(adminUser.id) : undefined,
@@ -1208,12 +1317,12 @@ export class CampaignsService {
     });
     const savedUnit = await bloodUnit.save();
 
-    // 4. Initialize Blood Testing Record
+    // 4. Initialize Blood Testing Record in Lab Pipeline
+    // SAFETY INVARIANT: Rapid screening does not substitute for certified lab testing.
     let savedTesting: any = null;
     if (this.bloodTestingModel) {
       const testCode = `TEST-${datePart}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
-      const isApproved = dto.immediateScreeningDecision === 'APPROVED';
-      const isRejected = dto.immediateScreeningDecision === 'REJECTED';
+      const isRejected = dto.immediateScreeningDecision === 'REJECTED' || isBagProblem;
 
       const initialTestResults = [
         { testCode: 'HIV', testName: 'HIV 1 & 2 Antibody / Antigen Screen' },
@@ -1224,12 +1333,8 @@ export class CampaignsService {
       ].map((def) => ({
         testCode: def.testCode,
         testName: def.testName,
-        status: isApproved
-          ? TestResultStatus.PASS
-          : isRejected
-          ? TestResultStatus.FAIL
-          : TestResultStatus.PENDING,
-        testedAt: isApproved || isRejected ? now : undefined,
+        status: isRejected ? TestResultStatus.FAIL : TestResultStatus.PENDING,
+        testedAt: isRejected ? now : undefined,
       }));
 
       const testingRecord = new this.bloodTestingModel({
@@ -1240,21 +1345,18 @@ export class CampaignsService {
         campaignId: campaign._id,
         campaignCode: campaign.campaignCode,
         testResults: initialTestResults,
-        status: isApproved || isRejected ? TestingStatus.COMPLETED : TestingStatus.IN_PROGRESS,
-        decision: isApproved
-          ? TestingDecision.APPROVED
-          : isRejected
-          ? TestingDecision.REJECTED
-          : TestingDecision.PENDING,
+        status: isRejected ? TestingStatus.COMPLETED : TestingStatus.IN_PROGRESS,
+        decision: isRejected ? TestingDecision.REJECTED : TestingDecision.PENDING,
         startedAt: now,
         startedBy: adminUser ? new Types.ObjectId(adminUser.id) : undefined,
         startedByName: adminUser?.fullName || 'Campaign Staff',
         startedByRole: adminUser?.role || 'ADMIN',
-        completedAt: isApproved || isRejected ? now : undefined,
-        remarks: isApproved
-          ? 'Passed on-site rapid screening at campaign'
-          : isRejected
-          ? 'Contaminated / failed screening at campaign'
+        completedAt: isRejected ? now : undefined,
+        rejectionReason: isRejected
+          ? 'Failed on-site physical/clinical screening at campaign'
+          : undefined,
+        remarks: isRejected
+          ? 'Contaminated / rejected screening at campaign'
           : 'Enrolled in central laboratory testing pipeline',
       });
       savedTesting = await testingRecord.save();
@@ -1311,6 +1413,36 @@ export class CampaignsService {
       throw new NotFoundException(`Blood unit with ID '${unitId}' not found.`);
     }
 
+    // Safety Invariant (Phase 1): Cannot approve a unit without verified laboratory screening completion
+    if (dto.decision === 'APPROVED') {
+      let testing = this.bloodTestingModel
+        ? await this.bloodTestingModel.findOne({ bloodUnitId: bloodUnit._id }).exec()
+        : null;
+
+      const hasPendingTests =
+        !testing ||
+        !testing.testResults ||
+        testing.testResults.length === 0 ||
+        testing.testResults.some((t: any) => t.status === TestResultStatus.PENDING);
+
+      if (hasPendingTests) {
+        throw new BadRequestException({
+          message: `Cannot release blood unit '${bloodUnit.unitCode}' without certified laboratory testing. All mandatory tests (HIV, HBV, HCV, Syphilis, Malaria) must be performed and verified in the Laboratory module.`,
+          code: 'LABORATORY_TESTING_REQUIRED',
+        });
+      }
+
+      const hasFailedTests =
+        testing.testResults.some((t: any) => t.status === TestResultStatus.FAIL);
+
+      if (hasFailedTests) {
+        throw new BadRequestException({
+          message: `Cannot approve blood unit '${bloodUnit.unitCode}': one or more mandatory screening tests are reactive/failed.`,
+          code: 'CANNOT_APPROVE_REACTIVE_UNIT',
+        });
+      }
+    }
+
     const targetStatus = dto.decision === 'APPROVED' ? BloodUnitStatus.APPROVED : BloodUnitStatus.REJECTED;
     bloodUnit.status = targetStatus;
     await bloodUnit.save();
@@ -1338,14 +1470,13 @@ export class CampaignsService {
       if (dto.remarks) testing.remarks = dto.remarks;
       if (dto.decision === 'REJECTED') {
         testing.rejectionReason = dto.remarks || 'Contaminated / Positive screen (Discarded)';
-      }
-
-      if (testing.testResults && testing.testResults.length > 0) {
-        testing.testResults = testing.testResults.map((t: any) => ({
-          ...t,
-          status: dto.decision === 'APPROVED' ? TestResultStatus.PASS : TestResultStatus.FAIL,
-          testedAt: now,
-        }));
+        if (testing.testResults && testing.testResults.length > 0) {
+          testing.testResults = testing.testResults.map((t: any) => ({
+            ...t,
+            status: TestResultStatus.FAIL,
+            testedAt: now,
+          }));
+        }
       }
 
       updatedTesting = await testing.save();

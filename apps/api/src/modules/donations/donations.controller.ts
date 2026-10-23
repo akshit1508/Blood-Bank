@@ -12,6 +12,7 @@ import {
 import { DonationsService } from './donations.service';
 import { CreateDonationDto } from './dto/create-donation.dto';
 import { UpdateDonationStatusDto } from './dto/update-donation-status.dto';
+import { RecordCollectionDto } from './dto/record-collection.dto';
 import {
   DonationStatus,
   DonationType,
@@ -72,6 +73,31 @@ export class DonationsController {
     return {
       statusCode: HttpStatus.OK,
       data: result,
+    };
+  }
+
+  /**
+   * Authoritative staff recording of a blood collection / phlebotomy event (Phase 2).
+   * Enforces mandatory pre-donation clinical screening gate.
+   * POST /api/donations/collection
+   */
+  @Post('collection')
+  @HttpCode(HttpStatus.CREATED)
+  async recordCollection(
+    @Body() recordCollectionDto: RecordCollectionDto,
+    @CurrentAdmin() admin: any,
+  ) {
+    const result = await this.donationsService.recordBloodCollection(
+      recordCollectionDto,
+      admin,
+    );
+    return {
+      statusCode: HttpStatus.CREATED,
+      message: result.message,
+      data: result.donation,
+      bloodUnit: result.bloodUnit,
+      screening: result.screening,
+      label: result.label,
     };
   }
 

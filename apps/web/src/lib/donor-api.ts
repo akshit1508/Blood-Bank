@@ -35,6 +35,91 @@ export interface EmergencyContact {
   phone?: string;
 }
 
+export enum DonorScreeningDecision {
+  PENDING = 'PENDING',
+  SELECTED = 'SELECTED',
+  TEMPORARILY_DEFERRED = 'TEMPORARILY_DEFERRED',
+  PERMANENTLY_DEFERRED = 'PERMANENTLY_DEFERRED',
+}
+
+export interface DonorVitals {
+  weightKg: number;
+  heightCm?: number;
+  hemoglobinGdl: number;
+  bloodPressureSystolic: number;
+  bloodPressureDiastolic: number;
+  pulseBpm: number;
+  temperatureCelsius: number;
+  generalAppearance?: string;
+  veinAccess?: string;
+}
+
+export interface MedicalQuestionnaire {
+  hasDonatedBefore?: boolean;
+  feelingWellToday?: boolean;
+  recentIllnessOrFever?: boolean;
+  takingMedications?: boolean;
+  medicationDetails?: string;
+  majorSurgeryOrDentalRecent?: boolean;
+  tattooPiercingLast12Months?: boolean;
+  recentVaccinations?: boolean;
+  cardiacOrRespiratoryDisease?: boolean;
+  diabetesOrHypertension?: boolean;
+  bleedingDisorderOrEpilepsy?: boolean;
+  historyOfJaundiceOrHepatitis?: boolean;
+  highRiskBehaviorOrSTI?: boolean;
+  malariaTreatmentOrTravelHistory?: boolean;
+  pregnantOrLactating?: boolean;
+  alcoholIntakeLast24Hours?: boolean;
+  healthRemarks?: string;
+}
+
+export interface DonorScreening {
+  _id: string;
+  screeningCode: string;
+  donorId: string;
+  donorCode: string;
+  donorFullName: string;
+  donorBloodGroup?: string;
+  donorGender?: string;
+  campaignId?: string;
+  vitals: DonorVitals;
+  questionnaire: MedicalQuestionnaire;
+  consent: {
+    consentAcknowledged: boolean;
+    donorSignatureConfirmed: boolean;
+    consentTimestamp: string;
+  };
+  decision: DonorScreeningDecision;
+  deferralType?: 'TEMPORARY' | 'PERMANENT';
+  deferralReason?: string;
+  deferredUntil?: string;
+  decisionRemarks?: string;
+  collectionStatus: 'PENDING_COLLECTION' | 'COLLECTED' | 'CANCELLED';
+  linkedDonationId?: string;
+  linkedDonationCode?: string;
+  screenedByName: string;
+  screenedByRole: string;
+  screenedAt: string;
+  createdAt: string;
+}
+
+export interface CreateDonorScreeningInput {
+  donorId: string;
+  campaignId?: string;
+  vitals: DonorVitals;
+  questionnaire?: MedicalQuestionnaire;
+  consent?: {
+    consentAcknowledged?: boolean;
+    donorSignatureConfirmed?: boolean;
+  };
+  decision?: DonorScreeningDecision;
+  deferralType?: 'TEMPORARY' | 'PERMANENT';
+  deferralReason?: string;
+  deferredUntil?: string;
+  decisionRemarks?: string;
+}
+
 export interface Donor {
   _id: string;
   donorCode: string;
@@ -48,6 +133,11 @@ export interface Donor {
   city?: string;
   emergencyContact?: EmergencyContact;
   status: DonorStatus;
+  deferralStatus?: 'NONE' | 'TEMPORARY' | 'PERMANENT';
+  deferredUntil?: string;
+  deferralReason?: string;
+  lastScreeningDate?: string;
+  lastScreeningDecision?: string;
   registeredBy?: string;
   registeredByName?: string;
   registeredByRole?: string;
@@ -214,4 +304,98 @@ Thank you for your support and for being willing to contribute to the community.
 — Blood Bank Team`;
 
   return `https://wa.me/${formattedPhone}?text=${encodeURIComponent(message)}`;
+}
+
+/**
+ * Checks donor eligibility before scheduling or conducting screening.
+ */
+export async function checkDonorEligibility(
+  donorId: string,
+  donationDate?: string,
+  donationType?: string,
+): Promise<any> {
+  const params = new URLSearchParams();
+  if (donationDate) params.append('donationDate', donationDate);
+  if (donationType) params.append('donationType', donationType);
+
+  const res = await fetch(`${API_BASE_URL}/donors/${donorId}/eligibility?${params.toString()}`, {
+    headers: getAuthHeaders(),
+  });
+
+  const body = await res.json();
+  if (!res.ok) {
+    const errorMsg = Array.isArray(body.message)
+      ? body.message.join(', ')
+      : body.message || 'Donor is ineligible to donate blood.';
+    throw new Error(errorMsg);
+  }
+
+  return body.data;
+}
+
+/**
+ * Submits clinical pre-donation screening & examination.
+ */
+export async function createDonorScreening(
+  donorId: string,
+  input: CreateDonorScreeningInput,
+): Promise<{ screening: DonorScreening; donor: Donor; autoEvaluation: any }> {
+  const res = await fetch(`${API_BASE_URL}/donors/${donorId}/screenings`, {
+    method: 'POST',
+    headers: {
+      ...getAuthHeaders(),
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(input),
+  });
+
+  const body = await res.json();
+  if (!res.ok) {
+    const errorMsg = Array.isArray(body.message)
+      ? body.message.join(', ')
+      : body.message || 'Failed to record donor screening';
+    throw new Error(errorMsg);
+  }
+
+  return {
+    screening: body.data,
+    donor: body.donor,
+    autoEvaluation: body.autoEvaluation,
+  };
+}
+
+/**
+ * Fetches all screening records for a donor.
+ */
+export async function fetchDonorScreenings(
+  donorId: string,
+): Promise<DonorScreening[]> {
+  const res = await fetch(`${API_BASE_URL}/donors/${donorId}/screenings`, {
+    headers: getAuthHeaders(),
+  });
+
+  const body = await res.json();
+  if (!res.ok) {
+    throw new Error(body.message || 'Failed to fetch donor screenings');
+  }
+
+  return body.data || [];
+}
+
+/**
+ * Fetches today's active passing screening record for a donor ready for collection.
+ */
+export async function fetchActiveScreeningForDonor(
+  donorId: string,
+): Promise<DonorScreening | null> {
+  const res = await fetch(`${API_BASE_URL}/donors/${donorId}/screenings/active`, {
+    headers: getAuthHeaders(),
+  });
+
+  const body = await res.json();
+  if (!res.ok) {
+    return null;
+  }
+
+  return body.data || null;
 }

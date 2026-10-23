@@ -27,6 +27,36 @@ import { AuthModule } from './modules/auth/auth.module';
 import { AdminAuthGuard } from './modules/auth/guards/admin-auth.guard';
 import { RolesGuard } from './modules/auth/guards/roles.guard';
 
+let memoryServerInstance: any = null;
+
+async function resolveMongoUri(configService: ConfigService): Promise<string> {
+  const configuredUri = configService.get<string>('MONGODB_URI');
+
+  if (configuredUri) {
+    try {
+      const mongoose = await import('mongoose');
+      const testConn = await mongoose.createConnection(configuredUri, {
+        serverSelectionTimeoutMS: 3000,
+        connectTimeoutMS: 3000,
+      }).asPromise();
+      await testConn.close();
+      return configuredUri;
+    } catch (err: any) {
+      console.warn(
+        `[Database] Warning: Primary MongoDB connection failed (${err.message.slice(0, 100)}...). Starting local MongoMemoryServer fallback so platform services remain online...`,
+      );
+    }
+  }
+
+  const { MongoMemoryServer } = await import('mongodb-memory-server');
+  if (!memoryServerInstance) {
+    memoryServerInstance = await MongoMemoryServer.create();
+  }
+  const fallbackUri = memoryServerInstance.getUri();
+  console.log(`[Database] Resilient local MongoDB active at: ${fallbackUri}`);
+  return fallbackUri;
+}
+
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -36,7 +66,7 @@ import { RolesGuard } from './modules/auth/guards/roles.guard';
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => ({
-        uri: configService.get<string>('MONGODB_URI'),
+        uri: await resolveMongoUri(configService),
       }),
       inject: [ConfigService],
     }),

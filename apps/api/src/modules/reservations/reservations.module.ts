@@ -23,6 +23,7 @@ import {
   BloodUnitSchema,
 } from '../blood-units/schemas/blood-unit.schema';
 import { BloodIssuesModule } from '../blood-issues/blood-issues.module';
+import { InventoryModule } from '../inventory/inventory.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { BloodIssuesModule } from '../blood-issues/blood-issues.module';
       { name: BloodUnit.name, schema: BloodUnitSchema },
     ]),
     BloodIssuesModule,
+    InventoryModule,
   ],
   controllers: [ReservationsController],
   providers: [ReservationsService],

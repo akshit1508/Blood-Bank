@@ -26,6 +26,7 @@ import {
 } from './schemas/blood-unit-expiry-rule.schema';
 import { ExpiryRulesService } from './services/expiry-rules.service';
 import { ExpiryRulesController } from './controllers/expiry-rules.controller';
+import { UnitIssueValidationService } from './services/unit-issue-validation.service';
 
 @Module({
   imports: [
@@ -43,7 +44,7 @@ import { ExpiryRulesController } from './controllers/expiry-rules.controller';
     PublicBloodAvailabilityController,
     ExpiryRulesController,
   ],
-  providers: [InventoryService, ExpiryRulesService],
-  exports: [InventoryService, ExpiryRulesService],
+  providers: [InventoryService, ExpiryRulesService, UnitIssueValidationService],
+  exports: [InventoryService, ExpiryRulesService, UnitIssueValidationService],
 })
 export class InventoryModule {}

@@ -13,6 +13,8 @@ import { Inventory, InventorySchema } from '../inventory/schemas/inventory.schem
 import { Donor, DonorSchema } from '../donors/schemas/donor.schema';
 import { CampaignsService } from './services/campaigns.service';
 import { CampaignsController } from './controllers/campaigns.controller';
+import { DonorsModule } from '../donors/donors.module';
+import { InventoryModule } from '../inventory/inventory.module';
 
 @Module({
   imports: [
@@ -26,6 +28,8 @@ import { CampaignsController } from './controllers/campaigns.controller';
       { name: Inventory.name, schema: InventorySchema },
       { name: Donor.name, schema: DonorSchema },
     ]),
+    DonorsModule,
+    InventoryModule,
   ],
   controllers: [CampaignsController],
   providers: [CampaignsService],

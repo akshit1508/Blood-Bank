@@ -1,0 +1,72 @@
+/**
+ * Standardized Donor Screening Decisions (DGHS / NBTC Guidelines)
+ */
+export enum DonorScreeningDecision {
+  PENDING = 'PENDING',
+  SELECTED = 'SELECTED',
+  TEMPORARILY_DEFERRED = 'TEMPORARILY_DEFERRED',
+  PERMANENTLY_DEFERRED = 'PERMANENTLY_DEFERRED',
+}
+
+/**
+ * Blood Bag Types according to Indian Transfusion Specifications
+ */
+export enum BagType {
+  SINGLE_350ML = 'SINGLE_350ML',
+  DOUBLE_350ML = 'DOUBLE_350ML',
+  DOUBLE_450ML = 'DOUBLE_450ML',
+  TRIPLE_450ML = 'TRIPLE_450ML',
+  QUADRUPLE_SAGM_450ML = 'QUADRUPLE_SAGM_450ML',
+}
+
+/**
+ * Blood Collection / Phlebotomy Outcomes
+ */
+export enum CollectionOutcome {
+  SUCCESSFUL = 'SUCCESSFUL',
+  UNDER_COLLECTED = 'UNDER_COLLECTED',
+  UNSUCCESSFUL_VENIPUNCTURE = 'UNSUCCESSFUL_VENIPUNCTURE',
+  DISCARDED_AT_COLLECTION = 'DISCARDED_AT_COLLECTION',
+}
+
+/**
+ * Transfusion Medicine Adverse Donor Reactions (Hemovigilance Criteria)
+ */
+export enum AdverseReactionType {
+  NONE = 'NONE',
+  MILD_VASOVAGAL = 'MILD_VASOVAGAL',
+  SEVERE_VASOVAGAL = 'SEVERE_VASOVAGAL',
+  HEMATOMA = 'HEMATOMA',
+  ARTERIAL_PUNCTURE = 'ARTERIAL_PUNCTURE',
+  NERVE_INJURY_OR_PAIN = 'NERVE_INJURY_OR_PAIN',
+  NAUSEA_OR_VOMITING = 'NAUSEA_OR_VOMITING',
+  HYPERVENTILATION = 'HYPERVENTILATION',
+}
+
+/**
+ * Blood Bag Physical Integrity
+ */
+export enum BagIntegrity {
+  INTACT = 'INTACT',
+  LEAKING = 'LEAKING',
+  CLOTTED = 'CLOTTED',
+  DEFECTIVE = 'DEFECTIVE',
+}
+
+/**
+ * Regulatory Clinical Limits for Indian Blood Donation (Drugs & Cosmetics Rules / NBTC)
+ */
+export const CLINICAL_SCREENING_THRESHOLDS = {
+  MIN_WEIGHT_350ML_KG: 45,
+  MIN_WEIGHT_450ML_KG: 50,
+  MIN_HEMOGLOBIN_GDL: 12.5,
+  MIN_SYSTOLIC_BP: 100,
+  MAX_SYSTOLIC_BP: 140,
+  MAX_SYSTOLIC_BP_ALLOWABLE: 160,
+  MIN_DIASTOLIC_BP: 60,
+  MAX_DIASTOLIC_BP: 90,
+  MAX_DIASTOLIC_BP_ALLOWABLE: 100,
+  MIN_PULSE_BPM: 60,
+  MAX_PULSE_BPM: 100,
+  MAX_ORAL_TEMP_CELSIUS: 37.5,
+};

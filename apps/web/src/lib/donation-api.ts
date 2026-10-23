@@ -39,6 +39,19 @@ export interface Donation {
   campaignId?: string;
   campaignCode?: string;
   notes?: string;
+  screeningId?: string;
+  screeningCode?: string;
+  bagBarcode?: string;
+  bagType?: string;
+  collectedVolumeMl?: number;
+  venipunctureSite?: string;
+  collectionOutcome?: string;
+  adverseReaction?: string;
+  adverseReactionNotes?: string;
+  bagIntegrity?: string;
+  collectionLocation?: string;
+  phlebotomistName?: string;
+  phlebotomistRole?: string;
   recordedBy?: string;
   recordedByName?: string;
   recordedByRole?: string;
@@ -194,4 +207,71 @@ export async function updateDonationStatus(
   }
 
   return body.data;
+}
+
+export interface RecordCollectionInput {
+  donorId: string;
+  screeningId?: string;
+  donationDate?: string;
+  donationType?: DonationType;
+  campaignId?: string;
+  bagType?: string;
+  collectedVolumeMl?: number;
+  venipunctureSite?: string;
+  collectionOutcome?: string;
+  adverseReaction?: string;
+  adverseReactionNotes?: string;
+  bagIntegrity?: string;
+  collectionLocation?: string;
+  notes?: string;
+}
+
+export interface CollectionResult {
+  message: string;
+  donation: Donation;
+  bloodUnit?: any;
+  screening: any;
+  label: {
+    bagBarcode: string;
+    unitCode: string;
+    donationCode: string;
+    donorCode: string;
+    donorName: string;
+    bloodGroup: string;
+    componentType: string;
+    volumeMl: number;
+    bagType: string;
+    collectionDate: string;
+    expiryDate?: string;
+    collectionLocation: string;
+    centreName: string;
+  };
+}
+
+/**
+ * Authoritative staff recording of a blood collection / phlebotomy event (Phase 2).
+ * Strictly requires prior approved (SELECTED) donor screening.
+ */
+export async function recordBloodCollection(
+  input: RecordCollectionInput,
+): Promise<CollectionResult> {
+  const res = await fetch(`${API_BASE_URL}/donations/collection`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+      ...getAuthHeaders(),
+    },
+    body: JSON.stringify(input),
+  });
+
+  const body = await res.json();
+  if (!res.ok) {
+    const errorMsg = Array.isArray(body.message)
+      ? body.message.join(', ')
+      : body.message || 'Failed to record blood collection';
+    throw new Error(errorMsg);
+  }
+
+  return body;
 }

@@ -89,6 +89,30 @@ export class Donor {
   @Prop({ required: false })
   verifiedAt?: Date;
 
+  // --- Deferral & Screening Tracking ---
+  @Prop({
+    required: false,
+    enum: ['NONE', 'TEMPORARY', 'PERMANENT'],
+    default: 'NONE',
+    index: true,
+  })
+  deferralStatus?: string;
+
+  @Prop({ required: false, index: true })
+  deferredUntil?: Date;
+
+  @Prop({ required: false, trim: true })
+  deferralReason?: string;
+
+  @Prop({ required: false, trim: true })
+  deferralFollowUpNotes?: string;
+
+  @Prop({ required: false })
+  lastScreeningDate?: Date;
+
+  @Prop({ required: false, trim: true })
+  lastScreeningDecision?: string;
+
   @Prop({ type: Types.ObjectId, ref: 'AdminUser', required: false })
   updatedBy?: Types.ObjectId;
 

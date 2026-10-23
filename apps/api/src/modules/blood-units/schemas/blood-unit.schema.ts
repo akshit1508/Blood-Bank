@@ -129,6 +129,27 @@ export class BloodUnit {
   @Prop({ required: false, trim: true })
   storageLocation?: string;
 
+  // --- Traceable Phlebotomy & Bag Metadata (Phase 2) ---
+  @Prop({ required: false, trim: true, uppercase: true, index: true, sparse: true })
+  bagBarcode?: string;
+
+  @Prop({ required: false, trim: true })
+  bagType?: string;
+
+  @Prop({
+    required: false,
+    enum: ['INTACT', 'LEAKING', 'CLOTTED', 'DEFECTIVE'],
+    default: 'INTACT',
+  })
+  bagIntegrity?: string;
+
+  @Prop({
+    required: false,
+    enum: ['SUCCESSFUL', 'UNDER_COLLECTED', 'UNSUCCESSFUL_VENIPUNCTURE', 'DISCARDED_AT_COLLECTION'],
+    default: 'SUCCESSFUL',
+  })
+  collectionOutcome?: string;
+
   @Prop({ required: false, trim: true })
   notes?: string;
 

@@ -16,6 +16,7 @@ import {
   DonationStatus,
   fetchDonations,
   createDonation,
+  CollectionResult,
 } from '@/lib/donation-api';
 import { BloodUnit, fetchBloodUnits } from '@/lib/blood-unit-api';
 import {
@@ -24,6 +25,9 @@ import {
   IntervalEligibilityResult,
 } from '@/lib/eligibility';
 import StaffAttributionBadge from '@/components/admin/StaffAttributionBadge';
+import DonorScreeningModal from '@/components/admin/DonorScreeningModal';
+import BloodCollectionModal from '@/components/admin/BloodCollectionModal';
+import PrintableBagLabelModal, { BagLabelData } from '@/components/admin/PrintableBagLabelModal';
 
 const WhatsAppIcon = ({ size = 15 }: { size?: number }) => (
   <svg
@@ -119,6 +123,11 @@ export default function AdminDonorsPage() {
   const [recordErrorDetails, setRecordErrorDetails] = useState<any | null>(null);
   const [recordSuccessReceipt, setRecordSuccessReceipt] =
     useState<Donation | null>(null);
+
+  // Phase 2: Screening, Collection & Bag Label Modals
+  const [screeningModalDonor, setScreeningModalDonor] = useState<Donor | null>(null);
+  const [collectionModalDonor, setCollectionModalDonor] = useState<Donor | null>(null);
+  const [labelModalData, setLabelModalData] = useState<BagLabelData | null>(null);
 
   // Evaluate donation interval status for selected donor
   const intervalStatus: IntervalEligibilityResult | null = React.useMemo(() => {
@@ -693,24 +702,64 @@ export default function AdminDonorsPage() {
                         {donor.city || '—'}
                       </td>
                       <td style={{ padding: '0.75rem 1rem' }}>
-                        <span
-                          style={{
-                            padding: '0.2rem 0.6rem',
-                            borderRadius: '9999px',
-                            fontSize: '0.75rem',
-                            fontWeight: 700,
-                            backgroundColor: statusStyle.bg,
-                            color: statusStyle.text,
-                            border: `1px solid ${statusStyle.border}`,
-                            letterSpacing: '0.03em',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '0.25rem',
-                          }}
-                        >
-                          {donor.status === DonorStatus.PENDING_REVIEW && '⚠️ '}
-                          {statusStyle.label}
-                        </span>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', alignItems: 'flex-start' }}>
+                          <span
+                            style={{
+                              padding: '0.2rem 0.6rem',
+                              borderRadius: '9999px',
+                              fontSize: '0.75rem',
+                              fontWeight: 700,
+                              backgroundColor: statusStyle.bg,
+                              color: statusStyle.text,
+                              border: `1px solid ${statusStyle.border}`,
+                              letterSpacing: '0.03em',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '0.25rem',
+                            }}
+                          >
+                            {donor.status === DonorStatus.PENDING_REVIEW && '⚠️ '}
+                            {statusStyle.label}
+                          </span>
+                          {donor.deferralStatus === 'PERMANENT' && (
+                            <span
+                              style={{
+                                backgroundColor: '#fee2e2',
+                                color: '#991b1b',
+                                border: '1px solid #fecaca',
+                                fontSize: '0.68rem',
+                                fontWeight: 800,
+                                padding: '0.1rem 0.4rem',
+                                borderRadius: '4px',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '0.2rem',
+                              }}
+                              title={donor.deferralReason || 'Permanently deferred'}
+                            >
+                              ⛔ PERM DEFERRED
+                            </span>
+                          )}
+                          {donor.deferralStatus === 'TEMPORARY' && (
+                            <span
+                              style={{
+                                backgroundColor: '#fef3c7',
+                                color: '#92400e',
+                                border: '1px solid #fde68a',
+                                fontSize: '0.68rem',
+                                fontWeight: 700,
+                                padding: '0.1rem 0.4rem',
+                                borderRadius: '4px',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '0.2rem',
+                              }}
+                              title={`Deferred until ${donor.deferredUntil ? new Date(donor.deferredUntil).toLocaleDateString() : 'TBD'}: ${donor.deferralReason || ''}`}
+                            >
+                              ⏳ TEMP DEFERRED {donor.deferredUntil ? `(${new Date(donor.deferredUntil).toLocaleDateString()})` : ''}
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td
                         style={{
@@ -732,25 +781,63 @@ export default function AdminDonorsPage() {
                         )}
                       </td>
                       <td style={{ padding: '0.75rem 1rem', textAlign: 'right' }}>
-                        <button
-                          onClick={() => {
-                            setSelectedDonor(donor);
-                            setUpdateError(null);
-                            setUpdateSuccess(null);
-                          }}
-                          style={{
-                            background: isSelected ? '#15803d' : '#2563eb',
-                            color: '#ffffff',
-                            border: 'none',
-                            padding: '0.35rem 0.75rem',
-                            borderRadius: '4px',
-                            cursor: 'pointer',
-                            fontSize: '0.75rem',
-                            fontWeight: 500,
-                          }}
-                        >
-                          {isSelected ? 'Viewing' : 'Open Profile'}
-                        </button>
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '0.35rem' }}>
+                          <button
+                            type="button"
+                            onClick={() => setScreeningModalDonor(donor)}
+                            style={{
+                              background: '#f8fafc',
+                              color: '#0f172a',
+                              border: '1px solid #cbd5e1',
+                              padding: '0.3rem 0.55rem',
+                              borderRadius: '4px',
+                              cursor: 'pointer',
+                              fontSize: '0.72rem',
+                              fontWeight: 600,
+                            }}
+                            title="Perform Clinical Screening (Vitals & Medical History)"
+                          >
+                            📋 Screen
+                          </button>
+                          {donor.status === DonorStatus.ACTIVE && donor.deferralStatus !== 'PERMANENT' && (
+                            <button
+                              type="button"
+                              onClick={() => setCollectionModalDonor(donor)}
+                              style={{
+                                background: '#fef2f2',
+                                color: '#991b1b',
+                                border: '1px solid #fecaca',
+                                padding: '0.3rem 0.55rem',
+                                borderRadius: '4px',
+                                cursor: 'pointer',
+                                fontSize: '0.72rem',
+                                fontWeight: 600,
+                              }}
+                              title="Record Chair-Side Blood Collection (Phlebotomy)"
+                            >
+                              🩸 Collect
+                            </button>
+                          )}
+                          <button
+                            onClick={() => {
+                              setSelectedDonor(donor);
+                              setUpdateError(null);
+                              setUpdateSuccess(null);
+                            }}
+                            style={{
+                              background: isSelected ? '#15803d' : '#2563eb',
+                              color: '#ffffff',
+                              border: 'none',
+                              padding: '0.3rem 0.65rem',
+                              borderRadius: '4px',
+                              cursor: 'pointer',
+                              fontSize: '0.72rem',
+                              fontWeight: 600,
+                            }}
+                          >
+                            {isSelected ? 'Viewing' : 'Profile'}
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -1129,6 +1216,106 @@ export default function AdminDonorsPage() {
                 <p style={{ margin: '0.5rem 0 0 0', fontSize: '0.7rem', color: '#64748b' }}>
                   <em>Note: Approval is administrative only; clinical eligibility is evaluated per SOP at collection.</em>
                 </p>
+              </div>
+
+              {/* Section 4B: Phase 2 Clinical Screening & Phlebotomy Collection */}
+              <div
+                style={{
+                  backgroundColor: '#ffffff',
+                  border: '1px solid #cbd5e1',
+                  borderRadius: '6px',
+                  padding: '0.85rem',
+                  marginBottom: '1rem',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                  <strong style={{ fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.04em', color: '#881337' }}>
+                    Phase 2: Medical Screening &amp; Collection
+                  </strong>
+                  {selectedDonor.deferralStatus === 'PERMANENT' && (
+                    <span style={{ fontSize: '0.7rem', fontWeight: 800, color: '#991b1b', backgroundColor: '#fee2e2', border: '1px solid #fecaca', padding: '0.15rem 0.45rem', borderRadius: '4px' }}>
+                      ⛔ PERMANENTLY DEFERRED
+                    </span>
+                  )}
+                  {selectedDonor.deferralStatus === 'TEMPORARY' && (
+                    <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#92400e', backgroundColor: '#fef3c7', border: '1px solid #fde68a', padding: '0.15rem 0.45rem', borderRadius: '4px' }}>
+                      ⏳ TEMP DEFERRED
+                    </span>
+                  )}
+                  {!selectedDonor.deferralStatus && selectedDonor.status === DonorStatus.ACTIVE && (
+                    <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#166534', backgroundColor: '#dcfce7', border: '1px solid #bbf7d0', padding: '0.15rem 0.45rem', borderRadius: '4px' }}>
+                      ✓ NO DEFERRAL
+                    </span>
+                  )}
+                </div>
+
+                {selectedDonor.deferralReason && (
+                  <div style={{ fontSize: '0.75rem', color: '#b91c1c', backgroundColor: '#fef2f2', border: '1px solid #fecaca', borderRadius: '4px', padding: '0.45rem 0.65rem', marginBottom: '0.65rem' }}>
+                    <strong>Deferral Reason:</strong> {selectedDonor.deferralReason}
+                    {selectedDonor.deferredUntil && (
+                      <div style={{ fontSize: '0.7rem', color: '#7f1d1d', marginTop: '0.15rem' }}>
+                        Deferred Until: <strong>{new Date(selectedDonor.deferredUntil).toLocaleDateString()}</strong>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {selectedDonor.lastScreeningDecision && (
+                  <div style={{ fontSize: '0.75rem', color: '#475569', marginBottom: '0.65rem' }}>
+                    Last Screening: <strong>{selectedDonor.lastScreeningDecision}</strong>
+                    {selectedDonor.lastScreeningDate && (
+                      <span style={{ color: '#64748b' }}> ({new Date(selectedDonor.lastScreeningDate).toLocaleDateString()})</span>
+                    )}
+                  </div>
+                )}
+
+                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    onClick={() => setScreeningModalDonor(selectedDonor)}
+                    style={{
+                      flex: 1,
+                      backgroundColor: '#0f172a',
+                      color: '#ffffff',
+                      border: 'none',
+                      padding: '0.5rem 0.75rem',
+                      borderRadius: '5px',
+                      fontSize: '0.78rem',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '0.35rem',
+                    }}
+                  >
+                    📋 Clinical Screening
+                  </button>
+                  {selectedDonor.status === DonorStatus.ACTIVE && selectedDonor.deferralStatus !== 'PERMANENT' && (
+                    <button
+                      type="button"
+                      onClick={() => setCollectionModalDonor(selectedDonor)}
+                      style={{
+                        flex: 1,
+                        backgroundColor: '#881337',
+                        color: '#ffffff',
+                        border: 'none',
+                        padding: '0.5rem 0.75rem',
+                        borderRadius: '5px',
+                        fontSize: '0.78rem',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '0.35rem',
+                      }}
+                    >
+                      🩸 Phlebotomy Collection
+                    </button>
+                  )}
+                </div>
               </div>
 
               {/* Section 5: Donation History & Record Action */}
@@ -1807,6 +1994,49 @@ export default function AdminDonorsPage() {
           </div>
         </div>
       )}
+
+      {/* Phase 2: Donor Clinical Screening Modal */}
+      <DonorScreeningModal
+        isOpen={!!screeningModalDonor}
+        onClose={() => setScreeningModalDonor(null)}
+        donor={screeningModalDonor}
+        onSuccess={async (screening) => {
+          await loadDonors();
+          const target = screeningModalDonor;
+          setScreeningModalDonor(null);
+          if (target && screening.decision === 'SELECTED') {
+            setCollectionModalDonor(target);
+          }
+        }}
+      />
+
+      {/* Phase 2: Blood Collection (Phlebotomy) Modal */}
+      <BloodCollectionModal
+        isOpen={!!collectionModalDonor}
+        onClose={() => setCollectionModalDonor(null)}
+        donor={collectionModalDonor}
+        onSuccess={async (result) => {
+          await loadDonors();
+          if (selectedDonor) {
+            await loadDonationHistory(selectedDonor._id);
+          }
+          setCollectionModalDonor(null);
+          if (result.label) {
+            setLabelModalData(result.label);
+          }
+        }}
+        onOpenScreening={(d) => {
+          setCollectionModalDonor(null);
+          setScreeningModalDonor(d);
+        }}
+      />
+
+      {/* Phase 2: Printable Blood Bag Barcode Label Modal */}
+      <PrintableBagLabelModal
+        isOpen={!!labelModalData}
+        onClose={() => setLabelModalData(null)}
+        labelData={labelModalData}
+      />
     </div>
   );
 }

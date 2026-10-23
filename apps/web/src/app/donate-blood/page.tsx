@@ -82,6 +82,9 @@ export default function DonateBloodPage() {
 
     if (!formData.consent) {
       setErrorMessage('Please acknowledge the donor registration consent to proceed.');
+      if (typeof window !== 'undefined') {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
       return;
     }
 
@@ -107,8 +110,14 @@ export default function DonateBloodPage() {
       });
 
       setRegisteredDonorCode(response.donorCode);
+      if (typeof window !== 'undefined') {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
     } catch (err: any) {
       setErrorMessage(err.message || 'An unexpected error occurred during donor registration.');
+      if (typeof window !== 'undefined') {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
     } finally {
       setLoading(false);
     }
@@ -615,6 +624,25 @@ export default function DonateBloodPage() {
                   </span>
                 </label>
               </div>
+
+              {errorMessage && (
+                <div
+                  style={{
+                    backgroundColor: '#fef2f2',
+                    border: '1px solid #fca5a5',
+                    color: '#991b1b',
+                    padding: '0.75rem 1rem',
+                    borderRadius: '6px',
+                    marginBottom: '1rem',
+                    fontSize: '0.875rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.4rem',
+                  }}
+                >
+                  <span>⚠️</span> <strong>Registration Error: </strong> {errorMessage}
+                </div>
+              )}
 
               <div style={{ display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid #f1f5f9', paddingTop: '1.25rem' }} className="public-cta-group">
                 <button

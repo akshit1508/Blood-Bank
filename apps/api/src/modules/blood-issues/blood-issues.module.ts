@@ -23,6 +23,7 @@ import {
   BloodUnit,
   BloodUnitSchema,
 } from '../blood-units/schemas/blood-unit.schema';
+import { InventoryModule } from '../inventory/inventory.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import {
       { name: InventoryHistory.name, schema: InventoryHistorySchema },
       { name: BloodUnit.name, schema: BloodUnitSchema },
     ]),
+    InventoryModule,
   ],
   controllers: [BloodIssuesController],
   providers: [BloodIssuesService],

@@ -39,6 +39,7 @@ import {
   AuditActionType,
   AuditEntityType,
 } from '../audit-logs/constants/audit-log.constants';
+import { UnitIssueValidationService } from '../inventory/services/unit-issue-validation.service';
 
 @Injectable()
 export class ReservationsService {
@@ -57,6 +58,8 @@ export class ReservationsService {
     private readonly connection: Connection,
     @Optional()
     private readonly auditLogsService?: AuditLogsService,
+    @Optional()
+    private readonly unitIssueValidationService?: UnitIssueValidationService,
   ) {}
 
   /**
@@ -149,101 +152,110 @@ export class ReservationsService {
     // Step 4: Pre-validate each inventory item against eligibility rules
     const now = new Date();
     for (const invId of uniqueIds) {
-      if (!isValidObjectId(invId)) {
-        throw new BadRequestException({
-          message: `Invalid inventory ID format: '${invId}'.`,
-          code: 'INVALID_INVENTORY_ID',
+      if (this.unitIssueValidationService) {
+        await this.unitIssueValidationService.validateUnitForAllocation({
+          inventoryId: invId,
+          expectedBloodGroup: request.bloodGroup,
+          expectedComponentType: request.componentType,
+          isReservation: true,
         });
-      }
+      } else {
+        if (!isValidObjectId(invId)) {
+          throw new BadRequestException({
+            message: `Invalid inventory ID format: '${invId}'.`,
+            code: 'INVALID_INVENTORY_ID',
+          });
+        }
 
-      const inv = await this.inventoryModel
-        .findById(invId)
-        .populate('bloodUnitId')
-        .exec();
+        const inv = await this.inventoryModel
+          .findById(invId)
+          .populate('bloodUnitId')
+          .exec();
 
-      if (!inv) {
-        throw new NotFoundException({
-          message: `Inventory record with ID '${invId}' was not found.`,
-          code: 'INVENTORY_NOT_FOUND',
-        });
-      }
+        if (!inv) {
+          throw new NotFoundException({
+            message: `Inventory record with ID '${invId}' was not found.`,
+            code: 'INVENTORY_NOT_FOUND',
+          });
+        }
 
-      // Status check
-      if (inv.status === InventoryStatus.RESERVED) {
-        throw new ConflictException({
-          message: `Inventory unit '${invId}' is already reserved.`,
-          code: 'UNIT_ALREADY_RESERVED',
-        });
-      }
-      if (inv.status === InventoryStatus.EXPIRED) {
-        throw new BadRequestException({
-          message: `Cannot reserve expired inventory unit '${invId}'.`,
-          code: 'CANNOT_RESERVE_EXPIRED_UNIT',
-        });
-      }
-      if (inv.status === InventoryStatus.DISCARDED) {
-        throw new BadRequestException({
-          message: `Cannot reserve discarded inventory unit '${invId}'.`,
-          code: 'CANNOT_RESERVE_DISCARDED_UNIT',
-        });
-      }
-      if (inv.status !== InventoryStatus.AVAILABLE) {
-        throw new BadRequestException({
-          message: `Inventory unit '${invId}' is not available (status: '${inv.status}').`,
-          code: 'INVENTORY_NOT_AVAILABLE',
-        });
-      }
+        // Status check
+        if (inv.status === InventoryStatus.RESERVED) {
+          throw new ConflictException({
+            message: `Inventory unit '${invId}' is already reserved.`,
+            code: 'UNIT_ALREADY_RESERVED',
+          });
+        }
+        if (inv.status === InventoryStatus.EXPIRED) {
+          throw new BadRequestException({
+            message: `Cannot reserve expired inventory unit '${invId}'.`,
+            code: 'CANNOT_RESERVE_EXPIRED_UNIT',
+          });
+        }
+        if (inv.status === InventoryStatus.DISCARDED) {
+          throw new BadRequestException({
+            message: `Cannot reserve discarded inventory unit '${invId}'.`,
+            code: 'CANNOT_RESERVE_DISCARDED_UNIT',
+          });
+        }
+        if (inv.status !== InventoryStatus.AVAILABLE) {
+          throw new BadRequestException({
+            message: `Inventory unit '${invId}' is not available (status: '${inv.status}').`,
+            code: 'INVENTORY_NOT_AVAILABLE',
+          });
+        }
 
-      const unit = inv.bloodUnitId as BloodUnitDocument | any;
-      if (!unit) {
-        throw new BadRequestException({
-          message: `Inventory unit '${invId}' has no associated physical blood unit record.`,
-          code: 'BLOOD_UNIT_MISSING',
-        });
-      }
+        const unit = inv.bloodUnitId as BloodUnitDocument | any;
+        if (!unit) {
+          throw new BadRequestException({
+            message: `Inventory unit '${invId}' has no associated physical blood unit record.`,
+            code: 'BLOOD_UNIT_MISSING',
+          });
+        }
 
-      // Quality checks on physical blood unit
-      if (unit.status === BloodUnitStatus.TESTING) {
-        throw new BadRequestException({
-          message: `Cannot reserve blood unit '${unit.unitCode}' while testing is in progress.`,
-          code: 'CANNOT_RESERVE_TESTING_UNIT',
-        });
-      }
-      if (unit.status === BloodUnitStatus.REJECTED) {
-        throw new BadRequestException({
-          message: `Cannot reserve rejected blood unit '${unit.unitCode}'.`,
-          code: 'CANNOT_RESERVE_REJECTED_UNIT',
-        });
-      }
-      if (unit.status !== BloodUnitStatus.APPROVED) {
-        throw new BadRequestException({
-          message: `Blood unit '${unit.unitCode}' is not laboratory approved (status: '${unit.status}').`,
-          code: 'CANNOT_RESERVE_UNAPPROVED_UNIT',
-        });
-      }
+        // Quality checks on physical blood unit
+        if (unit.status === BloodUnitStatus.TESTING) {
+          throw new BadRequestException({
+            message: `Cannot reserve blood unit '${unit.unitCode}' while testing is in progress.`,
+            code: 'CANNOT_RESERVE_TESTING_UNIT',
+          });
+        }
+        if (unit.status === BloodUnitStatus.REJECTED) {
+          throw new BadRequestException({
+            message: `Cannot reserve rejected blood unit '${unit.unitCode}'.`,
+            code: 'CANNOT_RESERVE_REJECTED_UNIT',
+          });
+        }
+        if (unit.status !== BloodUnitStatus.APPROVED) {
+          throw new BadRequestException({
+            message: `Blood unit '${unit.unitCode}' is not laboratory approved (status: '${unit.status}').`,
+            code: 'CANNOT_RESERVE_UNAPPROVED_UNIT',
+          });
+        }
 
-      // Expiry check
-      if (unit.expiryDate && new Date(unit.expiryDate) < now) {
-        throw new BadRequestException({
-          message: `Blood unit '${unit.unitCode}' has passed its expiration date.`,
-          code: 'CANNOT_RESERVE_EXPIRED_UNIT',
-        });
-      }
+        // Expiry check
+        if (unit.expiryDate && new Date(unit.expiryDate) < now) {
+          throw new BadRequestException({
+            message: `Blood unit '${unit.unitCode}' has passed its expiration date.`,
+            code: 'CANNOT_RESERVE_EXPIRED_UNIT',
+          });
+        }
 
-      // Blood group exact match
-      if (unit.bloodGroup !== request.bloodGroup) {
-        throw new BadRequestException({
-          message: `Blood group mismatch: Request requires '${request.bloodGroup}', unit '${unit.unitCode}' is '${unit.bloodGroup}'.`,
-          code: 'BLOOD_GROUP_MISMATCH',
-        });
-      }
+        // Blood group exact match
+        if (unit.bloodGroup !== request.bloodGroup) {
+          throw new BadRequestException({
+            message: `Blood group mismatch: Request requires '${request.bloodGroup}', unit '${unit.unitCode}' is '${unit.bloodGroup}'.`,
+            code: 'BLOOD_GROUP_MISMATCH',
+          });
+        }
 
-      // Component type exact match
-      if (unit.componentType !== request.componentType) {
-        throw new BadRequestException({
-          message: `Component type mismatch: Request requires '${request.componentType}', unit '${unit.unitCode}' is '${unit.componentType}'.`,
-          code: 'COMPONENT_TYPE_MISMATCH',
-        });
+        // Component type exact match
+        if (unit.componentType !== request.componentType) {
+          throw new BadRequestException({
+            message: `Component type mismatch: Request requires '${request.componentType}', unit '${unit.unitCode}' is '${unit.componentType}'.`,
+            code: 'COMPONENT_TYPE_MISMATCH',
+          });
+        }
       }
     }
 

@@ -25,6 +25,9 @@ import BloodDonationCertificateModal, {
   BloodDonationCertificateData,
 } from '@/components/admin/BloodDonationCertificateModal';
 import StaffAttributionBadge from '@/components/admin/StaffAttributionBadge';
+import DonorScreeningModal from '@/components/admin/DonorScreeningModal';
+import BloodCollectionModal from '@/components/admin/BloodCollectionModal';
+import PrintableBagLabelModal, { BagLabelData } from '@/components/admin/PrintableBagLabelModal';
 
 const BLOOD_GROUPS = [
   BloodGroup.A_POSITIVE,
@@ -98,6 +101,11 @@ export default function AdminDonationsPage() {
   // Certificate Modal State
   const [isCertificateModalOpen, setIsCertificateModalOpen] = useState(false);
   const [certificateData, setCertificateData] = useState<BloodDonationCertificateData | null>(null);
+
+  // Phase 2: Phlebotomy Collection & Bag Label Modals
+  const [screeningModalDonor, setScreeningModalDonor] = useState<Donor | null>(null);
+  const [collectionModalDonor, setCollectionModalDonor] = useState<Donor | null>(null);
+  const [labelModalData, setLabelModalData] = useState<BagLabelData | null>(null);
 
   // Donor search inside modal
   const [modalDonorSearch, setModalDonorSearch] = useState('');
@@ -758,9 +766,32 @@ export default function AdminDonationsPage() {
                   border: '1px dashed #cbd5e1',
                 }}
               >
-                {activeDonors.length === 0
-                  ? 'No approved active donors found in the system. Donors approved from Pending Review will automatically appear here.'
-                  : `No active donors match "${donorSearchTerm}".`}
+                {activeDonors.length === 0 ? (
+                  <div>
+                    <p style={{ margin: '0 0 0.75rem 0' }}>
+                      No approved active donors found in the database. Donors who register publicly or are in Pending Review must be approved first.
+                    </p>
+                    <Link
+                      href="/admin/donors"
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.4rem',
+                        backgroundColor: '#2563eb',
+                        color: '#ffffff',
+                        padding: '0.45rem 0.95rem',
+                        borderRadius: '6px',
+                        fontWeight: 600,
+                        fontSize: '0.8rem',
+                        textDecoration: 'none',
+                      }}
+                    >
+                      👥 Open Donor Management &amp; Approve Donors &rarr;
+                    </Link>
+                  </div>
+                ) : (
+                  `No active donors match "${donorSearchTerm}".`
+                )}
               </div>
             );
           }
@@ -910,25 +941,64 @@ export default function AdminDonationsPage() {
                           )}
                         </td>
                         <td style={{ padding: '0.65rem 0.9rem', textAlign: 'right' }}>
-                          <button
-                            type="button"
-                            onClick={() => handleSelectDonorForDonation(donor)}
-                            style={{
-                              backgroundColor: '#dc2626',
-                              color: '#ffffff',
-                              border: 'none',
-                              padding: '0.35rem 0.75rem',
-                              borderRadius: '4px',
-                              fontSize: '0.8rem',
-                              fontWeight: 600,
-                              cursor: 'pointer',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '0.25rem',
-                            }}
-                          >
-                            + Record Donation
-                          </button>
+                          <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '0.35rem' }}>
+                            <button
+                              type="button"
+                              onClick={() => setScreeningModalDonor(donor)}
+                              style={{
+                                backgroundColor: '#f8fafc',
+                                color: '#0f172a',
+                                border: '1px solid #cbd5e1',
+                                padding: '0.35rem 0.65rem',
+                                borderRadius: '4px',
+                                fontSize: '0.78rem',
+                                fontWeight: 600,
+                                cursor: 'pointer',
+                              }}
+                              title="Perform Medical Screening (Vitals, Hb, Deferrals)"
+                            >
+                              📋 Screen
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setCollectionModalDonor(donor)}
+                              style={{
+                                backgroundColor: '#881337',
+                                color: '#ffffff',
+                                border: 'none',
+                                padding: '0.35rem 0.75rem',
+                                borderRadius: '4px',
+                                fontSize: '0.78rem',
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '0.25rem',
+                              }}
+                              title="Record Phlebotomy Collection (Bag Barcode, Tube, Volume)"
+                            >
+                              🩸 Phlebotomy
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleSelectDonorForDonation(donor)}
+                              style={{
+                                backgroundColor: '#dc2626',
+                                color: '#ffffff',
+                                border: 'none',
+                                padding: '0.35rem 0.75rem',
+                                borderRadius: '4px',
+                                fontSize: '0.78rem',
+                                fontWeight: 600,
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '0.25rem',
+                              }}
+                            >
+                              + Standard Entry
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -1324,6 +1394,42 @@ export default function AdminDonationsPage() {
                           }}
                         >
                           <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '0.4rem' }}>
+                            {item.bagBarcode && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setLabelModalData({
+                                    bagBarcode: item.bagBarcode!,
+                                    donationCode: item.donationCode,
+                                    donorCode: item.donorId?.donorCode,
+                                    donorName: item.donorId?.fullName,
+                                    bloodGroup: item.donorId?.bloodGroup || 'O_POSITIVE',
+                                    componentType: item.donationType,
+                                    volumeMl: item.collectedVolumeMl || 450,
+                                    bagType: item.bagType || 'CPDA-1 TRIPLE',
+                                    collectionDate: item.donationDate,
+                                    collectionLocation: item.collectionLocation || 'Central Blood Centre',
+                                    centreName: 'CENTRAL BLOOD CENTRE',
+                                  })
+                                }
+                                style={{
+                                  background: '#f1f5f9',
+                                  color: '#0f172a',
+                                  border: '1px solid #cbd5e1',
+                                  padding: '0.35rem 0.65rem',
+                                  borderRadius: '4px',
+                                  cursor: 'pointer',
+                                  fontSize: '0.75rem',
+                                  fontWeight: 600,
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '0.25rem',
+                                }}
+                                title={`Print Bag Barcode Label (${item.bagBarcode})`}
+                              >
+                                <span>🏷️</span> Bag Label
+                              </button>
+                            )}
                             <button
                               type="button"
                               onClick={() => handleOpenDonationCertificate(item)}
@@ -1627,6 +1733,56 @@ export default function AdminDonationsPage() {
               <div>
                 <strong>Quantity:</strong> {selectedDonation.quantity} unit(s)
               </div>
+              {selectedDonation.bagBarcode && (
+                <div style={{ marginTop: '0.65rem', padding: '0.6rem 0.75rem', backgroundColor: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '6px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
+                    <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#881337' }}>🩸 Phlebotomy / Bag Specs:</span>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setLabelModalData({
+                          bagBarcode: selectedDonation.bagBarcode!,
+                          donationCode: selectedDonation.donationCode,
+                          donorCode: selectedDonation.donorId?.donorCode,
+                          donorName: selectedDonation.donorId?.fullName,
+                          bloodGroup: selectedDonation.donorId?.bloodGroup || 'O_POSITIVE',
+                          componentType: selectedDonation.donationType,
+                          volumeMl: selectedDonation.collectedVolumeMl || 450,
+                          bagType: selectedDonation.bagType || 'CPDA-1 TRIPLE',
+                          collectionDate: selectedDonation.donationDate,
+                          collectionLocation: selectedDonation.collectionLocation || 'Central Blood Centre',
+                          centreName: 'CENTRAL BLOOD CENTRE',
+                        })
+                      }
+                      style={{
+                        padding: '0.25rem 0.55rem',
+                        fontSize: '0.72rem',
+                        fontWeight: 700,
+                        backgroundColor: '#881337',
+                        color: '#ffffff',
+                        border: 'none',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.2rem',
+                      }}
+                    >
+                      🏷️ Print Bag Label
+                    </button>
+                  </div>
+                  <div style={{ fontSize: '0.75rem', lineHeight: 1.45, color: '#334155' }}>
+                    <div>Bag Barcode: <strong>{selectedDonation.bagBarcode}</strong></div>
+                    <div>Bag Type: <strong>{selectedDonation.bagType || 'Standard'}</strong> | Vol: <strong>{selectedDonation.collectedVolumeMl || 450} mL</strong></div>
+                    {selectedDonation.collectionOutcome && <div>Outcome: <strong>{selectedDonation.collectionOutcome}</strong></div>}
+                    {selectedDonation.bagIntegrity && <div>Integrity: <strong>{selectedDonation.bagIntegrity}</strong></div>}
+                    {selectedDonation.adverseReaction && selectedDonation.adverseReaction !== 'NONE' && (
+                      <div style={{ color: '#b91c1c' }}>Adverse Reaction: <strong>{selectedDonation.adverseReaction}</strong></div>
+                    )}
+                    {selectedDonation.phlebotomistName && <div>Phlebotomist: <strong>{selectedDonation.phlebotomistName}</strong></div>}
+                  </div>
+                </div>
+              )}
               {selectedDonation.notes && (
                 <div style={{ marginTop: '0.25rem' }}>
                   <strong>Notes:</strong>
@@ -2721,6 +2877,49 @@ export default function AdminDonationsPage() {
         isOpen={isCertificateModalOpen}
         onClose={() => setIsCertificateModalOpen(false)}
         data={certificateData}
+      />
+
+      {/* Phase 2: Donor Clinical Screening Modal */}
+      <DonorScreeningModal
+        isOpen={!!screeningModalDonor}
+        onClose={() => setScreeningModalDonor(null)}
+        donor={screeningModalDonor}
+        onSuccess={async (screening) => {
+          await loadActiveDonors();
+          const target = screeningModalDonor;
+          setScreeningModalDonor(null);
+          if (target && screening.decision === 'SELECTED') {
+            setCollectionModalDonor(target);
+          }
+        }}
+      />
+
+      {/* Phase 2: Blood Collection (Phlebotomy) Modal */}
+      <BloodCollectionModal
+        isOpen={!!collectionModalDonor}
+        onClose={() => setCollectionModalDonor(null)}
+        donor={collectionModalDonor}
+        onSuccess={async (result) => {
+          await Promise.all([loadDonations(), loadActiveDonors()]);
+          setCollectionModalDonor(null);
+          if (result.donation) {
+            setSelectedDonation(result.donation);
+          }
+          if (result.label) {
+            setLabelModalData(result.label);
+          }
+        }}
+        onOpenScreening={(d) => {
+          setCollectionModalDonor(null);
+          setScreeningModalDonor(d);
+        }}
+      />
+
+      {/* Phase 2: Printable Blood Bag Barcode Label Modal */}
+      <PrintableBagLabelModal
+        isOpen={!!labelModalData}
+        onClose={() => setLabelModalData(null)}
+        labelData={labelModalData}
       />
     </div>
   );

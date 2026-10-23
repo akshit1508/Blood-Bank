@@ -21,6 +21,38 @@ import {
   getCalendarDaysDifference,
   calculateNextEligibleDate,
 } from '../../common/constants/eligibility.constants';
+import { DonorEligibilityService } from '../donors/services/donor-eligibility.service';
+import { RecordCollectionDto } from './dto/record-collection.dto';
+import {
+  DonorScreening,
+  DonorScreeningDocument,
+} from '../donors/schemas/donor-screening.schema';
+import {
+  DonorScreeningDecision,
+  BagType,
+  CollectionOutcome,
+  AdverseReactionType,
+  BagIntegrity,
+  CLINICAL_SCREENING_THRESHOLDS,
+} from '../donors/constants/screening.constants';
+import {
+  BloodUnit,
+  BloodUnitDocument,
+} from '../blood-units/schemas/blood-unit.schema';
+import {
+  BloodUnitStatus,
+  BloodUnitComponent,
+} from '../blood-units/constants/blood-unit.constants';
+import {
+  BloodTesting,
+  BloodTestingDocument,
+} from '../testing/schemas/blood-testing.schema';
+import {
+  TestingDecision,
+  TestingStatus,
+  TestResultStatus,
+} from '../testing/constants/testing.constants';
+import { ExpiryRulesService } from '../inventory/services/expiry-rules.service';
 
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
 import { AuditActionType, AuditEntityType } from '../audit-logs/constants/audit-log.constants';
@@ -41,8 +73,43 @@ export class DonationsService {
     @InjectModel(Donor.name)
     private readonly donorModel: Model<DonorDocument>,
     @Optional()
+    @InjectModel(DonorScreening.name)
+    private readonly donorScreeningModel?: Model<DonorScreeningDocument>,
+    @Optional()
+    @InjectModel(BloodUnit.name)
+    private readonly bloodUnitModel?: Model<BloodUnitDocument>,
+    @Optional()
+    @InjectModel(BloodTesting.name)
+    private readonly bloodTestingModel?: Model<BloodTestingDocument>,
+    @Optional()
     private readonly auditLogsService?: AuditLogsService,
+    @Optional()
+    private readonly donorEligibilityService?: DonorEligibilityService,
+    @Optional()
+    private readonly expiryRulesService?: ExpiryRulesService,
   ) {}
+
+  /**
+   * Generates a unique server-side blood bag barcode identifier.
+   * Format: BAG-YYYYMMDD-XXXX (e.g. BAG-20261023-K72L)
+   */
+  private generateBagBarcode(): string {
+    const now = new Date();
+    const datePart = now.toISOString().slice(0, 10).replace(/-/g, '');
+    const randomPart = Math.random().toString(36).substring(2, 6).toUpperCase();
+    return `BAG-${datePart}-${randomPart}`;
+  }
+
+  /**
+   * Generates a unique server-side physical blood unit code.
+   * Format: UNIT-YYYYMMDD-XXXX
+   */
+  private generateUnitCode(): string {
+    const now = new Date();
+    const datePart = now.toISOString().slice(0, 10).replace(/-/g, '');
+    const randomPart = Math.random().toString(36).substring(2, 6).toUpperCase();
+    return `UNIT-${datePart}-${randomPart}`;
+  }
 
   /**
    * Generates a unique server-side donation code.
@@ -72,59 +139,68 @@ export class DonationsService {
       );
     }
 
-    if (donor.status === DonorStatus.PENDING_REVIEW) {
-      throw new BadRequestException(
-        'Donor requires review before a donation can be recorded.',
+    // Authoritative Eligibility Gate
+    if (this.donorEligibilityService) {
+      await this.donorEligibilityService.validateEligibility(
+        donor,
+        createDto.donationDate,
+        createDto.donationType,
       );
-    }
+    } else {
+      if (donor.status === DonorStatus.PENDING_REVIEW) {
+        throw new BadRequestException(
+          'Donor requires review before a donation can be recorded.',
+        );
+      }
 
-    if (donor.status === DonorStatus.INACTIVE) {
-      throw new BadRequestException('Donor is inactive.');
-    }
+      if (donor.status === DonorStatus.INACTIVE) {
+        throw new BadRequestException('Donor is inactive.');
+      }
 
-    // 1. Future date validation
-    const donationDateTime = new Date(createDto.donationDate);
-    if (isNaN(donationDateTime.getTime())) {
-      throw new BadRequestException('Invalid donation date provided');
-    }
-    const now = new Date();
-    // Allow up to 2 minutes clock skew
-    if (donationDateTime.getTime() > now.getTime() + 120 * 1000) {
-      throw new BadRequestException('Donation date cannot be in the future.');
-    }
+      // 1. Future date validation
+      const donationDateTime = new Date(createDto.donationDate);
+      if (isNaN(donationDateTime.getTime())) {
+        throw new BadRequestException('Invalid donation date provided');
+      }
+      const now = new Date();
+      // Allow up to 2 minutes clock skew
+      if (donationDateTime.getTime() > now.getTime() + 120 * 1000) {
+        throw new BadRequestException('Donation date cannot be in the future.');
+      }
 
-    // 2. Donation interval validation for WHOLE_BLOOD
-    const resolvedDonationType =
-      createDto.donationType || DonationType.WHOLE_BLOOD;
-    if (resolvedDonationType === DonationType.WHOLE_BLOOD) {
-      const lastCompletedDonation = await this.donationModel
-        .findOne({
-          donorId: donor._id,
-          donationType: DonationType.WHOLE_BLOOD,
-          status: DonationStatus.COMPLETED,
-        })
-        .sort({ donationDate: -1 })
-        .exec();
+      // 2. Donation interval validation for WHOLE_BLOOD
+      const resolvedDonationType =
+        createDto.donationType || DonationType.WHOLE_BLOOD;
+      if (resolvedDonationType === DonationType.WHOLE_BLOOD) {
+        const lastCompletedDonation = await this.donationModel
+          .findOne({
+            donorId: donor._id,
+            donationType: DonationType.WHOLE_BLOOD,
+            status: DonationStatus.COMPLETED,
+          })
+          .sort({ donationDate: -1 })
+          .exec();
 
-      if (lastCompletedDonation) {
-        const intervalDays = getWholeBloodIntervalDays(donor.gender);
-        const lastDate = new Date(lastCompletedDonation.donationDate);
-        const daysElapsed = getCalendarDaysDifference(lastDate, donationDateTime);
+        if (lastCompletedDonation) {
+          const intervalDays = getWholeBloodIntervalDays(donor.gender);
+          const lastDate = new Date(lastCompletedDonation.donationDate);
+          const daysElapsed = getCalendarDaysDifference(lastDate, donationDateTime);
 
-        if (daysElapsed < intervalDays) {
-          const nextEligibleDate = calculateNextEligibleDate(
-            lastDate,
-            donor.gender,
-          );
-          const remainingDays = intervalDays - daysElapsed;
-          throw new BadRequestException({
-            message:
-              'This donor is not yet eligible for another whole-blood donation.',
-            code: 'DONATION_INTERVAL_NOT_COMPLETED',
-            lastDonationDate: lastDate.toISOString().slice(0, 10),
-            nextEligibleDate: nextEligibleDate.toISOString().slice(0, 10),
-            remainingDays,
-          });
+          if (daysElapsed < intervalDays) {
+            const nextEligibleDate = calculateNextEligibleDate(
+              lastDate,
+              donor.gender,
+            );
+            const remainingDays = intervalDays - daysElapsed;
+            throw new BadRequestException({
+              message:
+                'This donor is not yet eligible for another whole-blood donation.',
+              code: 'DONATION_INTERVAL_NOT_COMPLETED',
+              lastDonationDate: lastDate.toISOString().slice(0, 10),
+              nextEligibleDate: nextEligibleDate.toISOString().slice(0, 10),
+              remainingDays,
+            });
+          }
         }
       }
     }
@@ -174,6 +250,336 @@ export class DonationsService {
     }
 
     return await saved.populate('donorId');
+  }
+
+  /**
+   * Authoritative Blood Collection & Phlebotomy workflow (Phase 2).
+   *
+   * Medical & Integrity Invariants:
+   * 1. Donor exists and passes baseline eligibility (age, status, interval, deferrals).
+   * 2. Mandatory Screening Gate: Donor must have an approved (SELECTED) pre-donation screening record.
+   * 3. Generates unique donationCode and unique bagBarcode.
+   * 4. Determines bag volume and collection outcome.
+   * 5. Links screening record and transitions screening collectionStatus -> 'COLLECTED'.
+   * 6. Downstream physical BloodUnit creation in TESTING status (or REJECTED if leakage/clotting).
+   * 7. Enrolls unit in central Laboratory Testing pipeline (starts PENDING).
+   * 8. Generates printable bag label metadata with barcode / component specifications.
+   * 9. Audit event logged with phlebotomist attribution.
+   */
+  async recordBloodCollection(
+    dto: RecordCollectionDto,
+    actor?: any,
+  ): Promise<{
+    message: string;
+    donation: Donation;
+    bloodUnit?: BloodUnit;
+    screening: any;
+    label: {
+      bagBarcode: string;
+      unitCode: string;
+      donationCode: string;
+      donorCode: string;
+      donorName: string;
+      bloodGroup: string;
+      componentType: string;
+      volumeMl: number;
+      bagType: string;
+      collectionDate: string;
+      expiryDate?: string;
+      collectionLocation: string;
+      centreName: string;
+    };
+  }> {
+    if (!isValidObjectId(dto.donorId)) {
+      throw new BadRequestException({
+        message: 'Invalid donor ID format',
+        code: 'INVALID_DONOR_REFERENCE',
+      });
+    }
+
+    const donor = await this.donorModel.findById(dto.donorId).exec();
+    if (!donor) {
+      throw new NotFoundException({
+        message: `Donor with ID '${dto.donorId}' was not found.`,
+        code: 'DONOR_NOT_FOUND',
+      });
+    }
+
+    const now = new Date();
+    const collectionDate = dto.donationDate ? new Date(dto.donationDate) : now;
+    const resolvedDonationType = dto.donationType || DonationType.WHOLE_BLOOD;
+
+    // 1. Authoritative Eligibility Check
+    if (this.donorEligibilityService) {
+      await this.donorEligibilityService.validateEligibility(
+        donor,
+        collectionDate,
+        resolvedDonationType,
+      );
+    }
+
+    // 2. Mandatory Clinical Screening Gate
+    let screening: any = null;
+    if (dto.screeningId && isValidObjectId(dto.screeningId)) {
+      if (this.donorScreeningModel) {
+        screening = await this.donorScreeningModel.findById(dto.screeningId).exec();
+      }
+    } else if (this.donorScreeningModel) {
+      const startOfDay = new Date(Date.UTC(collectionDate.getUTCFullYear(), collectionDate.getUTCMonth(), collectionDate.getUTCDate(), 0, 0, 0));
+      screening = await this.donorScreeningModel
+        .findOne({
+          donorId: donor._id,
+          decision: DonorScreeningDecision.SELECTED,
+          collectionStatus: 'PENDING_COLLECTION',
+          createdAt: { $gte: startOfDay },
+        })
+        .sort({ createdAt: -1 })
+        .exec();
+    }
+
+    if (!screening || screening.decision !== DonorScreeningDecision.SELECTED) {
+      throw new BadRequestException({
+        message: `Blood collection blocked: Donor '${donor.fullName}' (${donor.donorCode}) does not have an approved (SELECTED) pre-donation screening record. Complete screening examination before collection.`,
+        code: 'SCREENING_APPROVAL_REQUIRED',
+      });
+    }
+
+    if (screening.collectionStatus === 'COLLECTED') {
+      throw new BadRequestException({
+        message: `Blood collection blocked: Screening '${screening.screeningCode}' has already been used for collection. Each donation requires a fresh clinical screening.`,
+        code: 'SCREENING_ALREADY_USED',
+      });
+    }
+
+    if (
+      screening.vitals &&
+      screening.vitals.weightKg < CLINICAL_SCREENING_THRESHOLDS.MIN_WEIGHT_450ML_KG &&
+      dto.collectedVolumeMl &&
+      dto.collectedVolumeMl > 350
+    ) {
+      throw new BadRequestException({
+        message: `Safety Invariant: Donor weight is ${screening.vitals.weightKg} kg (< 50 kg). Maximum allowable collection volume is 350 mL per NBTC transfusion regulations.`,
+        code: 'COLLECTION_VOLUME_EXCEEDS_WEIGHT_LIMIT',
+      });
+    }
+
+    // 3. Unique Identifiers
+    let donationCode = this.generateDonationCode();
+    while (await this.donationModel.exists({ donationCode })) {
+      donationCode = this.generateDonationCode();
+    }
+
+    let bagBarcode = this.generateBagBarcode();
+    while (await this.donationModel.exists({ bagBarcode })) {
+      bagBarcode = this.generateBagBarcode();
+    }
+
+    // 4. Resolve Collection Parameters
+    const resolvedBagType = dto.bagType || BagType.SINGLE_350ML;
+    const defaultVolume = resolvedBagType.includes('450') ? 450 : 350;
+    const collectedVolume = dto.collectedVolumeMl || defaultVolume;
+
+    const isBagProblem =
+      dto.bagIntegrity === BagIntegrity.LEAKING ||
+      dto.bagIntegrity === BagIntegrity.CLOTTED ||
+      dto.bagIntegrity === BagIntegrity.DEFECTIVE;
+    const isUnsuccessful =
+      dto.collectionOutcome === CollectionOutcome.UNSUCCESSFUL_VENIPUNCTURE ||
+      dto.collectionOutcome === CollectionOutcome.DISCARDED_AT_COLLECTION;
+
+    let targetDonationStatus = DonationStatus.COMPLETED;
+    let cancellationReason: string | undefined;
+
+    if (isBagProblem || isUnsuccessful) {
+      targetDonationStatus = DonationStatus.CANCELLED;
+      cancellationReason = isBagProblem
+        ? `Bag integrity failure: ${dto.bagIntegrity}`
+        : `Abnormal collection outcome: ${dto.collectionOutcome}`;
+    }
+
+    // 5. Create Donation Document
+    const donation = new this.donationModel({
+      donationCode,
+      donorId: donor._id,
+      donationDate: collectionDate,
+      donationType: resolvedDonationType,
+      quantity: 1,
+      status: targetDonationStatus,
+      campaignId: dto.campaignId ? new Types.ObjectId(dto.campaignId) : undefined,
+      notes: dto.notes?.trim() || undefined,
+      screeningId: screening._id,
+      screeningCode: screening.screeningCode,
+      bagBarcode,
+      bagType: resolvedBagType,
+      collectedVolumeMl: collectedVolume,
+      venipunctureSite: dto.venipunctureSite || 'RIGHT_ANTECUBITAL',
+      collectionOutcome: dto.collectionOutcome || CollectionOutcome.SUCCESSFUL,
+      adverseReaction: dto.adverseReaction || AdverseReactionType.NONE,
+      adverseReactionNotes: dto.adverseReactionNotes?.trim() || undefined,
+      bagIntegrity: dto.bagIntegrity || BagIntegrity.INTACT,
+      collectionLocation: dto.collectionLocation || 'Main Blood Centre - Phlebotomy Room',
+      phlebotomistId: actor?._id || actor?.id ? new Types.ObjectId(actor._id || actor.id) : undefined,
+      phlebotomistName: actor?.fullName || actor?.name || 'Staff Phlebotomist',
+      phlebotomistRole: actor?.role || 'PHLEBOTOMIST',
+      collectionStartedAt: new Date(collectionDate.getTime() - 15 * 60 * 1000), // ~15 mins collection time
+      collectionEndedAt: collectionDate,
+      recordedBy: actor?._id || actor?.id ? new Types.ObjectId(actor._id || actor.id) : undefined,
+      recordedByName: actor?.fullName || actor?.name || 'Staff Phlebotomist',
+      recordedByRole: actor?.role || 'PHLEBOTOMIST',
+      cancellationReason,
+      cancelledAt: targetDonationStatus === DonationStatus.CANCELLED ? new Date() : undefined,
+      completedAt: targetDonationStatus === DonationStatus.COMPLETED ? collectionDate : undefined,
+    });
+
+    const savedDonation = await donation.save();
+
+    // 6. Update Screening Record
+    screening.collectionStatus = 'COLLECTED';
+    screening.linkedDonationId = savedDonation._id;
+    screening.linkedDonationCode = savedDonation.donationCode;
+    await screening.save();
+
+    // 7. Downstream Physical BloodUnit Creation
+    let savedUnit: any = null;
+    let calculatedExpiry: Date | undefined;
+
+    if (this.bloodUnitModel) {
+      let unitCode = this.generateUnitCode();
+      while (await this.bloodUnitModel.exists({ unitCode })) {
+        unitCode = this.generateUnitCode();
+      }
+
+      if (this.expiryRulesService) {
+        calculatedExpiry = await this.expiryRulesService.calculateExpiryDate(
+          collectionDate,
+          BloodUnitComponent.WHOLE_BLOOD,
+        );
+      } else {
+        calculatedExpiry = new Date(collectionDate.getTime() + 35 * 24 * 60 * 60 * 1000);
+      }
+
+      const unitStatus =
+        isBagProblem || isUnsuccessful
+          ? BloodUnitStatus.REJECTED
+          : BloodUnitStatus.TESTING;
+
+      const bloodUnit = new this.bloodUnitModel({
+        unitCode,
+        donationId: savedDonation._id,
+        donorId: donor._id,
+        campaignId: dto.campaignId ? new Types.ObjectId(dto.campaignId) : undefined,
+        bloodGroup: donor.bloodGroup,
+        componentType: BloodUnitComponent.WHOLE_BLOOD,
+        volume: collectedVolume,
+        collectionDate,
+        expiryDate: calculatedExpiry,
+        status: unitStatus,
+        bagBarcode,
+        bagType: resolvedBagType,
+        bagIntegrity: dto.bagIntegrity || BagIntegrity.INTACT,
+        collectionOutcome: dto.collectionOutcome || CollectionOutcome.SUCCESSFUL,
+        storageLocation: 'COLLECTION_QUARANTINE_REFRIGERATOR_1',
+        createdBy: actor?._id || actor?.id ? new Types.ObjectId(actor._id || actor.id) : undefined,
+        createdByName: actor?.fullName || actor?.name || 'Staff Phlebotomist',
+        createdByRole: actor?.role || 'PHLEBOTOMIST',
+      });
+
+      savedUnit = await bloodUnit.save();
+    }
+
+    // 8. Enroll in Central Laboratory Testing Pipeline
+    if (this.bloodTestingModel && savedUnit) {
+      const datePart = now.toISOString().slice(0, 10).replace(/-/g, '');
+      const testCode = `TEST-${datePart}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+
+      const isRejected = savedUnit.status === BloodUnitStatus.REJECTED;
+
+      const initialTestResults = [
+        { testCode: 'HIV', testName: 'HIV 1 & 2 Antibody / Antigen Screen' },
+        { testCode: 'HBV', testName: 'Hepatitis B Surface Antigen (HBsAg)' },
+        { testCode: 'HCV', testName: 'Hepatitis C Antibody Screen (Anti-HCV)' },
+        { testCode: 'SYPHILIS', testName: 'Syphilis Serology (VDRL / RPR / TPHA)' },
+        { testCode: 'MALARIA', testName: 'Malaria Antigen / Smear Screen' },
+      ].map((def) => ({
+        testCode: def.testCode,
+        testName: def.testName,
+        status: isRejected ? TestResultStatus.FAIL : TestResultStatus.PENDING,
+        testedAt: isRejected ? now : undefined,
+      }));
+
+      const testingRecord = new this.bloodTestingModel({
+        testingCode: testCode,
+        bloodUnitId: savedUnit._id,
+        donationId: savedDonation._id,
+        donorId: donor._id,
+        campaignId: dto.campaignId ? new Types.ObjectId(dto.campaignId) : undefined,
+        testResults: initialTestResults,
+        status: isRejected ? TestingStatus.COMPLETED : TestingStatus.IN_PROGRESS,
+        decision: isRejected ? TestingDecision.REJECTED : TestingDecision.PENDING,
+        startedAt: now,
+        startedBy: actor?._id || actor?.id ? new Types.ObjectId(actor._id || actor.id) : undefined,
+        startedByName: actor?.fullName || actor?.name || 'Staff Phlebotomist',
+        startedByRole: actor?.role || 'PHLEBOTOMIST',
+        completedAt: isRejected ? now : undefined,
+        rejectionReason: isRejected ? cancellationReason : undefined,
+        remarks: isRejected
+          ? `Discarded at phlebotomy: ${cancellationReason}`
+          : 'Enrolled in central laboratory testing pipeline',
+      });
+
+      await testingRecord.save();
+    }
+
+    // 9. Audit Log
+    if (this.auditLogsService && (actor?._id || actor?.id)) {
+      this.auditLogsService
+        .logEvent({
+          actorId: actor._id || actor.id,
+          actorName: actor.fullName || actor.name,
+          actorEmail: actor.email,
+          actorRole: actor.role,
+          action: AuditActionType.DONATION_RECORDED,
+          entityType: AuditEntityType.DONATION,
+          entityId: savedDonation._id.toString(),
+          entityIdentifier: savedDonation.donationCode,
+          description: `Blood collection recorded (${bagBarcode}, ${collectedVolume}mL ${resolvedBagType}) for donor ${donor.fullName} (${donor.donorCode})`,
+          afterState: {
+            donationCode: savedDonation.donationCode,
+            bagBarcode,
+            unitCode: savedUnit?.unitCode,
+            status: targetDonationStatus,
+          },
+        })
+        .catch(() => null);
+    }
+
+    // 10. Printable Blood Bag Label Metadata
+    const printableLabel = {
+      bagBarcode,
+      unitCode: savedUnit ? savedUnit.unitCode : 'N/A',
+      donationCode: savedDonation.donationCode,
+      donorCode: donor.donorCode,
+      donorName: donor.fullName,
+      bloodGroup: donor.bloodGroup,
+      componentType: 'WHOLE_BLOOD',
+      volumeMl: collectedVolume,
+      bagType: resolvedBagType,
+      collectionDate: collectionDate.toISOString().slice(0, 10),
+      expiryDate: calculatedExpiry ? calculatedExpiry.toISOString().slice(0, 10) : undefined,
+      collectionLocation: dto.collectionLocation || 'Main Blood Centre - Phlebotomy Room',
+      centreName: 'LifeFlow Standalone Blood Centre',
+    };
+
+    return {
+      message:
+        targetDonationStatus === DonationStatus.COMPLETED
+          ? `Blood collection completed successfully. Bag barcode: ${bagBarcode}, Unit: ${savedUnit?.unitCode || 'Enrolled'}.`
+          : `Blood collection cancelled due to ${cancellationReason}. Bag: ${bagBarcode}.`,
+      donation: savedDonation,
+      bloodUnit: savedUnit,
+      screening,
+      label: printableLabel,
+    };
   }
 
   /**

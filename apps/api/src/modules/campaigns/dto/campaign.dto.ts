@@ -198,6 +198,22 @@ export class RecordCampaignDonationDto {
 
   @IsString()
   @IsOptional()
+  bagBarcode?: string;
+
+  @IsString()
+  @IsOptional()
+  bagType?: string;
+
+  @IsString()
+  @IsOptional()
+  bagIntegrity?: string;
+
+  @IsString()
+  @IsOptional()
+  adverseReaction?: string;
+
+  @IsString()
+  @IsOptional()
   immediateScreeningDecision?: string; // 'PENDING' | 'APPROVED' | 'REJECTED'
 }
 

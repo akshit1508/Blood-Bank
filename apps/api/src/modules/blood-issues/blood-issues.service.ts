@@ -40,6 +40,7 @@ import {
   AuditActionType,
   AuditEntityType,
 } from '../audit-logs/constants/audit-log.constants';
+import { UnitIssueValidationService } from '../inventory/services/unit-issue-validation.service';
 
 @Injectable()
 export class BloodIssuesService {
@@ -60,6 +61,8 @@ export class BloodIssuesService {
     private readonly connection: Connection,
     @Optional()
     private readonly auditLogsService?: AuditLogsService,
+    @Optional()
+    private readonly unitIssueValidationService?: UnitIssueValidationService,
   ) {}
 
   /**
@@ -167,63 +170,75 @@ export class BloodIssuesService {
     const bloodUnitDocs: BloodUnitDocument[] = [];
 
     for (const invId of reservation.inventoryIds) {
-      const inv = await this.inventoryModel
-        .findById(invId)
-        .populate('bloodUnitId')
-        .exec();
-
-      if (!inv) {
-        throw new NotFoundException({
-          message: `Inventory unit '${invId}' was not found.`,
-          code: 'INVENTORY_NOT_FOUND',
+      if (this.unitIssueValidationService) {
+        const valRes = await this.unitIssueValidationService.validateUnitForAllocation({
+          inventoryId: invId,
+          expectedBloodGroup: bloodRequest.bloodGroup,
+          expectedComponentType: bloodRequest.componentType,
+          isIssue: true,
+          expectedReservationId: reservation._id,
         });
-      }
+        inventoryDocs.push(valRes.inventory);
+        bloodUnitDocs.push(valRes.bloodUnit);
+      } else {
+        const inv = await this.inventoryModel
+          .findById(invId)
+          .populate('bloodUnitId')
+          .exec();
 
-      if (inv.status === InventoryStatus.AVAILABLE) {
-        throw new BadRequestException({
-          message: `Inventory unit '${invId}' is in status 'AVAILABLE'. Direct issuance without reservation is prohibited.`,
-          code: 'UNIT_NOT_RESERVED',
-        });
-      }
+        if (!inv) {
+          throw new NotFoundException({
+            message: `Inventory unit '${invId}' was not found.`,
+            code: 'INVENTORY_NOT_FOUND',
+          });
+        }
 
-      if (inv.status === InventoryStatus.ISSUED) {
-        throw new ConflictException({
-          message: `Inventory unit '${invId}' has already been issued.`,
-          code: 'UNIT_ALREADY_ISSUED',
-        });
-      }
+        if (inv.status === InventoryStatus.AVAILABLE) {
+          throw new BadRequestException({
+            message: `Inventory unit '${invId}' is in status 'AVAILABLE'. Direct issuance without reservation is prohibited.`,
+            code: 'UNIT_NOT_RESERVED',
+          });
+        }
 
-      if (inv.status !== InventoryStatus.RESERVED) {
-        throw new BadRequestException({
-          message: `Inventory unit '${invId}' is in status '${inv.status}' and cannot be issued.`,
-          code: 'CANNOT_ISSUE_UNAVAILABLE_UNIT',
-        });
-      }
+        if (inv.status === InventoryStatus.ISSUED) {
+          throw new ConflictException({
+            message: `Inventory unit '${invId}' has already been issued.`,
+            code: 'UNIT_ALREADY_ISSUED',
+          });
+        }
 
-      const unit = inv.bloodUnitId as BloodUnitDocument | any;
-      if (!unit) {
-        throw new BadRequestException({
-          message: `Inventory unit '${invId}' has no physical blood unit attached.`,
-          code: 'BLOOD_UNIT_MISSING',
-        });
-      }
+        if (inv.status !== InventoryStatus.RESERVED) {
+          throw new BadRequestException({
+            message: `Inventory unit '${invId}' is in status '${inv.status}' and cannot be issued.`,
+            code: 'CANNOT_ISSUE_UNAVAILABLE_UNIT',
+          });
+        }
 
-      if (unit.status !== BloodUnitStatus.APPROVED) {
-        throw new BadRequestException({
-          message: `Blood unit '${unit.unitCode}' is not laboratory approved (status: '${unit.status}').`,
-          code: 'CANNOT_ISSUE_UNAPPROVED_UNIT',
-        });
-      }
+        const unit = inv.bloodUnitId as BloodUnitDocument | any;
+        if (!unit) {
+          throw new BadRequestException({
+            message: `Inventory unit '${invId}' has no physical blood unit attached.`,
+            code: 'BLOOD_UNIT_MISSING',
+          });
+        }
 
-      if (unit.expiryDate && new Date(unit.expiryDate) < now) {
-        throw new BadRequestException({
-          message: `Blood unit '${unit.unitCode}' has passed its expiration date (${new Date(unit.expiryDate).toISOString()}) and cannot be issued.`,
-          code: 'CANNOT_ISSUE_EXPIRED_UNIT',
-        });
-      }
+        if (unit.status !== BloodUnitStatus.APPROVED) {
+          throw new BadRequestException({
+            message: `Blood unit '${unit.unitCode}' is not laboratory approved (status: '${unit.status}').`,
+            code: 'CANNOT_ISSUE_UNAPPROVED_UNIT',
+          });
+        }
 
-      inventoryDocs.push(inv);
-      bloodUnitDocs.push(unit);
+        if (unit.expiryDate && new Date(unit.expiryDate) < now) {
+          throw new BadRequestException({
+            message: `Blood unit '${unit.unitCode}' has passed its expiration date (${new Date(unit.expiryDate).toISOString()}) and cannot be issued.`,
+            code: 'CANNOT_ISSUE_EXPIRED_UNIT',
+          });
+        }
+
+        inventoryDocs.push(inv);
+        bloodUnitDocs.push(unit);
+      }
     }
 
     // 5. ACID Transactional Issue Execution

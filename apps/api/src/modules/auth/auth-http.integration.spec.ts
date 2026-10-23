@@ -13,8 +13,11 @@ import { TestingController } from '../testing/testing.controller';
 import { TestingService } from '../testing/testing.service';
 import { DonorsController } from '../donors/donors.controller';
 import { DonorsService } from '../donors/donors.service';
+import { DonorEligibilityService } from '../donors/services/donor-eligibility.service';
+import { DonorScreeningService } from '../donors/services/donor-screening.service';
 import { InventoryController } from '../inventory/inventory.controller';
 import { InventoryService } from '../inventory/inventory.service';
+import { ExpiryRulesService } from '../inventory/services/expiry-rules.service';
 import { BloodUnitsController } from '../blood-units/blood-units.controller';
 import { BloodUnitsService } from '../blood-units/blood-units.service';
 
@@ -128,7 +131,10 @@ describe('HTTP Authentication & Authorization Integration (Phase 2)', () => {
         { provide: AuthService, useValue: authServiceMock },
         { provide: TestingService, useValue: testingServiceMock },
         { provide: DonorsService, useValue: donorsServiceMock },
+        { provide: DonorEligibilityService, useValue: { validateEligibility: jest.fn().mockResolvedValue({ isEligible: true }) } },
+        { provide: DonorScreeningService, useValue: { createScreening: jest.fn(), findScreeningsByDonor: jest.fn(), findActiveScreeningForDonor: jest.fn() } },
         { provide: InventoryService, useValue: inventoryServiceMock },
+        { provide: ExpiryRulesService, useValue: { calculateExpiryDate: jest.fn() } },
         { provide: BloodUnitsService, useValue: bloodUnitsServiceMock },
         Reflector,
         {

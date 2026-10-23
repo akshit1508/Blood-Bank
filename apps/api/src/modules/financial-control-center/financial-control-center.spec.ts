@@ -10,6 +10,7 @@ import { Payment } from '../payments/schemas/payment.schema';
 import { BloodAcquisition } from '../blood-acquisitions/schemas/blood-acquisition.schema';
 import { MonthlyPayrollRun } from '../payroll/schemas/monthly-payroll-run.schema';
 import { SalaryDisbursement } from '../payroll/schemas/salary-disbursement.schema';
+import { SalarySlip } from '../payroll/schemas/salary-slip.schema';
 import { Campaign } from '../campaigns/schemas/campaign.schema';
 import {
   FinancialPeriodPreset,
@@ -165,6 +166,7 @@ describe('Financial Control Center Suite', () => {
         { provide: getModelToken(BloodAcquisition.name), useValue: createMockQuery(mockAcquisitions) },
         { provide: getModelToken(MonthlyPayrollRun.name), useValue: createMockQuery(mockPayrollRuns) },
         { provide: getModelToken(SalaryDisbursement.name), useValue: createMockQuery(mockSalaryDisbursements) },
+        { provide: getModelToken(SalarySlip.name), useValue: createMockQuery([]) },
         { provide: getModelToken(Campaign.name), useValue: createMockQuery(mockCampaigns) },
       ],
     }).compile();

@@ -48,6 +48,77 @@ export class Donation {
   @Prop({ trim: true })
   notes?: string;
 
+  // --- Blood Collection & Phlebotomy Details (Phase 2) ---
+  @Prop({ type: Types.ObjectId, ref: 'DonorScreening', required: false, index: true, sparse: true })
+  screeningId?: Types.ObjectId;
+
+  @Prop({ required: false, trim: true, uppercase: true })
+  screeningCode?: string;
+
+  @Prop({ required: false, unique: true, sparse: true, index: true, uppercase: true })
+  bagBarcode?: string;
+
+  @Prop({ required: false, trim: true, default: 'SINGLE_350ML' })
+  bagType?: string;
+
+  @Prop({ required: false, min: 50, max: 600, default: 350 })
+  collectedVolumeMl?: number;
+
+  @Prop({ required: false, trim: true, default: 'RIGHT_ANTECUBITAL' })
+  venipunctureSite?: string;
+
+  @Prop({
+    required: false,
+    enum: ['SUCCESSFUL', 'UNDER_COLLECTED', 'UNSUCCESSFUL_VENIPUNCTURE', 'DISCARDED_AT_COLLECTION'],
+    default: 'SUCCESSFUL',
+    index: true,
+  })
+  collectionOutcome?: string;
+
+  @Prop({
+    required: false,
+    enum: [
+      'NONE',
+      'MILD_VASOVAGAL',
+      'SEVERE_VASOVAGAL',
+      'HEMATOMA',
+      'ARTERIAL_PUNCTURE',
+      'NERVE_INJURY_OR_PAIN',
+      'NAUSEA_OR_VOMITING',
+      'HYPERVENTILATION',
+    ],
+    default: 'NONE',
+  })
+  adverseReaction?: string;
+
+  @Prop({ required: false, trim: true })
+  adverseReactionNotes?: string;
+
+  @Prop({
+    required: false,
+    enum: ['INTACT', 'LEAKING', 'CLOTTED', 'DEFECTIVE'],
+    default: 'INTACT',
+  })
+  bagIntegrity?: string;
+
+  @Prop({ required: false, trim: true })
+  collectionLocation?: string;
+
+  @Prop({ type: Types.ObjectId, ref: 'AdminUser', required: false })
+  phlebotomistId?: Types.ObjectId;
+
+  @Prop({ required: false, trim: true })
+  phlebotomistName?: string;
+
+  @Prop({ required: false, trim: true })
+  phlebotomistRole?: string;
+
+  @Prop({ required: false })
+  collectionStartedAt?: Date;
+
+  @Prop({ required: false })
+  collectionEndedAt?: Date;
+
   // --- Staff User Attribution & Accountability ---
   @Prop({ type: Types.ObjectId, ref: 'AdminUser', required: false, index: true })
   recordedBy?: Types.ObjectId;
