@@ -26,6 +26,7 @@ import StatCard from '@/components/admin/StatCard';
 import StatusBadge from '@/components/admin/StatusBadge';
 import EmptyState from '@/components/admin/EmptyState';
 import { TableSkeleton } from '@/components/admin/LoadingSkeleton';
+import StaffAttributionBadge from '@/components/admin/StaffAttributionBadge';
 
 const ALL_BLOOD_GROUPS = [
   BloodGroup.A_POSITIVE,
@@ -750,6 +751,7 @@ export default function AdminBloodAcquisitionPage() {
                 >
                   <th style={{ padding: '0.75rem 1rem' }}>Receipt Code</th>
                   <th style={{ padding: '0.75rem 1rem' }}>Supplier / Source</th>
+                  <th style={{ padding: '0.75rem 1rem' }}>Acquired / Called By</th>
                   <th style={{ padding: '0.75rem 1rem' }}>Invoice / Ref</th>
                   <th style={{ padding: '0.75rem 1rem' }}>Accepted Units</th>
                   <th style={{ padding: '0.75rem 1rem' }}>Net Payable / Paid</th>
@@ -806,6 +808,22 @@ export default function AdminBloodAcquisitionPage() {
                         >
                           {sourceLabel}
                         </span>
+                      </td>
+                      <td style={{ padding: '0.75rem 1rem' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                          <StaffAttributionBadge
+                            label="Called by"
+                            name={rcpt.createdByName || 'Staff Member'}
+                            role={rcpt.createdByRole || 'ADMIN'}
+                            timestamp={rcpt.createdAt}
+                            size="xs"
+                          />
+                          {rcpt.clearanceAuthorizedByName && (
+                            <span style={{ fontSize: '0.7rem', color: '#059669', fontWeight: 600 }}>
+                              Clearance: {rcpt.clearanceAuthorizedByName}
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td style={{ padding: '0.75rem 1rem', color: '#475569' }}>
                         <div>{rcpt.invoiceNumber || rcpt.referenceNumber || '—'}</div>
@@ -1910,9 +1928,18 @@ export default function AdminBloodAcquisitionPage() {
                     </span>
                   )}
                 </div>
-                <p style={{ margin: '0.2rem 0 0 0', color: '#64748b', fontSize: '0.85rem' }}>
-                  Consignment Intake &bull; {selectedReceipt.sourceName}
-                </p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginTop: '0.35rem', flexWrap: 'wrap' }}>
+                  <p style={{ margin: 0, color: '#64748b', fontSize: '0.85rem' }}>
+                    Consignment Intake &bull; {selectedReceipt.sourceName}
+                  </p>
+                  <StaffAttributionBadge
+                    label="Called by"
+                    name={selectedReceipt.createdByName || 'Staff Member'}
+                    role={selectedReceipt.createdByRole || 'ADMIN'}
+                    timestamp={selectedReceipt.createdAt}
+                    size="xs"
+                  />
+                </div>
               </div>
               <button
                 onClick={closeDrawer}

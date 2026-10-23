@@ -339,6 +339,9 @@ export class BloodAcquisition {
   @Prop({ required: true, trim: true })
   createdByEmail: string;
 
+  @Prop({ required: false, trim: true })
+  createdByRole?: string;
+
   createdAt: Date;
   updatedAt: Date;
 }

@@ -18,6 +18,7 @@ import StatusBadge from '@/components/admin/StatusBadge';
 import EmptyState from '@/components/admin/EmptyState';
 import { TableSkeleton } from '@/components/admin/LoadingSkeleton';
 import UnifiedDateFilterBar from '@/components/admin/UnifiedDateFilterBar';
+import StaffAttributionBadge from '@/components/admin/StaffAttributionBadge';
 
 type DateFilterPreset = 'all' | 'today' | '7days' | '15days' | '30days' | 'this_month' | 'custom';
 
@@ -849,6 +850,7 @@ export default function AcquisitionCostingPage() {
                 <tr style={{ color: '#475569', backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
                   <th style={{ padding: '0.75rem 1rem' }}>Receipt Code &amp; Date</th>
                   <th style={{ padding: '0.75rem 1rem' }}>Supplier / Source</th>
+                  <th style={{ padding: '0.75rem 1rem' }}>Acquired / Called By</th>
                   <th style={{ padding: '0.75rem 1rem' }}>Invoice / Ref</th>
                   <th style={{ padding: '0.75rem 1rem', textAlign: 'center' }}>Units (Acc / Tot)</th>
                   <th style={{ padding: '0.75rem 1rem', textAlign: 'right' }}>Total Invoiced</th>
@@ -891,6 +893,23 @@ export default function AcquisitionCostingPage() {
                         <div style={{ fontWeight: 600, color: '#1e293b' }}>{item.sourceName}</div>
                         <div style={{ fontSize: '0.725rem', color: '#64748b' }}>
                           {EXTERNAL_SOURCE_TYPE_LABELS[item.sourceType] || item.sourceType}
+                        </div>
+                      </td>
+
+                      <td style={{ padding: '0.75rem 1rem' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                          <StaffAttributionBadge
+                            label="Called by"
+                            name={item.createdByName || 'Staff Member'}
+                            role={item.createdByRole || 'ADMIN'}
+                            timestamp={item.createdAt}
+                            size="xs"
+                          />
+                          {item.clearanceAuthorizedByName && (
+                            <span style={{ fontSize: '0.7rem', color: '#059669', fontWeight: 600 }}>
+                              Clearance: {item.clearanceAuthorizedByName}
+                            </span>
+                          )}
                         </div>
                       </td>
 
@@ -1160,7 +1179,7 @@ export default function AcquisitionCostingPage() {
               ) : (
                 <>
                   {/* Summary Grid */}
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem', backgroundColor: '#f8fafc', padding: '1rem', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem', backgroundColor: '#f8fafc', padding: '1rem', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
                     <div>
                       <span style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 700 }}>SUPPLIER / SOURCE</span>
                       <div style={{ fontSize: '0.9rem', fontWeight: 700, color: '#0f172a', marginTop: '0.15rem' }}>
@@ -1186,6 +1205,24 @@ export default function AcquisitionCostingPage() {
                     </div>
 
                     <div>
+                      <span style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 700 }}>ACQUIRED / CALLED BY</span>
+                      <div style={{ marginTop: '0.25rem' }}>
+                        <StaffAttributionBadge
+                          label="Called by"
+                          name={selectedReceipt.createdByName || 'Staff Member'}
+                          role={selectedReceipt.createdByRole || 'ADMIN'}
+                          timestamp={selectedReceipt.createdAt}
+                          size="xs"
+                        />
+                      </div>
+                      {selectedReceipt.createdByEmail && (
+                        <div style={{ fontSize: '0.725rem', color: '#64748b', marginTop: '0.2rem' }}>
+                          {selectedReceipt.createdByEmail}
+                        </div>
+                      )}
+                    </div>
+
+                    <div>
                       <span style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 700 }}>UNITS STATUS</span>
                       <div style={{ fontSize: '0.9rem', fontWeight: 700, color: '#059669', marginTop: '0.15rem' }}>
                         {selectedReceipt.stats?.approved ?? 0} Accepted
@@ -1195,6 +1232,24 @@ export default function AcquisitionCostingPage() {
                       </div>
                     </div>
                   </div>
+
+                  {selectedReceipt.clearanceAuthorizedByName && (
+                    <div style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', padding: '0.75rem 1rem', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
+                      <div>
+                        <span style={{ fontSize: '0.725rem', fontWeight: 700, color: '#166534', textTransform: 'uppercase' }}>Medical Clearance Certification</span>
+                        <div style={{ fontSize: '0.8rem', color: '#15803d', marginTop: '0.15rem' }}>
+                          Certificate #{selectedReceipt.clearanceCertificateNumber || 'N/A'} &bull; Direct Inventory Intake Authorized
+                        </div>
+                      </div>
+                      <StaffAttributionBadge
+                        label="Authorized by"
+                        name={selectedReceipt.clearanceAuthorizedByName}
+                        role="MEDICAL_OFFICER"
+                        timestamp={selectedReceipt.clearanceAuthorizationDate}
+                        size="xs"
+                      />
+                    </div>
+                  )}
 
                   {/* Financial Reconciliation Box */}
                   <div

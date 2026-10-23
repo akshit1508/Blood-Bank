@@ -143,6 +143,10 @@ export interface BloodAcquisitionReceipt {
     approved: number;
     rejected: number;
   };
+  createdBy?: string;
+  createdByName?: string;
+  createdByEmail?: string;
+  createdByRole?: string;
   createdAt: string;
   updatedAt: string;
 }

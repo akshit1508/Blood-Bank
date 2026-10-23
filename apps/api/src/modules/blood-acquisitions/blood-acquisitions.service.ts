@@ -449,6 +449,7 @@ export class BloodAcquisitionsService implements OnApplicationBootstrap {
           createdBy: new Types.ObjectId(currentAdmin.id || currentAdmin._id),
           createdByName: currentAdmin.fullName || 'Admin Staff',
           createdByEmail: currentAdmin.email,
+          createdByRole: currentAdmin.role || 'ADMIN',
         });
 
         createdReceipt = await acquisitionDoc.save({ session });
@@ -525,13 +526,19 @@ export class BloodAcquisitionsService implements OnApplicationBootstrap {
             invoiceNumber: createdReceipt.invoiceNumber || createdReceipt.referenceNumber || createdReceipt.receiptCode,
             status: ExpenseStatus.APPROVED,
             submittedAt: new Date(),
+            submittedBy: new Types.ObjectId(currentAdmin.id || currentAdmin._id),
+            submittedByName: currentAdmin.fullName || 'Admin Staff',
+            submittedByRole: currentAdmin.role || 'ADMIN',
             reviewedBy: new Types.ObjectId(currentAdmin.id || currentAdmin._id),
+            reviewedByName: currentAdmin.fullName || 'Admin Staff',
+            reviewedByRole: currentAdmin.role || 'SUPER_ADMIN',
             reviewedByEmail: currentAdmin.email,
             reviewedAt: new Date(),
             approvalRemarks: 'Fixed acquisition cost auto-approved upon consignment submission.',
             creatorId: new Types.ObjectId(currentAdmin.id || currentAdmin._id),
+            creatorName: currentAdmin.fullName || 'Admin Staff',
             creatorEmail: currentAdmin.email,
-            creatorRole: currentAdmin.role,
+            creatorRole: currentAdmin.role || 'ADMIN',
             acquisitionId: createdReceipt._id,
             description: `Authoritative payable for blood acquisition receipt ${createdReceipt.receiptCode}. Total units accepted: ${totalAcceptedUnits}. Invoiced units: ${totalInvoicedUnits}.`,
             isDeleted: false,
