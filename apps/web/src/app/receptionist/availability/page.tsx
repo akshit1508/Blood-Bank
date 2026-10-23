@@ -19,6 +19,7 @@ import {
   fetchAvailableInventory,
 } from '@/lib/receptionist-api';
 import ReceptionistSelect from '@/components/receptionist/ReceptionistSelect';
+import { getUnitExpiryInfo } from '@/lib/expiry-rules-api';
 
 const BLOOD_GROUPS = ['ALL', 'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 const COMPONENTS = [
@@ -697,18 +698,49 @@ export default function ReceptionistAvailabilityPage() {
                         </span>
                       </td>
                       <td style={{ padding: '0.75rem 1rem', fontSize: '0.8rem' }}>
-                        <span
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '0.35rem',
-                            color: isExpiringSoon ? '#fbbf24' : '#94a3b8',
-                            fontWeight: isExpiringSoon ? 700 : 500,
-                          }}
-                        >
-                          <Calendar style={{ width: '14px', height: '14px' }} />
-                          {rawExpiry ? new Date(rawExpiry).toLocaleDateString() : 'N/A'}
-                        </span>
+                        {(() => {
+                          const exp = getUnitExpiryInfo(
+                            rawExpiry,
+                            item.bloodUnit?.collectionDate,
+                            component,
+                            unitIdentifier,
+                          );
+                          return (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                              <Calendar style={{ width: '14px', height: '14px', color: exp.isExpired ? '#f87171' : '#94a3b8' }} />
+                              <span
+                                style={{
+                                  color: exp.isExpired ? '#f87171' : '#cbd5e1',
+                                  fontWeight: exp.isExpired || exp.isExpiringSoon ? 700 : 500,
+                                }}
+                              >
+                                {exp.formattedDate}
+                              </span>
+                              {exp.expiryDate && (
+                                <span
+                                  style={{
+                                    fontSize: '0.65rem',
+                                    color: exp.isExpired
+                                      ? '#fca5a5'
+                                      : exp.isExpiringSoon
+                                      ? '#fcd34d'
+                                      : '#86efac',
+                                    backgroundColor: exp.isExpired
+                                      ? 'rgba(239, 68, 68, 0.2)'
+                                      : exp.isExpiringSoon
+                                      ? 'rgba(245, 158, 11, 0.2)'
+                                      : 'rgba(34, 197, 94, 0.15)',
+                                    padding: '0.05rem 0.35rem',
+                                    borderRadius: '4px',
+                                    fontWeight: 700,
+                                  }}
+                                >
+                                  {exp.statusText}
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })()}
                       </td>
                       <td style={{ padding: '0.75rem 1rem' }}>{getStatusBadge(item.status)}</td>
                     </tr>

@@ -19,6 +19,7 @@ import {
 } from './constants/blood-unit.constants';
 import { DonationStatus } from '../donations/constants/donation.constants';
 import { AdminRole } from '../auth/schemas/admin-user.schema';
+import { ExpiryRulesService } from '../inventory/services/expiry-rules.service';
 
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
 import { AuditActionType, AuditEntityType } from '../audit-logs/constants/audit-log.constants';
@@ -42,6 +43,8 @@ export class BloodUnitsService {
     private readonly donorModel: Model<DonorDocument>,
     @Optional()
     private readonly auditLogsService?: AuditLogsService,
+    @Optional()
+    private readonly expiryRulesService?: ExpiryRulesService,
   ) {}
 
   /**
@@ -129,7 +132,7 @@ export class BloodUnitsService {
     const resolvedComponent =
       createDto.componentType || BloodUnitComponent.WHOLE_BLOOD;
 
-    // 7. Validate optional expiry date if provided
+    // 7. Resolve expiry date (use provided or auto-calculate based on shelf-life rule)
     let parsedExpiryDate: Date | undefined;
     if (createDto.expiryDate) {
       parsedExpiryDate = new Date(createDto.expiryDate);
@@ -142,6 +145,14 @@ export class BloodUnitsService {
           code: 'INVALID_EXPIRY_DATE',
         });
       }
+    } else if (this.expiryRulesService) {
+      parsedExpiryDate = await this.expiryRulesService.calculateExpiryDate(
+        collectionDate,
+        resolvedComponent,
+      );
+    } else {
+      // Default standard 35 days
+      parsedExpiryDate = new Date(collectionDate.getTime() + 35 * 24 * 60 * 60 * 1000);
     }
 
     // 8. Generate unique unitCode

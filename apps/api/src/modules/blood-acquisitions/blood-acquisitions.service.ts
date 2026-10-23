@@ -473,7 +473,20 @@ export class BloodAcquisitionsService implements OnApplicationBootstrap {
               bloodGroup: item.bloodGroup,
               componentType: item.componentType,
               collectionDate: receivedDate,
-              expiryDate: item.expiryDate,
+              expiryDate: item.expiryDate || new Date(
+                receivedDate.getTime() +
+                  (item.componentType === 'PLATELETS'
+                    ? 5
+                    : item.componentType === 'FFP'
+                      ? 365
+                      : item.componentType === 'PRBC'
+                        ? 42
+                        : 35) *
+                    24 *
+                    60 *
+                    60 *
+                    1000,
+              ),
               volume: item.volumePerUnit || 450,
               status: unitStatus,
               storageLocation: item.storageLocation,

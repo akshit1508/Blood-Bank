@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Put,
   Patch,
   Param,
   Body,
@@ -10,8 +11,13 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { InventoryService } from './inventory.service';
+import { ExpiryRulesService } from './services/expiry-rules.service';
 import { QueryInventoryDto } from './dto/query-inventory.dto';
 import { DiscardInventoryDto } from './dto/discard-inventory.dto';
+import {
+  UpdateExpiryRuleDto,
+  BulkUpdateExpiryRulesDto,
+} from './dto/expiry-rule.dto';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentAdmin } from '../auth/decorators/current-admin.decorator';
 import { AdminRole } from '../auth/schemas/admin-user.schema';
@@ -22,7 +28,10 @@ import { AdminRole } from '../auth/schemas/admin-user.schema';
 @Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN, AdminRole.FINANCE_RECEPTIONIST)
 @Controller('inventory')
 export class InventoryController {
-  constructor(private readonly inventoryService: InventoryService) {}
+  constructor(
+    private readonly inventoryService: InventoryService,
+    private readonly expiryRulesService: ExpiryRulesService,
+  ) {}
 
   /**
    * Internal operation: Create an inventory record from an APPROVED blood unit.
@@ -164,11 +173,104 @@ export class InventoryController {
   }
 
   /**
+   * Internal operation: Retrieve all component expiry rules.
+   * Placed before :id parameter route to prevent route collision.
+   * GET /api/inventory/expiry-rules
+   */
+  @Get('expiry-rules')
+  @Roles(
+    AdminRole.SUPER_ADMIN,
+    AdminRole.ADMIN,
+    AdminRole.LAB_TECHNICIAN,
+    AdminRole.FINANCE_RECEPTIONIST,
+  )
+  async getExpiryRules() {
+    const data = await this.expiryRulesService.findAll();
+    return {
+      statusCode: HttpStatus.OK,
+      data,
+    };
+  }
+
+  /**
+   * Updates single blood component expiry rule.
+   * PUT /api/inventory/expiry-rules
+   */
+  @Put('expiry-rules')
+  @Roles(AdminRole.SUPER_ADMIN)
+  @HttpCode(HttpStatus.OK)
+  async updateExpiryRule(
+    @Body() dto: UpdateExpiryRuleDto,
+    @CurrentAdmin() admin: any,
+  ) {
+    const actor = {
+      id: admin?.id || admin?._id,
+      email: admin?.email,
+      fullName: admin?.fullName || 'Super Administrator',
+      role: admin?.role || 'SUPER_ADMIN',
+    };
+    const data = await this.expiryRulesService.update(dto, actor);
+    return {
+      statusCode: HttpStatus.OK,
+      message: 'Blood component expiry rule updated successfully',
+      data,
+    };
+  }
+
+  /**
+   * Bulk updates blood component expiry rules.
+   * PUT /api/inventory/expiry-rules/bulk
+   */
+  @Put('expiry-rules/bulk')
+  @Roles(AdminRole.SUPER_ADMIN)
+  @HttpCode(HttpStatus.OK)
+  async bulkUpdateExpiryRules(
+    @Body() dto: BulkUpdateExpiryRulesDto,
+    @CurrentAdmin() admin: any,
+  ) {
+    const actor = {
+      id: admin?.id || admin?._id,
+      email: admin?.email,
+      fullName: admin?.fullName || 'Super Administrator',
+      role: admin?.role || 'SUPER_ADMIN',
+    };
+    const data = await this.expiryRulesService.bulkUpdate(dto, actor);
+    return {
+      statusCode: HttpStatus.OK,
+      message: 'Blood component expiry rules bulk-updated successfully',
+      data,
+    };
+  }
+
+  /**
+   * Recalculates expiry dates for existing inventory units.
+   * POST /api/inventory/expiry-rules/recalculate
+   */
+  @Post('expiry-rules/recalculate')
+  @Roles(AdminRole.SUPER_ADMIN)
+  @HttpCode(HttpStatus.OK)
+  async recalculateInventoryExpiries() {
+    const result = await this.expiryRulesService.recalculateExistingUnits();
+    return {
+      statusCode: HttpStatus.OK,
+      message: `Recalculation complete. Updated ${result.updatedCount} blood units.`,
+      updatedCount: result.updatedCount,
+    };
+  }
+
+  /**
    * Internal operation: Retrieve single inventory record by MongoDB _id.
    * GET /api/inventory/:id
    */
   @Get(':id')
   async findOne(@Param('id') id: string) {
+    if (id === 'expiry-rules') {
+      const data = await this.expiryRulesService.findAll();
+      return {
+        statusCode: HttpStatus.OK,
+        data,
+      };
+    }
     const item = await this.inventoryService.findOne(id);
     return {
       statusCode: HttpStatus.OK,

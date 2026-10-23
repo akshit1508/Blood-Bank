@@ -16,6 +16,7 @@ import {
 import { BloodGroup } from '@/lib/donor-api';
 import { BloodUnitComponent } from '@/lib/blood-unit-api';
 import StaffAttributionBadge from '@/components/admin/StaffAttributionBadge';
+import { getUnitExpiryInfo } from '@/lib/expiry-rules-api';
 
 const BLOOD_GROUPS = [
   BloodGroup.A_POSITIVE,
@@ -285,6 +286,25 @@ export default function AdminInventoryPage() {
           >
             {evaluatingExpiry ? 'Evaluating...' : '⏱ Run Expiry Check'}
           </button>
+          <Link
+            href="/super-admin/inventory/expiry-rules"
+            style={{
+              backgroundColor: '#faf5ff',
+              color: '#7e22ce',
+              border: '1px solid #e9d5ff',
+              padding: '0.5rem 1rem',
+              borderRadius: '6px',
+              fontSize: '0.875rem',
+              fontWeight: 600,
+              textDecoration: 'none',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.4rem',
+              boxShadow: '0 1px 2px rgba(126, 34, 206, 0.08)',
+            }}
+          >
+            ⚙️ Expiry Rules
+          </Link>
         </div>
       </div>
 
@@ -854,43 +874,92 @@ export default function AdminInventoryPage() {
 
                           {/* Expiry Date */}
                           <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>
-                            <div>
-                              {item.bloodUnit?.expiryDate
-                                ? new Date(item.bloodUnit.expiryDate).toLocaleDateString()
-                                : '—'}
-                            </div>
-                            {isExpired && (
-                              <span
-                                style={{
-                                  display: 'inline-block',
-                                  fontSize: '0.7rem',
-                                  color: '#dc2626',
-                                  backgroundColor: '#fee2e2',
-                                  padding: '0.1rem 0.35rem',
-                                  borderRadius: '3px',
-                                  fontWeight: 700,
-                                  marginTop: '0.15rem',
-                                }}
-                              >
-                                EXPIRED
-                              </span>
-                            )}
-                            {isExpiringSoon && (
-                              <span
-                                style={{
-                                  display: 'inline-block',
-                                  fontSize: '0.7rem',
-                                  color: '#b45309',
-                                  backgroundColor: '#fef3c7',
-                                  padding: '0.1rem 0.35rem',
-                                  borderRadius: '3px',
-                                  fontWeight: 700,
-                                  marginTop: '0.15rem',
-                                }}
-                              >
-                                EXPIRING SOON
-                              </span>
-                            )}
+                            {(() => {
+                              const expDateStr = item.bloodUnit?.expiryDate;
+                              const colDateStr = item.bloodUnit?.collectionDate;
+                              let expDate: Date | null = expDateStr ? new Date(expDateStr) : null;
+                              if (!expDate && colDateStr) {
+                                const compDays =
+                                  item.bloodUnit?.componentType === 'PLATELETS'
+                                    ? 5
+                                    : item.bloodUnit?.componentType === 'FFP'
+                                      ? 365
+                                      : item.bloodUnit?.componentType === 'PRBC'
+                                        ? 42
+                                        : 35;
+                                expDate = new Date(
+                                  new Date(colDateStr).getTime() + compDays * 24 * 60 * 60 * 1000,
+                                );
+                              }
+                              if (!expDate || isNaN(expDate.getTime())) {
+                                return <span style={{ color: '#94a3b8' }}>—</span>;
+                              }
+                              const daysRemaining = Math.ceil(
+                                (expDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24),
+                              );
+                              const formattedDate = expDate.toLocaleDateString('en-IN', {
+                                day: '2-digit',
+                                month: 'short',
+                                year: 'numeric',
+                              });
+
+                              return (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                                  <span style={{ fontWeight: 600, color: '#0f172a', fontSize: '0.825rem' }}>
+                                    {formattedDate}
+                                  </span>
+                                  {daysRemaining < 0 ? (
+                                    <span
+                                      style={{
+                                        display: 'inline-block',
+                                        fontSize: '0.675rem',
+                                        color: '#dc2626',
+                                        backgroundColor: '#fee2e2',
+                                        padding: '0.1rem 0.4rem',
+                                        borderRadius: '4px',
+                                        fontWeight: 700,
+                                        width: 'fit-content',
+                                        border: '1px solid #fecaca',
+                                      }}
+                                    >
+                                      EXPIRED ({Math.abs(daysRemaining)}d ago)
+                                    </span>
+                                  ) : daysRemaining <= 7 ? (
+                                    <span
+                                      style={{
+                                        display: 'inline-block',
+                                        fontSize: '0.675rem',
+                                        color: '#b45309',
+                                        backgroundColor: '#fef3c7',
+                                        padding: '0.1rem 0.4rem',
+                                        borderRadius: '4px',
+                                        fontWeight: 700,
+                                        width: 'fit-content',
+                                        border: '1px solid #fde68a',
+                                      }}
+                                    >
+                                      EXPIRING SOON ({daysRemaining}d left)
+                                    </span>
+                                  ) : (
+                                    <span
+                                      style={{
+                                        display: 'inline-block',
+                                        fontSize: '0.675rem',
+                                        color: '#047857',
+                                        backgroundColor: '#ecfdf5',
+                                        padding: '0.1rem 0.4rem',
+                                        borderRadius: '4px',
+                                        fontWeight: 600,
+                                        width: 'fit-content',
+                                        border: '1px solid #a7f3d0',
+                                      }}
+                                    >
+                                      Valid ({daysRemaining}d left)
+                                    </span>
+                                  )}
+                                </div>
+                              );
+                            })()}
                           </td>
 
                           {/* Storage */}
@@ -1359,20 +1428,42 @@ export default function AdminInventoryPage() {
                     </div>
                     <div>
                       <span style={{ color: '#64748b', display: 'block', fontSize: '0.75rem' }}>Expiry Date:</span>
-                      <strong
-                        style={{
-                          color:
-                            selectedItem.isExpired
-                              ? '#dc2626'
-                              : selectedItem.isExpiringSoon
-                              ? '#b45309'
-                              : '#334155',
-                        }}
-                      >
-                        {selectedItem.bloodUnit?.expiryDate
-                          ? new Date(selectedItem.bloodUnit.expiryDate).toLocaleDateString()
-                          : 'None'}
-                      </strong>
+                      {(() => {
+                        const expInfo = getUnitExpiryInfo(
+                          selectedItem.bloodUnit?.expiryDate,
+                          selectedItem.bloodUnit?.collectionDate,
+                          selectedItem.bloodUnit?.componentType,
+                        );
+                        return (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginTop: '0.15rem', flexWrap: 'wrap' }}>
+                            <strong
+                              style={{
+                                color: expInfo.isExpired
+                                  ? '#dc2626'
+                                  : expInfo.isExpiringSoon
+                                  ? '#b45309'
+                                  : '#0f172a',
+                              }}
+                            >
+                              {expInfo.formattedDate}
+                            </strong>
+                            {expInfo.expiryDate && (
+                              <span
+                                style={{
+                                  fontSize: '0.675rem',
+                                  color: expInfo.badgeColor,
+                                  backgroundColor: expInfo.badgeBg,
+                                  padding: '0.1rem 0.35rem',
+                                  borderRadius: '4px',
+                                  fontWeight: 700,
+                                }}
+                              >
+                                {expInfo.statusText}
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })()}
                     </div>
                   </div>
                 </div>

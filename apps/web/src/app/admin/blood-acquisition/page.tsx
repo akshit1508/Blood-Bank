@@ -27,6 +27,7 @@ import StatusBadge from '@/components/admin/StatusBadge';
 import EmptyState from '@/components/admin/EmptyState';
 import { TableSkeleton } from '@/components/admin/LoadingSkeleton';
 import StaffAttributionBadge from '@/components/admin/StaffAttributionBadge';
+import { getUnitExpiryInfo } from '@/lib/expiry-rules-api';
 
 const ALL_BLOOD_GROUPS = [
   BloodGroup.A_POSITIVE,
@@ -2255,6 +2256,7 @@ export default function AdminBloodAcquisitionPage() {
                       <tr>
                         <th style={{ padding: '0.5rem 0.75rem', textAlign: 'left' }}>Unit Code</th>
                         <th style={{ padding: '0.5rem 0.75rem', textAlign: 'left' }}>Group / Type</th>
+                        <th style={{ padding: '0.5rem 0.75rem', textAlign: 'left' }}>Expiry Date</th>
                         <th style={{ padding: '0.5rem 0.75rem', textAlign: 'left' }}>Unit Status</th>
                         <th style={{ padding: '0.5rem 0.75rem', textAlign: 'left' }}>Testing / Stock</th>
                       </tr>
@@ -2268,6 +2270,32 @@ export default function AdminBloodAcquisitionPage() {
                           <td style={{ padding: '0.5rem 0.75rem' }}>
                             <span style={{ fontWeight: 700, color: '#dc2626' }}>{u.bloodGroup}</span>{' '}
                             <span style={{ color: '#64748b' }}>{u.componentType}</span>
+                          </td>
+                          <td style={{ padding: '0.5rem 0.75rem' }}>
+                            {(() => {
+                              const exp = getUnitExpiryInfo(u.expiryDate, u.collectionDate, u.componentType);
+                              if (!exp.expiryDate) return <span style={{ color: '#94a3b8' }}>—</span>;
+                              return (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+                                  <span style={{ fontWeight: 600, color: exp.isExpired ? '#dc2626' : '#0f172a', fontSize: '0.775rem' }}>
+                                    {exp.formattedDate}
+                                  </span>
+                                  <span
+                                    style={{
+                                      fontSize: '0.625rem',
+                                      color: exp.badgeColor,
+                                      backgroundColor: exp.badgeBg,
+                                      padding: '0.05rem 0.3rem',
+                                      borderRadius: '3px',
+                                      fontWeight: 700,
+                                      width: 'fit-content',
+                                    }}
+                                  >
+                                    {exp.statusText}
+                                  </span>
+                                </div>
+                              );
+                            })()}
                           </td>
                           <td style={{ padding: '0.5rem 0.75rem' }}>
                             <StatusBadge status={u.status} size="sm" />

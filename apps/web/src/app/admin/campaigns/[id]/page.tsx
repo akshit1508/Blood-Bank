@@ -53,6 +53,7 @@ import BloodDonationCertificateModal, {
   BloodDonationCertificateData,
 } from '@/components/admin/BloodDonationCertificateModal';
 import StaffAttributionBadge from '@/components/admin/StaffAttributionBadge';
+import { getUnitExpiryInfo } from '@/lib/expiry-rules-api';
 
 type CampaignTab = 'overview' | 'expenditure' | 'blood_collection' | 'volunteers' | 'testing_inventory';
 
@@ -1842,6 +1843,7 @@ export default function CampaignCommandCenterPage() {
                       <th style={{ padding: '0.65rem 0.5rem', textAlign: 'center' }}>Blood Group</th>
                       <th style={{ padding: '0.65rem 0.5rem' }}>Component / Volume</th>
                       <th style={{ padding: '0.65rem 0.5rem' }}>Collected Date</th>
+                      <th style={{ padding: '0.65rem 0.5rem' }}>Expiry Date</th>
                       <th style={{ padding: '0.65rem 0.5rem', textAlign: 'center' }}>Testing Status</th>
                       <th style={{ padding: '0.65rem 0.5rem', textAlign: 'right' }}>Certificate</th>
                     </tr>
@@ -1875,6 +1877,33 @@ export default function CampaignCommandCenterPage() {
                         </td>
                         <td style={{ padding: '0.75rem 0.5rem', color: '#64748b' }}>
                           {formatDateTime(u.collectionDate)}
+                        </td>
+                        <td style={{ padding: '0.75rem 0.5rem' }}>
+                          {(() => {
+                            const exp = getUnitExpiryInfo(u.expiryDate, u.collectionDate, u.componentType);
+                            if (!exp.expiryDate) return <span style={{ color: '#94a3b8' }}>—</span>;
+                            return (
+                              <div>
+                                <div style={{ fontWeight: 600, color: exp.isExpired ? '#dc2626' : '#0f172a', fontSize: '0.8rem' }}>
+                                  {exp.formattedDate}
+                                </div>
+                                <span
+                                  style={{
+                                    display: 'inline-block',
+                                    fontSize: '0.65rem',
+                                    color: exp.badgeColor,
+                                    backgroundColor: exp.badgeBg,
+                                    padding: '0.05rem 0.35rem',
+                                    borderRadius: '4px',
+                                    fontWeight: 700,
+                                    marginTop: '0.15rem',
+                                  }}
+                                >
+                                  {exp.statusText}
+                                </span>
+                              </div>
+                            );
+                          })()}
                         </td>
                         <td style={{ padding: '0.75rem 0.5rem', textAlign: 'center' }}>
                           <span

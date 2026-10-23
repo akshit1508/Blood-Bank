@@ -20,6 +20,12 @@ import {
   BloodAcquisition,
   BloodAcquisitionSchema,
 } from '../blood-acquisitions/schemas/blood-acquisition.schema';
+import {
+  BloodUnitExpiryRule,
+  BloodUnitExpiryRuleSchema,
+} from './schemas/blood-unit-expiry-rule.schema';
+import { ExpiryRulesService } from './services/expiry-rules.service';
+import { ExpiryRulesController } from './controllers/expiry-rules.controller';
 
 @Module({
   imports: [
@@ -29,10 +35,15 @@ import {
       { name: BloodUnit.name, schema: BloodUnitSchema },
       { name: BloodTesting.name, schema: BloodTestingSchema },
       { name: BloodAcquisition.name, schema: BloodAcquisitionSchema },
+      { name: BloodUnitExpiryRule.name, schema: BloodUnitExpiryRuleSchema },
     ]),
   ],
-  controllers: [InventoryController, PublicBloodAvailabilityController],
-  providers: [InventoryService],
-  exports: [InventoryService],
+  controllers: [
+    InventoryController,
+    PublicBloodAvailabilityController,
+    ExpiryRulesController,
+  ],
+  providers: [InventoryService, ExpiryRulesService],
+  exports: [InventoryService, ExpiryRulesService],
 })
 export class InventoryModule {}

@@ -36,6 +36,7 @@ import {
   fetchIssuesForRequest,
 } from '@/lib/receptionist-api';
 import { updateBloodRequestStatus, BloodRequestStatus } from '@/lib/blood-request-api';
+import { getUnitExpiryInfo } from '@/lib/expiry-rules-api';
 
 const formatINR = (amount: number | undefined | null) => {
   return new Intl.NumberFormat('en-IN', {
@@ -951,8 +952,51 @@ export default function ReceptionistRequestsDeskPage() {
                                   {unit.storageLocation || 'Main Cold Storage'}
                                 </span>
                               </td>
-                              <td style={{ padding: '0.65rem 0.85rem', color: '#cbd5e1', fontSize: '0.75rem' }}>
-                                {unit.expiryDate ? new Date(unit.expiryDate).toLocaleDateString() : 'N/A'}
+                              <td style={{ padding: '0.65rem 0.85rem' }}>
+                                {(() => {
+                                  const exp = getUnitExpiryInfo(
+                                    unit.expiryDate,
+                                    (unit as any).collectionDate,
+                                    unit.componentType || selectedRequest.componentType,
+                                    unit.unitCode || unit.barcode,
+                                  );
+                                  return (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+                                      <span
+                                        style={{
+                                          fontWeight: 600,
+                                          color: exp.isExpired ? '#f87171' : '#ffffff',
+                                          fontSize: '0.75rem',
+                                        }}
+                                      >
+                                        {exp.formattedDate}
+                                      </span>
+                                      {exp.expiryDate && (
+                                        <span
+                                          style={{
+                                            fontSize: '0.65rem',
+                                            color: exp.isExpired
+                                              ? '#fca5a5'
+                                              : exp.isExpiringSoon
+                                              ? '#fcd34d'
+                                              : '#86efac',
+                                            backgroundColor: exp.isExpired
+                                              ? 'rgba(239, 68, 68, 0.2)'
+                                              : exp.isExpiringSoon
+                                              ? 'rgba(245, 158, 11, 0.2)'
+                                              : 'rgba(34, 197, 94, 0.15)',
+                                            padding: '0.05rem 0.35rem',
+                                            borderRadius: '4px',
+                                            fontWeight: 700,
+                                            width: 'fit-content',
+                                          }}
+                                        >
+                                          {exp.statusText}
+                                        </span>
+                                      )}
+                                    </div>
+                                  );
+                                })()}
                               </td>
                               <td style={{ padding: '0.65rem 0.85rem' }}>
                                 <span

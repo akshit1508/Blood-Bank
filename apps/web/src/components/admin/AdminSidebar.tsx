@@ -311,7 +311,7 @@ export default function AdminSidebar({
           { name: 'Blood Requests', href: '/admin/blood-requests', icon: icons.requests },
           { name: 'Laboratory Testing', href: '/admin/testing', icon: icons.testing },
           { name: 'Inventory Management', href: '/admin/inventory', icon: icons.inventory },
-         
+          { name: 'Unit Expiry Rules', href: '/super-admin/inventory/expiry-rules', icon: icons.settings },
         ],
       },
       {

@@ -50,6 +50,7 @@ import {
   AuditActionType,
   AuditEntityType,
 } from '../audit-logs/constants/audit-log.constants';
+import { ExpiryRulesService } from './services/expiry-rules.service';
 
 @Injectable()
 export class InventoryService {
@@ -66,6 +67,8 @@ export class InventoryService {
     private readonly bloodAcquisitionModel: Model<BloodAcquisitionDocument>,
     @Optional()
     private readonly auditLogsService?: AuditLogsService,
+    @Optional()
+    private readonly expiryRulesService?: ExpiryRulesService,
   ) {}
 
   /**
@@ -1146,7 +1149,7 @@ export class InventoryService {
       .populate({
         path: 'bloodUnitId',
         select:
-          'unitCode bloodGroup componentType expiryDate storageLocation status',
+          'unitCode bloodGroup componentType expiryDate collectionDate storageLocation status createdAt',
       })
       .lean()
       .exec();
@@ -1157,6 +1160,7 @@ export class InventoryService {
       unitCode: string;
       bloodGroup: string;
       componentType: string;
+      collectionDate?: string | null;
       expiryDate: string | null;
       storageLocation: string;
       status: string;
@@ -1169,8 +1173,66 @@ export class InventoryService {
       // Gate 1: Physical unit must be APPROVED
       if (unit.status !== BloodUnitStatus.APPROVED) continue;
 
+      // Calculate effective expiry date if not already present
+      let effectiveExpiryDate: Date | null = unit.expiryDate
+        ? new Date(unit.expiryDate)
+        : null;
+
+      if (!effectiveExpiryDate || isNaN(effectiveExpiryDate.getTime())) {
+        let baseDate: Date | null = unit.collectionDate
+          ? new Date(unit.collectionDate)
+          : null;
+        if (!baseDate || isNaN(baseDate.getTime())) {
+          if (unit.createdAt) {
+            baseDate = new Date(unit.createdAt);
+          } else if (
+            unit.unitCode &&
+            /UNIT-(\d{4})(\d{2})(\d{2})-/i.test(unit.unitCode)
+          ) {
+            const m = unit.unitCode.match(/UNIT-(\d{4})(\d{2})(\d{2})-/i);
+            if (m) {
+              baseDate = new Date(`${m[1]}-${m[2]}-${m[3]}`);
+            }
+          }
+        }
+        if (!baseDate || isNaN(baseDate.getTime())) {
+          baseDate = (item as any).createdAt
+            ? new Date((item as any).createdAt)
+            : new Date();
+        }
+
+        if (this.expiryRulesService) {
+          effectiveExpiryDate =
+            await this.expiryRulesService.calculateExpiryDate(
+              baseDate,
+              unit.componentType as any,
+            );
+        } else {
+          const compDays =
+            unit.componentType === 'PLATELETS'
+              ? 5
+              : unit.componentType === 'FFP'
+                ? 365
+                : unit.componentType === 'PRBC'
+                  ? 42
+                  : 35;
+          effectiveExpiryDate = new Date(
+            baseDate.getTime() + compDays * 24 * 60 * 60 * 1000,
+          );
+        }
+
+        // Auto-heal legacy blood unit record asynchronously so future queries have it saved
+        this.bloodUnitModel
+          .updateOne(
+            { _id: unit._id },
+            { $set: { expiryDate: effectiveExpiryDate } },
+          )
+          .exec()
+          .catch(() => {});
+      }
+
       // Gate 2: Exclude expired units
-      if (unit.expiryDate && new Date(unit.expiryDate) < now) continue;
+      if (effectiveExpiryDate && effectiveExpiryDate < now) continue;
 
       // Gate 3: Exact blood group match
       if (unit.bloodGroup !== bloodGroup) continue;
@@ -1184,8 +1246,11 @@ export class InventoryService {
         unitCode: unit.unitCode,
         bloodGroup: unit.bloodGroup,
         componentType: unit.componentType,
-        expiryDate: unit.expiryDate
-          ? new Date(unit.expiryDate).toISOString()
+        collectionDate: unit.collectionDate
+          ? new Date(unit.collectionDate).toISOString()
+          : null,
+        expiryDate: effectiveExpiryDate
+          ? effectiveExpiryDate.toISOString()
           : null,
         storageLocation: unit.storageLocation || 'N/A',
         status: item.status,

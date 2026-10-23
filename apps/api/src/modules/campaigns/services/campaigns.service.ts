@@ -827,6 +827,7 @@ export class CampaignsService {
               bloodGroup,
               componentType: 'WHOLE_BLOOD',
               collectionDate: don.donationDate || new Date(),
+              expiryDate: new Date((don.donationDate ? new Date(don.donationDate).getTime() : Date.now()) + 35 * 24 * 60 * 60 * 1000),
               status: BloodUnitStatus.TESTING,
             });
             const savedUnit = await newUnit.save();

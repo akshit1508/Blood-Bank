@@ -22,6 +22,7 @@ import {
 } from '@/lib/blood-request-api';
 import { generateInvoice } from '@/lib/billing-api';
 import StaffAttributionBadge from '@/components/admin/StaffAttributionBadge';
+import { getUnitExpiryInfo } from '@/lib/expiry-rules-api';
 
 const WhatsAppIcon = ({ size = 15 }: { size?: number }) => (
   <svg
@@ -1356,10 +1357,43 @@ export default function AdminBloodRequestsPage() {
                                   <td style={{ padding: '0.4rem 0.5rem', fontWeight: 600, color: '#0f172a' }}>
                                     {unit.unitCode}
                                   </td>
-                                  <td style={{ padding: '0.4rem 0.5rem', color: '#334155' }}>
-                                    {unit.expiryDate
-                                      ? new Date(unit.expiryDate).toLocaleDateString()
-                                      : 'Not set'}
+                                  <td style={{ padding: '0.4rem 0.5rem' }}>
+                                    {(() => {
+                                      const exp = getUnitExpiryInfo(
+                                        unit.expiryDate,
+                                        (unit as any).collectionDate,
+                                        unit.componentType,
+                                        unit.unitCode,
+                                      );
+                                      return (
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+                                          <span
+                                            style={{
+                                              fontWeight: 600,
+                                              color: exp.isExpired ? '#dc2626' : '#0f172a',
+                                              fontSize: '0.775rem',
+                                            }}
+                                          >
+                                            {exp.formattedDate}
+                                          </span>
+                                          {exp.expiryDate && (
+                                            <span
+                                              style={{
+                                                fontSize: '0.625rem',
+                                                color: exp.badgeColor,
+                                                backgroundColor: exp.badgeBg,
+                                                padding: '0.05rem 0.3rem',
+                                                borderRadius: '3px',
+                                                fontWeight: 700,
+                                                width: 'fit-content',
+                                              }}
+                                            >
+                                              {exp.statusText}
+                                            </span>
+                                          )}
+                                        </div>
+                                      );
+                                    })()}
                                   </td>
                                   <td style={{ padding: '0.4rem 0.5rem', color: '#475569' }}>
                                     {unit.storageLocation}

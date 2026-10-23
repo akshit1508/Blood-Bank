@@ -26,6 +26,7 @@ import {
   getFriendlyInventoryErrorMessage,
 } from '@/lib/inventory-api';
 import StaffAttributionBadge from '@/components/admin/StaffAttributionBadge';
+import { getUnitExpiryInfo } from '@/lib/expiry-rules-api';
 
 const STATUS_BADGES: Record<
   TestingStatus,
@@ -1047,7 +1048,7 @@ export default function AdminTestingPage() {
                             <div style={{ fontWeight: 600, color: '#0f172a' }}>
                               {item.bloodUnitId?.unitCode || 'Unit N/A'}
                             </div>
-                            <div style={{ display: 'flex', gap: '0.35rem', marginTop: '0.15rem' }}>
+                            <div style={{ display: 'flex', gap: '0.35rem', marginTop: '0.15rem', alignItems: 'center' }}>
                               <span
                                 style={{
                                   backgroundColor: '#fee2e2',
@@ -1070,6 +1071,34 @@ export default function AdminTestingPage() {
                                 {item.bloodUnitId?.componentType || 'WHOLE_BLOOD'}
                               </span>
                             </div>
+                            {(() => {
+                              const exp = getUnitExpiryInfo(
+                                item.bloodUnitId?.expiryDate,
+                                item.bloodUnitId?.collectionDate,
+                                item.bloodUnitId?.componentType,
+                              );
+                              if (!exp.expiryDate) return null;
+                              return (
+                                <div style={{ marginTop: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.3rem', flexWrap: 'wrap' }}>
+                                  <span style={{ fontSize: '0.72rem', color: '#64748b' }}>Exp:</span>
+                                  <span style={{ fontSize: '0.72rem', fontWeight: 600, color: exp.isExpired ? '#dc2626' : '#1e293b' }}>
+                                    {exp.formattedDate}
+                                  </span>
+                                  <span
+                                    style={{
+                                      fontSize: '0.65rem',
+                                      color: exp.badgeColor,
+                                      backgroundColor: exp.badgeBg,
+                                      padding: '0.05rem 0.3rem',
+                                      borderRadius: '3px',
+                                      fontWeight: 700,
+                                    }}
+                                  >
+                                    {exp.statusText}
+                                  </span>
+                                </div>
+                              );
+                            })()}
                           </td>
 
                           <td style={{ padding: '0.75rem 1rem' }}>
@@ -1621,6 +1650,46 @@ export default function AdminTestingPage() {
                             ? new Date(selectedTesting.bloodUnitId.collectionDate).toLocaleDateString()
                             : 'N/A'}
                         </span>
+                      </div>
+                      <div>
+                        <span style={{ color: '#64748b', display: 'block', fontSize: '0.75rem' }}>Expiry Date:</span>
+                        {(() => {
+                          const expInfo = getUnitExpiryInfo(
+                            selectedTesting.bloodUnitId?.expiryDate,
+                            selectedTesting.bloodUnitId?.collectionDate,
+                            selectedTesting.bloodUnitId?.componentType,
+                          );
+                          return (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', marginTop: '0.1rem', flexWrap: 'wrap' }}>
+                              <strong
+                                style={{
+                                  color: expInfo.isExpired
+                                    ? '#dc2626'
+                                    : expInfo.isExpiringSoon
+                                    ? '#b45309'
+                                    : '#0f172a',
+                                  fontSize: '0.8rem',
+                                }}
+                              >
+                                {expInfo.formattedDate}
+                              </strong>
+                              {expInfo.expiryDate && (
+                                <span
+                                  style={{
+                                    fontSize: '0.675rem',
+                                    color: expInfo.badgeColor,
+                                    backgroundColor: expInfo.badgeBg,
+                                    padding: '0.1rem 0.35rem',
+                                    borderRadius: '4px',
+                                    fontWeight: 700,
+                                  }}
+                                >
+                                  {expInfo.statusText}
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })()}
                       </div>
                     </div>
                   </div>

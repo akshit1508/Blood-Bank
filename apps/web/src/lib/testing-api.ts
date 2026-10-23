@@ -56,6 +56,7 @@ export interface BloodUnitSummary {
   bloodGroup: string;
   componentType: string;
   collectionDate: string;
+  expiryDate?: string;
   volume?: number;
   storageLocation?: string;
   donationId?: DonationSummary | any;
