@@ -144,19 +144,6 @@ export default function SuperAdminVolunteersPage() {
             >
               Volunteer Directory &amp; Attendance Roster
             </h1>
-            <span
-              style={{
-                backgroundColor: '#fef3c7',
-                color: '#92400e',
-                border: '1px solid #fde68a',
-                padding: '0.2rem 0.6rem',
-                borderRadius: '9999px',
-                fontSize: '0.75rem',
-                fontWeight: 700,
-              }}
-            >
-              👑 Super Admin View
-            </span>
           </div>
           <p style={{ color: '#64748b', fontSize: '0.875rem', margin: '0.35rem 0 0 0' }}>
             Comprehensive directory of all volunteers with verified contact information, active roles, and campaign attendance history.

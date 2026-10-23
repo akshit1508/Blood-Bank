@@ -955,9 +955,14 @@ export default function AdminInventoryPage() {
                             <span style={{ color: '#0f172a', fontWeight: 600, display: 'block' }}>
                               {item.testing?.testingCode || '—'}
                             </span>
-                            <span style={{ color: '#15803d', fontSize: '0.75rem', fontWeight: 600 }}>
-                              ✓ APPROVED
+                            <span style={{ color: '#15803d', fontSize: '0.75rem', fontWeight: 600, display: 'block' }}>
+                              ✓ {item.testing?.decision || 'APPROVED'}
                             </span>
+                            {(item.testing?.approvedByName || item.approvedByName || item.receivedByName) && (
+                              <span style={{ color: '#64748b', fontSize: '0.72rem', display: 'block', marginTop: '0.15rem' }}>
+                                by {item.testing?.approvedByName || item.approvedByName || item.receivedByName}
+                              </span>
+                            )}
                           </td>
 
                           {/* Actions */}
@@ -1497,9 +1502,20 @@ export default function AdminInventoryPage() {
                     </div>
                     <div>
                       <span style={{ color: '#64748b', display: 'block', fontSize: '0.75rem' }}>Laboratory Decision:</span>
-                      <span style={{ color: '#166534', fontWeight: 700 }}>
+                      <span style={{ color: '#166534', fontWeight: 700, display: 'block' }}>
                         ✓ {selectedItem.testing?.decision || 'APPROVED'}
                       </span>
+                      {(selectedItem.testing?.approvedByName || selectedItem.approvedByName || selectedItem.receivedByName) && (
+                        <div style={{ marginTop: '0.35rem' }}>
+                          <StaffAttributionBadge
+                            label="Approved by"
+                            name={selectedItem.testing?.approvedByName || selectedItem.approvedByName || selectedItem.receivedByName}
+                            role="LAB_TECHNICIAN"
+                            timestamp={selectedItem.testing?.completedAt}
+                            size="xs"
+                          />
+                        </div>
+                      )}
                     </div>
                     {selectedItem.testing?.completedAt && (
                       <div style={{ gridColumn: '1 / -1' }}>

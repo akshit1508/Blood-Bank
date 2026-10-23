@@ -166,34 +166,6 @@ export default function AdminNavbar({
         </Link>
       </div>
 
-      {/* Center: Global System Status Indicator */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.5rem',
-          backgroundColor: '#f0fdf4',
-          border: '1px solid #bbf7d0',
-          padding: '0.35rem 0.75rem',
-          borderRadius: '9999px',
-        }}
-        className="admin-status-indicator"
-      >
-        <span
-          style={{
-            width: '8px',
-            height: '8px',
-            borderRadius: '50%',
-            backgroundColor: '#16a34a',
-            display: 'inline-block',
-            boxShadow: '0 0 0 2px rgba(220, 38, 38, 0.2)',
-          }}
-        />
-        <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#166534' }}>
-          Internal Operations Console &bull; Authenticated
-        </span>
-      </div>
-
       {/* Right: Profile & Logout */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
         {/* Admin Profile Display */}

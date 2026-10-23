@@ -301,18 +301,6 @@ export default function BillingDeskContent({ portalRole }: BillingDeskContentPro
             <h1 style={{ fontSize: '1.65rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>
               Blood Issue Billing & Cashier Desk
             </h1>
-            <span
-              style={{
-                fontSize: '0.75rem',
-                fontWeight: 600,
-                padding: '0.2rem 0.6rem',
-                borderRadius: '9999px',
-                background: '#e0f2fe',
-                color: '#0369a1',
-              }}
-            >
-              Cost Recovery (NBTC)
-            </span>
           </div>
           <p style={{ color: '#64748b', fontSize: '0.9rem', margin: '0.35rem 0 0 0' }}>
             Authoritative processing fee invoicing, fee exemptions, spot payment collection, and daily revenue reconciliation.

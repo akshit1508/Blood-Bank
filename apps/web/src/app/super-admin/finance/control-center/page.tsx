@@ -501,26 +501,6 @@ export default function FinancialControlCenterPage() {
         }}
       >
         <div className="fcc-header-brand" style={{ flex: '1 1 auto', minWidth: 0, width: '100%', maxWidth: '100%' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '0.35rem' }}>
-            <span
-              style={{
-                backgroundColor: '#fef3c7',
-                color: '#92400e',
-                border: '1px solid #fde68a',
-                borderRadius: '9999px',
-                padding: '0.2rem 0.65rem',
-                fontSize: '0.72rem',
-                fontWeight: 800,
-                letterSpacing: '0.04em',
-                textTransform: 'uppercase',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.3rem',
-              }}
-            >
-              <span>👑</span> Super Admin Exclusive
-            </span>
-          </div>
           <h1
             className="fcc-header-title"
             style={{

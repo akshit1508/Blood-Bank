@@ -668,19 +668,6 @@ export default function SuperAdminDashboardPage() {
                   <h1 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#0f172a', margin: 0, letterSpacing: '-0.02em' }}>
                     Dashboard
                   </h1>
-                  <span
-                    style={{
-                      padding: '0.15rem 0.6rem',
-                      backgroundColor: '#fef3c7',
-                      color: '#92400e',
-                      borderRadius: '999px',
-                      fontSize: '0.725rem',
-                      fontWeight: 800,
-                      border: '1px solid #fde68a',
-                    }}
-                  >
-                    👑 SUPER ADMIN
-                  </span>
                 </div>
                 <p style={{ margin: '0.2rem 0 0 0', color: '#64748b', fontSize: '0.825rem' }}>
                   Regional Blood Transfusion Center &bull; NABH Accredited &bull; Unified Clinical, Operational &amp; Financial Analytics

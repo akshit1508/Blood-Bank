@@ -431,26 +431,6 @@ export default function AdminCampaignsPage() {
         }}
       >
         <div style={{ flex: '1 1 auto', minWidth: 0, width: '100%' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '0.35rem' }}>
-            <span
-              style={{
-                backgroundColor: '#fef3c7',
-                color: '#92400e',
-                border: '1px solid #fde68a',
-                borderRadius: '9999px',
-                padding: '0.2rem 0.65rem',
-                fontSize: '0.72rem',
-                fontWeight: 800,
-                letterSpacing: '0.04em',
-                textTransform: 'uppercase',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.3rem',
-              }}
-            >
-              <span>👑</span> Super Admin Exclusive • Budgets
-            </span>
-          </div>
           <h1
             className="camp-header-title"
             style={{
@@ -502,31 +482,7 @@ export default function AdminCampaignsPage() {
           >
             <span>+</span> Schedule Campaign &amp; Add Budget
           </button>
-        ) : (
-          <div
-            style={{
-              backgroundColor: '#ffffff',
-              border: '1px solid #fde68a',
-              borderRadius: '8px',
-              padding: '0.65rem 1rem',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.75rem',
-              maxWidth: '440px',
-              boxShadow: '0 1px 3px rgba(180, 83, 9, 0.06)',
-            }}
-          >
-            <span style={{ fontSize: '1.25rem' }}>🛡️</span>
-            <div>
-              <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#0f172a' }}>
-                Admin Operations Portal
-              </div>
-              <div style={{ fontSize: '0.75rem', color: '#64748b', lineHeight: 1.3 }}>
-                Campaigns scheduled by Super Admin. Click <strong>+ Add Expense</strong> on any campaign below to log field bills.
-              </div>
-            </div>
-          </div>
-        )}
+        ) : null}
       </div>
 
       {/* Success Notification Alert */}
@@ -772,19 +728,6 @@ export default function AdminCampaignsPage() {
                 </span>
               </div>
             </div>
-            <span
-              style={{
-                fontSize: '0.72rem',
-                fontWeight: 700,
-                padding: '0.25rem 0.65rem',
-                borderRadius: '9999px',
-                backgroundColor: '#fef3c7',
-                color: '#92400e',
-                border: '1px solid #fde68a',
-              }}
-            >
-              Action Required: Record Incurred Expenses
-            </span>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1rem' }}>

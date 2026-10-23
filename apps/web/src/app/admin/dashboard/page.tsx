@@ -276,19 +276,6 @@ export default function AdminDashboardPage() {
             >
               Operations Dashboard
             </h1>
-            <span
-              style={{
-                fontSize: '0.75rem',
-                fontWeight: 600,
-                backgroundColor: '#f1f5f9',
-                color: '#475569',
-                padding: '0.2rem 0.55rem',
-                borderRadius: '6px',
-                border: '1px solid #cbd5e1',
-              }}
-            >
-              Single Center
-            </span>
           </div>
           <p style={{ margin: '0.35rem 0 0 0', color: '#64748b', fontSize: '0.875rem' }}>
             Comprehensive overview of blood collection, laboratory clearance, physical inventory, and patient fulfillment.

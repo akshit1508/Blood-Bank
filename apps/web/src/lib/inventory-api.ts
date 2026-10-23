@@ -30,6 +30,7 @@ export interface InventoryItem {
   receivedByName?: string;
   lastAdjustedByName?: string;
   discardedByName?: string;
+  approvedByName?: string | null;
   isExpired?: boolean;
   isExpiringSoon?: boolean;
   createdAt: string;
@@ -37,6 +38,8 @@ export interface InventoryItem {
   bloodUnit: {
     _id: string;
     unitCode: string;
+    sourceType?: string;
+    externalReceiptId?: string | null;
     bloodGroup: string;
     componentType: string;
     collectionDate: string;
@@ -58,11 +61,18 @@ export interface InventoryItem {
     bloodGroup: string;
   };
   testing: {
-    _id: string;
-    testingCode: string;
+    _id?: string | null;
+    testingCode?: string | null;
     decision: string;
     status: string;
     completedAt?: string;
+    verifiedByName?: string | null;
+    verifiedByRole?: string | null;
+    completedByName?: string | null;
+    completedByRole?: string | null;
+    performedBy?: string | null;
+    approvedByName?: string | null;
+    isExternalClearance?: boolean;
   } | null;
   history?: InventoryHistoryItem[];
 }

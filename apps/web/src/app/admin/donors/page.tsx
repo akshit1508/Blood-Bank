@@ -378,19 +378,6 @@ export default function AdminDonorsPage() {
             <h1 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 700, color: '#0f172a' }}>
               Donor Management
             </h1>
-            <span
-              style={{
-                backgroundColor: '#f1f5f9',
-                color: '#475569',
-                fontSize: '0.75rem',
-                fontWeight: 600,
-                padding: '0.2rem 0.5rem',
-                borderRadius: '6px',
-                border: '1px solid #cbd5e1',
-              }}
-            >
-              Donor-Centric Roster
-            </span>
           </div>
           <p
             style={{

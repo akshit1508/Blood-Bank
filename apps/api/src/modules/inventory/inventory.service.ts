@@ -78,6 +78,7 @@ export class InventoryService {
     bloodUnit: any,
     testing: any,
     history?: any[],
+    acq?: any,
   ) {
     const rawUnit = bloodUnit || {};
     const rawDonation =
@@ -104,6 +105,50 @@ export class InventoryService {
       expiryDate >= now &&
       expiryDate <= expiringSoonThreshold;
 
+    const approvedByName =
+      testing?.verifiedByName ||
+      testing?.completedByName ||
+      testing?.performedBy ||
+      acq?.clearanceAuthorizedByName ||
+      acq?.createdByName ||
+      inventory?.receivedByName ||
+      null;
+
+    const formattedTesting = testing
+      ? {
+          _id: testing._id,
+          testingCode: testing.testingCode,
+          decision: testing.decision || 'APPROVED',
+          status: testing.status || 'COMPLETED',
+          completedAt: testing.completedAt,
+          verifiedByName: testing.verifiedByName || null,
+          verifiedByRole: testing.verifiedByRole || null,
+          completedByName: testing.completedByName || null,
+          completedByRole: testing.completedByRole || null,
+          performedBy: testing.performedBy || null,
+          approvedByName,
+        }
+      : acq
+      ? {
+          _id: acq._id,
+          testingCode: acq.clearanceCertificateNumber || acq.receiptCode || 'EXTERNAL',
+          decision: 'APPROVED',
+          status: 'COMPLETED',
+          completedAt: acq.clearanceAuthorizationDate || acq.createdAt,
+          verifiedByName: acq.clearanceAuthorizedByName || acq.createdByName || null,
+          approvedByName,
+          isExternalClearance: true,
+        }
+      : {
+          _id: null,
+          testingCode: null,
+          decision: 'APPROVED',
+          status: 'COMPLETED',
+          completedAt: inventory.receivedAt || inventory.createdAt,
+          verifiedByName: inventory.receivedByName || null,
+          approvedByName: approvedByName || inventory.receivedByName || null,
+        };
+
     return {
       _id: inventory._id,
       status: inventory.status,
@@ -119,6 +164,7 @@ export class InventoryService {
       lastAdjustedBy: inventory.lastAdjustedBy || null,
       lastAdjustedByName: inventory.lastAdjustedByName || null,
       lastAdjustedAt: inventory.lastAdjustedAt || null,
+      approvedByName: approvedByName || inventory.receivedByName || null,
       isExpired,
       isExpiringSoon,
       createdAt: inventory.createdAt,
@@ -152,15 +198,7 @@ export class InventoryService {
             bloodGroup: rawDonor.bloodGroup,
           }
         : null,
-      testing: testing
-        ? {
-            _id: testing._id,
-            testingCode: testing.testingCode,
-            decision: testing.decision,
-            status: testing.status,
-            completedAt: testing.completedAt,
-          }
-        : null,
+      testing: formattedTesting,
       history: history
         ? history.map((h) => ({
             _id: h._id,
@@ -268,6 +306,7 @@ export class InventoryService {
       .exec();
 
     let isAuthorizedExternalDirectIntake = false;
+    let receipt: any = null;
 
     if (bloodUnit.sourceType === BloodUnitSourceType.EXTERNAL_RECEIPT && !testingRecord) {
       if (!bloodUnit.externalReceiptId) {
@@ -277,7 +316,7 @@ export class InventoryService {
         });
       }
 
-      const receipt = await this.bloodAcquisitionModel.findById(bloodUnit.externalReceiptId).exec();
+      receipt = await this.bloodAcquisitionModel.findById(bloodUnit.externalReceiptId).exec();
       if (!receipt) {
         throw new BadRequestException({
           message: `Blood unit '${bloodUnit.unitCode}' referenced receipt was not found. Cannot verify clearance.`,
@@ -376,7 +415,7 @@ export class InventoryService {
       },
     });
 
-    return this.formatInventoryItem(inventory, bloodUnit, testingRecord);
+    return this.formatInventoryItem(inventory, bloodUnit, testingRecord, undefined, receipt);
   }
 
   /**
@@ -497,7 +536,7 @@ export class InventoryService {
 
     const testingRecords = await this.bloodTestingModel
       .find({ bloodUnitId: { $in: unitObjectIds } })
-      .select('testingCode decision status completedAt bloodUnitId')
+      .select('testingCode decision status completedAt bloodUnitId verifiedByName verifiedByRole completedByName completedByRole performedBy')
       .lean()
       .exec();
 
@@ -506,10 +545,34 @@ export class InventoryService {
       testingMap.set(String(t.bloodUnitId), t);
     }
 
+    const acqObjectIds = items
+      .map((item) => {
+        const u = item.bloodUnitId as any;
+        return u?.externalReceiptId;
+      })
+      .filter(Boolean);
+
+    const acqRecords =
+      acqObjectIds.length > 0
+        ? await this.bloodAcquisitionModel
+            .find({ _id: { $in: acqObjectIds } })
+            .select(
+              'receiptCode clearanceCertificateNumber clearanceAuthorizedByName clearanceAuthorizationDate createdByName createdAt',
+            )
+            .lean()
+            .exec()
+        : [];
+
+    const acqMap = new Map<string, any>();
+    for (const a of acqRecords) {
+      acqMap.set(String(a._id), a);
+    }
+
     const formattedItems = items.map((inv) => {
       const u = inv.bloodUnitId as any;
       const t = u?._id ? testingMap.get(String(u._id)) : null;
-      return this.formatInventoryItem(inv, u, t);
+      const a = u?.externalReceiptId ? acqMap.get(String(u.externalReceiptId)) : null;
+      return this.formatInventoryItem(inv, u, t, undefined, a);
     });
 
     return {
@@ -560,14 +623,22 @@ export class InventoryService {
     const testing = rawUnit?._id
       ? await this.bloodTestingModel
           .findOne({ bloodUnitId: rawUnit._id })
-          .select('testingCode decision status completedAt bloodUnitId')
+          .select('testingCode decision status completedAt bloodUnitId verifiedByName verifiedByRole completedByName completedByRole performedBy')
+          .lean()
+          .exec()
+      : null;
+
+    const acq = rawUnit?.externalReceiptId
+      ? await this.bloodAcquisitionModel
+          .findById(rawUnit.externalReceiptId)
+          .select('receiptCode clearanceCertificateNumber clearanceAuthorizedByName clearanceAuthorizationDate createdByName createdAt')
           .lean()
           .exec()
       : null;
 
     const history = await this.getHistory(id);
 
-    return this.formatInventoryItem(inventory, rawUnit, testing, history);
+    return this.formatInventoryItem(inventory, rawUnit, testing, history, acq);
   }
 
   /**
@@ -611,14 +682,22 @@ export class InventoryService {
     const testing = rawUnit?._id
       ? await this.bloodTestingModel
           .findOne({ bloodUnitId: rawUnit._id })
-          .select('testingCode decision status completedAt bloodUnitId')
+          .select('testingCode decision status completedAt bloodUnitId verifiedByName verifiedByRole completedByName completedByRole performedBy')
+          .lean()
+          .exec()
+      : null;
+
+    const acq = rawUnit?.externalReceiptId
+      ? await this.bloodAcquisitionModel
+          .findById(rawUnit.externalReceiptId)
+          .select('receiptCode clearanceCertificateNumber clearanceAuthorizedByName clearanceAuthorizationDate createdByName createdAt')
           .lean()
           .exec()
       : null;
 
     const history = await this.getHistory(String(inventory._id));
 
-    return this.formatInventoryItem(inventory, rawUnit, testing, history);
+    return this.formatInventoryItem(inventory, rawUnit, testing, history, acq);
   }
 
   /**
@@ -738,14 +817,22 @@ export class InventoryService {
     const testing = rawUnit?._id
       ? await this.bloodTestingModel
           .findOne({ bloodUnitId: rawUnit._id })
-          .select('testingCode decision status completedAt bloodUnitId')
+          .select('testingCode decision status completedAt bloodUnitId verifiedByName verifiedByRole completedByName completedByRole performedBy')
+          .lean()
+          .exec()
+      : null;
+
+    const acq = rawUnit?.externalReceiptId
+      ? await this.bloodAcquisitionModel
+          .findById(rawUnit.externalReceiptId)
+          .select('receiptCode clearanceCertificateNumber clearanceAuthorizedByName clearanceAuthorizationDate createdByName createdAt')
           .lean()
           .exec()
       : null;
 
     const history = await this.getHistory(id);
 
-    return this.formatInventoryItem(updated, rawUnit, testing, history);
+    return this.formatInventoryItem(updated, rawUnit, testing, history, acq);
   }
 
   /**

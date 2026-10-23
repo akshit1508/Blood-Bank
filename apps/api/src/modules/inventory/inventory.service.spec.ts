@@ -109,8 +109,21 @@ describe('InventoryService (Phase 5A & 5B)', () => {
     };
 
     mockBloodAcquisitionModel = {
-      findById: jest.fn(),
-      find: jest.fn(),
+      findById: jest.fn().mockReturnValue({
+        select: jest.fn().mockReturnValue({
+          lean: jest.fn().mockReturnValue({
+            exec: jest.fn().mockResolvedValue(null),
+          }),
+        }),
+        exec: jest.fn().mockResolvedValue(null),
+      }),
+      find: jest.fn().mockReturnValue({
+        select: jest.fn().mockReturnValue({
+          lean: jest.fn().mockReturnValue({
+            exec: jest.fn().mockResolvedValue([]),
+          }),
+        }),
+      }),
     };
 
     const module: TestingModule = await Test.createTestingModule({

@@ -207,35 +207,6 @@ export default function SuperAdminDuesPage() {
             <Clock size={24} />
           </div>
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '0.3rem' }}>
-              <span
-                style={{
-                  fontSize: '0.68rem',
-                  fontWeight: 800,
-                  letterSpacing: '0.06em',
-                  textTransform: 'uppercase',
-                  backgroundColor: '#eff6ff',
-                  color: '#1d4ed8',
-                  padding: '0.2rem 0.55rem',
-                  borderRadius: '9999px',
-                  border: '1px solid #bfdbfe',
-                }}
-              >
-                👑 SUPER ADMIN • PAYABLES
-              </span>
-              <span
-                style={{
-                  fontSize: '0.68rem',
-                  fontWeight: 700,
-                  backgroundColor: '#f1f5f9',
-                  color: '#475569',
-                  padding: '0.2rem 0.55rem',
-                  borderRadius: '9999px',
-                }}
-              >
-                Aging &amp; Creditor Liabilities
-              </span>
-            </div>
             <h1
               style={{
                 fontSize: '1.5rem',

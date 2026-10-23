@@ -426,19 +426,6 @@ export default function ExpenseDirectoryContent({ portalRole }: ExpenseDirectory
             <h1 style={{ fontSize: '1.6rem', fontWeight: 800, color: '#0f172a', margin: 0, letterSpacing: '-0.02em' }}>
               Expenditure & Bill Management
             </h1>
-            <span
-              style={{
-                fontSize: '0.725rem',
-                fontWeight: 700,
-                backgroundColor: '#f1f5f9',
-                color: '#475569',
-                padding: '0.15rem 0.5rem',
-                borderRadius: '4px',
-                border: '1px solid #cbd5e1',
-              }}
-            >
-              Indian Rupee (INR ₹)
-            </span>
           </div>
           <p style={{ margin: '0.35rem 0 0 0', color: '#64748b', fontSize: '0.85rem' }}>
             Itemized center operational expenditures, supplier bills, digital voucher verification, and authorization audit trail.
@@ -1560,8 +1547,13 @@ export default function ExpenseDirectoryContent({ portalRole }: ExpenseDirectory
                       <strong style={{ color: '#0f172a' }}>{ev.action}</strong>
                       <span>{new Date(ev.timestamp).toLocaleString('en-IN')}</span>
                     </div>
-                    <div style={{ color: '#475569', marginTop: '0.15rem' }}>
-                      By {ev.performedByName} ({ev.performedByEmail})
+                    <div style={{ marginTop: '0.25rem' }}>
+                      <StaffAttributionBadge
+                        label="Action by"
+                        name={ev.performedByName || ev.performedByEmail}
+                        role="ADMIN"
+                        size="xs"
+                      />
                     </div>
                     {ev.notes && (
                       <div style={{ color: '#64748b', fontStyle: 'italic', marginTop: '0.15rem' }}>

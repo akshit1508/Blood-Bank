@@ -498,6 +498,10 @@ export class BloodAcquisitionsService implements OnApplicationBootstrap {
           const invDoc = new this.inventoryModel({
             bloodUnitId: unit._id,
             status: InventoryStatus.AVAILABLE,
+            receivedBy: currentAdmin?._id || currentAdmin?.id ? new Types.ObjectId(currentAdmin._id || currentAdmin.id) : undefined,
+            receivedByName: currentAdmin?.fullName || currentAdmin?.name || createdReceipt?.clearanceAuthorizedByName || createdReceipt?.createdByName || undefined,
+            receivedByRole: currentAdmin?.role || undefined,
+            receivedAt: new Date(),
           });
           await invDoc.save({ session });
         }

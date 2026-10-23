@@ -312,29 +312,12 @@ export default function EmployeesDirectoryPage() {
         }}
       >
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-            <span
-              style={{
-                fontSize: '0.75rem',
-                fontWeight: 700,
-                backgroundColor: '#fef3c7',
-                color: '#92400e',
-                padding: '0.2rem 0.6rem',
-                borderRadius: '6px',
-                border: '1px solid #fde68a',
-                textTransform: 'uppercase',
-                letterSpacing: '0.05em',
-              }}
-            >
-              Super Admin Authority
-            </span>
-          </div>
           <h1
             style={{
               fontSize: '1.85rem',
               fontWeight: 800,
               color: '#0f172a',
-              margin: '0.35rem 0 0 0',
+              margin: 0,
               letterSpacing: '-0.02em',
             }}
           >

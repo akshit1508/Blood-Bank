@@ -105,7 +105,75 @@ export default function AuditLogsViewer() {
   const totalPages = Math.ceil(total / limit) || 1;
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto px-4 sm:px-6 py-6">
+    <div className="space-y-6 max-w-7xl mx-auto px-4 sm:px-6 py-6" style={{ maxWidth: '1280px', margin: '0 auto', padding: '1.5rem 1rem' }}>
+      <style>{`
+        .bg-white { background-color: #ffffff; }
+        .border-gray-200 { border-color: #e2e8f0; }
+        .border-gray-300 { border-color: #cbd5e1; }
+        .rounded-xl { border-radius: 0.75rem; }
+        .rounded-lg { border-radius: 0.5rem; }
+        .rounded-full { border-radius: 9999px; }
+        .shadow-sm { box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); }
+        .shadow-2xl { box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); }
+        .border { border-width: 1px; border-style: solid; }
+        .border-b { border-bottom-width: 1px; border-bottom-style: solid; }
+        .border-t { border-top-width: 1px; border-top-style: solid; }
+        .p-6 { padding: 1.5rem; }
+        .p-5 { padding: 1.25rem; }
+        .p-4 { padding: 1rem; }
+        .p-3 { padding: 0.75rem; }
+        .px-4 { padding-left: 1rem; padding-right: 1rem; }
+        .py-3 { padding-top: 0.75rem; padding-bottom: 0.75rem; }
+        .px-3 { padding-left: 0.75rem; padding-right: 0.75rem; }
+        .py-2 { padding-top: 0.5rem; padding-bottom: 0.5rem; }
+        .px-2 { padding-left: 0.5rem; padding-right: 0.5rem; }
+        .py-0\\.5 { padding-top: 0.125rem; padding-bottom: 0.125rem; }
+        .flex { display: flex; }
+        .inline-flex { display: inline-flex; }
+        .items-center { align-items: center; }
+        .justify-between { justify-content: space-between; }
+        .gap-2 { gap: 0.5rem; }
+        .gap-3 { gap: 0.75rem; }
+        .gap-4 { gap: 1rem; }
+        .space-y-4 > * + * { margin-top: 1rem; }
+        .space-y-6 > * + * { margin-top: 1.5rem; }
+        .text-xl { font-size: 1.25rem; line-height: 1.75rem; }
+        .text-sm { font-size: 0.875rem; line-height: 1.25rem; }
+        .text-xs { font-size: 0.75rem; line-height: 1rem; }
+        .font-bold { font-weight: 700; }
+        .font-semibold { font-weight: 600; }
+        .font-medium { font-weight: 500; }
+        .text-gray-900 { color: #0f172a; }
+        .text-gray-800 { color: #1e293b; }
+        .text-gray-700 { color: #334155; }
+        .text-gray-600 { color: #475569; }
+        .text-gray-500 { color: #64748b; }
+        .text-gray-400 { color: #94a3b8; }
+        .w-full { width: 100%; }
+        .overflow-hidden { overflow: hidden; }
+        .overflow-x-auto { overflow-x: auto; }
+        .bg-gray-50 { background-color: #f8fafc; }
+        .bg-gray-100 { background-color: #f1f5f9; }
+        .bg-emerald-50 { background-color: #ecfdf5; }
+        .text-emerald-700 { color: #047857; }
+        .border-emerald-200 { border-color: #a7f3d0; }
+        .bg-rose-50 { background-color: #fff1f2; }
+        .text-rose-700 { color: #be123c; }
+        .border-rose-200 { border-color: #fecdd3; }
+        .bg-amber-50 { background-color: #fffbeb; }
+        .text-amber-700 { color: #b45309; }
+        .border-amber-200 { border-color: #fde68a; }
+        .bg-blue-50 { background-color: #eff6ff; }
+        .text-blue-700 { color: #1d4ed8; }
+        .border-blue-200 { border-color: #bfdbfe; }
+        .bg-slate-50 { background-color: #f8fafc; }
+        .text-slate-700 { color: #334155; }
+        .border-slate-200 { border-color: #e2e8f0; }
+        .fixed { position: fixed; }
+        .inset-0 { top: 0; right: 0; bottom: 0; left: 0; }
+        .z-50 { z-index: 50; }
+        .bg-slate-900\\/50 { background-color: rgba(15, 23, 42, 0.6); }
+      `}</style>
       {/* Header Banner */}
       <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>

@@ -563,24 +563,6 @@ export default function PayrollDashboardPage() {
       {/* Top Banner & Header */}
       <div className="payroll-header-wrap">
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
-            <span
-              style={{
-                backgroundColor: '#fef3c7',
-                color: '#92400e',
-                border: '1px solid #fde68a',
-                fontSize: '0.7rem',
-                fontWeight: 700,
-                textTransform: 'uppercase',
-                padding: '0.15rem 0.5rem',
-                borderRadius: '4px',
-                letterSpacing: '0.05em',
-              }}
-            >
-              Super Admin Exclusive
-            </span>
-            <span style={{ color: '#64748b', fontSize: '0.8rem' }}>• Direct Payout Control</span>
-          </div>
           <h1 style={{ fontSize: '1.875rem', fontWeight: 800, color: '#0f172a', margin: 0, letterSpacing: '-0.02em' }}>
             Payroll &amp; Employee Command Center
           </h1>

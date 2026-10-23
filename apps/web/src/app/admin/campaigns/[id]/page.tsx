@@ -979,9 +979,6 @@ export default function CampaignCommandCenterPage() {
               </button>
             )}
           </div>
-          <span style={{ fontSize: '0.725rem', color: '#64748b' }}>
-            Version: {campaign.budgetVersion} • Concurrency Locked
-          </span>
         </div>
       </div>
 
@@ -1360,7 +1357,7 @@ export default function CampaignCommandCenterPage() {
                           </span>
                         </div>
                         <div style={{ color: '#475569', fontSize: '0.825rem' }}>
-                          <em>"{rev.reason}"</em>
+                          <em>&ldquo;{rev.reason}&rdquo;</em>
                         </div>
                         <div style={{ marginTop: '0.35rem' }}>
                           <StaffAttributionBadge
@@ -1472,22 +1469,6 @@ export default function CampaignCommandCenterPage() {
                   }}
                 >
                   + Add Expenditure
-                </button>
-
-                <button
-                  onClick={handleOpenLinkModal}
-                  style={{
-                    backgroundColor: '#ffffff',
-                    color: '#0284c7',
-                    border: '1px solid #0284c7',
-                    borderRadius: '6px',
-                    padding: '0.45rem 0.95rem',
-                    fontSize: '0.85rem',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                  }}
-                >
-                  🔗 Link Central Expense
                 </button>
               </div>
             </div>
@@ -1849,7 +1830,7 @@ export default function CampaignCommandCenterPage() {
 
             {filteredBloodUnits.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '2.5rem', color: '#64748b' }}>
-                No blood units recorded yet for this campaign. Click "+ Record Blood Donation" to add.
+                No blood units recorded yet for this campaign. Click &ldquo;+ Record Blood Donation&rdquo; to add.
               </div>
             ) : (
               <div style={{ overflowX: 'auto' }}>
@@ -2033,7 +2014,7 @@ export default function CampaignCommandCenterPage() {
 
             {(!campaignVolunteers?.volunteers || campaignVolunteers.volunteers.length === 0) ? (
               <div style={{ textAlign: 'center', padding: '2.5rem', color: '#64748b' }}>
-                No volunteers assigned yet. Click "+ Assign Registered Volunteer" to add field staff.
+                No volunteers assigned yet. Click &ldquo;+ Assign Registered Volunteer&rdquo; to add field staff.
               </div>
             ) : (
               <div style={{ overflowX: 'auto' }}>

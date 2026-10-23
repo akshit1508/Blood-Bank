@@ -987,7 +987,6 @@ function PaymentsContent() {
                             </span>
                             {selectedExpense.status === ExpenseStatus.SUBMITTED ? (
                               <StaffAttributionBadge
-                                label="Submitted by"
                                 name={selectedExpense.submittedByName || selectedExpense.creatorName || 'Admin'}
                                 role={selectedExpense.submittedByRole || 'ADMIN'}
                                 timestamp={selectedExpense.submittedAt}
@@ -995,7 +994,6 @@ function PaymentsContent() {
                               />
                             ) : (
                               <StaffAttributionBadge
-                                label="Approved by"
                                 name={selectedExpense.reviewedByName || selectedExpense.creatorName || 'Super Admin'}
                                 role={selectedExpense.reviewedByRole || 'SUPER_ADMIN'}
                                 timestamp={selectedExpense.reviewedAt}
@@ -1332,7 +1330,6 @@ function PaymentsContent() {
                       </span>
                       {selectedPaymentDetail.expense.status === 'SUBMITTED' ? (
                         <StaffAttributionBadge
-                          label="Submitted by"
                           name={selectedPaymentDetail.expense.submittedByName || selectedPaymentDetail.expense.creatorName || 'Admin'}
                           role={selectedPaymentDetail.expense.submittedByRole || 'ADMIN'}
                           timestamp={selectedPaymentDetail.expense.submittedAt}
@@ -1340,7 +1337,6 @@ function PaymentsContent() {
                         />
                       ) : (
                         <StaffAttributionBadge
-                          label="Approved by"
                           name={selectedPaymentDetail.expense.reviewedByName || selectedPaymentDetail.expense.creatorName || 'Super Admin'}
                           role={selectedPaymentDetail.expense.reviewedByRole || 'SUPER_ADMIN'}
                           timestamp={selectedPaymentDetail.expense.reviewedAt}
