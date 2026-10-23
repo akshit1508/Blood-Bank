@@ -16,6 +16,8 @@ import {
   completeTestingRecord,
   fetchUnitsAwaitingTesting,
   getFriendlyErrorMessage,
+  resolveBloodUnitOrigin,
+  BloodOriginFilter,
 } from '@/lib/testing-api';
 import {
   InventoryItem,
@@ -109,6 +111,7 @@ export default function AdminTestingPage() {
   // Filters
   const [filterStatus, setFilterStatus] = useState<string>('');
   const [filterDecision, setFilterDecision] = useState<string>('');
+  const [filterOrigin, setFilterOrigin] = useState<BloodOriginFilter>('all');
   const [searchTerm, setSearchTerm] = useState('');
 
   // Start Testing Modal state
@@ -510,44 +513,52 @@ export default function AdminTestingPage() {
     }
   };
 
-  // Client search filter
+  // Origin counts for the 3 filters
+  const originCounts = useMemo(() => {
+    let campaign = 0;
+    let acquisition = 0;
+    let normal = 0;
+    records.forEach((r) => {
+      const orig = resolveBloodUnitOrigin(r);
+      if (orig.type === 'campaign') campaign++;
+      else if (orig.type === 'acquisition') acquisition++;
+      else normal++;
+    });
+    return { all: records.length, campaign, acquisition, normal };
+  }, [records]);
+
+  // Client search & origin filter
   const filteredRecords = useMemo(() => {
-    if (!searchTerm.trim()) return records;
-    const term = searchTerm.toLowerCase().trim();
     return records.filter((r) => {
+      // 1. Origin filter
+      if (filterOrigin !== 'all') {
+        const orig = resolveBloodUnitOrigin(r);
+        if (orig.type !== filterOrigin) return false;
+      }
+
+      // 2. Search term
+      if (!searchTerm.trim()) return true;
+      const term = searchTerm.toLowerCase().trim();
       const tCode = (r.testingCode || '').toLowerCase();
       const uCode = (r.bloodUnitId?.unitCode || '').toLowerCase();
       const bg = (r.bloodUnitId?.bloodGroup || '').toLowerCase();
       const dCode = (r.donorId?.donorCode || '').toLowerCase();
       const dName = (r.donorId?.fullName || '').toLowerCase();
-      const cCode = (
-        r.campaignCode ||
-        (typeof r.campaignId === 'object' ? r.campaignId?.campaignCode : '') ||
-        r.donationId?.campaignCode ||
-        (typeof r.donationId?.campaignId === 'object'
-          ? (r.donationId.campaignId as any)?.campaignCode
-          : '') ||
-        ''
-      ).toLowerCase();
-      const cName = (
-        (typeof r.campaignId === 'object' ? r.campaignId?.name : '') ||
-        (typeof r.donationId?.campaignId === 'object'
-          ? (r.donationId.campaignId as any)?.name
-          : '') ||
-        (r as any).campaignName ||
-        ''
-      ).toLowerCase();
+      const orig = resolveBloodUnitOrigin(r);
+      const oSubtitle = orig.subtitle.toLowerCase();
+      const oCode = (orig.referenceCode || '').toLowerCase();
+
       return (
         tCode.includes(term) ||
         uCode.includes(term) ||
         bg.includes(term) ||
         dCode.includes(term) ||
         dName.includes(term) ||
-        cCode.includes(term) ||
-        cName.includes(term)
+        oSubtitle.includes(term) ||
+        oCode.includes(term)
       );
     });
-  }, [records, searchTerm]);
+  }, [records, searchTerm, filterOrigin]);
 
   return (
     <div
@@ -682,76 +693,187 @@ export default function AdminTestingPage() {
           padding: '1rem',
           marginBottom: '1.25rem',
           display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          flexWrap: 'wrap',
-          gap: '1rem',
+          flexDirection: 'column',
+          gap: '0.85rem',
         }}
       >
-        <div style={{ display: 'flex', gap: '0.5rem', flex: 1, minWidth: '260px' }}>
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Search Testing Code, Unit Code, Donor, Campaign..."
-            style={{
-              flex: 1,
-              padding: '0.45rem 0.75rem',
-              border: '1px solid #cbd5e1',
-              borderRadius: '6px',
-              fontSize: '0.875rem',
-            }}
-          />
-        </div>
-
-        <div className="admin-filter-controls" style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-            <label style={{ fontSize: '0.825rem', color: '#475569', fontWeight: 500 }}>
-              Status:
-            </label>
-            <select
-              value={filterStatus}
-              onChange={(e) => {
-                setFilterStatus(e.target.value);
-                setPage(1);
-              }}
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: '1rem',
+          }}
+        >
+          <div style={{ display: 'flex', gap: '0.5rem', flex: 1, minWidth: '260px' }}>
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search Testing Code, Unit Code, Donor, Origin, Source..."
               style={{
+                flex: 1,
                 padding: '0.45rem 0.75rem',
                 border: '1px solid #cbd5e1',
                 borderRadius: '6px',
                 fontSize: '0.875rem',
-                backgroundColor: '#ffffff',
               }}
-            >
-              <option value="">All Statuses</option>
-              <option value={TestingStatus.IN_PROGRESS}>IN_PROGRESS</option>
-              <option value={TestingStatus.COMPLETED}>COMPLETED</option>
-            </select>
+            />
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-            <label style={{ fontSize: '0.825rem', color: '#475569', fontWeight: 500 }}>
-              Decision:
-            </label>
-            <select
-              value={filterDecision}
-              onChange={(e) => {
-                setFilterDecision(e.target.value);
-                setPage(1);
-              }}
-              style={{
-                padding: '0.45rem 0.75rem',
-                border: '1px solid #cbd5e1',
-                borderRadius: '6px',
-                fontSize: '0.875rem',
-                backgroundColor: '#ffffff',
-              }}
-            >
-              <option value="">All Decisions</option>
-              <option value={TestingDecision.PENDING}>PENDING</option>
-              <option value={TestingDecision.APPROVED}>APPROVED</option>
-              <option value={TestingDecision.REJECTED}>REJECTED</option>
-            </select>
+          <div className="admin-filter-controls" style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+              <label style={{ fontSize: '0.825rem', color: '#475569', fontWeight: 500 }}>
+                Status:
+              </label>
+              <select
+                value={filterStatus}
+                onChange={(e) => {
+                  setFilterStatus(e.target.value);
+                  setPage(1);
+                }}
+                style={{
+                  padding: '0.45rem 0.75rem',
+                  border: '1px solid #cbd5e1',
+                  borderRadius: '6px',
+                  fontSize: '0.875rem',
+                  backgroundColor: '#ffffff',
+                }}
+              >
+                <option value="">All Statuses</option>
+                <option value={TestingStatus.IN_PROGRESS}>IN_PROGRESS</option>
+                <option value={TestingStatus.COMPLETED}>COMPLETED</option>
+              </select>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+              <label style={{ fontSize: '0.825rem', color: '#475569', fontWeight: 500 }}>
+                Decision:
+              </label>
+              <select
+                value={filterDecision}
+                onChange={(e) => {
+                  setFilterDecision(e.target.value);
+                  setPage(1);
+                }}
+                style={{
+                  padding: '0.45rem 0.75rem',
+                  border: '1px solid #cbd5e1',
+                  borderRadius: '6px',
+                  fontSize: '0.875rem',
+                  backgroundColor: '#ffffff',
+                }}
+              >
+                <option value="">All Decisions</option>
+                <option value={TestingDecision.PENDING}>PENDING</option>
+                <option value={TestingDecision.APPROVED}>APPROVED</option>
+                <option value={TestingDecision.REJECTED}>REJECTED</option>
+              </select>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+              <label style={{ fontSize: '0.825rem', color: '#475569', fontWeight: 500 }}>
+                Origin:
+              </label>
+              <select
+                value={filterOrigin}
+                onChange={(e) => {
+                  setFilterOrigin(e.target.value as any);
+                  setPage(1);
+                }}
+                style={{
+                  padding: '0.45rem 0.75rem',
+                  border: '1px solid #cbd5e1',
+                  borderRadius: '6px',
+                  fontSize: '0.875rem',
+                  backgroundColor: '#ffffff',
+                }}
+              >
+                <option value="all">All Sources ({originCounts.all})</option>
+                <option value="campaign">🏕️ Field Campaign ({originCounts.campaign})</option>
+                <option value="acquisition">📦 External Acquisition ({originCounts.acquisition})</option>
+                <option value="normal">🏢 Normal In-House ({originCounts.normal})</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {/* 3 Origin Filter Quick Pills */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '0.5rem',
+            paddingTop: '0.65rem',
+            borderTop: '1px solid #f1f5f9',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
+            <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
+              Quick Origin Filter:
+            </span>
+            {[
+              { id: 'all', label: 'All Sources', count: originCounts.all, icon: '📋' },
+              { id: 'campaign', label: 'Field Campaign', count: originCounts.campaign, icon: '🏕️' },
+              { id: 'acquisition', label: 'External Acquisition', count: originCounts.acquisition, icon: '📦' },
+              { id: 'normal', label: 'Normal In-House', count: originCounts.normal, icon: '🏢' },
+            ].map((filt) => {
+              const active = filterOrigin === filt.id;
+              return (
+                <button
+                  key={filt.id}
+                  type="button"
+                  onClick={() => {
+                    setFilterOrigin(filt.id as any);
+                    setPage(1);
+                  }}
+                  style={{
+                    padding: '0.25rem 0.65rem',
+                    borderRadius: '20px',
+                    fontSize: '0.75rem',
+                    fontWeight: active ? 700 : 500,
+                    backgroundColor: active
+                      ? filt.id === 'campaign'
+                        ? '#d97706'
+                        : filt.id === 'acquisition'
+                        ? '#0284c7'
+                        : filt.id === 'normal'
+                        ? '#059669'
+                        : '#0f172a'
+                      : '#f8fafc',
+                    color: active ? '#ffffff' : '#475569',
+                    border: `1px solid ${active ? 'transparent' : '#cbd5e1'}`,
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.35rem',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  <span>{filt.icon}</span>
+                  <span>{filt.label}</span>
+                  <span
+                    style={{
+                      padding: '0.05rem 0.35rem',
+                      borderRadius: '999px',
+                      fontSize: '0.68rem',
+                      fontWeight: 800,
+                      backgroundColor: active ? 'rgba(255,255,255,0.25)' : '#e2e8f0',
+                      color: active ? '#ffffff' : '#334155',
+                    }}
+                  >
+                    {filt.count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
+            Showing <strong>{filteredRecords.length}</strong> of {totalItems} records
           </div>
         </div>
       </div>
@@ -879,7 +1001,7 @@ export default function AdminTestingPage() {
                     >
                       <th style={{ padding: '0.75rem 1rem' }}>Testing Code</th>
                       <th style={{ padding: '0.75rem 1rem' }}>Blood Unit</th>
-                      <th style={{ padding: '0.75rem 1rem' }}>Donation</th>
+                      <th style={{ padding: '0.75rem 1rem' }}>Origin / Donation</th>
                       <th style={{ padding: '0.75rem 1rem' }}>Donor</th>
                       <th style={{ padding: '0.75rem 1rem' }}>Status</th>
                       <th style={{ padding: '0.75rem 1rem' }}>Decision</th>
@@ -955,7 +1077,7 @@ export default function AdminTestingPage() {
                               {item.donationId?.donationCode ||
                                 (typeof item.bloodUnitId?.donationId === 'object'
                                   ? (item.bloodUnitId.donationId as any).donationCode
-                                  : '—')}
+                                  : (item.externalReceiptId as any)?.receiptCode || '—')}
                             </div>
                             <div style={{ color: '#64748b', fontSize: '0.75rem' }}>
                               {item.donationId?.donationDate
@@ -965,65 +1087,113 @@ export default function AdminTestingPage() {
                                 : ''}
                             </div>
                             {(() => {
-                              const camp =
-                                (typeof item.campaignId === 'object' && item.campaignId ? item.campaignId : null) ||
-                                (typeof item.donationId === 'object' &&
-                                typeof (item.donationId as any)?.campaignId === 'object'
-                                  ? (item.donationId as any).campaignId
-                                  : null) ||
-                                (typeof item.bloodUnitId === 'object' &&
-                                typeof (item.bloodUnitId as any)?.campaignId === 'object'
-                                  ? (item.bloodUnitId as any).campaignId
-                                  : null);
-                              const campCode =
-                                item.campaignCode ||
-                                camp?.campaignCode ||
-                                item.donationId?.campaignCode ||
-                                (item.bloodUnitId as any)?.campaignCode;
-                              const campName = camp?.name || (item as any).campaignName;
+                              const orig = resolveBloodUnitOrigin(item);
+                              if (orig.type === 'campaign') {
+                                const camp =
+                                  (typeof item.campaignId === 'object' && item.campaignId ? item.campaignId : null) ||
+                                  (typeof item.donationId === 'object' &&
+                                  typeof (item.donationId as any)?.campaignId === 'object'
+                                    ? (item.donationId as any).campaignId
+                                    : null) ||
+                                  (typeof item.bloodUnitId === 'object' &&
+                                  typeof (item.bloodUnitId as any)?.campaignId === 'object'
+                                    ? (item.bloodUnitId as any).campaignId
+                                    : null);
+                                const campCode = orig.referenceCode;
 
-                              if (!campCode && !camp) return null;
+                                return (
+                                  <div style={{ marginTop: '0.25rem' }}>
+                                    <Link
+                                      href={
+                                        camp?._id
+                                          ? `/admin/campaigns/${camp._id}`
+                                          : `/admin/campaigns?search=${encodeURIComponent(campCode || '')}`
+                                      }
+                                      onClick={(e) => e.stopPropagation()}
+                                      title={orig.subtitle}
+                                      style={{
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '0.25rem',
+                                        backgroundColor: '#fef3c7',
+                                        color: '#92400e',
+                                        border: '1px solid #fde68a',
+                                        padding: '0.1rem 0.45rem',
+                                        borderRadius: '9999px',
+                                        fontSize: '0.72rem',
+                                        fontWeight: 600,
+                                        textDecoration: 'none',
+                                      }}
+                                    >
+                                      <span>🏕️</span>
+                                      <span
+                                        style={{
+                                          maxWidth: '130px',
+                                          overflow: 'hidden',
+                                          textOverflow: 'ellipsis',
+                                          whiteSpace: 'nowrap',
+                                        }}
+                                      >
+                                        {orig.subtitle}
+                                      </span>
+                                    </Link>
+                                  </div>
+                                );
+                              }
+
+                              if (orig.type === 'acquisition') {
+                                return (
+                                  <div style={{ marginTop: '0.25rem' }}>
+                                    <span
+                                      title={orig.subtitle}
+                                      style={{
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '0.25rem',
+                                        backgroundColor: '#e0f2fe',
+                                        color: '#0369a1',
+                                        border: '1px solid #bae6fd',
+                                        padding: '0.1rem 0.45rem',
+                                        borderRadius: '9999px',
+                                        fontSize: '0.72rem',
+                                        fontWeight: 600,
+                                      }}
+                                    >
+                                      <span>📦</span>
+                                      <span
+                                        style={{
+                                          maxWidth: '130px',
+                                          overflow: 'hidden',
+                                          textOverflow: 'ellipsis',
+                                          whiteSpace: 'nowrap',
+                                        }}
+                                      >
+                                        {orig.subtitle}
+                                      </span>
+                                    </span>
+                                  </div>
+                                );
+                              }
 
                               return (
                                 <div style={{ marginTop: '0.25rem' }}>
-                                  <Link
-                                    href={
-                                      camp?._id
-                                        ? `/admin/campaigns/${camp._id}`
-                                        : `/admin/campaigns?search=${encodeURIComponent(campCode || '')}`
-                                    }
-                                    onClick={(e) => e.stopPropagation()}
-                                    title={
-                                      camp?.venue
-                                        ? `Campaign: ${campName || campCode} • Venue: ${camp.venue}, ${camp.city || ''}`
-                                        : `Campaign: ${campName || campCode}`
-                                    }
+                                  <span
                                     style={{
                                       display: 'inline-flex',
                                       alignItems: 'center',
                                       gap: '0.25rem',
-                                      backgroundColor: '#fef3c7',
-                                      color: '#92400e',
-                                      border: '1px solid #fde68a',
+                                      backgroundColor: '#ecfdf5',
+                                      color: '#047857',
+                                      border: '1px solid #a7f3d0',
                                       padding: '0.1rem 0.45rem',
                                       borderRadius: '9999px',
                                       fontSize: '0.72rem',
                                       fontWeight: 600,
-                                      textDecoration: 'none',
                                     }}
                                   >
-                                    <span>⛺</span>
-                                    <span
-                                      style={{
-                                        maxWidth: '130px',
-                                        overflow: 'hidden',
-                                        textOverflow: 'ellipsis',
-                                        whiteSpace: 'nowrap',
-                                      }}
-                                    >
-                                      {campName || campCode}
-                                    </span>
-                                  </Link>
+                                    <span>🏢</span>
+                                    <span>In-House Center</span>
+                                  </span>
                                 </div>
                               );
                             })()}
@@ -1650,8 +1820,106 @@ export default function AdminTestingPage() {
                     </div>
                   </div>
 
-                  {/* Card B2: Origin Campaign & Mobile Field Drive */}
+                  {/* Card B2: Origin Provenance (Campaign or External Consignment) */}
                   {(() => {
+                    const orig = resolveBloodUnitOrigin(selectedTesting);
+                    const extReceipt =
+                      (selectedTesting.externalReceiptId && typeof selectedTesting.externalReceiptId === 'object'
+                        ? selectedTesting.externalReceiptId
+                        : null) ||
+                      (selectedTesting.bloodUnitId?.externalReceiptId &&
+                      typeof selectedTesting.bloodUnitId.externalReceiptId === 'object'
+                        ? selectedTesting.bloodUnitId.externalReceiptId
+                        : null);
+
+                    if (orig.type === 'acquisition' || extReceipt) {
+                      return (
+                        <div
+                          style={{
+                            backgroundColor: '#f0f9ff',
+                            border: '1px solid #bae6fd',
+                            borderRadius: '6px',
+                            padding: '0.75rem',
+                            fontSize: '0.8rem',
+                          }}
+                        >
+                          <div
+                            style={{
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'center',
+                              marginBottom: '0.4rem',
+                            }}
+                          >
+                            <strong
+                              style={{
+                                fontSize: '0.75rem',
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.04em',
+                                color: '#0369a1',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.35rem',
+                              }}
+                            >
+                              <span>📦</span> External Blood Consignment
+                            </strong>
+                            <Link
+                              href="/admin/acquisitions"
+                              style={{
+                                fontSize: '0.72rem',
+                                color: '#0284c7',
+                                fontWeight: 700,
+                                textDecoration: 'none',
+                              }}
+                            >
+                              View Acquisitions &rarr;
+                            </Link>
+                          </div>
+                          <div
+                            style={{
+                              display: 'grid',
+                              gridTemplateColumns: '1fr 1fr',
+                              gap: '0.5rem',
+                            }}
+                          >
+                            <div>
+                              <span style={{ color: '#0369a1', display: 'block', fontSize: '0.75rem' }}>
+                                Source Supplier:
+                              </span>
+                              <strong style={{ color: '#0c4a6e' }}>
+                                {extReceipt?.sourceName || 'External Facility'}
+                              </strong>
+                            </div>
+                            <div>
+                              <span style={{ color: '#0369a1', display: 'block', fontSize: '0.75rem' }}>
+                                Receipt Code:
+                              </span>
+                              <span style={{ color: '#0369a1', fontWeight: 600 }}>
+                                {extReceipt?.receiptCode || 'N/A'}
+                              </span>
+                            </div>
+                            <div>
+                              <span style={{ color: '#0369a1', display: 'block', fontSize: '0.75rem' }}>
+                                Facility Type:
+                              </span>
+                              <span style={{ color: '#0284c7' }}>
+                                {extReceipt?.sourceType || 'EXTERNAL_RECEIPT'}
+                              </span>
+                            </div>
+                            <div>
+                              <span style={{ color: '#0369a1', display: 'block', fontSize: '0.75rem' }}>
+                                Invoice / Ref:
+                              </span>
+                              <span style={{ color: '#0c4a6e', fontWeight: 600 }}>
+                                {extReceipt?.invoiceNumber || extReceipt?.referenceNumber || 'N/A'}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    }
+
                     const campInfo =
                       (typeof selectedTesting.campaignId === 'object' && selectedTesting.campaignId
                         ? selectedTesting.campaignId
@@ -2643,30 +2911,16 @@ export default function AdminTestingPage() {
                     }}
                   >
                     {candidateUnits.map((u) => {
-                      const donationCode =
-                        typeof u.donationId === 'object' && u.donationId
-                          ? (u.donationId as any).donationCode
-                          : '';
+                      const orig = resolveBloodUnitOrigin(u);
                       const donorName =
                         typeof u.donorId === 'object' && u.donorId
                           ? (u.donorId as any).fullName
                           : '';
-                      const camp =
-                        (typeof u.campaignId === 'object' && u.campaignId ? u.campaignId : null) ||
-                        (typeof u.donationId === 'object' &&
-                        typeof (u.donationId as any)?.campaignId === 'object'
-                          ? (u.donationId as any).campaignId
-                          : null);
-                      const campCode =
-                        u.campaignCode ||
-                        camp?.campaignCode ||
-                        (typeof u.donationId === 'object' ? (u.donationId as any).campaignCode : undefined);
 
                       return (
                         <option key={u._id} value={u._id}>
                           {u.unitCode} — {u.bloodGroup} ({u.componentType})
-                          {campCode ? ` • [⛺ Camp: ${camp?.name ? `${camp.name} (${campCode})` : campCode}]` : ''}
-                          {donationCode ? ` • Donation: ${donationCode}` : ''}
+                          {` • [${orig.icon} ${orig.label}: ${orig.subtitle}]`}
                           {donorName ? ` • Donor: ${donorName}` : ''}
                         </option>
                       );

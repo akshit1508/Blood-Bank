@@ -14,14 +14,23 @@ import {
   RefreshCw,
   ExternalLink,
 } from 'lucide-react';
-import { fetchTestingRecords, fetchUnitsAwaitingTesting, BloodTesting, BloodUnitSummary } from '@/lib/testing-api';
+import {
+  fetchTestingRecords,
+  fetchUnitsAwaitingTesting,
+  BloodTesting,
+  BloodUnitSummary,
+  resolveBloodUnitOrigin,
+  BloodOriginFilter,
+  ResolvedOrigin,
+} from '@/lib/testing-api';
 
 export default function LabDashboardPage() {
   const [testingRecords, setTestingRecords] = useState<BloodTesting[]>([]);
   const [awaitingUnits, setAwaitingUnits] = useState<BloodUnitSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [dashboardTab, setDashboardTab] = useState<'all' | 'awaiting' | 'in_progress' | 'campaign'>('all');
+  const [dashboardTab, setDashboardTab] = useState<'all' | 'awaiting' | 'in_progress'>('all');
+  const [originFilter, setOriginFilter] = useState<BloodOriginFilter>('all');
 
   const loadLabMetrics = async () => {
     try {
@@ -84,11 +93,7 @@ export default function LabDashboardPage() {
       type: 'awaiting' | 'in_progress';
       actionHref: string;
       actionLabel: string;
-      isCampaign: boolean;
-      campName?: string;
-      campCode?: string;
-      venue?: string;
-      city?: string;
+      origin: ResolvedOrigin;
       date?: string;
     }> = [];
 
@@ -98,30 +103,7 @@ export default function LabDashboardPage() {
     awaitingUnits.forEach((u) => {
       seenUnitIds.add(u._id);
       const activeTest = inProgressByUnitId.get(u._id);
-
-      const camp =
-        (typeof u.campaignId === 'object' && u.campaignId ? u.campaignId : null) ||
-        (typeof u.donationId === 'object' &&
-        typeof (u.donationId as any)?.campaignId === 'object'
-          ? (u.donationId as any).campaignId
-          : null) ||
-        (activeTest &&
-        typeof activeTest.campaignId === 'object' &&
-        activeTest.campaignId
-          ? activeTest.campaignId
-          : null);
-
-      const campCode =
-        u.campaignCode ||
-        camp?.campaignCode ||
-        (typeof u.donationId === 'object'
-          ? (u.donationId as any).campaignCode
-          : undefined) ||
-        activeTest?.campaignCode;
-
-      const campName = camp?.name;
-      const venue = camp?.venue;
-      const city = camp?.city;
+      const origin = resolveBloodUnitOrigin(activeTest || u);
 
       if (activeTest) {
         list.push({
@@ -139,11 +121,7 @@ export default function LabDashboardPage() {
           type: 'in_progress',
           actionHref: `/lab/testing?recordId=${activeTest._id}`,
           actionLabel: 'Perform Tests',
-          isCampaign: Boolean(campCode || camp),
-          campName,
-          campCode,
-          venue,
-          city,
+          origin,
           date: activeTest.startedAt || u.collectionDate,
         });
       } else {
@@ -162,11 +140,7 @@ export default function LabDashboardPage() {
           type: 'awaiting',
           actionHref: `/lab/testing?unitId=${u._id}`,
           actionLabel: 'Initiate Panel',
-          isCampaign: Boolean(campCode || camp),
-          campName,
-          campCode,
-          venue,
-          city,
+          origin,
           date: u.collectionDate,
         });
       }
@@ -182,31 +156,6 @@ export default function LabDashboardPage() {
         return;
       }
 
-      const camp =
-        (typeof t.campaignId === 'object' && t.campaignId ? t.campaignId : null) ||
-        (typeof t.donationId === 'object' &&
-        typeof (t.donationId as any)?.campaignId === 'object'
-          ? (t.donationId as any).campaignId
-          : null) ||
-        (typeof t.bloodUnitId === 'object' &&
-        typeof (t.bloodUnitId as any)?.campaignId === 'object'
-          ? (t.bloodUnitId as any).campaignId
-          : null);
-
-      const campCode =
-        t.campaignCode ||
-        camp?.campaignCode ||
-        (typeof t.donationId === 'object'
-          ? (t.donationId as any).campaignCode
-          : undefined) ||
-        (typeof t.bloodUnitId === 'object'
-          ? (t.bloodUnitId as any).campaignCode
-          : undefined);
-
-      const campName = camp?.name || (t as any).campaignName;
-      const venue = camp?.venue;
-      const city = camp?.city;
-
       const unitCode =
         typeof t.bloodUnitId === 'object' ? t.bloodUnitId.unitCode : 'Unit';
       const bloodGroup =
@@ -215,6 +164,7 @@ export default function LabDashboardPage() {
         typeof t.bloodUnitId === 'object'
           ? t.bloodUnitId.componentType
           : 'WHOLE_BLOOD';
+      const origin = resolveBloodUnitOrigin(t);
 
       list.push({
         key: `test-${t._id}`,
@@ -231,11 +181,7 @@ export default function LabDashboardPage() {
         type: 'in_progress',
         actionHref: `/lab/testing?recordId=${t._id}`,
         actionLabel: 'Perform Tests',
-        isCampaign: Boolean(campCode || camp),
-        campName,
-        campCode,
-        venue,
-        city,
+        origin,
         date: t.startedAt || t.createdAt,
       });
     });
@@ -243,9 +189,17 @@ export default function LabDashboardPage() {
     return list;
   }, [awaitingUnits, inProgressTests, inProgressByUnitId]);
 
-  // Campaign count
+  // Origin Counts for the 3 Filters
   const campaignCount = useMemo(
-    () => actionableItems.filter((i) => i.isCampaign).length,
+    () => actionableItems.filter((i) => i.origin.type === 'campaign').length,
+    [actionableItems]
+  );
+  const acquisitionCount = useMemo(
+    () => actionableItems.filter((i) => i.origin.type === 'acquisition').length,
+    [actionableItems]
+  );
+  const normalCount = useMemo(
+    () => actionableItems.filter((i) => i.origin.type === 'normal').length,
     [actionableItems]
   );
 
@@ -255,19 +209,15 @@ export default function LabDashboardPage() {
     [actionableItems]
   );
 
-  // Filtered by active tab
+  // Filtered by active queue status tab AND source origin filter
   const displayItems = useMemo(() => {
-    if (dashboardTab === 'awaiting') {
-      return actionableItems.filter((i) => i.type === 'awaiting');
-    }
-    if (dashboardTab === 'in_progress') {
-      return actionableItems.filter((i) => i.type === 'in_progress');
-    }
-    if (dashboardTab === 'campaign') {
-      return actionableItems.filter((i) => i.isCampaign);
-    }
-    return actionableItems;
-  }, [actionableItems, dashboardTab]);
+    return actionableItems.filter((item) => {
+      if (dashboardTab === 'awaiting' && item.type !== 'awaiting') return false;
+      if (dashboardTab === 'in_progress' && item.type !== 'in_progress') return false;
+      if (originFilter !== 'all' && item.origin.type !== originFilter) return false;
+      return true;
+    });
+  }, [actionableItems, dashboardTab, originFilter]);
 
   return (
     <div style={{ maxWidth: '1200px', margin: '0 auto', width: '100%' }}>
@@ -635,7 +585,6 @@ export default function LabDashboardPage() {
               { id: 'all', label: `All Actionable (${actionableItems.length})` },
               { id: 'awaiting', label: `Awaiting (${awaitingCount})` },
               { id: 'in_progress', label: `In Progress (${inProgressTests.length})` },
-              { id: 'campaign', label: `⛺ Field Campaigns (${campaignCount})` },
             ].map((tab) => {
               const active = dashboardTab === tab.id;
               return (
@@ -679,6 +628,83 @@ export default function LabDashboardPage() {
           </div>
         </div>
 
+        {/* 3-Way Source / Origin Filter Bar */}
+        <div
+          style={{
+            padding: '0.75rem 1.25rem',
+            backgroundColor: '#ffffff',
+            borderBottom: '1px solid #f1f5f9',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '0.65rem',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <span style={{ fontSize: '0.775rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
+              Filter by Origin:
+            </span>
+            {[
+              { id: 'all', label: 'All Sources', count: actionableItems.length, icon: '📋' },
+              { id: 'campaign', label: 'Field Campaign', count: campaignCount, icon: '🏕️' },
+              { id: 'acquisition', label: 'External Acquisition', count: acquisitionCount, icon: '📦' },
+              { id: 'normal', label: 'Normal In-House', count: normalCount, icon: '🏢' },
+            ].map((filt) => {
+              const active = originFilter === filt.id;
+              return (
+                <button
+                  key={filt.id}
+                  type="button"
+                  onClick={() => setOriginFilter(filt.id as any)}
+                  style={{
+                    padding: '0.35rem 0.75rem',
+                    borderRadius: '20px',
+                    fontSize: '0.775rem',
+                    fontWeight: active ? 700 : 500,
+                    backgroundColor: active
+                      ? filt.id === 'campaign'
+                        ? '#d97706'
+                        : filt.id === 'acquisition'
+                        ? '#0284c7'
+                        : filt.id === 'normal'
+                        ? '#059669'
+                        : '#0f172a'
+                      : '#f8fafc',
+                    color: active ? '#ffffff' : '#475569',
+                    border: `1px solid ${active ? 'transparent' : '#cbd5e1'}`,
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.35rem',
+                    transition: 'all 0.15s ease',
+                    boxShadow: active ? '0 1px 3px rgba(0,0,0,0.12)' : 'none',
+                  }}
+                >
+                  <span>{filt.icon}</span>
+                  <span>{filt.label}</span>
+                  <span
+                    style={{
+                      padding: '0.05rem 0.4rem',
+                      borderRadius: '999px',
+                      fontSize: '0.7rem',
+                      fontWeight: 800,
+                      backgroundColor: active ? 'rgba(255,255,255,0.25)' : '#e2e8f0',
+                      color: active ? '#ffffff' : '#334155',
+                    }}
+                  >
+                    {filt.count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
+            Showing <strong>{displayItems.length}</strong> of {actionableItems.length} units
+          </div>
+        </div>
+
         {/* Content Body */}
         {loading ? (
           <div style={{ padding: '3rem 1.5rem', textAlign: 'center', color: '#64748b' }}>
@@ -703,7 +729,7 @@ export default function LabDashboardPage() {
                 <thead>
                   <tr style={{ backgroundColor: '#f8fafc', color: '#64748b', borderBottom: '1px solid #e2e8f0' }}>
                     <th style={{ padding: '0.75rem 1.25rem', fontWeight: 600 }}>Unit Code</th>
-                    <th style={{ padding: '0.75rem 1.25rem', fontWeight: 600 }}>Origin &amp; Campaign</th>
+                    <th style={{ padding: '0.75rem 1.25rem', fontWeight: 600 }}>Origin &amp; Source</th>
                     <th style={{ padding: '0.75rem 1.25rem', fontWeight: 600 }}>Blood Group</th>
                     <th style={{ padding: '0.75rem 1.25rem', fontWeight: 600 }}>Component</th>
                     <th style={{ padding: '0.75rem 1.25rem', fontWeight: 600 }}>Screening Status</th>
@@ -733,37 +759,45 @@ export default function LabDashboardPage() {
                         )}
                       </td>
                       <td style={{ padding: '0.85rem 1.25rem' }}>
-                        {item.isCampaign ? (
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
-                            <span
-                              style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '0.3rem',
-                                backgroundColor: '#fef3c7',
-                                color: '#92400e',
-                                border: '1px solid #fde68a',
-                                padding: '0.15rem 0.5rem',
-                                borderRadius: '999px',
-                                fontSize: '0.72rem',
-                                fontWeight: 700,
-                                width: 'fit-content',
-                              }}
-                            >
-                              <span>⛺</span>
-                              <span>{item.campName || item.campCode}</span>
-                            </span>
-                            {(item.venue || item.city) && (
-                              <span style={{ fontSize: '0.7rem', color: '#78350f' }}>
-                                📍 {item.venue ? `${item.venue}, ` : ''}{item.city || ''}
-                              </span>
-                            )}
-                          </div>
-                        ) : (
-                          <span style={{ color: '#64748b', fontSize: '0.75rem', fontWeight: 500 }}>
-                            🏢 In-House Center
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                          <span
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '0.35rem',
+                              backgroundColor:
+                                item.origin.type === 'campaign'
+                                  ? '#fef3c7'
+                                  : item.origin.type === 'acquisition'
+                                  ? '#e0f2fe'
+                                  : '#ecfdf5',
+                              color:
+                                item.origin.type === 'campaign'
+                                  ? '#92400e'
+                                  : item.origin.type === 'acquisition'
+                                  ? '#0369a1'
+                                  : '#047857',
+                              border: `1px solid ${
+                                item.origin.type === 'campaign'
+                                  ? '#fde68a'
+                                  : item.origin.type === 'acquisition'
+                                  ? '#bae6fd'
+                                  : '#a7f3d0'
+                              }`,
+                              padding: '0.15rem 0.55rem',
+                              borderRadius: '999px',
+                              fontSize: '0.72rem',
+                              fontWeight: 700,
+                              width: 'fit-content',
+                            }}
+                          >
+                            <span>{item.origin.icon}</span>
+                            <span>{item.origin.label}</span>
                           </span>
-                        )}
+                          <span style={{ fontSize: '0.72rem', color: '#64748b' }}>
+                            {item.origin.subtitle}
+                          </span>
+                        </div>
                       </td>
                       <td style={{ padding: '0.85rem 1.25rem' }}>
                         <span
@@ -867,28 +901,40 @@ export default function LabDashboardPage() {
                     </span>
                   </div>
 
-                  {/* Origin & Campaign info if present */}
-                  {item.isCampaign && (
-                    <div
-                      style={{
-                        padding: '0.4rem 0.6rem',
-                        backgroundColor: '#fef3c7',
-                        border: '1px solid #fde68a',
-                        borderRadius: '6px',
-                        fontSize: '0.75rem',
-                        color: '#92400e',
-                      }}
-                    >
-                      <div style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                        <span>⛺</span> Field Camp: {item.campName || item.campCode}
-                      </div>
-                      {(item.venue || item.city) && (
-                        <div style={{ fontSize: '0.7rem', color: '#78350f', marginTop: '0.15rem' }}>
-                          📍 {item.venue ? `${item.venue}, ` : ''}{item.city || ''}
-                        </div>
-                      )}
+                  {/* Origin Badge */}
+                  <div
+                    style={{
+                      padding: '0.45rem 0.65rem',
+                      backgroundColor:
+                        item.origin.type === 'campaign'
+                          ? '#fef3c7'
+                          : item.origin.type === 'acquisition'
+                          ? '#e0f2fe'
+                          : '#ecfdf5',
+                      border: `1px solid ${
+                        item.origin.type === 'campaign'
+                          ? '#fde68a'
+                          : item.origin.type === 'acquisition'
+                          ? '#bae6fd'
+                          : '#a7f3d0'
+                      }`,
+                      borderRadius: '6px',
+                      fontSize: '0.75rem',
+                      color:
+                        item.origin.type === 'campaign'
+                          ? '#92400e'
+                          : item.origin.type === 'acquisition'
+                          ? '#0369a1'
+                          : '#047857',
+                    }}
+                  >
+                    <div style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                      <span>{item.origin.icon}</span> {item.origin.label}
                     </div>
-                  )}
+                    <div style={{ fontSize: '0.7rem', marginTop: '0.15rem' }}>
+                      {item.origin.subtitle}
+                    </div>
+                  </div>
 
                   {/* Middle row: Component & Status */}
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.775rem', color: '#64748b' }}>

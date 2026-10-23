@@ -288,7 +288,7 @@ export class BloodUnitsService {
     const safeLimit = Math.min(100, Math.max(1, Number(limit) || 50));
     const items = await this.bloodUnitModel
       .find({ status: BloodUnitStatus.TESTING })
-      .select('unitCode status bloodGroup componentType collectionDate volume storageLocation createdAt campaignId campaignCode')
+      .select('unitCode status bloodGroup componentType collectionDate volume storageLocation createdAt campaignId campaignCode sourceType externalReceiptId')
       .populate([
         {
           path: 'donorId',
@@ -305,6 +305,10 @@ export class BloodUnitsService {
         {
           path: 'campaignId',
           select: 'name campaignCode venue city startDate endDate status targetUnits',
+        },
+        {
+          path: 'externalReceiptId',
+          select: 'receiptCode sourceName sourceType invoiceNumber referenceNumber receivedDate',
         },
       ])
       .sort({ createdAt: -1, collectionDate: -1 })

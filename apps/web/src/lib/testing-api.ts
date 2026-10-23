@@ -39,6 +39,16 @@ export interface CampaignSummary {
   targetUnits?: number;
 }
 
+export interface ExternalReceiptSummary {
+  _id: string;
+  receiptCode?: string;
+  sourceName?: string;
+  sourceType?: string;
+  invoiceNumber?: string;
+  referenceNumber?: string;
+  receivedDate?: string;
+}
+
 export interface BloodUnitSummary {
   _id: string;
   unitCode: string;
@@ -52,6 +62,8 @@ export interface BloodUnitSummary {
   donorId?: DonorSummary | any;
   campaignId?: CampaignSummary | string;
   campaignCode?: string;
+  sourceType?: string;
+  externalReceiptId?: ExternalReceiptSummary | any;
 }
 
 export interface DonationSummary {
@@ -85,6 +97,8 @@ export interface BloodTesting {
   campaignId?: CampaignSummary | string;
   campaignCode?: string;
   campaignName?: string;
+  sourceType?: string;
+  externalReceiptId?: ExternalReceiptSummary | any;
   testResults: IndividualTestResult[];
   status: TestingStatus;
   decision: TestingDecision;
@@ -109,6 +123,91 @@ export interface BloodTesting {
   remarks?: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export type BloodOriginType = 'campaign' | 'acquisition' | 'normal';
+export type BloodOriginFilter = 'all' | BloodOriginType;
+
+export interface ResolvedOrigin {
+  type: BloodOriginType;
+  label: string;
+  badgeColor: string;
+  icon: string;
+  subtitle: string;
+  referenceCode?: string;
+}
+
+export function resolveBloodUnitOrigin(item: BloodUnitSummary | BloodTesting | any): ResolvedOrigin {
+  const unit = item?.bloodUnitId && typeof item.bloodUnitId === 'object' ? item.bloodUnitId : item;
+  const donation = item?.donationId && typeof item.donationId === 'object' ? item.donationId : unit?.donationId;
+  const extReceipt =
+    item?.externalReceiptId && typeof item.externalReceiptId === 'object'
+      ? item.externalReceiptId
+      : unit?.externalReceiptId && typeof unit?.externalReceiptId === 'object'
+      ? unit.externalReceiptId
+      : null;
+
+  const campaign =
+    item?.campaignId && typeof item.campaignId === 'object'
+      ? item.campaignId
+      : unit?.campaignId && typeof unit?.campaignId === 'object'
+      ? unit.campaignId
+      : donation?.campaignId && typeof donation?.campaignId === 'object'
+      ? donation.campaignId
+      : null;
+
+  const campaignCode =
+    item?.campaignCode ||
+    campaign?.campaignCode ||
+    unit?.campaignCode ||
+    donation?.campaignCode;
+
+  const campaignName =
+    item?.campaignName ||
+    campaign?.name;
+
+  const isAcquisition =
+    item?.sourceType === 'EXTERNAL_RECEIPT' ||
+    unit?.sourceType === 'EXTERNAL_RECEIPT' ||
+    Boolean(extReceipt) ||
+    Boolean(item?.externalReceiptId) ||
+    Boolean(unit?.externalReceiptId);
+
+  if (campaignCode || campaignName || campaign) {
+    const venue = campaign?.venue ? ` (${campaign.venue})` : '';
+    const name = campaignName || campaignCode || 'Blood Drive';
+    return {
+      type: 'campaign',
+      label: 'Campaign Drive',
+      badgeColor: 'bg-amber-500/15 text-amber-300 border border-amber-500/30',
+      icon: '🏕️',
+      subtitle: `${name}${venue}`,
+      referenceCode: campaignCode,
+    };
+  }
+
+  if (isAcquisition) {
+    const sourceName = extReceipt?.sourceName || 'External Consignment';
+    const receiptCode = extReceipt?.receiptCode;
+    return {
+      type: 'acquisition',
+      label: 'External Acquisition',
+      badgeColor: 'bg-cyan-500/15 text-cyan-300 border border-cyan-500/30',
+      icon: '📦',
+      subtitle: `${sourceName}${receiptCode ? ` (${receiptCode})` : ''}`,
+      referenceCode: receiptCode,
+    };
+  }
+
+  const donationCode = donation?.donationCode;
+  return {
+    type: 'normal',
+    label: 'Normal In-House',
+    badgeColor: 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30',
+    icon: '🏢',
+    subtitle: donationCode ? `In-House Donation (${donationCode})` : 'In-House Donation',
+    referenceCode: donationCode,
+  };
 }
 
 export interface PaginatedBloodTesting {

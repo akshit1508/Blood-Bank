@@ -104,6 +104,18 @@ export class BloodTesting {
   @Prop({ required: false, trim: true, uppercase: true })
   campaignCode?: string;
 
+  /**
+   * Reference to the BloodAcquisition receipt (if blood unit was acquired externally).
+   */
+  @Prop({
+    type: Types.ObjectId,
+    ref: 'BloodAcquisition',
+    required: false,
+    index: true,
+    sparse: true,
+  })
+  externalReceiptId?: Types.ObjectId;
+
   @Prop({ type: [IndividualTestResultSchema], default: [] })
   testResults: IndividualTestResult[];
 

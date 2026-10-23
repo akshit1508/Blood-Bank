@@ -35,6 +35,8 @@ import {
   completeTestingRecord,
   fetchUnitsAwaitingTesting,
   getFriendlyErrorMessage,
+  resolveBloodUnitOrigin,
+  BloodOriginFilter,
 } from '@/lib/testing-api';
 
 const STATUS_BADGES: Record<
@@ -621,6 +623,7 @@ function LabTestingWorkstationContent() {
 
   // Sub-filter tabs for Records
   const [activeTabFilter, setActiveTabFilter] = useState<'all' | 'in_progress' | 'completed'>('all');
+  const [originFilter, setOriginFilter] = useState<BloodOriginFilter>('all');
 
   useEffect(() => {
     if (filterParam === 'in_progress') {
@@ -707,12 +710,34 @@ function LabTestingWorkstationContent() {
     [dateFilter, customStartDate, customEndDate]
   );
 
-  // Filtered Awaiting Units by Date
-  const filteredAwaitingUnits = useMemo(() => {
-    return awaitingUnits.filter((u) => matchesDateFilter(u.collectionDate || (u as any).createdAt));
-  }, [awaitingUnits, matchesDateFilter]);
+  // Origin Counts for current tab
+  const originCounts = useMemo(() => {
+    let campaign = 0;
+    let acquisition = 0;
+    let normal = 0;
+    const targetList: Array<any> = mainTab === 'awaiting' ? awaitingUnits : records;
+    targetList.forEach((item) => {
+      const orig = resolveBloodUnitOrigin(item);
+      if (orig.type === 'campaign') campaign++;
+      else if (orig.type === 'acquisition') acquisition++;
+      else normal++;
+    });
+    return { all: targetList.length, campaign, acquisition, normal };
+  }, [mainTab, awaitingUnits, records]);
 
-  // Filtered Records by Sub-tab & Date
+  // Filtered Awaiting Units by Date & Origin
+  const filteredAwaitingUnits = useMemo(() => {
+    return awaitingUnits.filter((u) => {
+      if (!matchesDateFilter(u.collectionDate || (u as any).createdAt)) return false;
+      if (originFilter !== 'all') {
+        const orig = resolveBloodUnitOrigin(u);
+        if (orig.type !== originFilter) return false;
+      }
+      return true;
+    });
+  }, [awaitingUnits, matchesDateFilter, originFilter]);
+
+  // Filtered Records by Sub-tab, Date & Origin
   const filteredRecords = useMemo(() => {
     let subset = records;
     if (activeTabFilter === 'in_progress') {
@@ -720,8 +745,15 @@ function LabTestingWorkstationContent() {
     } else if (activeTabFilter === 'completed') {
       subset = records.filter((r) => r.status === TestingStatus.COMPLETED);
     }
-    return subset.filter((r) => matchesDateFilter(r.startedAt || (r as any).createdAt));
-  }, [records, activeTabFilter, matchesDateFilter]);
+    return subset.filter((r) => {
+      if (!matchesDateFilter(r.startedAt || (r as any).createdAt)) return false;
+      if (originFilter !== 'all') {
+        const orig = resolveBloodUnitOrigin(r);
+        if (orig.type !== originFilter) return false;
+      }
+      return true;
+    });
+  }, [records, activeTabFilter, matchesDateFilter, originFilter]);
 
   // INLINE EXPANSION: When clicking "Start Panel" on an awaiting unit
   const handleInitiateTesting = async (unit: BloodUnitSummary) => {
@@ -1221,6 +1253,86 @@ function LabTestingWorkstationContent() {
         </button>
       </div>
 
+      {/* 3-Way Source / Origin Filter Bar */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: '0.65rem',
+          backgroundColor: '#ffffff',
+          border: '1px solid #e2e8f0',
+          borderRadius: '10px',
+          padding: '0.65rem 1rem',
+          marginBottom: '1rem',
+          boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
+            Filter Origin:
+          </span>
+          {[
+            { id: 'all', label: 'All Sources', count: originCounts.all, icon: '📋' },
+            { id: 'campaign', label: 'Field Campaign', count: originCounts.campaign, icon: '🏕️' },
+            { id: 'acquisition', label: 'External Acquisition', count: originCounts.acquisition, icon: '📦' },
+            { id: 'normal', label: 'Normal In-House', count: originCounts.normal, icon: '🏢' },
+          ].map((filt) => {
+            const active = originFilter === filt.id;
+            return (
+              <button
+                key={filt.id}
+                type="button"
+                onClick={() => setOriginFilter(filt.id as any)}
+                style={{
+                  padding: '0.3rem 0.7rem',
+                  borderRadius: '20px',
+                  fontSize: '0.75rem',
+                  fontWeight: active ? 700 : 500,
+                  backgroundColor: active
+                    ? filt.id === 'campaign'
+                      ? '#d97706'
+                      : filt.id === 'acquisition'
+                      ? '#0284c7'
+                      : filt.id === 'normal'
+                      ? '#059669'
+                      : '#0f172a'
+                    : '#f8fafc',
+                  color: active ? '#ffffff' : '#475569',
+                  border: `1px solid ${active ? 'transparent' : '#cbd5e1'}`,
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.35rem',
+                  transition: 'all 0.15s ease',
+                  boxShadow: active ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                }}
+              >
+                <span>{filt.icon}</span>
+                <span>{filt.label}</span>
+                <span
+                  style={{
+                    padding: '0.05rem 0.35rem',
+                    borderRadius: '999px',
+                    fontSize: '0.7rem',
+                    fontWeight: 800,
+                    backgroundColor: active ? 'rgba(255,255,255,0.25)' : '#e2e8f0',
+                    color: active ? '#ffffff' : '#334155',
+                  }}
+                >
+                  {filt.count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
+          Showing <strong>{mainTab === 'awaiting' ? filteredAwaitingUnits.length : filteredRecords.length}</strong> of {originCounts.all}
+        </div>
+      </div>
+
       {/* ========================================================================= */}
       {/* TAB 1 CONTENT: Quarantined Blood Units Awaiting Testing                    */}
       {/* ========================================================================= */}
@@ -1284,6 +1396,7 @@ function LabTestingWorkstationContent() {
               {filteredAwaitingUnits.map((u) => {
                 const isExpanded = expandedItemId === u._id;
                 const isCreating = creatingRecordForUnitId === u._id;
+                const orig = resolveBloodUnitOrigin(u);
 
                 return (
                   <div key={u._id} style={{ display: 'flex', flexDirection: 'column' }}>
@@ -1330,41 +1443,49 @@ function LabTestingWorkstationContent() {
                         <strong style={{ color: '#d97706' }}>{u.status}</strong>
                       </div>
 
-                      {/* Campaign Provenance Origin Badge */}
-                      {(() => {
-                        const camp = u.campaignId || u.donationId?.campaignId;
-                        if (!camp) return null;
-                        return (
-                          <div
-                            style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '0.4rem',
-                              padding: '0.3rem 0.6rem',
-                              backgroundColor: '#f5f3ff',
-                              border: '1px solid #ddd6fe',
-                              borderRadius: '6px',
-                              fontSize: '0.75rem',
-                              width: 'fit-content',
-                              flexWrap: 'wrap',
-                            }}
-                          >
-                            <span style={{ fontWeight: 800, color: '#6d28d9' }}>
-                              ⛺ Camp: {camp.name || camp.campaignCode}
-                            </span>
-                            {camp.campaignCode && camp.name && (
-                              <span style={{ color: '#8b5cf6', fontSize: '0.7rem' }}>
-                                ({camp.campaignCode})
-                              </span>
-                            )}
-                            {(camp.venue || camp.city) && (
-                              <span style={{ color: '#64748b', fontSize: '0.7rem' }}>
-                                &bull; {[camp.venue, camp.city].filter(Boolean).join(', ')}
-                              </span>
-                            )}
-                          </div>
-                        );
-                      })()}
+                      {/* Origin Badge */}
+                      <div
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.4rem',
+                          padding: '0.3rem 0.6rem',
+                          backgroundColor:
+                            orig.type === 'campaign'
+                              ? '#fef3c7'
+                              : orig.type === 'acquisition'
+                              ? '#e0f2fe'
+                              : '#ecfdf5',
+                          border: `1px solid ${
+                            orig.type === 'campaign'
+                              ? '#fde68a'
+                              : orig.type === 'acquisition'
+                              ? '#bae6fd'
+                              : '#a7f3d0'
+                          }`,
+                          borderRadius: '6px',
+                          fontSize: '0.75rem',
+                          width: 'fit-content',
+                          flexWrap: 'wrap',
+                        }}
+                      >
+                        <span
+                          style={{
+                            fontWeight: 800,
+                            color:
+                              orig.type === 'campaign'
+                                ? '#92400e'
+                                : orig.type === 'acquisition'
+                                ? '#0369a1'
+                                : '#047857',
+                          }}
+                        >
+                          {orig.icon} {orig.label}
+                        </span>
+                        <span style={{ color: '#475569', fontSize: '0.725rem' }}>
+                          &bull; {orig.subtitle}
+                        </span>
+                      </div>
 
                       {/* Action Button: Start Panel */}
                       <div>
@@ -1578,13 +1699,9 @@ function LabTestingWorkstationContent() {
                             Tests Done: <strong style={{ color: completedTestsCount === 5 ? '#166534' : '#64748b' }}>{completedTestsCount}/5</strong> &bull; Initialized: {new Date(r.createdAt).toLocaleDateString()}
                           </div>
 
-                          {/* Campaign Provenance Origin Badge */}
+                          {/* Origin Badge */}
                           {(() => {
-                            const camp =
-                              r.campaignId ||
-                              r.bloodUnitId?.campaignId ||
-                              r.bloodUnitId?.donationId?.campaignId;
-                            if (!camp) return null;
+                            const orig = resolveBloodUnitOrigin(r);
                             return (
                               <div
                                 style={{
@@ -1593,21 +1710,40 @@ function LabTestingWorkstationContent() {
                                   gap: '0.35rem',
                                   marginTop: '0.3rem',
                                   padding: '0.15rem 0.5rem',
-                                  backgroundColor: '#f5f3ff',
-                                  border: '1px solid #ddd6fe',
+                                  backgroundColor:
+                                    orig.type === 'campaign'
+                                      ? '#fef3c7'
+                                      : orig.type === 'acquisition'
+                                      ? '#e0f2fe'
+                                      : '#ecfdf5',
+                                  border: `1px solid ${
+                                    orig.type === 'campaign'
+                                      ? '#fde68a'
+                                      : orig.type === 'acquisition'
+                                      ? '#bae6fd'
+                                      : '#a7f3d0'
+                                  }`,
                                   borderRadius: '4px',
                                   fontSize: '0.7rem',
                                   flexWrap: 'wrap',
                                 }}
                               >
-                                <span style={{ fontWeight: 800, color: '#6d28d9' }}>
-                                  ⛺ Camp: {camp.name || camp.campaignCode}
+                                <span
+                                  style={{
+                                    fontWeight: 800,
+                                    color:
+                                      orig.type === 'campaign'
+                                        ? '#92400e'
+                                        : orig.type === 'acquisition'
+                                        ? '#0369a1'
+                                        : '#047857',
+                                  }}
+                                >
+                                  {orig.icon} {orig.label}
                                 </span>
-                                {(camp.venue || camp.city) && (
-                                  <span style={{ color: '#64748b' }}>
-                                    &bull; {[camp.venue, camp.city].filter(Boolean).join(', ')}
-                                  </span>
-                                )}
+                                <span style={{ color: '#475569' }}>
+                                  &bull; {orig.subtitle}
+                                </span>
                               </div>
                             );
                           })()}

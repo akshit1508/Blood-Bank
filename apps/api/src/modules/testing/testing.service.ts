@@ -87,15 +87,24 @@ export class TestingService {
     const campaignSelect =
       'name campaignCode venue city startDate endDate status targetUnits';
 
+    const externalReceiptSelect =
+      'receiptCode sourceName sourceType invoiceNumber referenceNumber receivedDate';
+
     return [
       {
         path: 'bloodUnitId',
         select:
-          'unitCode status bloodGroup componentType collectionDate volume storageLocation campaignId campaignCode',
-        populate: {
-          path: 'campaignId',
-          select: campaignSelect,
-        },
+          'unitCode status bloodGroup componentType collectionDate volume storageLocation campaignId campaignCode sourceType externalReceiptId',
+        populate: [
+          {
+            path: 'campaignId',
+            select: campaignSelect,
+          },
+          {
+            path: 'externalReceiptId',
+            select: externalReceiptSelect,
+          },
+        ],
       },
       {
         path: 'donationId',
@@ -112,6 +121,10 @@ export class TestingService {
       {
         path: 'campaignId',
         select: campaignSelect,
+      },
+      {
+        path: 'externalReceiptId',
+        select: externalReceiptSelect,
       },
     ];
   }
@@ -138,7 +151,9 @@ export class TestingService {
     // 1. Verify blood unit existence
     let bloodUnitQuery: any = this.bloodUnitModel.findById(createDto.bloodUnitId);
     if (bloodUnitQuery && typeof bloodUnitQuery.populate === 'function') {
-      bloodUnitQuery = bloodUnitQuery.populate('donationId', 'campaignId campaignCode');
+      bloodUnitQuery = bloodUnitQuery
+        .populate('donationId', 'campaignId campaignCode')
+        .populate('externalReceiptId', 'receiptCode sourceName sourceType invoiceNumber referenceNumber receivedDate');
     }
     const bloodUnit = await bloodUnitQuery.exec();
 
@@ -199,6 +214,10 @@ export class TestingService {
       const derivedCampaignCode =
         (bloodUnit as any).campaignCode ||
         (bloodUnit.donationId as any)?.campaignCode;
+      const derivedExternalReceiptId =
+        (bloodUnit as any).externalReceiptId?._id ||
+        (bloodUnit as any).externalReceiptId ||
+        undefined;
 
       const testingRecord = new this.bloodTestingModel({
         testingCode,
@@ -207,6 +226,7 @@ export class TestingService {
         donorId: bloodUnit.donorId,
         campaignId: derivedCampaignId,
         campaignCode: derivedCampaignCode,
+        externalReceiptId: derivedExternalReceiptId,
         testResults: initialTestResults,
         status: TestingStatus.IN_PROGRESS,
         decision: TestingDecision.PENDING,
