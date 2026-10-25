@@ -12,6 +12,7 @@ import {
 import { BloodUnitsService } from './blood-units.service';
 import { CreateBloodUnitDto } from './dto/create-blood-unit.dto';
 import { QueryBloodUnitsDto } from './dto/query-blood-units.dto';
+import { PrepareComponentsDto } from './dto/prepare-components.dto';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentAdmin } from '../auth/decorators/current-admin.decorator';
 import { AdminRole } from '../auth/schemas/admin-user.schema';
@@ -113,6 +114,27 @@ export class BloodUnitsController {
       statusCode: HttpStatus.OK,
       message: 'Blood unit retrieved successfully',
       data: bloodUnit,
+    };
+  }
+
+  /**
+   * Separates a Whole Blood parent unit into derived components (PRBC, FFP, Platelets, Cryo).
+   * Accessible to LAB_TECHNICIAN, ADMIN, SUPER_ADMIN.
+   * POST /api/blood-units/:id/prepare-components
+   */
+  @Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN, AdminRole.LAB_TECHNICIAN)
+  @Post(':id/prepare-components')
+  @HttpCode(HttpStatus.CREATED)
+  async prepareComponents(
+    @Param('id') id: string,
+    @Body() dto: PrepareComponentsDto,
+    @CurrentAdmin() admin: any,
+  ) {
+    const result = await this.bloodUnitsService.prepareComponents(id, dto, admin);
+    return {
+      statusCode: HttpStatus.CREATED,
+      message: `Component preparation completed. Generated ${result.childUnits.length} child component units.`,
+      data: result,
     };
   }
 }

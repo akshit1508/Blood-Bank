@@ -153,6 +153,34 @@ export class BloodUnit {
   @Prop({ required: false, trim: true })
   notes?: string;
 
+  // --- Component Separation & Parent-Child Traceability (Phase 3) ---
+  @Prop({ type: Types.ObjectId, ref: 'BloodUnit', required: false, index: true, sparse: true })
+  parentUnitId?: Types.ObjectId;
+
+  @Prop({ required: false, trim: true, uppercase: true })
+  parentUnitCode?: string;
+
+  @Prop({ default: false, index: true })
+  isComponentDerived?: boolean;
+
+  @Prop({ required: false, trim: true })
+  storageRequirement?: string;
+
+  @Prop({ required: false })
+  preparedAt?: Date;
+
+  @Prop({ type: Types.ObjectId, ref: 'AdminUser', required: false })
+  preparedBy?: Types.ObjectId;
+
+  @Prop({ required: false, trim: true })
+  preparedByName?: string;
+
+  @Prop({ required: false, trim: true })
+  preparedByRole?: string;
+
+  @Prop({ required: false, trim: true })
+  separationMethod?: string;
+
   // --- Staff User Attribution & Accountability ---
   @Prop({ type: Types.ObjectId, ref: 'AdminUser', required: false, index: true })
   createdBy?: Types.ObjectId;

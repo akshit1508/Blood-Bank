@@ -38,6 +38,8 @@ import {
   resolveBloodUnitOrigin,
   BloodOriginFilter,
 } from '@/lib/testing-api';
+import LabTestEntryModal from '@/components/admin/LabTestEntryModal';
+import ComponentSeparationModal from '@/components/admin/ComponentSeparationModal';
 
 const STATUS_BADGES: Record<
   TestingStatus,
@@ -103,6 +105,12 @@ const RESULT_STATUS_BADGES: Record<
     border: '#fca5a5',
     label: 'FAIL ✕',
   },
+  [TestResultStatus.INDETERMINATE]: {
+    bg: '#fef3c7',
+    text: '#92400e',
+    border: '#fde68a',
+    label: 'INDETERMINATE ⚠️',
+  },
 };
 
 type DateFilterPreset = 'all' | 'today' | '7days' | '30days' | 'custom';
@@ -123,6 +131,8 @@ interface InlineSpecimenPanelProps {
   canComplete: boolean;
   handleCompleteRecord: () => Promise<void>;
   onClose: () => void;
+  onOpenLabWorkstation?: (rec: BloodTesting) => void;
+  onOpenSeparation?: (unit: any) => void;
 }
 
 function InlineSpecimenPanel({
@@ -140,6 +150,8 @@ function InlineSpecimenPanel({
   canComplete,
   handleCompleteRecord,
   onClose,
+  onOpenLabWorkstation,
+  onOpenSeparation,
 }: InlineSpecimenPanelProps) {
   if (detailLoading) {
     return (
@@ -350,6 +362,71 @@ function InlineSpecimenPanel({
             </div>
           );
         })()}
+
+        {/* Phase 3 Workstation Action Buttons */}
+        <div style={{ display: 'flex', gap: '8px', marginTop: '0.85rem', flexWrap: 'wrap' }}>
+          {onOpenLabWorkstation && (
+            <button
+              type="button"
+              onClick={() => onOpenLabWorkstation(selectedTesting)}
+              style={{
+                backgroundColor: '#dc2626',
+                color: '#ffffff',
+                border: 'none',
+                borderRadius: '6px',
+                padding: '0.45rem 0.85rem',
+                fontSize: '0.785rem',
+                fontWeight: 700,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+              }}
+            >
+              🔬 Open Laboratory Workstation & Grouping Suite
+            </button>
+          )}
+
+          {onOpenSeparation && selectedTesting.bloodUnitId?.componentType === 'WHOLE_BLOOD' && (
+            <button
+              type="button"
+              onClick={() => onOpenSeparation(selectedTesting.bloodUnitId)}
+              style={{
+                backgroundColor: '#0284c7',
+                color: '#ffffff',
+                border: 'none',
+                borderRadius: '6px',
+                padding: '0.45rem 0.85rem',
+                fontSize: '0.785rem',
+                fontWeight: 700,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+              }}
+            >
+              🧪 Separate into Components
+            </button>
+          )}
+        </div>
+
+        {selectedTesting.authorizedBy && (
+          <div
+            style={{
+              marginTop: '0.75rem',
+              padding: '0.65rem 0.85rem',
+              borderRadius: '6px',
+              fontSize: '0.785rem',
+              backgroundColor: '#f0fdf4',
+              border: '1px solid #bbf7d0',
+              color: '#166534',
+            }}
+          >
+            🛡️ <strong>Supervisor Release Cleared:</strong> Authorized by{' '}
+            {selectedTesting.authorizedByName || 'Authorized Supervisor'}{' '}
+            {selectedTesting.authorizedAt ? `on ${new Date(selectedTesting.authorizedAt).toLocaleString()}` : ''}
+          </div>
+        )}
       </div>
 
       {/* Section Title */}
@@ -648,6 +725,32 @@ function LabTestingWorkstationContent() {
 
   // Complete action
   const [completingRecord, setCompletingRecord] = useState(false);
+
+  // Phase 3: Laboratory workstation & component separation modals
+  const [showLabEntryModal, setShowLabEntryModal] = useState(false);
+  const [labEntryRecord, setLabEntryRecord] = useState<BloodTesting | null>(null);
+  const [showSeparationModal, setShowSeparationModal] = useState(false);
+  const [separationUnit, setSeparationUnit] = useState<any>(null);
+
+  const handleOpenLabWorkstation = (rec: BloodTesting) => {
+    setLabEntryRecord(rec);
+    setShowLabEntryModal(true);
+  };
+
+  const handleOpenSeparation = (unit: any) => {
+    setSeparationUnit(unit);
+    setShowSeparationModal(true);
+  };
+
+  const handleLabEntrySuccess = (updated: BloodTesting) => {
+    setSelectedTesting(updated);
+    setRecords((prev) => prev.map((r) => (r._id === updated._id ? updated : r)));
+    loadAll();
+  };
+
+  const handleSeparationSuccess = () => {
+    loadAll();
+  };
 
   const loadAll = useCallback(async () => {
     setLoading(true);
@@ -1545,6 +1648,8 @@ function LabTestingWorkstationContent() {
                         canComplete={canComplete}
                         handleCompleteRecord={handleCompleteRecord}
                         onClose={() => setExpandedItemId(null)}
+                        onOpenLabWorkstation={handleOpenLabWorkstation}
+                        onOpenSeparation={handleOpenSeparation}
                       />
                     )}
                   </div>
@@ -1833,6 +1938,8 @@ function LabTestingWorkstationContent() {
                         canComplete={canComplete}
                         handleCompleteRecord={handleCompleteRecord}
                         onClose={() => setExpandedItemId(null)}
+                        onOpenLabWorkstation={handleOpenLabWorkstation}
+                        onOpenSeparation={handleOpenSeparation}
                       />
                     )}
                   </div>
@@ -1841,6 +1948,26 @@ function LabTestingWorkstationContent() {
             </div>
           )}
         </div>
+      )}
+
+      {/* Phase 3: Laboratory Testing & Grouping Modal */}
+      {showLabEntryModal && (
+        <LabTestEntryModal
+          isOpen={showLabEntryModal}
+          onClose={() => setShowLabEntryModal(false)}
+          record={labEntryRecord}
+          onSuccess={handleLabEntrySuccess}
+        />
+      )}
+
+      {/* Phase 3: Component Separation Modal */}
+      {showSeparationModal && (
+        <ComponentSeparationModal
+          isOpen={showSeparationModal}
+          onClose={() => setShowSeparationModal(false)}
+          unit={separationUnit}
+          onSuccess={handleSeparationSuccess}
+        />
       )}
     </div>
   );

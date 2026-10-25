@@ -4,6 +4,8 @@ export enum BloodUnitStatus {
   TESTING = 'TESTING',
   APPROVED = 'APPROVED',
   REJECTED = 'REJECTED',
+  QUARANTINED = 'QUARANTINED',
+  PROCESSED_INTO_COMPONENTS = 'PROCESSED_INTO_COMPONENTS',
 }
 
 export enum BloodUnitComponent {
@@ -11,6 +13,7 @@ export enum BloodUnitComponent {
   PRBC = 'PRBC',
   FFP = 'FFP',
   PLATELETS = 'PLATELETS',
+  CRYOPRECIPITATE = 'CRYOPRECIPITATE',
 }
 
 export interface BloodUnitDonorSummary {
@@ -45,6 +48,12 @@ export interface BloodUnit {
   volume?: number;
   status: BloodUnitStatus;
   storageLocation?: string;
+  storageRequirement?: string;
+  parentUnitId?: string;
+  parentUnitCode?: string;
+  isComponentDerived?: boolean;
+  preparedAt?: string;
+  preparedByName?: string;
   notes?: string;
   createdByName?: string;
   createdByRole?: string;

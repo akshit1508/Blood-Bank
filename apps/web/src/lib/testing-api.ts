@@ -13,6 +13,16 @@ export enum TestResultStatus {
   PENDING = 'PENDING',
   PASS = 'PASS',
   FAIL = 'FAIL',
+  INDETERMINATE = 'INDETERMINATE',
+}
+
+export enum TestMethod {
+  ELISA = 'ELISA',
+  CLIA = 'CLIA',
+  NAT = 'NAT',
+  RAPID = 'RAPID',
+  GEL_CARD = 'GEL_CARD',
+  TUBE_METHOD = 'TUBE_METHOD',
 }
 
 export interface IndividualTestResult {
@@ -22,9 +32,31 @@ export interface IndividualTestResult {
   status: TestResultStatus;
   testedAt?: string;
   remarks?: string;
+  method?: string;
+  kitLotNumber?: string;
+  kitExpiryDate?: string;
+  isRepeatOrConfirmatory?: boolean;
+  repeatReason?: string;
   performedBy?: string;
   performedByName?: string;
   performedByRole?: string;
+}
+
+export interface BloodGroupingResult {
+  aboGroup?: string;
+  rhFactor?: string;
+  confirmedBloodGroup?: string;
+  groupingMethod?: string;
+  cellGroupingAntiA?: string;
+  cellGroupingAntiB?: string;
+  cellGroupingAntiD?: string;
+  serumGroupingACells?: string;
+  serumGroupingBCells?: string;
+  serumGroupingOCells?: string;
+  testedAt?: string;
+  testedBy?: string;
+  testedByName?: string;
+  remarks?: string;
 }
 
 export interface CampaignSummary {
@@ -101,6 +133,7 @@ export interface BloodTesting {
   sourceType?: string;
   externalReceiptId?: ExternalReceiptSummary | any;
   testResults: IndividualTestResult[];
+  bloodGrouping?: BloodGroupingResult;
   status: TestingStatus;
   decision: TestingDecision;
   startedAt: string;
@@ -115,6 +148,10 @@ export interface BloodTesting {
   verifiedByName?: string;
   verifiedByRole?: string;
   verifiedAt?: string;
+  authorizedBy?: string;
+  authorizedByName?: string;
+  authorizedAt?: string;
+  authorizationRemarks?: string;
   rejectedBy?: string;
   rejectedByName?: string;
   rejectedByRole?: string;
@@ -230,6 +267,42 @@ export interface UpdateTestResultInput {
   result?: string;
   testedAt?: string;
   remarks?: string;
+  method?: string;
+  kitLotNumber?: string;
+  kitExpiryDate?: string;
+  isRepeatOrConfirmatory?: boolean;
+  repeatReason?: string;
+}
+
+export interface RecordBloodGroupingInput {
+  aboGroup: string;
+  rhFactor: string;
+  confirmedBloodGroup: string;
+  groupingMethod?: string;
+  cellGroupingAntiA?: string;
+  cellGroupingAntiB?: string;
+  cellGroupingAntiD?: string;
+  serumGroupingACells?: string;
+  serumGroupingBCells?: string;
+  serumGroupingOCells?: string;
+  kitLotNumber?: string;
+  kitExpiryDate?: string;
+  remarks?: string;
+}
+
+export interface AuthorizeTestingInput {
+  authorizationRemarks?: string;
+}
+
+export interface ComponentItemInput {
+  componentType: 'PRBC' | 'FFP' | 'PLATELETS' | 'CRYOPRECIPITATE';
+  volume: number;
+  storageLocation?: string;
+}
+
+export interface PrepareComponentsInput {
+  components: ComponentItemInput[];
+  notes?: string;
 }
 
 export interface CompleteTestingInput {
@@ -514,4 +587,101 @@ export async function fetchUnitsAwaitingTesting(
     items: body.data || [],
     total: body.meta?.total || 0,
   };
+}
+
+/**
+ * Records ABO/Rh forward and reverse blood grouping for a testing record.
+ * PATCH /api/testing/:id/blood-grouping
+ */
+export async function recordBloodGrouping(
+  testingId: string,
+  input: RecordBloodGroupingInput,
+): Promise<BloodTesting> {
+  const res = await fetch(`${API_BASE_URL}/testing/${encodeURIComponent(testingId)}/blood-grouping`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+      ...getAuthHeaders(),
+    },
+    body: JSON.stringify(input),
+  });
+
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const errorMsg = Array.isArray(body.message)
+      ? body.message.join(', ')
+      : body.message || 'Failed to record blood grouping';
+    const err: any = new Error(errorMsg);
+    err.code = body.code;
+    err.details = body;
+    throw err;
+  }
+
+  return body.data;
+}
+
+/**
+ * Authorizes laboratory testing completion and releases blood unit to available inventory.
+ * Restricted strictly to SUPER_ADMIN and ADMIN.
+ * POST /api/testing/:id/authorize-release
+ */
+export async function authorizeTestingRelease(
+  testingId: string,
+  input?: AuthorizeTestingInput,
+): Promise<BloodTesting> {
+  const res = await fetch(`${API_BASE_URL}/testing/${encodeURIComponent(testingId)}/authorize-release`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+      ...getAuthHeaders(),
+    },
+    body: JSON.stringify(input || {}),
+  });
+
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const errorMsg = Array.isArray(body.message)
+      ? body.message.join(', ')
+      : body.message || 'Failed to authorize laboratory release';
+    const err: any = new Error(errorMsg);
+    err.code = body.code;
+    err.details = body;
+    throw err;
+  }
+
+  return body.data;
+}
+
+/**
+ * Prepares derived blood components from an eligible whole blood unit.
+ * POST /api/blood-units/:id/prepare-components
+ */
+export async function prepareComponents(
+  parentUnitId: string,
+  input: PrepareComponentsInput,
+): Promise<{ parentUnit: any; childUnits: any[] }> {
+  const res = await fetch(`${API_BASE_URL}/blood-units/${encodeURIComponent(parentUnitId)}/prepare-components`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+      ...getAuthHeaders(),
+    },
+    body: JSON.stringify(input),
+  });
+
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const errorMsg = Array.isArray(body.message)
+      ? body.message.join(', ')
+      : body.message || 'Failed to prepare blood components';
+    const err: any = new Error(errorMsg);
+    err.code = body.code;
+    err.details = body;
+    throw err;
+  }
+
+  return body.data;
 }

@@ -11,8 +11,18 @@ export enum TestingDecision {
 
 export enum TestResultStatus {
   PENDING = 'PENDING',
-  PASS = 'PASS',
-  FAIL = 'FAIL',
+  PASS = 'PASS', // NON_REACTIVE / NEGATIVE
+  FAIL = 'FAIL', // REACTIVE / POSITIVE
+  INDETERMINATE = 'INDETERMINATE', // INCONCLUSIVE (Must not be released)
+}
+
+export enum TestMethod {
+  ELISA = 'ELISA',
+  CLIA = 'CLIA',
+  NAT = 'NAT',
+  RAPID = 'RAPID',
+  GEL_CARD = 'GEL_CARD',
+  TUBE_METHOD = 'TUBE_METHOD',
 }
 
 export interface RequiredTestDefinition {

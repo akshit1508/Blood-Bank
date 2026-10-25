@@ -50,6 +50,11 @@ export const DEFAULT_EXPIRY_RULES: Record<
     storageTemperature: '20°C to 24°C with continuous agitation',
     description: 'Platelet concentrate in gas-permeable bags under continuous gentle agitation',
   },
+  [BloodUnitComponent.CRYOPRECIPITATE]: {
+    shelfLifeDays: 365,
+    storageTemperature: '-18°C or colder',
+    description: 'Cryoprecipitated antihemophilic factor prepared by thawing FFP at 2°C to 6°C',
+  },
 };
 
 @Injectable()

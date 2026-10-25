@@ -27,6 +27,8 @@ import {
 } from '@/lib/inventory-api';
 import StaffAttributionBadge from '@/components/admin/StaffAttributionBadge';
 import { getUnitExpiryInfo } from '@/lib/expiry-rules-api';
+import LabTestEntryModal from '@/components/admin/LabTestEntryModal';
+import ComponentSeparationModal from '@/components/admin/ComponentSeparationModal';
 
 const STATUS_BADGES: Record<
   TestingStatus,
@@ -91,6 +93,12 @@ const RESULT_STATUS_BADGES: Record<
     text: '#991b1b',
     border: '#fca5a5',
     label: 'FAIL ✕',
+  },
+  [TestResultStatus.INDETERMINATE]: {
+    bg: '#fef3c7',
+    text: '#92400e',
+    border: '#fde68a',
+    label: 'INDETERMINATE ⚠️',
   },
 };
 
@@ -161,6 +169,32 @@ export default function AdminTestingPage() {
     type: 'success' | 'error';
     message: string;
   } | null>(null);
+
+  // Phase 3: Laboratory workstation & component separation modals
+  const [showLabEntryModal, setShowLabEntryModal] = useState(false);
+  const [labEntryRecord, setLabEntryRecord] = useState<BloodTesting | null>(null);
+  const [showSeparationModal, setShowSeparationModal] = useState(false);
+  const [separationUnit, setSeparationUnit] = useState<any>(null);
+
+  const handleOpenLabEntry = (rec: BloodTesting) => {
+    setLabEntryRecord(rec);
+    setShowLabEntryModal(true);
+  };
+
+  const handleOpenSeparation = (unit: any) => {
+    setSeparationUnit(unit);
+    setShowSeparationModal(true);
+  };
+
+  const handleLabEntrySuccess = (updated: BloodTesting) => {
+    setSelectedTesting(updated);
+    setRecords((prev) => prev.map((r) => (r._id === updated._id ? updated : r)));
+    loadTestingQueue();
+  };
+
+  const handleSeparationSuccess = () => {
+    loadTestingQueue();
+  };
 
   // Check inventory status when selectedTesting changes
   useEffect(() => {
@@ -1321,23 +1355,73 @@ export default function AdminTestingPage() {
                               textAlign: 'right',
                             }}
                           >
-                            <button
-                              onClick={() => handleSelectRecord(item)}
+                            <div
                               style={{
-                                backgroundColor: isSelected
-                                  ? '#0f172a'
-                                  : '#ffffff',
-                                border: '1px solid #cbd5e1',
-                                color: isSelected ? '#ffffff' : '#334155',
-                                padding: '0.35rem 0.75rem',
-                                borderRadius: '4px',
-                                fontSize: '0.775rem',
-                                fontWeight: 600,
-                                cursor: 'pointer',
+                                display: 'flex',
+                                gap: '6px',
+                                justifyContent: 'flex-end',
+                                flexWrap: 'wrap',
                               }}
                             >
-                              {isSelected ? 'Inspecting' : 'View Testing'}
-                            </button>
+                              <button
+                                type="button"
+                                onClick={() => handleOpenLabEntry(item)}
+                                style={{
+                                  backgroundColor: '#dc2626',
+                                  border: 'none',
+                                  color: '#ffffff',
+                                  padding: '0.35rem 0.65rem',
+                                  borderRadius: '4px',
+                                  fontSize: '0.75rem',
+                                  fontWeight: 600,
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                }}
+                              >
+                                🔬 Lab Tests
+                              </button>
+                              {item.bloodUnitId?.componentType === 'WHOLE_BLOOD' && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenSeparation(item.bloodUnitId)}
+                                  style={{
+                                    backgroundColor: '#0284c7',
+                                    border: 'none',
+                                    color: '#ffffff',
+                                    padding: '0.35rem 0.65rem',
+                                    borderRadius: '4px',
+                                    fontSize: '0.75rem',
+                                    fontWeight: 600,
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '4px',
+                                  }}
+                                >
+                                  🧪 Separate
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => handleSelectRecord(item)}
+                                style={{
+                                  backgroundColor: isSelected
+                                    ? '#0f172a'
+                                    : '#ffffff',
+                                  border: '1px solid #cbd5e1',
+                                  color: isSelected ? '#ffffff' : '#334155',
+                                  padding: '0.35rem 0.65rem',
+                                  borderRadius: '4px',
+                                  fontSize: '0.75rem',
+                                  fontWeight: 600,
+                                  cursor: 'pointer',
+                                }}
+                              >
+                                {isSelected ? 'Inspecting' : 'Details'}
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       );
@@ -1569,6 +1653,73 @@ export default function AdminTestingPage() {
                     }}
                   >
                     Screening in progress. Enter outcomes for all configured tests before completing testing.
+                  </div>
+                )}
+
+                {/* Phase 3 Action Buttons & Supervisor Clearance */}
+                <div style={{ display: 'flex', gap: '8px', marginBottom: '1rem', flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    onClick={() => handleOpenLabEntry(selectedTesting)}
+                    style={{
+                      backgroundColor: '#dc2626',
+                      color: '#ffffff',
+                      border: 'none',
+                      borderRadius: '6px',
+                      padding: '0.45rem 0.85rem',
+                      fontSize: '0.785rem',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                    }}
+                  >
+                    🔬 Open Full Lab Workstation & Grouping
+                  </button>
+                  {selectedTesting.bloodUnitId?.componentType === 'WHOLE_BLOOD' && (
+                    <button
+                      type="button"
+                      onClick={() => handleOpenSeparation(selectedTesting.bloodUnitId)}
+                      style={{
+                        backgroundColor: '#0284c7',
+                        color: '#ffffff',
+                        border: 'none',
+                        borderRadius: '6px',
+                        padding: '0.45rem 0.85rem',
+                        fontSize: '0.785rem',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                      }}
+                    >
+                      🧪 Prepare Components
+                    </button>
+                  )}
+                </div>
+
+                {selectedTesting.authorizedBy && (
+                  <div
+                    style={{
+                      marginBottom: '1rem',
+                      padding: '0.65rem 0.85rem',
+                      borderRadius: '6px',
+                      fontSize: '0.785rem',
+                      backgroundColor: '#f0fdf4',
+                      border: '1px solid #bbf7d0',
+                      color: '#166534',
+                    }}
+                  >
+                    🛡️ <strong>Clinically Authorized by Supervisor:</strong>{' '}
+                    {selectedTesting.authorizedByName || 'Authorized Supervisor'}{' '}
+                    {selectedTesting.authorizedAt ? `(${new Date(selectedTesting.authorizedAt).toLocaleString()})` : ''}
+                    {selectedTesting.authorizationRemarks && (
+                      <div style={{ fontStyle: 'italic', marginTop: '2px', color: '#14532d' }}>
+                        &ldquo;{selectedTesting.authorizationRemarks}&rdquo;
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -3502,6 +3653,26 @@ export default function AdminTestingPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Phase 3: Laboratory Testing & Grouping Modal */}
+      {showLabEntryModal && (
+        <LabTestEntryModal
+          isOpen={showLabEntryModal}
+          onClose={() => setShowLabEntryModal(false)}
+          record={labEntryRecord}
+          onSuccess={handleLabEntrySuccess}
+        />
+      )}
+
+      {/* Phase 3: Component Separation Modal */}
+      {showSeparationModal && (
+        <ComponentSeparationModal
+          isOpen={showSeparationModal}
+          onClose={() => setShowSeparationModal(false)}
+          unit={separationUnit}
+          onSuccess={handleSeparationSuccess}
+        />
       )}
     </div>
   );

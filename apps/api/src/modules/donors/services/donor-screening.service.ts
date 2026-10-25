@@ -7,6 +7,7 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, isValidObjectId, Types } from 'mongoose';
 import { Donor, DonorDocument } from '../schemas/donor.schema';
+import { DonorStatus } from '../constants/donor.constants';
 import {
   DonorScreening,
   DonorScreeningDocument,
@@ -91,7 +92,13 @@ export class DonorScreeningService {
     }
 
     // Baseline eligibility check (age, active status, donation interval, active deferral)
-    await this.donorEligibilityService.validateEligibility(donor);
+    await this.donorEligibilityService.validateEligibility(
+      donor,
+      new Date(),
+      undefined,
+      undefined,
+      { allowPendingReview: true },
+    );
 
     // Automated Clinical Examination Evaluation (Indian NBTC Standards)
     const reasons: string[] = [];
@@ -277,10 +284,21 @@ export class DonorScreeningService {
           : 'TEMPORARY';
       donorUpdate.deferredUntil = finalDeferredUntil;
       donorUpdate.deferralReason = finalDeferralReason;
+      if (finalDecision === DonorScreeningDecision.PERMANENTLY_DEFERRED) {
+        donorUpdate.status = DonorStatus.INACTIVE;
+      }
     } else if (finalDecision === DonorScreeningDecision.SELECTED) {
       donorUpdate.deferralStatus = 'NONE';
       donorUpdate.deferredUntil = null;
       donorUpdate.deferralReason = null;
+      // Auto-activate profile for donation upon passing medical screening
+      donorUpdate.status = DonorStatus.ACTIVE;
+      if (actor && (actor._id || actor.id)) {
+        donorUpdate.verifiedBy = actor._id || actor.id;
+        donorUpdate.verifiedByName = actor.fullName || actor.name;
+        donorUpdate.verifiedByRole = actor.role;
+        donorUpdate.verifiedAt = new Date();
+      }
     }
 
     const updatedDonor = await this.donorModel

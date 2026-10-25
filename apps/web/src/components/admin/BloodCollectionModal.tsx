@@ -19,13 +19,11 @@ interface BloodCollectionModalProps {
 }
 
 const BAG_TYPE_OPTIONS = [
-  { value: 'CPDA_SINGLE_350', label: 'CPDA-1 Single Bag (350 mL)', defaultVol: 350, minWeight: 45 },
-  { value: 'CPDA_DOUBLE_350', label: 'CPDA-1 Double Bag (350 mL - PRBC + FFP)', defaultVol: 350, minWeight: 45 },
-  { value: 'CPDA_DOUBLE_450', label: 'CPDA-1 Double Bag (450 mL - PRBC + FFP)', defaultVol: 450, minWeight: 50 },
-  { value: 'CPDA_TRIPLE_450', label: 'CPDA-1 Triple Bag (450 mL - PRBC + Platelet + FFP)', defaultVol: 450, minWeight: 50 },
-  { value: 'SAGM_TRIPLE_450', label: 'SAGM Triple Bag (450 mL with additive solution)', defaultVol: 450, minWeight: 50 },
-  { value: 'CPDA_QUADRUPLE_450', label: 'CPDA-1 Quadruple Bag (450 mL - Cryo & Components)', defaultVol: 450, minWeight: 50 },
-  { value: 'PEDIATRIC_QUAD_450', label: 'Pediatric Quadruple Bag (450 mL aliquots)', defaultVol: 450, minWeight: 50 },
+  { value: 'SINGLE_350ML', label: 'CPDA-1 Single Bag (350 mL)', defaultVol: 350, minWeight: 45 },
+  { value: 'DOUBLE_350ML', label: 'CPDA-1 Double Bag (350 mL - PRBC + FFP)', defaultVol: 350, minWeight: 45 },
+  { value: 'DOUBLE_450ML', label: 'CPDA-1 Double Bag (450 mL - PRBC + FFP)', defaultVol: 450, minWeight: 50 },
+  { value: 'TRIPLE_450ML', label: 'CPDA-1 Triple Bag (450 mL - PRBC + Platelet + FFP)', defaultVol: 450, minWeight: 50 },
+  { value: 'QUADRUPLE_SAGM_450ML', label: 'SAGM Quadruple Bag (450 mL with additive solution)', defaultVol: 450, minWeight: 50 },
 ];
 
 export default function BloodCollectionModal({
@@ -42,7 +40,7 @@ export default function BloodCollectionModal({
   const [screeningError, setScreeningError] = useState<string | null>(null);
 
   // Form State
-  const [bagType, setBagType] = useState('CPDA_TRIPLE_450');
+  const [bagType, setBagType] = useState('TRIPLE_450ML');
   const [collectedVolumeMl, setCollectedVolumeMl] = useState<number>(450);
   const [venipunctureSite, setVenipunctureSite] = useState('LEFT_ANTECUBITAL_FOSSA');
   const [collectionOutcome, setCollectionOutcome] = useState('SUCCESSFUL');
@@ -699,6 +697,28 @@ export default function BloodCollectionModal({
               >
                 🔒 <strong>Regulatory & Audit Traceability:</strong> Submitting will create an auditable donation record, generate a unique barcode (<code>BAG-YYYYMMDD-XXXX</code>), queue the unit for mandatory 5-TTI infectious screening, and lock the unit from routine issue until authorized laboratory clearance.
               </div>
+
+              {/* Bottom Error Display (Visible when scrolled to bottom) */}
+              {submissionError && (
+                <div
+                  style={{
+                    padding: '0.65rem 0.85rem',
+                    borderRadius: '6px',
+                    backgroundColor: '#fee2e2',
+                    border: '1px solid #f87171',
+                    color: '#991b1b',
+                    fontSize: '0.85rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.4rem',
+                  }}
+                >
+                  <span>⚠️</span>
+                  <div>
+                    <strong>Collection Error:</strong> {submissionError}
+                  </div>
+                </div>
+              )}
 
               {/* Form Action Buttons */}
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '0.5rem' }}>

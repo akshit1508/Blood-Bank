@@ -13,6 +13,7 @@ import { Donation, DonationDocument } from '../donations/schemas/donation.schema
 import { Donor, DonorDocument } from '../donors/schemas/donor.schema';
 import { CreateBloodUnitDto } from './dto/create-blood-unit.dto';
 import { QueryBloodUnitsDto } from './dto/query-blood-units.dto';
+import { PrepareComponentsDto } from './dto/prepare-components.dto';
 import {
   BloodUnitComponent,
   BloodUnitStatus,
@@ -20,6 +21,8 @@ import {
 import { DonationStatus } from '../donations/constants/donation.constants';
 import { AdminRole } from '../auth/schemas/admin-user.schema';
 import { ExpiryRulesService } from '../inventory/services/expiry-rules.service';
+import { Inventory, InventoryDocument } from '../inventory/schemas/inventory.schema';
+import { InventoryStatus } from '../inventory/constants/inventory.constants';
 
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
 import { AuditActionType, AuditEntityType } from '../audit-logs/constants/audit-log.constants';
@@ -41,6 +44,9 @@ export class BloodUnitsService {
     private readonly donationModel: Model<DonationDocument>,
     @InjectModel(Donor.name)
     private readonly donorModel: Model<DonorDocument>,
+    @Optional()
+    @InjectModel(Inventory.name)
+    private readonly inventoryModel?: Model<InventoryDocument>,
     @Optional()
     private readonly auditLogsService?: AuditLogsService,
     @Optional()
@@ -435,6 +441,207 @@ export class BloodUnitsService {
     }
 
     return bloodUnit;
+  }
+
+  /**
+   * Prepares derived blood components from an eligible whole blood parent unit.
+   *
+   * Business Rules Enforced:
+   * 1. Parent blood unit must exist.
+   * 2. Parent unit must be WHOLE_BLOOD (cannot separate already-separated components).
+   * 3. Parent unit must NOT already be PROCESSED_INTO_COMPONENTS, DISCARDED, or EXPIRED.
+   * 4. Validates requested components (non-empty, no duplicate component types in batch).
+   * 5. Calculates component-specific expiry using ExpiryRulesService.
+   * 6. Deactivates parent unit inventory and updates parent status to PROCESSED_INTO_COMPONENTS.
+   * 7. Creates child blood units with parent traceability (parentUnitId, parentUnitCode, isComponentDerived: true).
+   * 8. If parent unit was APPROVED, child components become available in inventory.
+   */
+  async prepareComponents(
+    parentUnitId: string,
+    dto: PrepareComponentsDto,
+    actor?: any,
+  ): Promise<{ parentUnit: BloodUnit; childUnits: BloodUnit[] }> {
+    if (!isValidObjectId(parentUnitId)) {
+      throw new BadRequestException({
+        message: 'Invalid parent blood unit ID format',
+        code: 'INVALID_PARENT_UNIT_ID',
+      });
+    }
+
+    const parentUnit = await this.bloodUnitModel.findById(parentUnitId).exec();
+    if (!parentUnit) {
+      throw new NotFoundException({
+        message: `Parent blood unit with ID '${parentUnitId}' was not found.`,
+        code: 'PARENT_UNIT_NOT_FOUND',
+      });
+    }
+
+    if (parentUnit.componentType !== BloodUnitComponent.WHOLE_BLOOD) {
+      throw new BadRequestException({
+        message: `Cannot separate blood unit '${parentUnit.unitCode}': Only Whole Blood units can be separated into components (current component: ${parentUnit.componentType}).`,
+        code: 'NOT_WHOLE_BLOOD',
+      });
+    }
+
+    if (parentUnit.status === BloodUnitStatus.PROCESSED_INTO_COMPONENTS) {
+      throw new ConflictException({
+        message: `Blood unit '${parentUnit.unitCode}' has already been processed into components.`,
+        code: 'ALREADY_PROCESSED_INTO_COMPONENTS',
+      });
+    }
+
+    if (
+      parentUnit.status === BloodUnitStatus.REJECTED ||
+      parentUnit.status === BloodUnitStatus.QUARANTINED ||
+      (parentUnit.expiryDate && new Date(parentUnit.expiryDate) < new Date())
+    ) {
+      throw new BadRequestException({
+        message: `Cannot prepare components from unit '${parentUnit.unitCode}' with status '${parentUnit.status}' or expired status.`,
+        code: 'INVALID_PARENT_UNIT_STATUS',
+      });
+    }
+
+    if (!dto.components || dto.components.length === 0) {
+      throw new BadRequestException({
+        message: 'At least one component must be specified for preparation.',
+        code: 'NO_COMPONENTS_SPECIFIED',
+      });
+    }
+
+    // Check for duplicate components in request
+    const componentTypes = dto.components.map((c) => c.componentType);
+    const uniqueTypes = new Set(componentTypes);
+    if (uniqueTypes.size !== componentTypes.length) {
+      throw new BadRequestException({
+        message: 'Duplicate component types specified in separation batch.',
+        code: 'DUPLICATE_COMPONENT_TYPES',
+      });
+    }
+
+    // Verify shelf-life and create child units
+    const childUnits: BloodUnitDocument[] = [];
+    const collectionDate = new Date(parentUnit.collectionDate);
+
+    for (const item of dto.components) {
+      let expiryDate: Date;
+      if (this.expiryRulesService) {
+        expiryDate = await this.expiryRulesService.calculateExpiryDate(
+          collectionDate,
+          item.componentType,
+        );
+      } else {
+        let shelfLifeDays = 35;
+        if (item.componentType === BloodUnitComponent.PLATELETS) shelfLifeDays = 5;
+        else if (item.componentType === BloodUnitComponent.FFP) shelfLifeDays = 365;
+        else if (item.componentType === BloodUnitComponent.CRYOPRECIPITATE) shelfLifeDays = 365;
+        expiryDate = new Date(collectionDate.getTime() + shelfLifeDays * 24 * 60 * 60 * 1000);
+      }
+
+      let storageRequirement = '2°C to 6°C';
+      if (
+        item.componentType === BloodUnitComponent.FFP ||
+        item.componentType === BloodUnitComponent.CRYOPRECIPITATE
+      ) {
+        storageRequirement = '-18°C or colder';
+      } else if (item.componentType === BloodUnitComponent.PLATELETS) {
+        storageRequirement = '20°C to 24°C with continuous agitation';
+      }
+
+      const compSuffix = item.componentType.slice(0, 4);
+      let childCode = `${parentUnit.unitCode}-${compSuffix}`;
+      let attempts = 0;
+      while (await this.bloodUnitModel.exists({ unitCode: childCode })) {
+        attempts++;
+        childCode = `${parentUnit.unitCode}-${compSuffix}-${Math.random().toString(36).substring(2, 5).toUpperCase()}`;
+        if (attempts > 5) break;
+      }
+
+      const childUnitData: any = {
+        unitCode: childCode,
+        parentUnitId: parentUnit._id,
+        parentUnitCode: parentUnit.unitCode,
+        isComponentDerived: true,
+        donorId: parentUnit.donorId,
+        campaignId: parentUnit.campaignId,
+        campaignCode: parentUnit.campaignCode,
+        bloodGroup: parentUnit.bloodGroup,
+        componentType: item.componentType,
+        collectionDate: parentUnit.collectionDate,
+        expiryDate,
+        volume: item.volume,
+        status: parentUnit.status,
+        storageLocation: item.storageLocation?.trim() || parentUnit.storageLocation,
+        storageRequirement,
+        preparedAt: new Date(),
+        preparedBy: isValidObjectId(actor?._id || actor?.id)
+          ? new Types.ObjectId(actor._id || actor.id)
+          : undefined,
+        preparedByName: actor?.fullName || actor?.name || undefined,
+        notes: dto.notes?.trim() || undefined,
+      };
+
+      const childDoc = new this.bloodUnitModel(childUnitData);
+      const savedChild = await childDoc.save();
+      childUnits.push(savedChild);
+
+      if (parentUnit.status === BloodUnitStatus.APPROVED && this.inventoryModel) {
+        try {
+          await this.inventoryModel.create({
+            bloodUnitId: savedChild._id,
+            status: InventoryStatus.AVAILABLE,
+            receivedBy: actor?._id || actor?.id ? new Types.ObjectId(actor._id || actor.id) : undefined,
+            receivedByName: actor?.fullName || actor?.name || undefined,
+            receivedByRole: actor?.role || undefined,
+            receivedAt: new Date(),
+          });
+        } catch {
+          // ignore duplicate inventory index error
+        }
+      }
+    }
+
+    // Transition parent unit status
+    parentUnit.status = BloodUnitStatus.PROCESSED_INTO_COMPONENTS;
+    const updatedParent = await parentUnit.save();
+
+    // Decommission parent unit from inventory to prevent duplicate inventory
+    if (this.inventoryModel) {
+      await this.inventoryModel.updateMany(
+        { bloodUnitId: parentUnit._id },
+        {
+          status: InventoryStatus.DISCARDED,
+          notes: 'Decommissioned: Whole blood separated into child components',
+        },
+      ).exec();
+    }
+
+    if (this.auditLogsService) {
+      await this.auditLogsService.logEvent({
+        actorId: actor?._id || actor?.id,
+        actorName: actor?.fullName || actor?.name,
+        actorEmail: actor?.email,
+        actorRole: actor?.role,
+        action: AuditActionType.BLOOD_UNIT_CREATED,
+        entityType: AuditEntityType.BLOOD_UNIT,
+        entityId: parentUnit._id.toString(),
+        entityIdentifier: parentUnit.unitCode,
+        description: `Whole blood unit ${parentUnit.unitCode} separated into ${childUnits.length} components: ${dto.components.map((c) => c.componentType).join(', ')}`,
+        afterState: {
+          parentUnitCode: parentUnit.unitCode,
+          parentStatus: parentUnit.status,
+          childUnits: childUnits.map((u) => ({
+            unitCode: u.unitCode,
+            componentType: u.componentType,
+            volume: u.volume,
+          })),
+        },
+      });
+    }
+
+    return {
+      parentUnit: updatedParent,
+      childUnits,
+    };
   }
 }
 

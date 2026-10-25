@@ -58,6 +58,7 @@ export class DonorEligibilityService {
     donationDate: Date | string = new Date(),
     donationType: string = DonationType.WHOLE_BLOOD,
     excludeDonationId?: string,
+    options?: { allowPendingReview?: boolean },
   ): Promise<DonorEligibilityCheckResult> {
     // 1. Resolve Donor Document
     let donor: DonorDocument | null = null;
@@ -81,7 +82,7 @@ export class DonorEligibilityService {
     }
 
     // 2. Donor Status Checks
-    if (donor.status === DonorStatus.PENDING_REVIEW) {
+    if (donor.status === DonorStatus.PENDING_REVIEW && !options?.allowPendingReview) {
       throw new BadRequestException({
         message: `Donor '${donor.fullName}' (${donor.donorCode}) requires clinical review before donation can be accepted.`,
         code: 'DONOR_PENDING_REVIEW',

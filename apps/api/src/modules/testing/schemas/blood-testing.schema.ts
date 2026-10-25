@@ -26,6 +26,21 @@ export class IndividualTestResult {
   })
   status: TestResultStatus;
 
+  @Prop({ trim: true })
+  method?: string;
+
+  @Prop({ trim: true })
+  kitLotNumber?: string;
+
+  @Prop()
+  kitExpiryDate?: Date;
+
+  @Prop({ default: false })
+  isRepeatOrConfirmatory?: boolean;
+
+  @Prop({ trim: true })
+  repeatReason?: string;
+
   @Prop()
   testedAt?: Date;
 
@@ -44,6 +59,54 @@ export class IndividualTestResult {
 
 export const IndividualTestResultSchema =
   SchemaFactory.createForClass(IndividualTestResult);
+
+@Schema({ _id: false })
+export class BloodGroupingResult {
+  @Prop({ trim: true, uppercase: true })
+  aboGroup?: string;
+
+  @Prop({ trim: true, uppercase: true })
+  rhFactor?: string; // POSITIVE or NEGATIVE
+
+  @Prop({ trim: true, uppercase: true })
+  confirmedBloodGroup?: string; // A+, A-, B+, B-, AB+, AB-, O+, O-
+
+  @Prop({ trim: true })
+  groupingMethod?: string; // TUBE_METHOD, GEL_CARD, MICROPLATE
+
+  @Prop({ trim: true })
+  cellGroupingAntiA?: string; // 0, 1+, 2+, 3+, 4+
+
+  @Prop({ trim: true })
+  cellGroupingAntiB?: string;
+
+  @Prop({ trim: true })
+  cellGroupingAntiD?: string;
+
+  @Prop({ trim: true })
+  serumGroupingACells?: string;
+
+  @Prop({ trim: true })
+  serumGroupingBCells?: string;
+
+  @Prop({ trim: true })
+  serumGroupingOCells?: string;
+
+  @Prop()
+  testedAt?: Date;
+
+  @Prop({ type: Types.ObjectId, ref: 'AdminUser' })
+  testedBy?: Types.ObjectId;
+
+  @Prop({ trim: true })
+  testedByName?: string;
+
+  @Prop({ trim: true })
+  remarks?: string;
+}
+
+export const BloodGroupingResultSchema =
+  SchemaFactory.createForClass(BloodGroupingResult);
 
 @Schema({
   collection: 'blood_testing',
@@ -119,6 +182,9 @@ export class BloodTesting {
   @Prop({ type: [IndividualTestResultSchema], default: [] })
   testResults: IndividualTestResult[];
 
+  @Prop({ type: BloodGroupingResultSchema, required: false })
+  bloodGrouping?: BloodGroupingResult;
+
   @Prop({
     required: true,
     enum: Object.values(TestingStatus),
@@ -191,6 +257,21 @@ export class BloodTesting {
 
   @Prop({ trim: true })
   remarks?: string;
+
+  @Prop({ type: Types.ObjectId, ref: 'AdminUser' })
+  authorizedBy?: Types.ObjectId;
+
+  @Prop({ trim: true })
+  authorizedByName?: string;
+
+  @Prop({ trim: true })
+  authorizedByRole?: string;
+
+  @Prop()
+  authorizedAt?: Date;
+
+  @Prop({ trim: true })
+  authorizationRemarks?: string;
 
   createdAt: Date;
   updatedAt: Date;

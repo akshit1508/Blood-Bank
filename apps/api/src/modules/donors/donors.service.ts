@@ -23,12 +23,20 @@ import {
 
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
 import { AuditActionType, AuditEntityType } from '../audit-logs/constants/audit-log.constants';
+import {
+  DonorScreening,
+  DonorScreeningDocument,
+} from './schemas/donor-screening.schema';
+import { DonorScreeningDecision } from './constants/screening.constants';
 
 @Injectable()
 export class DonorsService {
   constructor(
     @InjectModel(Donor.name)
     private readonly donorModel: Model<DonorDocument>,
+    @Optional()
+    @InjectModel(DonorScreening.name)
+    private readonly donorScreeningModel?: Model<DonorScreeningDocument>,
     @Optional()
     private readonly auditLogsService?: AuditLogsService,
   ) {}
@@ -214,6 +222,30 @@ export class DonorsService {
           ', ',
         )}]`,
       );
+    }
+
+    // Invariant: Without completed clinical screening, donor profile cannot be activated for donation
+    if (targetStatus === DonorStatus.ACTIVE) {
+      let isScreeningApproved = (donor as any).lastScreeningDecision === DonorScreeningDecision.SELECTED;
+
+      if (!isScreeningApproved && this.donorScreeningModel) {
+        const approvedScreening = await this.donorScreeningModel
+          .findOne({
+            donorId: (donor as any)._id,
+            decision: DonorScreeningDecision.SELECTED,
+          })
+          .exec();
+        if (approvedScreening) {
+          isScreeningApproved = true;
+        }
+      }
+
+      if (!isScreeningApproved) {
+        throw new BadRequestException({
+          message: `Donor profile cannot be activated without passing medical screening. Complete the Pre-Donation Medical Screening & Examination to activate this profile for donation.`,
+          code: 'SCREENING_REQUIRED_FOR_ACTIVATION',
+        });
+      }
     }
 
     const updateFields: any = { status: targetStatus };

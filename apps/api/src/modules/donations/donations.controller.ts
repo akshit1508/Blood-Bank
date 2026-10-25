@@ -95,6 +95,7 @@ export class DonationsController {
       statusCode: HttpStatus.CREATED,
       message: result.message,
       data: result.donation,
+      donation: result.donation,
       bloodUnit: result.bloodUnit,
       screening: result.screening,
       label: result.label,

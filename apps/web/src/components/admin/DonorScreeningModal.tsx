@@ -182,52 +182,189 @@ export default function DonorScreeningModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-5">
-      <div className="relative w-full max-w-4xl bg-white rounded-2xl shadow-2xl overflow-hidden border border-slate-200 max-h-[92vh] flex flex-col">
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        backgroundColor: 'rgba(15, 23, 42, 0.65)',
+        backdropFilter: 'blur(4px)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 1000,
+        padding: '1.25rem',
+      }}
+      onClick={onClose}
+    >
+      <div
+        style={{
+          position: 'relative',
+          width: '100%',
+          maxWidth: '880px',
+          backgroundColor: '#ffffff',
+          borderRadius: '16px',
+          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(0, 0, 0, 0.05)',
+          overflow: 'hidden',
+          maxHeight: '92vh',
+          display: 'flex',
+          flexDirection: 'column',
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
-        <div className="bg-gradient-to-r from-red-700 via-rose-700 to-red-800 text-white px-6 py-4 flex items-center justify-between">
+        <div
+          style={{
+            background: 'linear-gradient(135deg, #b91c1c 0%, #be123c 50%, #991b1b 100%)',
+            color: '#ffffff',
+            padding: '1.25rem 1.75rem',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+          }}
+        >
           <div>
-            <div className="flex items-center gap-2">
-              <span className="px-2 py-0.5 text-xs font-semibold bg-white/20 rounded-md tracking-wider">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.35rem' }}>
+              <span
+                style={{
+                  padding: '2px 8px',
+                  fontSize: '0.7rem',
+                  fontWeight: 700,
+                  backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                  borderRadius: '6px',
+                  letterSpacing: '0.05em',
+                  textTransform: 'uppercase',
+                }}
+              >
                 PHASE 2 CLINICAL GATE
               </span>
-              <span className="text-xs text-red-200">NBTC / DGHS Guidelines</span>
+              <span style={{ fontSize: '0.75rem', color: '#fecdd3' }}>NBTC / DGHS Guidelines</span>
             </div>
-            <h2 className="text-xl font-bold mt-0.5">Pre-Donation Medical Screening & Examination</h2>
-            <p className="text-xs text-red-100">
-              Donor: <span className="font-semibold">{donor.fullName}</span> ({donor.donorCode}) • Blood Group: <span className="font-bold underline">{donor.bloodGroup}</span> • Gender: {donor.gender}
+            <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700, letterSpacing: '-0.01em' }}>
+              📋 Pre-Donation Medical Screening & Examination
+            </h2>
+            <p style={{ margin: '0.35rem 0 0 0', fontSize: '0.825rem', color: '#ffe4e6' }}>
+              Donor: <strong style={{ color: '#ffffff' }}>{donor.fullName}</strong> ({donor.donorCode}) • Blood Group: <strong style={{ color: '#ffffff', textDecoration: 'underline' }}>{donor.bloodGroup}</strong> • Gender: <strong>{donor.gender}</strong>
             </p>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition-colors"
+            style={{
+              background: 'rgba(255, 255, 255, 0.15)',
+              border: 'none',
+              borderRadius: '8px',
+              color: '#ffffff',
+              fontSize: '1.25rem',
+              width: '36px',
+              height: '36px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              lineHeight: 1,
+              transition: 'background 0.15s ease',
+            }}
+            title="Close"
           >
             ✕
           </button>
         </div>
 
         {/* Scrollable Form Body */}
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-6">
+        <form
+          onSubmit={handleSubmit}
+          style={{
+            flex: 1,
+            overflowY: 'auto',
+            padding: '1.5rem',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '1.25rem',
+            backgroundColor: '#ffffff',
+          }}
+        >
           {errorMessage && (
-            <div className="p-4 bg-red-50 border-l-4 border-red-500 rounded-r-lg text-red-800 text-sm">
-              <span className="font-semibold">Screening Blocked:</span> {errorMessage}
+            <div
+              style={{
+                padding: '0.85rem 1.15rem',
+                backgroundColor: '#fef2f2',
+                borderLeft: '4px solid #ef4444',
+                borderRadius: '8px',
+                color: '#991b1b',
+                fontSize: '0.875rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+              }}
+            >
+              <span style={{ fontSize: '1.1rem' }}>⚠️</span>
+              <div>
+                <strong>Screening Blocked:</strong> {errorMessage}
+              </div>
             </div>
           )}
 
           {/* Section 1: Physical Examination (Vitals) */}
-          <div className="bg-slate-50 border border-slate-200 rounded-xl p-5">
-            <div className="flex items-center justify-between mb-4 pb-2 border-b border-slate-200">
-              <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
-                <span className="w-6 h-6 rounded-full bg-red-100 text-red-700 flex items-center justify-center text-xs font-bold">1</span>
+          <div
+            style={{
+              backgroundColor: '#f8fafc',
+              border: '1px solid #e2e8f0',
+              borderRadius: '12px',
+              padding: '1.25rem',
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '1rem',
+                paddingBottom: '0.5rem',
+                borderBottom: '1px solid #e2e8f0',
+              }}
+            >
+              <h3
+                style={{
+                  margin: 0,
+                  fontSize: '0.9rem',
+                  fontWeight: 700,
+                  color: '#1e293b',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                }}
+              >
+                <span
+                  style={{
+                    width: '24px',
+                    height: '24px',
+                    borderRadius: '50%',
+                    backgroundColor: '#fee2e2',
+                    color: '#b91c1c',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '0.75rem',
+                    fontWeight: 800,
+                  }}
+                >
+                  1
+                </span>
                 Physical Examination & Vitals
               </h3>
-              <span className="text-xs text-slate-500">Statutory Indian Limits (NBTC)</span>
+              <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 500 }}>Statutory Indian Limits (NBTC)</span>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))',
+                gap: '0.85rem',
+              }}
+            >
               {/* Weight */}
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#334155', marginBottom: '0.35rem' }}>
                   Weight (kg) *
                 </label>
                 <input
@@ -238,18 +375,34 @@ export default function DonorScreeningModal({
                   required
                   value={weightKg}
                   onChange={(e) => setWeightKg(parseFloat(e.target.value) || 0)}
-                  className={`w-full px-3 py-2 text-sm rounded-lg border focus:ring-2 focus:outline-none ${
-                    isWeightValid ? 'border-slate-300 focus:ring-emerald-500' : 'border-red-400 bg-red-50 text-red-700 focus:ring-red-500'
-                  }`}
+                  style={{
+                    width: '100%',
+                    padding: '0.55rem 0.75rem',
+                    fontSize: '0.875rem',
+                    borderRadius: '8px',
+                    border: isWeightValid ? '1px solid #cbd5e1' : '1.5px solid #ef4444',
+                    backgroundColor: isWeightValid ? '#ffffff' : '#fef2f2',
+                    color: isWeightValid ? '#0f172a' : '#991b1b',
+                    outline: 'none',
+                    boxSizing: 'border-box',
+                  }}
                 />
-                <span className={`text-[11px] font-medium block mt-1 ${isWeightValid ? 'text-emerald-600' : 'text-red-600 font-bold'}`}>
+                <span
+                  style={{
+                    display: 'block',
+                    fontSize: '0.7rem',
+                    fontWeight: 600,
+                    marginTop: '0.3rem',
+                    color: isWeightValid ? '#16a34a' : '#dc2626',
+                  }}
+                >
                   {isWeightValid ? '✓ Minimum 45 kg met' : '✗ Below 45 kg: Ineligible'}
                 </span>
               </div>
 
               {/* Hemoglobin */}
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#334155', marginBottom: '0.35rem' }}>
                   Hemoglobin (g/dL) *
                 </label>
                 <input
@@ -260,18 +413,34 @@ export default function DonorScreeningModal({
                   required
                   value={hemoglobinGdl}
                   onChange={(e) => setHemoglobinGdl(parseFloat(e.target.value) || 0)}
-                  className={`w-full px-3 py-2 text-sm rounded-lg border focus:ring-2 focus:outline-none ${
-                    isHbValid ? 'border-slate-300 focus:ring-emerald-500' : 'border-red-400 bg-red-50 text-red-700 focus:ring-red-500'
-                  }`}
+                  style={{
+                    width: '100%',
+                    padding: '0.55rem 0.75rem',
+                    fontSize: '0.875rem',
+                    borderRadius: '8px',
+                    border: isHbValid ? '1px solid #cbd5e1' : '1.5px solid #ef4444',
+                    backgroundColor: isHbValid ? '#ffffff' : '#fef2f2',
+                    color: isHbValid ? '#0f172a' : '#991b1b',
+                    outline: 'none',
+                    boxSizing: 'border-box',
+                  }}
                 />
-                <span className={`text-[11px] font-medium block mt-1 ${isHbValid ? 'text-emerald-600' : 'text-red-600 font-bold'}`}>
+                <span
+                  style={{
+                    display: 'block',
+                    fontSize: '0.7rem',
+                    fontWeight: 600,
+                    marginTop: '0.3rem',
+                    color: isHbValid ? '#16a34a' : '#dc2626',
+                  }}
+                >
                   {isHbValid ? '✓ Minimum 12.5 g/dL met' : '✗ Below 12.5: Ineligible'}
                 </span>
               </div>
 
-              {/* Blood Pressure Systolic */}
+              {/* BP Systolic */}
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#334155', marginBottom: '0.35rem' }}>
                   BP Systolic (mmHg) *
                 </label>
                 <input
@@ -281,14 +450,25 @@ export default function DonorScreeningModal({
                   required
                   value={bpSystolic}
                   onChange={(e) => setBpSystolic(parseInt(e.target.value) || 0)}
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500"
+                  style={{
+                    width: '100%',
+                    padding: '0.55rem 0.75rem',
+                    fontSize: '0.875rem',
+                    borderRadius: '8px',
+                    border: '1px solid #cbd5e1',
+                    backgroundColor: '#ffffff',
+                    outline: 'none',
+                    boxSizing: 'border-box',
+                  }}
                 />
-                <span className="text-[11px] text-slate-500 block mt-1">Normal: 100-140</span>
+                <span style={{ display: 'block', fontSize: '0.7rem', color: '#64748b', marginTop: '0.3rem' }}>
+                  Normal: 100-140
+                </span>
               </div>
 
-              {/* Blood Pressure Diastolic */}
+              {/* BP Diastolic */}
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#334155', marginBottom: '0.35rem' }}>
                   BP Diastolic (mmHg) *
                 </label>
                 <input
@@ -298,14 +478,25 @@ export default function DonorScreeningModal({
                   required
                   value={bpDiastolic}
                   onChange={(e) => setBpDiastolic(parseInt(e.target.value) || 0)}
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500"
+                  style={{
+                    width: '100%',
+                    padding: '0.55rem 0.75rem',
+                    fontSize: '0.875rem',
+                    borderRadius: '8px',
+                    border: '1px solid #cbd5e1',
+                    backgroundColor: '#ffffff',
+                    outline: 'none',
+                    boxSizing: 'border-box',
+                  }}
                 />
-                <span className="text-[11px] text-slate-500 block mt-1">Normal: 60-90</span>
+                <span style={{ display: 'block', fontSize: '0.7rem', color: '#64748b', marginTop: '0.3rem' }}>
+                  Normal: 60-90
+                </span>
               </div>
 
               {/* Pulse */}
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#334155', marginBottom: '0.35rem' }}>
                   Pulse (bpm) *
                 </label>
                 <input
@@ -315,16 +506,33 @@ export default function DonorScreeningModal({
                   required
                   value={pulseBpm}
                   onChange={(e) => setPulseBpm(parseInt(e.target.value) || 0)}
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500"
+                  style={{
+                    width: '100%',
+                    padding: '0.55rem 0.75rem',
+                    fontSize: '0.875rem',
+                    borderRadius: '8px',
+                    border: '1px solid #cbd5e1',
+                    backgroundColor: '#ffffff',
+                    outline: 'none',
+                    boxSizing: 'border-box',
+                  }}
                 />
-                <span className={`text-[11px] block mt-1 ${isPulseValid ? 'text-emerald-600' : 'text-amber-600 font-semibold'}`}>
+                <span
+                  style={{
+                    display: 'block',
+                    fontSize: '0.7rem',
+                    fontWeight: 600,
+                    marginTop: '0.3rem',
+                    color: isPulseValid ? '#16a34a' : '#d97706',
+                  }}
+                >
                   {isPulseValid ? '✓ Normal (60-100)' : '⚠️ Out of normal range'}
                 </span>
               </div>
 
-              {/* Temperature */}
+              {/* Oral Temp */}
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#334155', marginBottom: '0.35rem' }}>
                   Oral Temp (°C) *
                 </label>
                 <input
@@ -335,22 +543,49 @@ export default function DonorScreeningModal({
                   required
                   value={temperatureCelsius}
                   onChange={(e) => setTemperatureCelsius(parseFloat(e.target.value) || 0)}
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500"
+                  style={{
+                    width: '100%',
+                    padding: '0.55rem 0.75rem',
+                    fontSize: '0.875rem',
+                    borderRadius: '8px',
+                    border: '1px solid #cbd5e1',
+                    backgroundColor: '#ffffff',
+                    outline: 'none',
+                    boxSizing: 'border-box',
+                  }}
                 />
-                <span className={`text-[11px] block mt-1 ${isTempValid ? 'text-emerald-600' : 'text-red-600 font-bold'}`}>
+                <span
+                  style={{
+                    display: 'block',
+                    fontSize: '0.7rem',
+                    fontWeight: 600,
+                    marginTop: '0.3rem',
+                    color: isTempValid ? '#16a34a' : '#dc2626',
+                  }}
+                >
                   {isTempValid ? '✓ Afebrile (≤ 37.5°C)' : '✗ Fever detected'}
                 </span>
               </div>
 
               {/* Vein Access */}
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#334155', marginBottom: '0.35rem' }}>
                   Vein Prominence
                 </label>
                 <select
                   value={veinAccess}
                   onChange={(e) => setVeinAccess(e.target.value)}
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 bg-white"
+                  style={{
+                    width: '100%',
+                    padding: '0.55rem 0.75rem',
+                    fontSize: '0.875rem',
+                    borderRadius: '8px',
+                    border: '1px solid #cbd5e1',
+                    backgroundColor: '#ffffff',
+                    outline: 'none',
+                    boxSizing: 'border-box',
+                    cursor: 'pointer',
+                  }}
                 >
                   <option value="GOOD">Good (Prominent antecubital)</option>
                   <option value="FAIR">Fair (Palpable)</option>
@@ -360,244 +595,425 @@ export default function DonorScreeningModal({
 
               {/* General Appearance */}
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#334155', marginBottom: '0.35rem' }}>
                   General Health / Appearance
                 </label>
                 <input
                   type="text"
                   value={generalAppearance}
                   onChange={(e) => setGeneralAppearance(e.target.value)}
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300"
+                  style={{
+                    width: '100%',
+                    padding: '0.55rem 0.75rem',
+                    fontSize: '0.875rem',
+                    borderRadius: '8px',
+                    border: '1px solid #cbd5e1',
+                    backgroundColor: '#ffffff',
+                    outline: 'none',
+                    boxSizing: 'border-box',
+                  }}
                 />
               </div>
             </div>
           </div>
 
           {/* Section 2: Health Questionnaire */}
-          <div className="bg-slate-50 border border-slate-200 rounded-xl p-5">
-            <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-200">
-              <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
-                <span className="w-6 h-6 rounded-full bg-red-100 text-red-700 flex items-center justify-center text-xs font-bold">2</span>
+          <div
+            style={{
+              backgroundColor: '#f8fafc',
+              border: '1px solid #e2e8f0',
+              borderRadius: '12px',
+              padding: '1.25rem',
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '1rem',
+                paddingBottom: '0.5rem',
+                borderBottom: '1px solid #e2e8f0',
+              }}
+            >
+              <h3
+                style={{
+                  margin: 0,
+                  fontSize: '0.9rem',
+                  fontWeight: 700,
+                  color: '#1e293b',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                }}
+              >
+                <span
+                  style={{
+                    width: '24px',
+                    height: '24px',
+                    borderRadius: '50%',
+                    backgroundColor: '#fee2e2',
+                    color: '#b91c1c',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '0.75rem',
+                    fontWeight: 800,
+                  }}
+                >
+                  2
+                </span>
                 Pre-Donation Medical Risk Questionnaire
               </h3>
-              <span className="text-xs text-slate-500">Confidential Medical Record</span>
+              <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 500 }}>Confidential Medical Record</span>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
-              <label className="flex items-start gap-2.5 p-2 bg-white rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50">
-                <input
-                  type="checkbox"
-                  checked={feelingWellToday}
-                  onChange={(e) => setFeelingWellToday(e.target.checked)}
-                  className="mt-0.5 h-4 w-4 rounded border-slate-300 text-red-600 focus:ring-red-500"
-                />
-                <div>
-                  <span className="font-semibold text-slate-800">Feeling well & in good health today?</span>
-                  <p className="text-[11px] text-slate-500">Normal sleep, adequate meal taken within 4 hours.</p>
-                </div>
-              </label>
-
-              <label className="flex items-start gap-2.5 p-2 bg-white rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50">
-                <input
-                  type="checkbox"
-                  checked={alcoholIntakeLast24Hours}
-                  onChange={(e) => setAlcoholIntakeLast24Hours(e.target.checked)}
-                  className="mt-0.5 h-4 w-4 rounded border-slate-300 text-red-600 focus:ring-red-500"
-                />
-                <div>
-                  <span className="font-semibold text-red-800">Alcohol consumption in last 24 hours?</span>
-                  <p className="text-[11px] text-slate-500">Requires minimum 24-hour deferral.</p>
-                </div>
-              </label>
-
-              <label className="flex items-start gap-2.5 p-2 bg-white rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50">
-                <input
-                  type="checkbox"
-                  checked={recentIllnessOrFever}
-                  onChange={(e) => setRecentIllnessOrFever(e.target.checked)}
-                  className="mt-0.5 h-4 w-4 rounded border-slate-300 text-red-600 focus:ring-red-500"
-                />
-                <div>
-                  <span className="font-semibold text-slate-800">Recent fever, sore throat or infection in past 15 days?</span>
-                  <p className="text-[11px] text-slate-500">Defferal until full recovery.</p>
-                </div>
-              </label>
-
-              <label className="flex items-start gap-2.5 p-2 bg-white rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50">
-                <input
-                  type="checkbox"
-                  checked={tattooPiercingLast12Months}
-                  onChange={(e) => setTattooPiercingLast12Months(e.target.checked)}
-                  className="mt-0.5 h-4 w-4 rounded border-slate-300 text-red-600 focus:ring-red-500"
-                />
-                <div>
-                  <span className="font-semibold text-slate-800">Tattoo, body piercing or acupuncture in past 12 months?</span>
-                  <p className="text-[11px] text-slate-500">Mandatory 12-month deferral.</p>
-                </div>
-              </label>
-
-              <label className="flex items-start gap-2.5 p-2 bg-white rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50">
-                <input
-                  type="checkbox"
-                  checked={majorSurgeryOrDentalRecent}
-                  onChange={(e) => setMajorSurgeryOrDentalRecent(e.target.checked)}
-                  className="mt-0.5 h-4 w-4 rounded border-slate-300 text-red-600 focus:ring-red-500"
-                />
-                <div>
-                  <span className="font-semibold text-slate-800">Dental extraction (72h) or surgery (6 months)?</span>
-                  <p className="text-[11px] text-slate-500">Clinical deferral period.</p>
-                </div>
-              </label>
-
-              <label className="flex items-start gap-2.5 p-2 bg-white rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50">
-                <input
-                  type="checkbox"
-                  checked={cardiacOrRespiratoryDisease}
-                  onChange={(e) => setCardiacOrRespiratoryDisease(e.target.checked)}
-                  className="mt-0.5 h-4 w-4 rounded border-slate-300 text-red-600 focus:ring-red-500"
-                />
-                <div>
-                  <span className="font-semibold text-red-700">Heart disease, epilepsy or asthma on steroid therapy?</span>
-                  <p className="text-[11px] text-slate-500">Permanent deferral for donor safety.</p>
-                </div>
-              </label>
-
-              <label className="flex items-start gap-2.5 p-2 bg-white rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50">
-                <input
-                  type="checkbox"
-                  checked={historyOfJaundiceOrHepatitis}
-                  onChange={(e) => setHistoryOfJaundiceOrHepatitis(e.target.checked)}
-                  className="mt-0.5 h-4 w-4 rounded border-slate-300 text-red-600 focus:ring-red-500"
-                />
-                <div>
-                  <span className="font-semibold text-red-700">History of Jaundice, Hepatitis B/C, or HIV risk?</span>
-                  <p className="text-[11px] text-slate-500">Permanent contraindication.</p>
-                </div>
-              </label>
-
-              <label className="flex items-start gap-2.5 p-2 bg-white rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50">
-                <input
-                  type="checkbox"
-                  checked={takingMedications}
-                  onChange={(e) => setTakingMedications(e.target.checked)}
-                  className="mt-0.5 h-4 w-4 rounded border-slate-300 text-red-600 focus:ring-red-500"
-                />
-                <div>
-                  <span className="font-semibold text-slate-800">Currently taking antibiotics, blood thinners or aspirin?</span>
-                  <p className="text-[11px] text-slate-500">Aspirin: 48h platelet deferral; Antibiotics: 72h.</p>
-                </div>
-              </label>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+                gap: '0.75rem',
+              }}
+            >
+              {[
+                {
+                  id: 'wellToday',
+                  checked: feelingWellToday,
+                  onChange: (v: boolean) => setFeelingWellToday(v),
+                  title: 'Feeling well & in good health today?',
+                  desc: 'Normal sleep, adequate meal taken within 4 hours.',
+                  isRisk: false,
+                },
+                {
+                  id: 'alcohol',
+                  checked: alcoholIntakeLast24Hours,
+                  onChange: (v: boolean) => setAlcoholIntakeLast24Hours(v),
+                  title: 'Alcohol consumption in last 24 hours?',
+                  desc: 'Requires minimum 24-hour deferral.',
+                  isRisk: true,
+                },
+                {
+                  id: 'illness',
+                  checked: recentIllnessOrFever,
+                  onChange: (v: boolean) => setRecentIllnessOrFever(v),
+                  title: 'Recent fever, sore throat or infection in past 15 days?',
+                  desc: 'Deferral until full recovery.',
+                  isRisk: true,
+                },
+                {
+                  id: 'tattoo',
+                  checked: tattooPiercingLast12Months,
+                  onChange: (v: boolean) => setTattooPiercingLast12Months(v),
+                  title: 'Tattoo, body piercing or acupuncture in past 12 months?',
+                  desc: 'Mandatory 12-month deferral under NBTC.',
+                  isRisk: true,
+                },
+                {
+                  id: 'surgery',
+                  checked: majorSurgeryOrDentalRecent,
+                  onChange: (v: boolean) => setMajorSurgeryOrDentalRecent(v),
+                  title: 'Dental extraction (72h) or surgery (6 months)?',
+                  desc: 'Clinical deferral period applies.',
+                  isRisk: true,
+                },
+                {
+                  id: 'cardiac',
+                  checked: cardiacOrRespiratoryDisease,
+                  onChange: (v: boolean) => setCardiacOrRespiratoryDisease(v),
+                  title: 'Heart disease, epilepsy or asthma on steroid therapy?',
+                  desc: 'Permanent deferral for donor safety.',
+                  isRisk: true,
+                },
+                {
+                  id: 'jaundice',
+                  checked: historyOfJaundiceOrHepatitis,
+                  onChange: (v: boolean) => setHistoryOfJaundiceOrHepatitis(v),
+                  title: 'History of Jaundice, Hepatitis B/C, or HIV risk?',
+                  desc: 'Permanent contraindication.',
+                  isRisk: true,
+                },
+                {
+                  id: 'meds',
+                  checked: takingMedications,
+                  onChange: (v: boolean) => setTakingMedications(v),
+                  title: 'Currently taking antibiotics, blood thinners or aspirin?',
+                  desc: 'Aspirin: 48h platelet deferral; Antibiotics: 72h.',
+                  isRisk: true,
+                },
+              ].map((q) => (
+                <label
+                  key={q.id}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: '0.75rem',
+                    padding: '0.75rem 0.85rem',
+                    backgroundColor: q.checked && q.isRisk ? '#fef2f2' : '#ffffff',
+                    border: q.checked && q.isRisk ? '1.5px solid #f87171' : '1px solid #e2e8f0',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={q.checked}
+                    onChange={(e) => q.onChange(e.target.checked)}
+                    style={{
+                      marginTop: '0.15rem',
+                      width: '16px',
+                      height: '16px',
+                      accentColor: '#dc2626',
+                      cursor: 'pointer',
+                    }}
+                  />
+                  <div>
+                    <div
+                      style={{
+                        fontSize: '0.8rem',
+                        fontWeight: 600,
+                        color: q.checked && q.isRisk ? '#991b1b' : '#1e293b',
+                      }}
+                    >
+                      {q.title}
+                    </div>
+                    <div style={{ fontSize: '0.7rem', color: '#64748b', marginTop: '0.15rem' }}>
+                      {q.desc}
+                    </div>
+                  </div>
+                </label>
+              ))}
             </div>
 
             {takingMedications && (
-              <div className="mt-3">
+              <div style={{ marginTop: '0.85rem' }}>
                 <input
                   type="text"
                   placeholder="Specify medication names and dosage..."
                   value={medicationDetails}
                   onChange={(e) => setMedicationDetails(e.target.value)}
-                  className="w-full px-3 py-2 text-xs rounded-lg border border-slate-300 bg-white"
+                  style={{
+                    width: '100%',
+                    padding: '0.55rem 0.75rem',
+                    fontSize: '0.8rem',
+                    borderRadius: '8px',
+                    border: '1px solid #cbd5e1',
+                    backgroundColor: '#ffffff',
+                    boxSizing: 'border-box',
+                    outline: 'none',
+                  }}
                 />
               </div>
             )}
           </div>
 
           {/* Section 3: Informed Consent & Clinical Decision */}
-          <div className="bg-slate-50 border border-slate-200 rounded-xl p-5">
-            <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-200">
-              <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
-                <span className="w-6 h-6 rounded-full bg-red-100 text-red-700 flex items-center justify-center text-xs font-bold">3</span>
+          <div
+            style={{
+              backgroundColor: '#f8fafc',
+              border: '1px solid #e2e8f0',
+              borderRadius: '12px',
+              padding: '1.25rem',
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '1rem',
+                paddingBottom: '0.5rem',
+                borderBottom: '1px solid #e2e8f0',
+              }}
+            >
+              <h3
+                style={{
+                  margin: 0,
+                  fontSize: '0.9rem',
+                  fontWeight: 700,
+                  color: '#1e293b',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                }}
+              >
+                <span
+                  style={{
+                    width: '24px',
+                    height: '24px',
+                    borderRadius: '50%',
+                    backgroundColor: '#fee2e2',
+                    color: '#b91c1c',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '0.75rem',
+                    fontWeight: 800,
+                  }}
+                >
+                  3
+                </span>
                 Clinical Decision & Informed Consent
               </h3>
             </div>
 
             {/* Informed Consent Confirmation */}
-            <div className="p-3 bg-white rounded-lg border border-slate-200 mb-4">
-              <label className="flex items-center gap-2.5 cursor-pointer">
+            <div
+              style={{
+                padding: '0.85rem 1rem',
+                backgroundColor: '#ffffff',
+                borderRadius: '8px',
+                border: '1px solid #cbd5e1',
+                marginBottom: '1rem',
+              }}
+            >
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer' }}>
                 <input
                   type="checkbox"
                   required
                   checked={consentAcknowledged}
                   onChange={(e) => setConsentAcknowledged(e.target.checked)}
-                  className="h-4 w-4 rounded border-slate-300 text-red-600"
+                  style={{
+                    width: '18px',
+                    height: '18px',
+                    accentColor: '#dc2626',
+                    cursor: 'pointer',
+                  }}
                 />
-                <span className="text-xs text-slate-800 font-medium">
-                  Donor signed the statutory blood donation declaration acknowledging truthfulness of medical history and voluntary consent.
+                <span style={{ fontSize: '0.8rem', color: '#1e293b', fontWeight: 600 }}>
+                  Donor has signed the statutory blood donation declaration acknowledging truthfulness of medical history and voluntary informed consent.
                 </span>
               </label>
             </div>
 
             {/* Decision Radio Selector */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+                gap: '0.85rem',
+                marginBottom: '1rem',
+              }}
+            >
+              {/* Option 1: SELECTED */}
               <label
-                className={`p-3 rounded-xl border cursor-pointer flex flex-col gap-1 transition-all ${
-                  decision === DonorScreeningDecision.SELECTED
-                    ? 'border-emerald-500 bg-emerald-50 text-emerald-900 shadow-sm ring-1 ring-emerald-500'
-                    : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
-                }`}
+                onClick={() => setDecision(DonorScreeningDecision.SELECTED)}
+                style={{
+                  padding: '0.85rem 1rem',
+                  borderRadius: '10px',
+                  border: decision === DonorScreeningDecision.SELECTED ? '2px solid #16a34a' : '1px solid #e2e8f0',
+                  backgroundColor: decision === DonorScreeningDecision.SELECTED ? '#f0fdf4' : '#ffffff',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.25rem',
+                  transition: 'all 0.15s ease',
+                  boxShadow: decision === DonorScreeningDecision.SELECTED ? '0 2px 4px rgba(22, 163, 74, 0.15)' : 'none',
+                }}
               >
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-xs">SELECTED (Approved)</span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontWeight: 700, fontSize: '0.825rem', color: '#166534' }}>
+                    ✓ SELECTED (Approved)
+                  </span>
                   <input
                     type="radio"
                     name="decision"
                     value={DonorScreeningDecision.SELECTED}
                     checked={decision === DonorScreeningDecision.SELECTED}
                     onChange={() => setDecision(DonorScreeningDecision.SELECTED)}
-                    className="text-emerald-600"
+                    style={{ accentColor: '#16a34a' }}
                   />
                 </div>
-                <p className="text-[11px] text-slate-500">Passed all NBTC examination limits. Proceed to collection.</p>
+                <p style={{ margin: 0, fontSize: '0.725rem', color: '#4b5563' }}>
+                  Passed all NBTC examination limits. Proceed to phlebotomy collection.
+                </p>
               </label>
 
+              {/* Option 2: TEMPORARILY_DEFERRED */}
               <label
-                className={`p-3 rounded-xl border cursor-pointer flex flex-col gap-1 transition-all ${
-                  decision === DonorScreeningDecision.TEMPORARILY_DEFERRED
-                    ? 'border-amber-500 bg-amber-50 text-amber-900 shadow-sm ring-1 ring-amber-500'
-                    : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
-                }`}
+                onClick={() => setDecision(DonorScreeningDecision.TEMPORARILY_DEFERRED)}
+                style={{
+                  padding: '0.85rem 1rem',
+                  borderRadius: '10px',
+                  border: decision === DonorScreeningDecision.TEMPORARILY_DEFERRED ? '2px solid #d97706' : '1px solid #e2e8f0',
+                  backgroundColor: decision === DonorScreeningDecision.TEMPORARILY_DEFERRED ? '#fffbeb' : '#ffffff',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.25rem',
+                  transition: 'all 0.15s ease',
+                  boxShadow: decision === DonorScreeningDecision.TEMPORARILY_DEFERRED ? '0 2px 4px rgba(217, 119, 6, 0.15)' : 'none',
+                }}
               >
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-xs">TEMPORARY DEFERRAL</span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontWeight: 700, fontSize: '0.825rem', color: '#92400e' }}>
+                    ⚠️ TEMPORARY DEFERRAL
+                  </span>
                   <input
                     type="radio"
                     name="decision"
                     value={DonorScreeningDecision.TEMPORARILY_DEFERRED}
                     checked={decision === DonorScreeningDecision.TEMPORARILY_DEFERRED}
                     onChange={() => setDecision(DonorScreeningDecision.TEMPORARILY_DEFERRED)}
-                    className="text-amber-600"
+                    style={{ accentColor: '#d97706' }}
                   />
                 </div>
-                <p className="text-[11px] text-slate-500">Temporary condition (e.g. low Hb, fever, alcohol). Re-screen later.</p>
+                <p style={{ margin: 0, fontSize: '0.725rem', color: '#4b5563' }}>
+                  Temporary condition (low Hb, fever, alcohol, recent tattoo). Re-screen later.
+                </p>
               </label>
 
+              {/* Option 3: PERMANENTLY_DEFERRED */}
               <label
-                className={`p-3 rounded-xl border cursor-pointer flex flex-col gap-1 transition-all ${
-                  decision === DonorScreeningDecision.PERMANENTLY_DEFERRED
-                    ? 'border-red-500 bg-red-50 text-red-900 shadow-sm ring-1 ring-red-500'
-                    : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
-                }`}
+                onClick={() => setDecision(DonorScreeningDecision.PERMANENTLY_DEFERRED)}
+                style={{
+                  padding: '0.85rem 1rem',
+                  borderRadius: '10px',
+                  border: decision === DonorScreeningDecision.PERMANENTLY_DEFERRED ? '2px solid #dc2626' : '1px solid #e2e8f0',
+                  backgroundColor: decision === DonorScreeningDecision.PERMANENTLY_DEFERRED ? '#fef2f2' : '#ffffff',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.25rem',
+                  transition: 'all 0.15s ease',
+                  boxShadow: decision === DonorScreeningDecision.PERMANENTLY_DEFERRED ? '0 2px 4px rgba(220, 38, 38, 0.15)' : 'none',
+                }}
               >
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-xs">PERMANENT DEFERRAL</span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontWeight: 700, fontSize: '0.825rem', color: '#991b1b' }}>
+                    🛑 PERMANENT DEFERRAL
+                  </span>
                   <input
                     type="radio"
                     name="decision"
                     value={DonorScreeningDecision.PERMANENTLY_DEFERRED}
                     checked={decision === DonorScreeningDecision.PERMANENTLY_DEFERRED}
                     onChange={() => setDecision(DonorScreeningDecision.PERMANENTLY_DEFERRED)}
-                    className="text-red-600"
+                    style={{ accentColor: '#dc2626' }}
                   />
                 </div>
-                <p className="text-[11px] text-slate-500">Permanent medical contraindication (e.g. cardiac, hepatitis history).</p>
+                <p style={{ margin: 0, fontSize: '0.725rem', color: '#4b5563' }}>
+                  Permanent medical contraindication (e.g. cardiac, chronic hepatitis history).
+                </p>
               </label>
             </div>
 
             {/* Deferral Details (If Deferred) */}
             {decision !== DonorScreeningDecision.SELECTED && (
-              <div className="space-y-3 p-3 bg-amber-50/70 border border-amber-200 rounded-lg">
+              <div
+                style={{
+                  padding: '1rem',
+                  backgroundColor: '#fffbeb',
+                  border: '1px solid #fde68a',
+                  borderRadius: '8px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.75rem',
+                  marginBottom: '1rem',
+                }}
+              >
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: '#78350f', marginBottom: '0.35rem' }}>
                     Clinical Deferral Reason *
                   </label>
                   <input
@@ -605,29 +1021,45 @@ export default function DonorScreeningModal({
                     required
                     value={deferralReason}
                     onChange={(e) => setDeferralReason(e.target.value)}
-                    placeholder="e.g. Low hemoglobin (11.8 g/dL), deferred for iron therapy"
-                    className="w-full px-3 py-2 text-xs rounded-lg border border-slate-300 bg-white"
+                    placeholder="e.g. Low hemoglobin (11.8 g/dL), deferred for 30 days"
+                    style={{
+                      width: '100%',
+                      padding: '0.55rem 0.75rem',
+                      fontSize: '0.825rem',
+                      borderRadius: '6px',
+                      border: '1px solid #cbd5e1',
+                      backgroundColor: '#ffffff',
+                      boxSizing: 'border-box',
+                      outline: 'none',
+                    }}
                   />
                 </div>
 
                 {decision === DonorScreeningDecision.TEMPORARILY_DEFERRED && (
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: '#78350f', marginBottom: '0.35rem' }}>
                       Deferred Until Date (Follow-up)
                     </label>
                     <input
                       type="date"
                       value={deferredUntil}
                       onChange={(e) => setDeferredUntil(e.target.value)}
-                      className="px-3 py-2 text-xs rounded-lg border border-slate-300 bg-white"
+                      style={{
+                        padding: '0.55rem 0.75rem',
+                        fontSize: '0.825rem',
+                        borderRadius: '6px',
+                        border: '1px solid #cbd5e1',
+                        backgroundColor: '#ffffff',
+                        outline: 'none',
+                      }}
                     />
                   </div>
                 )}
               </div>
             )}
 
-            <div className="mt-3">
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
+            <div>
+              <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#334155', marginBottom: '0.35rem' }}>
                 Medical Officer Remarks / Clinical Notes
               </label>
               <textarea
@@ -635,31 +1067,75 @@ export default function DonorScreeningModal({
                 value={decisionRemarks}
                 onChange={(e) => setDecisionRemarks(e.target.value)}
                 placeholder="Optional clinical notes or instructions..."
-                className="w-full px-3 py-2 text-xs rounded-lg border border-slate-300 bg-white"
+                style={{
+                  width: '100%',
+                  padding: '0.55rem 0.75rem',
+                  fontSize: '0.825rem',
+                  borderRadius: '8px',
+                  border: '1px solid #cbd5e1',
+                  backgroundColor: '#ffffff',
+                  boxSizing: 'border-box',
+                  outline: 'none',
+                  fontFamily: 'inherit',
+                }}
               />
             </div>
           </div>
 
           {/* Action Buttons */}
-          <div className="pt-2 flex items-center justify-end gap-3">
+          <div
+            style={{
+              paddingTop: '0.5rem',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'flex-end',
+              gap: '0.75rem',
+              borderTop: '1px solid #f1f5f9',
+            }}
+          >
             <button
               type="button"
               onClick={onClose}
               disabled={loading}
-              className="px-5 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-300 rounded-xl hover:bg-slate-50"
+              style={{
+                padding: '0.65rem 1.25rem',
+                fontSize: '0.875rem',
+                fontWeight: 600,
+                color: '#475569',
+                backgroundColor: '#ffffff',
+                border: '1px solid #cbd5e1',
+                borderRadius: '8px',
+                cursor: loading ? 'not-allowed' : 'pointer',
+              }}
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={loading}
-              className={`px-6 py-2 text-sm font-bold text-white rounded-xl shadow-md transition-all flex items-center gap-2 ${
-                decision === DonorScreeningDecision.SELECTED
-                  ? 'bg-emerald-600 hover:bg-emerald-700'
-                  : 'bg-red-600 hover:bg-red-700'
-              }`}
+              style={{
+                padding: '0.65rem 1.5rem',
+                fontSize: '0.875rem',
+                fontWeight: 700,
+                color: '#ffffff',
+                backgroundColor: decision === DonorScreeningDecision.SELECTED ? '#16a34a' : '#dc2626',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: loading ? 'not-allowed' : 'pointer',
+                boxShadow: decision === DonorScreeningDecision.SELECTED
+                  ? '0 2px 4px rgba(22, 163, 74, 0.25)'
+                  : '0 2px 4px rgba(220, 38, 38, 0.25)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                transition: 'background 0.15s ease',
+              }}
             >
-              {loading ? 'Saving...' : decision === DonorScreeningDecision.SELECTED ? '✓ Approve & Select for Donation' : 'Submit Deferral Decision'}
+              {loading
+                ? 'Saving...'
+                : decision === DonorScreeningDecision.SELECTED
+                ? '✓ Approve & Select for Donation'
+                : 'Submit Deferral Decision'}
             </button>
           </div>
         </form>

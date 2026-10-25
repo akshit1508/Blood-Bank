@@ -24,6 +24,8 @@ import { CreateTestingDto } from './dto/create-testing.dto';
 import { UpdateTestResultDto } from './dto/update-test-result.dto';
 import { CompleteTestingDto } from './dto/complete-testing.dto';
 import { QueryTestingDto } from './dto/query-testing.dto';
+import { RecordBloodGroupingDto } from './dto/record-blood-grouping.dto';
+import { AuthorizeTestingDto } from './dto/authorize-testing.dto';
 import {
   REQUIRED_BLOOD_TESTS,
   TestResultStatus,
@@ -325,6 +327,21 @@ export class TestingService {
     if (updateDto.remarks !== undefined) {
       targetTest.remarks = updateDto.remarks.trim() || undefined;
     }
+    if (updateDto.method !== undefined) {
+      targetTest.method = updateDto.method;
+    }
+    if (updateDto.kitLotNumber !== undefined) {
+      targetTest.kitLotNumber = updateDto.kitLotNumber.trim() || undefined;
+    }
+    if (updateDto.kitExpiryDate !== undefined) {
+      targetTest.kitExpiryDate = new Date(updateDto.kitExpiryDate);
+    }
+    if (updateDto.isRepeatOrConfirmatory !== undefined) {
+      targetTest.isRepeatOrConfirmatory = updateDto.isRepeatOrConfirmatory;
+    }
+    if (updateDto.repeatReason !== undefined) {
+      targetTest.repeatReason = updateDto.repeatReason.trim() || undefined;
+    }
     if (actor?._id || actor?.id) {
       targetTest.performedBy = new Types.ObjectId(actor._id || actor.id);
       targetTest.performedByName = actor.fullName || actor.name || undefined;
@@ -411,17 +428,24 @@ export class TestingService {
     const failedTests = testing.testResults.filter(
       (t) => t.status === TestResultStatus.FAIL,
     );
+    const indeterminateTests = testing.testResults.filter(
+      (t) => (t.status as any) === TestResultStatus.INDETERMINATE,
+    );
 
     let finalDecision: TestingDecision;
     let targetUnitStatus: BloodUnitStatus;
     let autoRejectionReason: string | undefined = undefined;
 
-    if (failedTests.length > 0) {
+    if (failedTests.length > 0 || indeterminateTests.length > 0) {
       finalDecision = TestingDecision.REJECTED;
       targetUnitStatus = BloodUnitStatus.REJECTED;
+      const failedSummary = [
+        ...failedTests.map((t) => `${t.testCode} (FAIL)`),
+        ...indeterminateTests.map((t) => `${t.testCode} (INDETERMINATE)`),
+      ].join(', ');
       autoRejectionReason =
         dto.rejectionReason?.trim() ||
-        `Screening failed for: ${failedTests.map((t) => t.testCode).join(', ')}`;
+        `Screening non-conclusive/reactive: ${failedSummary}`;
     } else {
       finalDecision = TestingDecision.APPROVED;
       targetUnitStatus = BloodUnitStatus.APPROVED;
@@ -520,6 +544,213 @@ export class TestingService {
         metadata: { rejectionReason: autoRejectionReason },
       });
     }
+    return (await saved.populate(this.getTestingPopulateOpts(false))) as BloodTesting;
+  }
+
+  /**
+   * Records ABO and Rh blood grouping with forward and reverse typing results.
+   * Synchronizes confirmed blood group to physical BloodUnit.
+   */
+  async recordBloodGrouping(
+    testingId: string,
+    dto: RecordBloodGroupingDto,
+    actor?: any,
+  ): Promise<BloodTesting> {
+    if (!isValidObjectId(testingId)) {
+      throw new BadRequestException({
+        message: 'Invalid testing ID format',
+        code: 'INVALID_TESTING_REFERENCE',
+      });
+    }
+
+    const testing = await this.bloodTestingModel.findById(testingId).exec();
+    if (!testing) {
+      throw new NotFoundException({
+        message: `Testing record with ID '${testingId}' was not found.`,
+        code: 'TESTING_RECORD_NOT_FOUND',
+      });
+    }
+
+    if (testing.authorizedBy) {
+      throw new BadRequestException({
+        message: `Cannot update blood grouping: Testing record '${testing.testingCode}' is already authorized for release.`,
+        code: 'TESTING_ALREADY_AUTHORIZED',
+      });
+    }
+
+    // ABO and Rh consistency validation
+    const calculatedGroup = `${dto.aboGroup.trim().toUpperCase()}${dto.rhFactor.trim().toUpperCase() === 'POSITIVE' ? '+' : '-'}`;
+    if (
+      dto.confirmedBloodGroup &&
+      dto.confirmedBloodGroup.trim().toUpperCase() !== calculatedGroup
+    ) {
+      throw new BadRequestException({
+        message: `Confirmed blood group '${dto.confirmedBloodGroup}' does not match ABO '${dto.aboGroup}' and Rh '${dto.rhFactor}' (expected: '${calculatedGroup}').`,
+        code: 'BLOOD_GROUP_MISMATCH',
+      });
+    }
+
+    testing.bloodGrouping = {
+      aboGroup: dto.aboGroup.trim().toUpperCase(),
+      rhFactor: dto.rhFactor.trim().toUpperCase(),
+      confirmedBloodGroup: calculatedGroup,
+      groupingMethod: dto.groupingMethod?.trim() || undefined,
+      cellGroupingAntiA: dto.cellGroupingAntiA?.trim() || undefined,
+      cellGroupingAntiB: dto.cellGroupingAntiB?.trim() || undefined,
+      cellGroupingAntiD: dto.cellGroupingAntiD?.trim() || undefined,
+      serumGroupingACells: dto.serumGroupingACells?.trim() || undefined,
+      serumGroupingBCells: dto.serumGroupingBCells?.trim() || undefined,
+      serumGroupingOCells: dto.serumGroupingOCells?.trim() || undefined,
+      testedAt: new Date(),
+      testedBy: isValidObjectId(actor?._id || actor?.id)
+        ? new Types.ObjectId(actor._id || actor.id)
+        : undefined,
+      testedByName: actor?.fullName || actor?.name || undefined,
+      remarks: dto.remarks?.trim() || undefined,
+    };
+
+    // Synchronize confirmed bloodGroup onto physical BloodUnit
+    await this.bloodUnitModel
+      .findByIdAndUpdate(
+        testing.bloodUnitId,
+        { bloodGroup: calculatedGroup },
+        { new: true },
+      )
+      .exec();
+
+    const saved = await testing.save();
+
+    if (this.auditLogsService) {
+      await this.auditLogsService.logEvent({
+        actorId: actor?._id || actor?.id,
+        actorName: actor?.fullName || actor?.name,
+        actorEmail: actor?.email,
+        actorRole: actor?.role,
+        action: AuditActionType.TEST_RESULT_RECORDED,
+        entityType: AuditEntityType.BLOOD_TESTING,
+        entityId: testing._id.toString(),
+        entityIdentifier: testing.testingCode,
+        description: `Blood grouping confirmed as ${calculatedGroup} (Method: ${dto.groupingMethod || 'Standard'})`,
+        afterState: { bloodGrouping: testing.bloodGrouping, confirmedBloodGroup: calculatedGroup },
+        metadata: { calculatedGroup, method: dto.groupingMethod },
+      });
+    }
+
+    return (await saved.populate(this.getTestingPopulateOpts(false))) as BloodTesting;
+  }
+
+  /**
+   * Authorized medical supervisor release of cleared blood unit to inventory.
+   * Only completed, approved laboratory test records can be released.
+   */
+  async authorizeTestingRelease(
+    testingId: string,
+    dto: AuthorizeTestingDto,
+    actor?: any,
+  ): Promise<BloodTesting> {
+    if (!isValidObjectId(testingId)) {
+      throw new BadRequestException({
+        message: 'Invalid testing ID format',
+        code: 'INVALID_TESTING_REFERENCE',
+      });
+    }
+
+    const testing = await this.bloodTestingModel.findById(testingId).exec();
+    if (!testing) {
+      throw new NotFoundException({
+        message: `Testing record with ID '${testingId}' was not found.`,
+        code: 'TESTING_RECORD_NOT_FOUND',
+      });
+    }
+
+    if (testing.status !== TestingStatus.COMPLETED) {
+      throw new BadRequestException({
+        message: `Cannot authorize testing: Record '${testing.testingCode}' is not yet completed (current status: '${testing.status}'). All tests must be completed first.`,
+        code: 'TESTING_NOT_COMPLETED',
+      });
+    }
+
+    if (testing.decision !== TestingDecision.APPROVED) {
+      throw new BadRequestException({
+        message: `Cannot authorize release: Record '${testing.testingCode}' decision is '${testing.decision}'. Only APPROVED units can be released.`,
+        code: 'CANNOT_AUTHORIZE_REJECTED_UNIT',
+      });
+    }
+
+    if (testing.authorizedBy) {
+      throw new BadRequestException({
+        message: `Testing record '${testing.testingCode}' has already been authorized by ${testing.authorizedByName || 'supervisor'}.`,
+        code: 'ALREADY_AUTHORIZED',
+      });
+    }
+
+    testing.authorizedBy = isValidObjectId(actor?._id || actor?.id)
+      ? new Types.ObjectId(actor._id || actor.id)
+      : undefined;
+    testing.authorizedByName = actor?.fullName || actor?.name || 'Authorized Supervisor';
+    testing.authorizedAt = new Date();
+    testing.authorizationRemarks =
+      dto?.authorizationRemarks?.trim() || 'Supervisor authorization verified for clinical issue';
+
+    const saved = await testing.save();
+
+    // Ensure BloodUnit status is APPROVED
+    const updatedUnit = await this.bloodUnitModel
+      .findByIdAndUpdate(
+        testing.bloodUnitId,
+        { status: BloodUnitStatus.APPROVED },
+        { new: true },
+      )
+      .exec();
+
+    // Ensure unit is present and AVAILABLE in central inventory
+    if (this.inventoryModel) {
+      try {
+        const existingInv = await this.inventoryModel
+          .findOne({ bloodUnitId: testing.bloodUnitId })
+          .exec();
+        if (!existingInv) {
+          await this.inventoryModel.create({
+            bloodUnitId: testing.bloodUnitId,
+            status: InventoryStatus.AVAILABLE,
+            receivedBy: actor?._id || actor?.id ? new Types.ObjectId(actor._id || actor.id) : undefined,
+            receivedByName: actor?.fullName || actor?.name || undefined,
+            receivedByRole: actor?.role || undefined,
+            receivedAt: new Date(),
+          });
+        } else if (
+          existingInv.status !== InventoryStatus.AVAILABLE &&
+          existingInv.status !== InventoryStatus.RESERVED &&
+          existingInv.status !== InventoryStatus.ISSUED
+        ) {
+          existingInv.status = InventoryStatus.AVAILABLE;
+          await existingInv.save();
+        }
+      } catch {
+        // Silently catch to avoid blocking authorization
+      }
+    }
+
+    if (this.auditLogsService) {
+      await this.auditLogsService.logEvent({
+        actorId: actor?._id || actor?.id,
+        actorName: actor?.fullName || actor?.name,
+        actorEmail: actor?.email,
+        actorRole: actor?.role,
+        action: AuditActionType.TESTING_APPROVED,
+        entityType: AuditEntityType.BLOOD_TESTING,
+        entityId: testing._id.toString(),
+        entityIdentifier: testing.testingCode,
+        description: `Supervisor authorized laboratory release for blood unit ${updatedUnit?.unitCode || testing.bloodUnitId}`,
+        afterState: {
+          status: testing.status,
+          decision: testing.decision,
+          authorizedByName: testing.authorizedByName,
+          authorizedAt: testing.authorizedAt,
+        },
+      });
+    }
+
     return (await saved.populate(this.getTestingPopulateOpts(false))) as BloodTesting;
   }
 

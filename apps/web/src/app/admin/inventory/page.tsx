@@ -34,6 +34,7 @@ const COMPONENT_TYPES = [
   BloodUnitComponent.PRBC,
   BloodUnitComponent.FFP,
   BloodUnitComponent.PLATELETS,
+  BloodUnitComponent.CRYOPRECIPITATE,
 ];
 
 export default function AdminInventoryPage() {

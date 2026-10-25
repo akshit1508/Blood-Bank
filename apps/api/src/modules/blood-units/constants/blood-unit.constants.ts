@@ -2,6 +2,8 @@ export enum BloodUnitStatus {
   TESTING = 'TESTING',
   APPROVED = 'APPROVED',
   REJECTED = 'REJECTED',
+  QUARANTINED = 'QUARANTINED',
+  PROCESSED_INTO_COMPONENTS = 'PROCESSED_INTO_COMPONENTS',
 }
 
 export enum BloodUnitComponent {
@@ -9,4 +11,5 @@ export enum BloodUnitComponent {
   PRBC = 'PRBC', // Packed Red Blood Cells
   FFP = 'FFP', // Fresh Frozen Plasma
   PLATELETS = 'PLATELETS',
+  CRYOPRECIPITATE = 'CRYOPRECIPITATE',
 }

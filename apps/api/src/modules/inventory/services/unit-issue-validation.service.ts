@@ -242,8 +242,9 @@ export class UnitIssueValidationService {
     // 5. Verification of Lab Testing or Certified External Clearance Gate
     let testingRecord: BloodTestingDocument | null = null;
     if (this.bloodTestingModel) {
+      const searchUnitId = bloodUnit.parentUnitId || bloodUnit._id;
       testingRecord = await this.bloodTestingModel
-        .findOne({ bloodUnitId: bloodUnit._id })
+        .findOne({ bloodUnitId: searchUnitId })
         .exec();
 
       if (testingRecord) {

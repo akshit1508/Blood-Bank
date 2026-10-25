@@ -15,6 +15,8 @@ import { CreateTestingDto } from './dto/create-testing.dto';
 import { UpdateTestResultDto } from './dto/update-test-result.dto';
 import { CompleteTestingDto } from './dto/complete-testing.dto';
 import { QueryTestingDto } from './dto/query-testing.dto';
+import { RecordBloodGroupingDto } from './dto/record-blood-grouping.dto';
+import { AuthorizeTestingDto } from './dto/authorize-testing.dto';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentAdmin } from '../auth/decorators/current-admin.decorator';
 import { AdminRole } from '../auth/schemas/admin-user.schema';
@@ -141,6 +143,54 @@ export class TestingController {
       statusCode: HttpStatus.OK,
       message: `Testing finalized successfully with decision '${completed.decision}'`,
       data: completed,
+    };
+  }
+
+  /**
+   * Internal laboratory recording of forward and reverse ABO/Rh blood grouping.
+   * PATCH /api/testing/:id/blood-grouping
+   */
+  @Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN, AdminRole.LAB_TECHNICIAN)
+  @Patch(':id/blood-grouping')
+  async recordBloodGrouping(
+    @Param('id') id: string,
+    @Body() dto: RecordBloodGroupingDto,
+    @CurrentAdmin() admin: any,
+  ) {
+    const updated = await this.testingService.recordBloodGrouping(
+      id,
+      dto,
+      admin,
+    );
+    return {
+      statusCode: HttpStatus.OK,
+      message: 'Blood grouping recorded and verified successfully',
+      data: updated,
+    };
+  }
+
+  /**
+   * Supervisor authorization and clinical release of cleared blood unit to inventory.
+   * Restricted strictly to SUPER_ADMIN and ADMIN.
+   * POST /api/testing/:id/authorize-release
+   */
+  @Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN)
+  @Post(':id/authorize-release')
+  @HttpCode(HttpStatus.OK)
+  async authorizeRelease(
+    @Param('id') id: string,
+    @Body() dto: AuthorizeTestingDto,
+    @CurrentAdmin() admin: any,
+  ) {
+    const authorized = await this.testingService.authorizeTestingRelease(
+      id,
+      dto,
+      admin,
+    );
+    return {
+      statusCode: HttpStatus.OK,
+      message: 'Blood unit laboratory release authorized successfully',
+      data: authorized,
     };
   }
 }

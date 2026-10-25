@@ -260,23 +260,23 @@ export default function AdminLoginPage() {
               <button
                 type="button"
                 onClick={() => {
-                  handleRoleChange('FINANCE_RECEPTIONIST');
-                  setEmail('receptionist@bloodbank.org');
-                  setPassword('Receptionist@123');
+                  handleRoleChange('SUPER_ADMIN');
+                  setEmail('ajay@gmail.com');
+                  setPassword('Admin@123');
                 }}
                 style={{
                   padding: '0.45rem 0.6rem',
                   fontSize: '0.75rem',
                   fontWeight: 600,
-                  backgroundColor: '#f0fdf4',
-                  color: '#166534',
-                  border: '1px solid #bbf7d0',
+                  backgroundColor: '#fef3c7',
+                  color: '#92400e',
+                  border: '1px solid #fde68a',
                   borderRadius: '6px',
                   cursor: 'pointer',
                   textAlign: 'left',
                 }}
               >
-                🧾 Receptionist
+                ⭐ Ajay (Super Admin)
               </button>
               <button
                 type="button"
@@ -298,6 +298,27 @@ export default function AdminLoginPage() {
                 }}
               >
                 👑 Super Admin
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  handleRoleChange('FINANCE_RECEPTIONIST');
+                  setEmail('receptionist@bloodbank.org');
+                  setPassword('Receptionist@123');
+                }}
+                style={{
+                  padding: '0.45rem 0.6rem',
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  backgroundColor: '#f0fdf4',
+                  color: '#166534',
+                  border: '1px solid #bbf7d0',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                }}
+              >
+                🧾 Receptionist
               </button>
               <button
                 type="button"

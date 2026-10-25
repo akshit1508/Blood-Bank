@@ -273,5 +273,11 @@ export async function recordBloodCollection(
     throw new Error(errorMsg);
   }
 
-  return body;
+  return {
+    message: body.message,
+    donation: body.donation || body.data,
+    bloodUnit: body.bloodUnit,
+    screening: body.screening,
+    label: body.label,
+  };
 }

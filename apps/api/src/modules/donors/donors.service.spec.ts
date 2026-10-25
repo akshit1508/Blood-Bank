@@ -280,11 +280,30 @@ describe('DonorsService', () => {
   });
 
   describe('5. updateStatus administrative transitions', () => {
-    it('allows valid transition: PENDING_REVIEW -> ACTIVE', async () => {
+    it('rejects transition: PENDING_REVIEW -> ACTIVE without medical screening', async () => {
       const mockExisting = {
         _id: '507f1f77bcf86cd799439011',
         donorCode: 'DON-20261007-TEST',
         status: DonorStatus.PENDING_REVIEW,
+      };
+
+      mockModel.findById = jest.fn().mockReturnValue({
+        exec: jest.fn().mockResolvedValue(mockExisting),
+      });
+
+      await expect(
+        service.updateStatus('507f1f77bcf86cd799439011', {
+          status: DonorStatus.ACTIVE,
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('allows valid transition: PENDING_REVIEW -> ACTIVE with approved medical screening', async () => {
+      const mockExisting = {
+        _id: '507f1f77bcf86cd799439011',
+        donorCode: 'DON-20261007-TEST',
+        status: DonorStatus.PENDING_REVIEW,
+        lastScreeningDecision: 'SELECTED',
       };
 
       mockModel.findById = jest.fn().mockReturnValue({
@@ -357,6 +376,7 @@ describe('DonorsService', () => {
         _id: '507f1f77bcf86cd799439011',
         donorCode: 'DON-20261007-TEST',
         status: DonorStatus.INACTIVE,
+        lastScreeningDecision: 'SELECTED',
       };
 
       mockModel.findById = jest.fn().mockReturnValue({
@@ -433,6 +453,7 @@ describe('DonorsService', () => {
         fullName: 'John Miller',
         phone: '+919876543210',
         status: DonorStatus.PENDING_REVIEW,
+        lastScreeningDecision: 'SELECTED',
       };
 
       mockModel.findById = jest.fn().mockReturnValue({

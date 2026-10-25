@@ -60,6 +60,9 @@ describe('BloodUnitsService', () => {
       this.expiryDate = dto.expiryDate;
       this.volume = dto.volume;
       this.status = dto.status;
+      this.parentUnitId = dto.parentUnitId;
+      this.parentUnitCode = dto.parentUnitCode;
+      this.isComponentDerived = dto.isComponentDerived;
       this.storageLocation = dto.storageLocation;
       this.notes = dto.notes;
       this.save = jest.fn().mockResolvedValue(this);
@@ -520,6 +523,86 @@ describe('BloodUnitsService', () => {
       await expect(
         service.findByDonationId(validDonationId),
       ).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('5. Phase 3: prepareComponents (Component Separation)', () => {
+    it('separates eligible whole blood unit into child components and updates parent status', async () => {
+      const parentUnitId = '507f1f77bcf86cd799439099';
+      const mockParentUnit: any = {
+        _id: new Types.ObjectId(parentUnitId),
+        unitCode: 'UNIT-20261008-0001',
+        componentType: BloodUnitComponent.WHOLE_BLOOD,
+        status: BloodUnitStatus.TESTING,
+        bloodGroup: 'O+',
+        collectionDate: new Date('2026-10-08T09:00:00.000Z'),
+        save: jest.fn().mockImplementation(function () {
+          return Promise.resolve(this);
+        }),
+      };
+
+      mockBloodUnitModel.findById = jest.fn().mockReturnValue({
+        exec: jest.fn().mockResolvedValue(mockParentUnit),
+      });
+
+      const result = await service.prepareComponents(
+        parentUnitId,
+        {
+          components: [
+            { componentType: BloodUnitComponent.PRBC, volume: 250 },
+            { componentType: BloodUnitComponent.FFP, volume: 180 },
+            { componentType: BloodUnitComponent.PLATELETS, volume: 50 },
+          ],
+        },
+        { id: 'tech1', fullName: 'Lab Tech John' },
+      );
+
+      expect(result).toBeDefined();
+      expect(result.childUnits).toHaveLength(3);
+      expect(result.parentUnit.status).toBe(BloodUnitStatus.PROCESSED_INTO_COMPONENTS);
+      expect(result.childUnits[0].componentType).toBe(BloodUnitComponent.PRBC);
+      expect(result.childUnits[0].parentUnitCode).toBe('UNIT-20261008-0001');
+      expect(result.childUnits[0].isComponentDerived).toBe(true);
+    });
+
+    it('throws BadRequestException when trying to separate non-Whole Blood unit', async () => {
+      const parentUnitId = '507f1f77bcf86cd799439099';
+      const nonWbUnit: any = {
+        _id: new Types.ObjectId(parentUnitId),
+        unitCode: 'UNIT-20261008-PRBC',
+        componentType: BloodUnitComponent.PRBC,
+        status: BloodUnitStatus.APPROVED,
+      };
+
+      mockBloodUnitModel.findById = jest.fn().mockReturnValue({
+        exec: jest.fn().mockResolvedValue(nonWbUnit),
+      });
+
+      await expect(
+        service.prepareComponents(parentUnitId, {
+          components: [{ componentType: BloodUnitComponent.FFP, volume: 150 }],
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('throws ConflictException when unit was already processed into components', async () => {
+      const parentUnitId = '507f1f77bcf86cd799439099';
+      const alreadyProcessedUnit: any = {
+        _id: new Types.ObjectId(parentUnitId),
+        unitCode: 'UNIT-20261008-0001',
+        componentType: BloodUnitComponent.WHOLE_BLOOD,
+        status: BloodUnitStatus.PROCESSED_INTO_COMPONENTS,
+      };
+
+      mockBloodUnitModel.findById = jest.fn().mockReturnValue({
+        exec: jest.fn().mockResolvedValue(alreadyProcessedUnit),
+      });
+
+      await expect(
+        service.prepareComponents(parentUnitId, {
+          components: [{ componentType: BloodUnitComponent.PRBC, volume: 250 }],
+        }),
+      ).rejects.toThrow(ConflictException);
     });
   });
 });

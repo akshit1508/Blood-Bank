@@ -7,6 +7,7 @@ import {
   DonorStatus,
   BloodGroup,
   fetchDonors,
+  fetchDonorById,
   updateDonorStatus,
   buildDonorWhatsAppUrl,
 } from '@/lib/donor-api';
@@ -1073,33 +1074,61 @@ export default function AdminDonorsPage() {
                 </strong>
 
                 {selectedDonor.status === DonorStatus.PENDING_REVIEW && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                    <div style={{ backgroundColor: '#fffbeb', border: '1px solid #fde68a', borderRadius: '4px', padding: '0.5rem', fontSize: '0.8rem', color: '#92400e' }}>
-                      <strong>Status: PENDING REVIEW</strong>
-                      <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.75rem' }}>
-                        Review registration details above. Approving the donor marks them as an Active Donor (ACTIVE). After approval, you can notify them directly on WhatsApp with pre-filled verification details.
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+                    <div style={{ backgroundColor: '#fffbeb', border: '1px solid #fde68a', borderRadius: '6px', padding: '0.65rem', fontSize: '0.8rem', color: '#92400e' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontWeight: 700, marginBottom: '0.25rem' }}>
+                        <span>⚠️</span> Clinical Screening Required for Activation
+                      </div>
+                      <p style={{ margin: 0, fontSize: '0.75rem', lineHeight: 1.4, color: '#78350f' }}>
+                        Under statutory NBTC guidelines, a donor profile cannot be activated for donation without completing and approving the Pre-Donation Medical Screening (vitals &amp; risk assessment).
                       </p>
                     </div>
+
                     <button
-                      onClick={() => handleSetStatus(DonorStatus.ACTIVE)}
-                      disabled={updateLoading}
+                      type="button"
+                      onClick={() => setScreeningModalDonor(selectedDonor)}
                       style={{
-                        backgroundColor: '#16a34a',
+                        backgroundColor: '#dc2626',
                         color: '#ffffff',
                         border: 'none',
-                        padding: '0.6rem',
-                        borderRadius: '4px',
-                        fontWeight: 600,
+                        padding: '0.65rem',
+                        borderRadius: '6px',
+                        fontWeight: 700,
                         fontSize: '0.85rem',
-                        cursor: updateLoading ? 'not-allowed' : 'pointer',
+                        cursor: 'pointer',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
                         gap: '0.4rem',
+                        boxShadow: '0 2px 4px rgba(220, 38, 38, 0.2)',
                       }}
                     >
-                      {updateLoading ? 'Processing Approval...' : '✓ Approve Donor'}
+                      <span>📋</span> Perform Clinical Screening &amp; Activate
                     </button>
+
+                    {selectedDonor.lastScreeningDecision === 'SELECTED' && (
+                      <button
+                        onClick={() => handleSetStatus(DonorStatus.ACTIVE)}
+                        disabled={updateLoading}
+                        style={{
+                          backgroundColor: '#16a34a',
+                          color: '#ffffff',
+                          border: 'none',
+                          padding: '0.55rem',
+                          borderRadius: '6px',
+                          fontWeight: 600,
+                          fontSize: '0.825rem',
+                          cursor: updateLoading ? 'not-allowed' : 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '0.4rem',
+                        }}
+                      >
+                        {updateLoading ? 'Activating Profile...' : '✓ Confirm Profile Activation'}
+                      </button>
+                    )}
+
                     <button
                       onClick={() => handleSetStatus(DonorStatus.INACTIVE)}
                       disabled={updateLoading}
@@ -2004,6 +2033,12 @@ export default function AdminDonorsPage() {
           await loadDonors();
           const target = screeningModalDonor;
           setScreeningModalDonor(null);
+          if (target) {
+            try {
+              const fresh = await fetchDonorById(target._id);
+              setSelectedDonor(fresh);
+            } catch {}
+          }
           if (target && screening.decision === 'SELECTED') {
             setCollectionModalDonor(target);
           }

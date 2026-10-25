@@ -599,4 +599,149 @@ describe('TestingService', () => {
       );
     });
   });
+
+  describe('5. Phase 3: recordBloodGrouping & Indeterminate Handling', () => {
+    it('records ABO/Rh grouping and syncs confirmed blood group to BloodUnit', async () => {
+      const mockRecord: any = {
+        _id: new Types.ObjectId(validTestingId),
+        testingCode: 'TEST-20261008-0001',
+        bloodUnitId: new Types.ObjectId(validBloodUnitId),
+        status: TestingStatus.IN_PROGRESS,
+        save: jest.fn().mockImplementation(function () {
+          return Promise.resolve(this);
+        }),
+        populate: jest.fn().mockImplementation(function () {
+          return Promise.resolve(this);
+        }),
+      };
+
+      mockBloodTestingModel.findById = jest.fn().mockReturnValue({
+        exec: jest.fn().mockResolvedValue(mockRecord),
+      });
+
+      const result = await service.recordBloodGrouping(
+        validTestingId,
+        {
+          aboGroup: 'O',
+          rhFactor: 'POSITIVE',
+          confirmedBloodGroup: 'O+',
+          groupingMethod: 'GEL_CARD',
+          cellGroupingAntiA: '0',
+          cellGroupingAntiB: '0',
+          cellGroupingAntiD: '4+',
+          serumGroupingACells: '4+',
+          serumGroupingBCells: '4+',
+        },
+        { id: 'admin1', fullName: 'Lab Tech Alice', role: 'LAB_TECHNICIAN' },
+      );
+
+      expect(result).toBeDefined();
+      expect(mockRecord.bloodGrouping).toBeDefined();
+      expect(mockRecord.bloodGrouping.confirmedBloodGroup).toBe('O+');
+      expect(mockBloodUnitModel.findByIdAndUpdate).toHaveBeenCalledWith(
+        mockRecord.bloodUnitId,
+        { bloodGroup: 'O+' },
+        { new: true },
+      );
+    });
+
+    it('throws BadRequestException when confirmedBloodGroup conflicts with ABO and Rh', async () => {
+      const mockRecord: any = {
+        _id: new Types.ObjectId(validTestingId),
+        bloodUnitId: new Types.ObjectId(validBloodUnitId),
+      };
+
+      mockBloodTestingModel.findById = jest.fn().mockReturnValue({
+        exec: jest.fn().mockResolvedValue(mockRecord),
+      });
+
+      await expect(
+        service.recordBloodGrouping(validTestingId, {
+          aboGroup: 'A',
+          rhFactor: 'POSITIVE',
+          confirmedBloodGroup: 'B+', // Discordant!
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('rejects unit during completeTesting if any test result is INDETERMINATE', async () => {
+      const indeterminateRecord: any = {
+        _id: new Types.ObjectId(validTestingId),
+        status: TestingStatus.IN_PROGRESS,
+        bloodUnitId: new Types.ObjectId(validBloodUnitId),
+        testResults: [
+          { testCode: 'HIV', status: TestResultStatus.PASS },
+          { testCode: 'HCV', status: TestResultStatus.INDETERMINATE },
+        ],
+        save: jest.fn().mockImplementation(function () {
+          return Promise.resolve(this);
+        }),
+        populate: jest.fn().mockImplementation(function () {
+          return Promise.resolve(this);
+        }),
+      };
+
+      mockBloodTestingModel.findById = jest.fn().mockReturnValue({
+        exec: jest.fn().mockResolvedValue(indeterminateRecord),
+      });
+
+      const result = await service.completeTesting(validTestingId, {});
+      expect(result.decision).toBe(TestingDecision.REJECTED);
+      expect(result.rejectionReason).toContain('INDETERMINATE');
+      expect(mockBloodUnitModel.findByIdAndUpdate).toHaveBeenCalledWith(
+        indeterminateRecord.bloodUnitId,
+        { status: BloodUnitStatus.REJECTED },
+        { new: true },
+      );
+    });
+  });
+
+  describe('6. Phase 3: authorizeTestingRelease (Supervisor Gate)', () => {
+    it('authorizes release for completed and approved testing record', async () => {
+      const completedRecord: any = {
+        _id: new Types.ObjectId(validTestingId),
+        testingCode: 'TEST-20261008-0001',
+        status: TestingStatus.COMPLETED,
+        decision: TestingDecision.APPROVED,
+        bloodUnitId: new Types.ObjectId(validBloodUnitId),
+        save: jest.fn().mockImplementation(function () {
+          return Promise.resolve(this);
+        }),
+        populate: jest.fn().mockImplementation(function () {
+          return Promise.resolve(this);
+        }),
+      };
+
+      mockBloodTestingModel.findById = jest.fn().mockReturnValue({
+        exec: jest.fn().mockResolvedValue(completedRecord),
+      });
+
+      const result = await service.authorizeTestingRelease(
+        validTestingId,
+        { authorizationRemarks: 'Clinically verified for release' },
+        { id: 'sup1', fullName: 'Dr. Officer', role: 'ADMIN' },
+      );
+
+      expect(result).toBeDefined();
+      expect(completedRecord.authorizedByName).toBe('Dr. Officer');
+      expect(completedRecord.authorizedAt).toBeDefined();
+      expect(completedRecord.authorizationRemarks).toBe('Clinically verified for release');
+    });
+
+    it('throws BadRequestException if attempting to authorize release for REJECTED testing record', async () => {
+      const rejectedRecord: any = {
+        _id: new Types.ObjectId(validTestingId),
+        status: TestingStatus.COMPLETED,
+        decision: TestingDecision.REJECTED,
+      };
+
+      mockBloodTestingModel.findById = jest.fn().mockReturnValue({
+        exec: jest.fn().mockResolvedValue(rejectedRecord),
+      });
+
+      await expect(
+        service.authorizeTestingRelease(validTestingId, {}),
+      ).rejects.toThrow(BadRequestException);
+    });
+  });
 });
