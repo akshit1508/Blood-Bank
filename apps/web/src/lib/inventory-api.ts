@@ -70,6 +70,7 @@ export interface InventoryItem {
     verifiedByRole?: string | null;
     completedByName?: string | null;
     completedByRole?: string | null;
+    authorizedByName?: string | null;
     performedBy?: string | null;
     approvedByName?: string | null;
     isExternalClearance?: boolean;

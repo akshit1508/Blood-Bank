@@ -141,6 +141,31 @@ export default function AdminDonationsPage() {
   const [availableCampaigns, setAvailableCampaigns] = useState<CampaignItem[]>([]);
   const [selectedCampaignId, setSelectedCampaignId] = useState<string>('');
 
+  // WhatsApp sent tracking
+  const [sentWhatsAppCertificates, setSentWhatsAppCertificates] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('sent_whatsapp_certificates');
+      if (stored) {
+        setSentWhatsAppCertificates(JSON.parse(stored));
+      }
+    } catch {
+      // Ignore localStorage errors
+    }
+  }, []);
+
+  const markWhatsAppSent = (code: string) => {
+    if (!code) return;
+    setSentWhatsAppCertificates((prev) => {
+      const updated = { ...prev, [code]: true };
+      try {
+        localStorage.setItem('sent_whatsapp_certificates', JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+  };
+
   // Downstream Blood Unit state
   const [associatedBloodUnit, setAssociatedBloodUnit] =
     useState<BloodUnit | null>(null);
@@ -837,17 +862,41 @@ export default function AdminDonationsPage() {
                   {paginatedDonors.map((donor) => {
                     const lastDate = donorLastDonationMap[donor._id];
                     const eligibility = evaluateDonationInterval(lastDate, donor.gender);
+                    const donorDonation = donations.find(
+                      (d) =>
+                        (typeof d.donorId === 'object' ? d.donorId?._id : d.donorId) === donor._id &&
+                        d.status === DonationStatus.COMPLETED,
+                    );
+                    const isWhatsAppSent = donorDonation
+                      ? !!sentWhatsAppCertificates[donorDonation.donationCode]
+                      : false;
 
                     return (
                       <tr
                         key={donor._id}
                         style={{
                           borderBottom: '1px solid #f1f5f9',
-                          backgroundColor: '#ffffff',
+                          backgroundColor: donorDonation ? '#f0fdf4' : '#ffffff',
                         }}
                       >
                         <td style={{ padding: '0.65rem 0.9rem', fontWeight: 600, color: '#0f172a' }}>
-                          <div>{donor.fullName}</div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span>{donor.fullName}</span>
+                            {donorDonation && (
+                              <span
+                                style={{
+                                  fontSize: '0.68rem',
+                                  backgroundColor: '#dcfce7',
+                                  color: '#166534',
+                                  padding: '1px 6px',
+                                  borderRadius: '999px',
+                                  fontWeight: 700,
+                                }}
+                              >
+                                Donated
+                              </span>
+                            )}
+                          </div>
                           <div style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 400 }}>
                             {donor.gender} &bull; {donor.phone || 'No phone'}
                           </div>
@@ -887,7 +936,26 @@ export default function AdminDonationsPage() {
                           </span>
                         </td>
                         <td style={{ padding: '0.65rem 0.9rem', color: '#334155' }}>
-                          {lastDate ? (
+                          {donorDonation ? (
+                            <div>
+                              <div style={{ fontWeight: 600, color: '#166534', fontSize: '0.8rem' }}>
+                                ✅ Donated ({donorDonation.collectedVolumeMl || 350} mL)
+                              </div>
+                              <div style={{ fontSize: '0.72rem', color: '#64748b' }}>
+                                {new Date(donorDonation.donationDate || donorDonation.createdAt).toLocaleDateString()}
+                              </div>
+                              <div
+                                style={{
+                                  fontSize: '0.7rem',
+                                  fontWeight: 700,
+                                  color: isWhatsAppSent ? '#047857' : '#b45309',
+                                  marginTop: '2px',
+                                }}
+                              >
+                                {isWhatsAppSent ? '✓ Certificate Sent (WhatsApp)' : '⚠️ Certificate Ready for WhatsApp'}
+                              </div>
+                            </div>
+                          ) : lastDate ? (
                             <div>
                               <div>{new Date(lastDate).toLocaleDateString()}</div>
                               <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
@@ -901,7 +969,24 @@ export default function AdminDonationsPage() {
                           )}
                         </td>
                         <td style={{ padding: '0.65rem 0.9rem' }}>
-                          {eligibility.isEligible ? (
+                          {donorDonation ? (
+                            <span
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '0.3rem',
+                                padding: '0.2rem 0.55rem',
+                                borderRadius: '9999px',
+                                fontSize: '0.75rem',
+                                fontWeight: 700,
+                                backgroundColor: '#ecfdf5',
+                                color: '#047857',
+                                border: '1px solid #a7f3d0',
+                              }}
+                            >
+                              ✓ Donated & In Testing
+                            </span>
+                          ) : eligibility.isEligible ? (
                             <span
                               style={{
                                 display: 'inline-flex',
@@ -945,45 +1030,105 @@ export default function AdminDonationsPage() {
                           )}
                         </td>
                         <td style={{ padding: '0.65rem 0.9rem', textAlign: 'right' }}>
-                          <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '0.4rem' }}>
-                            <button
-                              type="button"
-                              onClick={() => setScreeningModalDonor(donor)}
-                              style={{
-                                backgroundColor: '#f8fafc',
-                                color: '#0f172a',
-                                border: '1px solid #cbd5e1',
-                                padding: '0.35rem 0.65rem',
-                                borderRadius: '4px',
-                                fontSize: '0.78rem',
-                                fontWeight: 600,
-                                cursor: 'pointer',
-                              }}
-                              title="Perform Medical Screening (Vitals, Hb, Deferrals)"
-                            >
-                              📋 Screen Donor
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setCollectionModalDonor(donor)}
-                              style={{
-                                backgroundColor: '#881337',
-                                color: '#ffffff',
-                                border: 'none',
-                                padding: '0.35rem 0.75rem',
-                                borderRadius: '4px',
-                                fontSize: '0.78rem',
-                                fontWeight: 700,
-                                cursor: 'pointer',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '0.25rem',
-                                boxShadow: '0 1px 2px rgba(136, 19, 55, 0.2)',
-                              }}
-                              title="Record Phlebotomy Collection (Bag Barcode, Tube, Volume)"
-                            >
-                              🩸 Collect Blood
-                            </button>
+                          <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
+                            {donorDonation ? (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenDonationCertificate(donorDonation)}
+                                  style={{
+                                    backgroundColor: isWhatsAppSent ? '#059669' : '#25D366',
+                                    color: '#ffffff',
+                                    border: 'none',
+                                    padding: '0.35rem 0.75rem',
+                                    borderRadius: '4px',
+                                    fontSize: '0.78rem',
+                                    fontWeight: 700,
+                                    cursor: 'pointer',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '0.25rem',
+                                    boxShadow: '0 1px 2px rgba(0, 0, 0, 0.15)',
+                                  }}
+                                  title="View Certificate and Send to Donor on WhatsApp"
+                                >
+                                  📜 {isWhatsAppSent ? 'Certificate (Sent ✓)' : 'Send on WhatsApp'}
+                                </button>
+                                {donorDonation.bagBarcode && (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setLabelModalData({
+                                        bagBarcode: donorDonation.bagBarcode!,
+                                        donationCode: donorDonation.donationCode,
+                                        donorCode: donor.donorCode,
+                                        donorName: donor.fullName,
+                                        bloodGroup: donor.bloodGroup || 'O_POSITIVE',
+                                        componentType: donorDonation.donationType,
+                                        volumeMl: donorDonation.collectedVolumeMl || 450,
+                                        bagType: donorDonation.bagType || 'CPDA-1 TRIPLE',
+                                        collectionDate: donorDonation.donationDate,
+                                        collectionLocation: donorDonation.collectionLocation || 'Central Blood Centre',
+                                        centreName: 'CENTRAL BLOOD CENTRE',
+                                      })
+                                    }
+                                    style={{
+                                      backgroundColor: '#f1f5f9',
+                                      color: '#0f172a',
+                                      border: '1px solid #cbd5e1',
+                                      padding: '0.35rem 0.6rem',
+                                      borderRadius: '4px',
+                                      fontSize: '0.78rem',
+                                      fontWeight: 600,
+                                      cursor: 'pointer',
+                                    }}
+                                  >
+                                    🏷️ Label
+                                  </button>
+                                )}
+                              </>
+                            ) : (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => setScreeningModalDonor(donor)}
+                                  style={{
+                                    backgroundColor: '#f8fafc',
+                                    color: '#0f172a',
+                                    border: '1px solid #cbd5e1',
+                                    padding: '0.35rem 0.65rem',
+                                    borderRadius: '4px',
+                                    fontSize: '0.78rem',
+                                    fontWeight: 600,
+                                    cursor: 'pointer',
+                                  }}
+                                  title="Perform Medical Screening (Vitals, Hb, Deferrals)"
+                                >
+                                  📋 Screen Donor
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setCollectionModalDonor(donor)}
+                                  style={{
+                                    backgroundColor: '#881337',
+                                    color: '#ffffff',
+                                    border: 'none',
+                                    padding: '0.35rem 0.75rem',
+                                    borderRadius: '4px',
+                                    fontSize: '0.78rem',
+                                    fontWeight: 700,
+                                    cursor: 'pointer',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '0.25rem',
+                                    boxShadow: '0 1px 2px rgba(136, 19, 55, 0.2)',
+                                  }}
+                                  title="Record Phlebotomy Collection (Bag Barcode, Tube, Volume)"
+                                >
+                                  🩸 Collect Blood
+                                </button>
+                              </>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -1417,26 +1562,48 @@ export default function AdminDonationsPage() {
                               </button>
                             )}
                             {item.status === DonationStatus.COMPLETED ? (
-                              <button
-                                type="button"
-                                onClick={() => handleOpenDonationCertificate(item)}
-                                style={{
-                                  background: '#fffdf5',
-                                  color: '#92400e',
-                                  border: '1px solid #fde68a',
-                                  padding: '0.35rem 0.65rem',
-                                  borderRadius: '4px',
-                                  cursor: 'pointer',
-                                  fontSize: '0.75rem',
-                                  fontWeight: 600,
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '0.25rem',
-                                }}
-                                title="Generate & View Blood Donation Certificate"
-                              >
-                                <span>📜</span> Certificate
-                              </button>
+                              <div style={{ display: 'inline-flex', gap: '0.35rem', alignItems: 'center' }}>
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenDonationCertificate(item)}
+                                  style={{
+                                    background: '#fffdf5',
+                                    color: '#92400e',
+                                    border: '1px solid #fde68a',
+                                    padding: '0.35rem 0.65rem',
+                                    borderRadius: '4px',
+                                    cursor: 'pointer',
+                                    fontSize: '0.75rem',
+                                    fontWeight: 600,
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '0.25rem',
+                                  }}
+                                  title="Generate & View Blood Donation Certificate"
+                                >
+                                  <span>📜</span> Certificate
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenDonationCertificate(item)}
+                                  style={{
+                                    background: sentWhatsAppCertificates[item.donationCode] ? '#ecfdf5' : '#25D366',
+                                    color: sentWhatsAppCertificates[item.donationCode] ? '#047857' : '#ffffff',
+                                    border: sentWhatsAppCertificates[item.donationCode] ? '1px solid #a7f3d0' : 'none',
+                                    padding: '0.35rem 0.65rem',
+                                    borderRadius: '4px',
+                                    cursor: 'pointer',
+                                    fontSize: '0.75rem',
+                                    fontWeight: 700,
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '0.25rem',
+                                  }}
+                                  title="Send Certificate PNG and Digital Link to Donor on WhatsApp"
+                                >
+                                  <span>📲</span> {sentWhatsAppCertificates[item.donationCode] ? 'WhatsApp Sent ✓' : 'Send WhatsApp'}
+                                </button>
+                              </div>
                             ) : (
                               <span
                                 style={{
@@ -1661,6 +1828,113 @@ export default function AdminDonationsPage() {
                   </div>
                 )}
               </div>
+
+              {selectedDonation.status === DonationStatus.COMPLETED && (
+                <div
+                  style={{
+                    backgroundColor: '#f0fdf4',
+                    border: '1px solid #bbf7d0',
+                    borderRadius: '8px',
+                    padding: '12px',
+                    margin: '0.75rem 0',
+                  }}
+                >
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      marginBottom: '8px',
+                    }}
+                  >
+                    <strong style={{ fontSize: '13px', color: '#166534' }}>
+                      📜 Donation Certificate & WhatsApp
+                    </strong>
+                    <span
+                      style={{
+                        fontSize: '11px',
+                        fontWeight: 700,
+                        backgroundColor: sentWhatsAppCertificates[selectedDonation.donationCode]
+                          ? '#dcfce7'
+                          : '#fef3c7',
+                        color: sentWhatsAppCertificates[selectedDonation.donationCode]
+                          ? '#166534'
+                          : '#92400e',
+                        padding: '2px 8px',
+                        borderRadius: '999px',
+                        border: `1px solid ${
+                          sentWhatsAppCertificates[selectedDonation.donationCode]
+                            ? '#bbf7d0'
+                            : '#fde68a'
+                        }`,
+                      }}
+                    >
+                      {sentWhatsAppCertificates[selectedDonation.donationCode]
+                        ? '✓ WhatsApp Delivered'
+                        : 'WhatsApp Pending'}
+                    </span>
+                  </div>
+                  <p style={{ margin: '0 0 10px 0', fontSize: '12px', color: '#334155' }}>
+                    Donor <strong>{selectedDonation.donorId?.fullName || 'Donor'}</strong> has completed donation of{' '}
+                    <strong>{selectedDonation.collectedVolumeMl || 350} mL</strong> ({selectedDonation.donationType}).
+                    Official digital certificate is generated.
+                  </p>
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                    <button
+                      type="button"
+                      onClick={() => handleOpenDonationCertificate(selectedDonation)}
+                      style={{
+                        backgroundColor: '#25D366',
+                        color: '#ffffff',
+                        border: 'none',
+                        padding: '6px 14px',
+                        borderRadius: '6px',
+                        fontSize: '12px',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
+                      }}
+                    >
+                      <span>📲</span> Send Certificate via WhatsApp
+                    </button>
+                    {selectedDonation.bagBarcode && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setLabelModalData({
+                            bagBarcode: selectedDonation.bagBarcode!,
+                            donationCode: selectedDonation.donationCode,
+                            donorCode: selectedDonation.donorId?.donorCode,
+                            donorName: selectedDonation.donorId?.fullName,
+                            bloodGroup: selectedDonation.donorId?.bloodGroup || 'O_POSITIVE',
+                            componentType: selectedDonation.donationType,
+                            volumeMl: selectedDonation.collectedVolumeMl || 450,
+                            bagType: selectedDonation.bagType || 'CPDA-1 TRIPLE',
+                            collectionDate: selectedDonation.donationDate,
+                            collectionLocation: selectedDonation.collectionLocation || 'Central Blood Centre',
+                            centreName: 'CENTRAL BLOOD CENTRE',
+                          })
+                        }
+                        style={{
+                          backgroundColor: '#ffffff',
+                          color: '#334155',
+                          border: '1px solid #cbd5e1',
+                          padding: '6px 12px',
+                          borderRadius: '6px',
+                          fontSize: '12px',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        🏷️ Bag Label
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
 
               <hr
                 style={{
@@ -2876,6 +3150,10 @@ export default function AdminDonationsPage() {
         isOpen={isCertificateModalOpen}
         onClose={() => setIsCertificateModalOpen(false)}
         data={certificateData}
+        onWhatsAppSent={markWhatsAppSent}
+        onOpenBagLabel={() => {
+          setIsCertificateModalOpen(false);
+        }}
       />
 
       {/* Phase 2: Donor Clinical Screening Modal */}
@@ -2923,6 +3201,8 @@ export default function AdminDonationsPage() {
                 volume: result.donation.collectedVolumeMl || 450,
                 componentType: result.donation.donationType || 'Whole Blood',
               });
+              // Automatically open the Certificate modal so staff can send PNG via WhatsApp!
+              setIsCertificateModalOpen(true);
             }
           }
           if (result.label) {

@@ -46,3 +46,6 @@ Thumbs.db
 
 # Turbopack cache
 .turbo/
+
+# Local Persistent MongoDB dev data
+.mongodb_dev_data/

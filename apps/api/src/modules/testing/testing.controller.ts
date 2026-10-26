@@ -170,11 +170,10 @@ export class TestingController {
   }
 
   /**
-   * Supervisor authorization and clinical release of cleared blood unit to inventory.
-   * Restricted strictly to SUPER_ADMIN and ADMIN.
+   * Laboratory supervisor or authorized technician release of cleared blood unit to inventory.
    * POST /api/testing/:id/authorize-release
    */
-  @Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN)
+  @Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN, AdminRole.LAB_TECHNICIAN)
   @Post(':id/authorize-release')
   @HttpCode(HttpStatus.OK)
   async authorizeRelease(

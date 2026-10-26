@@ -158,7 +158,10 @@ export default function LabTestEntryModal({
 
   const confirmedBloodGroup = `${aboGroup}${rhFactor === 'POSITIVE' ? '+' : '-'}`;
   const isSupervisor =
-    !currentUser || currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'ADMIN';
+    !currentUser ||
+    currentUser?.role === 'SUPER_ADMIN' ||
+    currentUser?.role === 'ADMIN' ||
+    currentUser?.role === 'LAB_TECHNICIAN';
 
   // Handle Save Blood Grouping and advance to TTI Screening
   const handleSaveGrouping = async () => {
@@ -383,26 +386,6 @@ export default function LabTestEntryModal({
       setAuthorizing(false);
     }
   };
-      setFinalizing(false);
-    }
-  };
-
-  // Handle Supervisor Clinical Release
-  const handleAuthorizeRelease = async () => {
-    setAuthorizing(true);
-    setAuthError(null);
-
-    try {
-      const updated = await authorizeTestingRelease(record._id, {
-        authorizationRemarks: authRemarks.trim() || 'Authorized for routine clinical issue',
-      });
-      onSuccess(updated);
-    } catch (err: any) {
-      setAuthError(err.message || 'Failed to authorize laboratory release');
-    } finally {
-      setAuthorizing(false);
-    }
-  };
 
   return (
     <div
@@ -459,7 +442,7 @@ export default function LabTestEntryModal({
                   fontFamily: 'monospace',
                 }}
               >
-                {record.testingCode}
+                {activeRecord.testingCode}
               </span>
             </div>
             <p
@@ -469,8 +452,8 @@ export default function LabTestEntryModal({
                 color: '#94a3b8',
               }}
             >
-              Blood Unit: <strong style={{ color: '#f8fafc' }}>{record.bloodUnitId?.unitCode}</strong> |
-              Donor: {record.donorId?.donorCode || 'Anonymous'} | Bag Group: {record.bloodUnitId?.bloodGroup || 'Unverified'}
+              Blood Unit: <strong style={{ color: '#f8fafc' }}>{activeRecord.bloodUnitId?.unitCode}</strong> |
+              Donor: {activeRecord.donorId?.donorCode || 'Anonymous'} | Bag Group: {activeRecord.bloodUnitId?.bloodGroup || 'Unverified'}
             </p>
           </div>
 
@@ -515,7 +498,7 @@ export default function LabTestEntryModal({
             }}
           >
             <span>🩸</span> 1. ABO & Rh Typing
-            {record.bloodGrouping?.confirmedBloodGroup && (
+            {activeRecord.bloodGrouping?.confirmedBloodGroup && (
               <span
                 style={{
                   fontSize: '10px',
@@ -525,7 +508,7 @@ export default function LabTestEntryModal({
                   borderRadius: '999px',
                 }}
               >
-                {record.bloodGrouping.confirmedBloodGroup}
+                {activeRecord.bloodGrouping.confirmedBloodGroup}
               </span>
             )}
           </button>
@@ -591,7 +574,7 @@ export default function LabTestEntryModal({
             }}
           >
             <span>⚖️</span> 3. Finalize & Release Verification
-            {record.decision === TestingDecision.APPROVED && (
+            {activeRecord.decision === TestingDecision.APPROVED && (
               <span
                 style={{
                   fontSize: '10px',
@@ -683,7 +666,7 @@ export default function LabTestEntryModal({
                   <select
                     value={aboGroup}
                     onChange={(e) => setAboGroup(e.target.value)}
-                    disabled={record.status === TestingStatus.COMPLETED && !!record.authorizedBy}
+                    disabled={activeRecord.status === TestingStatus.COMPLETED && !!activeRecord.authorizedBy}
                     style={{
                       width: '100%',
                       padding: '10px 12px',
@@ -715,7 +698,7 @@ export default function LabTestEntryModal({
                   <select
                     value={rhFactor}
                     onChange={(e) => setRhFactor(e.target.value)}
-                    disabled={record.status === TestingStatus.COMPLETED && !!record.authorizedBy}
+                    disabled={activeRecord.status === TestingStatus.COMPLETED && !!activeRecord.authorizedBy}
                     style={{
                       width: '100%',
                       padding: '10px 12px',
@@ -773,7 +756,7 @@ export default function LabTestEntryModal({
                   <select
                     value={groupingMethod}
                     onChange={(e) => setGroupingMethod(e.target.value)}
-                    disabled={record.status === TestingStatus.COMPLETED && !!record.authorizedBy}
+                    disabled={activeRecord.status === TestingStatus.COMPLETED && !!activeRecord.authorizedBy}
                     style={{
                       width: '100%',
                       padding: '10px 12px',
@@ -817,7 +800,7 @@ export default function LabTestEntryModal({
                     <select
                       value={antiA}
                       onChange={(e) => setAntiA(e.target.value)}
-                      disabled={record.status === TestingStatus.COMPLETED && !!record.authorizedBy}
+                      disabled={activeRecord.status === TestingStatus.COMPLETED && !!activeRecord.authorizedBy}
                       style={{ width: '100%', padding: '6px', borderRadius: '6px', border: '1px solid #cbd5e1' }}
                     >
                       {AGGLUTINATION_GRADES.map((g) => (
@@ -835,7 +818,7 @@ export default function LabTestEntryModal({
                     <select
                       value={antiB}
                       onChange={(e) => setAntiB(e.target.value)}
-                      disabled={record.status === TestingStatus.COMPLETED && !!record.authorizedBy}
+                      disabled={activeRecord.status === TestingStatus.COMPLETED && !!activeRecord.authorizedBy}
                       style={{ width: '100%', padding: '6px', borderRadius: '6px', border: '1px solid #cbd5e1' }}
                     >
                       {AGGLUTINATION_GRADES.map((g) => (
@@ -853,7 +836,7 @@ export default function LabTestEntryModal({
                     <select
                       value={antiD}
                       onChange={(e) => setAntiD(e.target.value)}
-                      disabled={record.status === TestingStatus.COMPLETED && !!record.authorizedBy}
+                      disabled={activeRecord.status === TestingStatus.COMPLETED && !!activeRecord.authorizedBy}
                       style={{ width: '100%', padding: '6px', borderRadius: '6px', border: '1px solid #cbd5e1' }}
                     >
                       {AGGLUTINATION_GRADES.map((g) => (
@@ -871,7 +854,7 @@ export default function LabTestEntryModal({
                     <select
                       value={aCells}
                       onChange={(e) => setACells(e.target.value)}
-                      disabled={record.status === TestingStatus.COMPLETED && !!record.authorizedBy}
+                      disabled={activeRecord.status === TestingStatus.COMPLETED && !!activeRecord.authorizedBy}
                       style={{ width: '100%', padding: '6px', borderRadius: '6px', border: '1px solid #cbd5e1' }}
                     >
                       {AGGLUTINATION_GRADES.map((g) => (
@@ -889,7 +872,7 @@ export default function LabTestEntryModal({
                     <select
                       value={bCells}
                       onChange={(e) => setBCells(e.target.value)}
-                      disabled={record.status === TestingStatus.COMPLETED && !!record.authorizedBy}
+                      disabled={activeRecord.status === TestingStatus.COMPLETED && !!activeRecord.authorizedBy}
                       style={{ width: '100%', padding: '6px', borderRadius: '6px', border: '1px solid #cbd5e1' }}
                     >
                       {AGGLUTINATION_GRADES.map((g) => (
@@ -907,7 +890,7 @@ export default function LabTestEntryModal({
                     <select
                       value={oCells}
                       onChange={(e) => setOCells(e.target.value)}
-                      disabled={record.status === TestingStatus.COMPLETED && !!record.authorizedBy}
+                      disabled={activeRecord.status === TestingStatus.COMPLETED && !!activeRecord.authorizedBy}
                       style={{ width: '100%', padding: '6px', borderRadius: '6px', border: '1px solid #cbd5e1' }}
                     >
                       {AGGLUTINATION_GRADES.map((g) => (
@@ -938,7 +921,7 @@ export default function LabTestEntryModal({
                     value={groupingLot}
                     onChange={(e) => setGroupingLot(e.target.value)}
                     placeholder="e.g. GEL-LOT-2026-A1"
-                    disabled={record.status === TestingStatus.COMPLETED && !!record.authorizedBy}
+                    disabled={activeRecord.status === TestingStatus.COMPLETED && !!activeRecord.authorizedBy}
                     style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px' }}
                   />
                 </div>
@@ -951,7 +934,7 @@ export default function LabTestEntryModal({
                     type="date"
                     value={groupingExpiry}
                     onChange={(e) => setGroupingExpiry(e.target.value)}
-                    disabled={record.status === TestingStatus.COMPLETED && !!record.authorizedBy}
+                    disabled={activeRecord.status === TestingStatus.COMPLETED && !!activeRecord.authorizedBy}
                     style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px' }}
                   />
                 </div>
@@ -966,7 +949,7 @@ export default function LabTestEntryModal({
                   value={groupingRemarks}
                   onChange={(e) => setGroupingRemarks(e.target.value)}
                   placeholder="e.g. Clean agglutination observed, no discrepancies detected"
-                  disabled={record.status === TestingStatus.COMPLETED && !!record.authorizedBy}
+                  disabled={activeRecord.status === TestingStatus.COMPLETED && !!activeRecord.authorizedBy}
                   style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px' }}
                 />
               </div>
@@ -1884,10 +1867,6 @@ export default function LabTestEntryModal({
             )}
           </div>
         </div>
-      </div>
-    </div>
-  );
-}
       </div>
     </div>
   );

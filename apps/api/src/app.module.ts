@@ -58,9 +58,31 @@ async function resolveMongoUri(configService: ConfigService): Promise<string> {
     throw new Error('[Database] Fatal: MONGODB_URI is required and must be persistent in production.');
   }
 
+  const path = await import('path');
+  const fs = await import('fs');
+  let baseDir = process.cwd();
+  if (baseDir.endsWith('apps\\api') || baseDir.endsWith('apps/api')) {
+    baseDir = path.resolve(baseDir, '../../');
+  }
+  const dbPath = path.resolve(baseDir, '.mongodb_dev_data');
+  if (!fs.existsSync(dbPath)) {
+    fs.mkdirSync(dbPath, { recursive: true });
+  }
+
   const { MongoMemoryServer } = await import('mongodb-memory-server');
   if (!memoryServerInstance) {
-    memoryServerInstance = await MongoMemoryServer.create();
+    try {
+      memoryServerInstance = await MongoMemoryServer.create({
+        instance: {
+          dbPath,
+          storageEngine: 'wiredTiger',
+        },
+      });
+      console.log(`[Database] Persistent local MongoDB active at disk path: ${dbPath}`);
+    } catch (persistentErr: any) {
+      console.warn(`[Database] Persistent db startup warning: ${persistentErr.message}. Starting in-memory fallback.`);
+      memoryServerInstance = await MongoMemoryServer.create();
+    }
   }
   const fallbackUri = memoryServerInstance.getUri();
   console.log(`[Database] Resilient local MongoDB active at: ${fallbackUri}`);

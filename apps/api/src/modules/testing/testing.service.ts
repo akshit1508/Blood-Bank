@@ -666,10 +666,10 @@ export class TestingService {
     testing.authorizedBy = isValidObjectId(actor?._id || actor?.id)
       ? new Types.ObjectId(actor._id || actor.id)
       : undefined;
-    testing.authorizedByName = actor?.fullName || actor?.name || 'Authorized Supervisor';
+    testing.authorizedByName = actor?.fullName || actor?.name || 'Lab Staff';
     testing.authorizedAt = new Date();
     testing.authorizationRemarks =
-      dto?.authorizationRemarks?.trim() || 'Supervisor authorization verified for clinical issue';
+      dto?.authorizationRemarks?.trim() || 'Laboratory release authorized for clinical stock';
 
     const saved = await testing.save();
 
@@ -693,8 +693,7 @@ export class TestingService {
             bloodUnitId: testing.bloodUnitId,
             status: InventoryStatus.AVAILABLE,
             receivedBy: actor?._id || actor?.id ? new Types.ObjectId(actor._id || actor.id) : undefined,
-            receivedByName: actor?.fullName || actor?.name || undefined,
-            receivedByRole: actor?.role || undefined,
+            receivedByName: actor?.fullName || actor?.name || 'Lab Staff',
             receivedAt: new Date(),
           });
         } else if (
@@ -703,6 +702,9 @@ export class TestingService {
           existingInv.status !== InventoryStatus.ISSUED
         ) {
           existingInv.status = InventoryStatus.AVAILABLE;
+          if (!existingInv.receivedByName) {
+            existingInv.receivedByName = actor?.fullName || actor?.name || 'Lab Staff';
+          }
           await existingInv.save();
         }
       } catch {

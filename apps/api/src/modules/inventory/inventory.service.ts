@@ -109,6 +109,7 @@ export class InventoryService {
       expiryDate <= expiringSoonThreshold;
 
     const approvedByName =
+      testing?.authorizedByName ||
       testing?.verifiedByName ||
       testing?.completedByName ||
       testing?.performedBy ||

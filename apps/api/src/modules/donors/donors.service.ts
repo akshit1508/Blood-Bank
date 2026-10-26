@@ -44,8 +44,8 @@ export class DonorsService implements OnModuleInit {
   ) {}
 
   async onModuleInit() {
-    // Only provision development fixture donors in non-production environments when DB is empty
-    if (process.env.NODE_ENV !== 'production') {
+    // Only provision development fixture donors if explicitly requested via environment variable
+    if (process.env.SEED_DEFAULT_DONORS === 'true') {
       await this.seedDefaultDonorsIfEmpty();
     }
   }

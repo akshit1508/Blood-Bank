@@ -1025,14 +1025,12 @@ export default function AdminInventoryPage() {
                             <span style={{ color: '#0f172a', fontWeight: 600, display: 'block' }}>
                               {item.testing?.testingCode || '—'}
                             </span>
-                            <span style={{ color: '#15803d', fontSize: '0.75rem', fontWeight: 600, display: 'block' }}>
+                            <span style={{ color: '#15803d', fontSize: '0.75rem', fontWeight: 700, display: 'block' }}>
                               ✓ {item.testing?.decision || 'APPROVED'}
                             </span>
-                            {(item.testing?.approvedByName || item.approvedByName || item.receivedByName) && (
-                              <span style={{ color: '#64748b', fontSize: '0.72rem', display: 'block', marginTop: '0.15rem' }}>
-                                by {item.testing?.approvedByName || item.approvedByName || item.receivedByName}
-                              </span>
-                            )}
+                            <span style={{ color: '#475569', fontSize: '0.72rem', display: 'block', marginTop: '0.2rem', backgroundColor: '#f1f5f9', padding: '0.1rem 0.4rem', borderRadius: '4px', width: 'fit-content' }}>
+                              🔬 Added by: <strong>{item.testing?.authorizedByName || item.receivedByName || item.approvedByName || item.testing?.verifiedByName || 'Lab Staff'}</strong>
+                            </span>
                           </td>
 
                           {/* Actions */}

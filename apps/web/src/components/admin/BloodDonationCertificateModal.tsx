@@ -21,6 +21,8 @@ interface BloodDonationCertificateModalProps {
   isOpen: boolean;
   onClose: () => void;
   data: BloodDonationCertificateData | null;
+  onWhatsAppSent?: (code: string) => void;
+  onOpenBagLabel?: () => void;
 }
 
 export function formatPhoneForWhatsApp(phone?: string): string {
@@ -38,6 +40,8 @@ export default function BloodDonationCertificateModal({
   isOpen,
   onClose,
   data,
+  onWhatsAppSent,
+  onOpenBagLabel,
 }: BloodDonationCertificateModalProps) {
   const [customPhone, setCustomPhone] = useState<string>('');
   const [phoneInitialized, setPhoneInitialized] = useState<boolean>(false);
@@ -200,6 +204,9 @@ With heartfelt gratitude,
         : `https://api.whatsapp.com/send?text=${encodedText}`;
 
       window.open(url, '_blank', 'noopener,noreferrer');
+      if (onWhatsAppSent) {
+        onWhatsAppSent(data.unitCode || data.certificateNumber);
+      }
     } catch (err: any) {
       console.error('WhatsApp dispatch error:', err);
       // Fallback redirect
@@ -208,6 +215,9 @@ With heartfelt gratitude,
         ? `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodedText}`
         : `https://api.whatsapp.com/send?text=${encodedText}`;
       window.open(url, '_blank', 'noopener,noreferrer');
+      if (onWhatsAppSent) {
+        onWhatsAppSent(data.unitCode || data.certificateNumber);
+      }
     } finally {
       setIsProcessing(false);
     }
@@ -978,6 +988,27 @@ With heartfelt gratitude,
               >
                 <span>📲</span> {isProcessing ? 'Processing...' : 'Send on WhatsApp'}
               </button>
+              {onOpenBagLabel && (
+                <button
+                  type="button"
+                  onClick={onOpenBagLabel}
+                  style={{
+                    backgroundColor: '#ffffff',
+                    color: '#0f172a',
+                    border: '1px solid #cbd5e1',
+                    borderRadius: '6px',
+                    padding: '0.45rem 1rem',
+                    fontSize: '0.8rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.35rem',
+                  }}
+                >
+                  <span>🏷️</span> Print Bag Label
+                </button>
+              )}
               <button
                 type="button"
                 onClick={onClose}
