@@ -34,23 +34,62 @@ export interface UnitAllocationValidationResult {
 }
 
 /**
- * Validates clinical compatibility between donor unit and recipient group
+ * Comprehensive Component-Specific ABO/RhD Transfusion Compatibility Evaluator
  * according to National Blood Transfusion Council (NBTC) / DGHS Indian standards.
+ *
+ * Rules:
+ * 1. Identical Match: donorGroup === recipientGroup is always compatible for all components.
+ * 2. WHOLE_BLOOD: Strictly requires identical ABO/RhD group match (donorGroup === recipientGroup).
+ *    Whole blood contains both donor red cells and ~250 mL of unseparated donor plasma with
+ *    potent isohemagglutinins; therefore non-identical units are strictly prohibited in routine practice.
+ * 3. PRBC / Packed Red Blood Cells: Red-cell antigen compatibility matrix applies (O- is universal donor).
+ * 4. FFP / Platelets / Plasma: Plasma antibody compatibility matrix applies (AB is universal plasma donor).
  */
-export function isBloodGroupCompatible(
+export interface ComponentCompatibilityEvaluation {
+  compatible: boolean;
+  reason: string;
+  ruleCategory:
+    | 'IDENTICAL_MATCH'
+    | 'PRBC_COMPATIBLE'
+    | 'PLASMA_PLATELET_COMPATIBLE'
+    | 'WHOLE_BLOOD_INCOMPATIBLE'
+    | 'INCOMPATIBLE';
+}
+
+export function evaluateComponentCompatibility(
   donorGroup: string,
   recipientGroup: string,
   componentType: string = 'WHOLE_BLOOD',
-): boolean {
-  if (donorGroup === recipientGroup) return true;
+): ComponentCompatibilityEvaluation {
+  const normComp = (componentType || 'WHOLE_BLOOD').toUpperCase().trim();
+  const dGrp = (donorGroup || '').toUpperCase().trim();
+  const rGrp = (recipientGroup || '').toUpperCase().trim();
 
-  // Whole blood strictly requires identical group
-  if (componentType === 'WHOLE_BLOOD') {
-    return false;
+  // Rule 1: Exact identical match is always compatible across all components
+  if (dGrp === rGrp) {
+    return {
+      compatible: true,
+      reason: `Identical ABO/RhD match (${rGrp}) for ${normComp}.`,
+      ruleCategory: 'IDENTICAL_MATCH',
+    };
   }
 
-  // Red Blood Cells / PRBC compatibility (Universal Donor: O-)
-  if (componentType === 'PRBC') {
+  // Rule 2: Whole blood strictly requires identical ABO/RhD group match
+  if (normComp === 'WHOLE_BLOOD') {
+    return {
+      compatible: false,
+      reason: `Whole Blood transfusions strictly require identical ABO/RhD match (${rGrp}). Donor unit ${dGrp} is incompatible for WHOLE_BLOOD due to donor plasma isohemagglutinins.`,
+      ruleCategory: 'WHOLE_BLOOD_INCOMPATIBLE',
+    };
+  }
+
+  // Rule 3: Red Blood Cells / PRBC
+  if (
+    normComp === 'PRBC' ||
+    normComp === 'PACKED_CELLS' ||
+    normComp === 'RED_BLOOD_CELLS' ||
+    normComp === 'PACKED_RED_BLOOD_CELLS'
+  ) {
     const redCellCompatibility: Record<string, string[]> = {
       'O-': ['O-', 'O+', 'A-', 'A+', 'B-', 'B+', 'AB-', 'AB+'],
       'O+': ['O+', 'A+', 'B+', 'AB+'],
@@ -61,11 +100,30 @@ export function isBloodGroupCompatible(
       'AB-': ['AB-', 'AB+'],
       'AB+': ['AB+'],
     };
-    return redCellCompatibility[donorGroup]?.includes(recipientGroup) ?? false;
+
+    const isMatch = redCellCompatibility[dGrp]?.includes(rGrp) ?? false;
+    if (isMatch) {
+      return {
+        compatible: true,
+        reason: `Compatible PRBC red cell match: Patient ${rGrp} can receive Donor ${dGrp} packed red cells (Subject to laboratory crossmatch).`,
+        ruleCategory: 'PRBC_COMPATIBLE',
+      };
+    } else {
+      return {
+        compatible: false,
+        reason: `Incompatible ABO/RhD for PRBC: Donor ${dGrp} red cells possess antigens foreign to patient ${rGrp}.`,
+        ruleCategory: 'INCOMPATIBLE',
+      };
+    }
   }
 
-  // Plasma (FFP) & Platelets compatibility (Universal Donor: AB)
-  if (componentType === 'FFP' || componentType === 'PLATELETS') {
+  // Rule 4: Plasma (FFP) & Platelets
+  if (
+    normComp === 'FFP' ||
+    normComp === 'PLATELETS' ||
+    normComp === 'PLASMA' ||
+    normComp === 'CRYOPRECIPITATE'
+  ) {
     const plasmaCompatibility: Record<string, string[]> = {
       'AB+': ['AB+', 'AB-', 'A+', 'A-', 'B+', 'B-', 'O+', 'O-'],
       'AB-': ['AB+', 'AB-', 'A+', 'A-', 'B+', 'B-', 'O+', 'O-'],
@@ -76,10 +134,36 @@ export function isBloodGroupCompatible(
       'O+': ['O+', 'O-'],
       'O-': ['O+', 'O-'],
     };
-    return plasmaCompatibility[donorGroup]?.includes(recipientGroup) ?? false;
+
+    const isMatch = plasmaCompatibility[dGrp]?.includes(rGrp) ?? false;
+    if (isMatch) {
+      return {
+        compatible: true,
+        reason: `Compatible plasma/platelet match: Patient ${rGrp} can receive Donor ${dGrp} ${normComp}.`,
+        ruleCategory: 'PLASMA_PLATELET_COMPATIBLE',
+      };
+    } else {
+      return {
+        compatible: false,
+        reason: `Incompatible ABO/RhD for ${normComp}: Donor ${dGrp} plasma contains antibodies directed against patient ${rGrp}.`,
+        ruleCategory: 'INCOMPATIBLE',
+      };
+    }
   }
 
-  return false;
+  return {
+    compatible: false,
+    reason: `Incompatible blood group: Donor ${dGrp} does not match patient ${rGrp} for component ${normComp}.`,
+    ruleCategory: 'INCOMPATIBLE',
+  };
+}
+
+export function isBloodGroupCompatible(
+  donorGroup: string,
+  recipientGroup: string,
+  componentType: string = 'WHOLE_BLOOD',
+): boolean {
+  return evaluateComponentCompatibility(donorGroup, recipientGroup, componentType).compatible;
 }
 
 @Injectable()
@@ -277,13 +361,21 @@ export class UnitIssueValidationService {
     }
 
     if (expectedBloodGroup) {
+      const evaluation = evaluateComponentCompatibility(
+        bloodUnit.bloodGroup,
+        expectedBloodGroup,
+        bloodUnit.componentType,
+      );
+
       const isMatch = allowCompatibleBloodGroup
-        ? isBloodGroupCompatible(bloodUnit.bloodGroup, expectedBloodGroup, bloodUnit.componentType)
+        ? evaluation.compatible
         : bloodUnit.bloodGroup === expectedBloodGroup;
 
       if (!isMatch) {
         throw new BadRequestException({
-          message: `Blood group mismatch: Request requires '${expectedBloodGroup}', unit '${bloodUnit.unitCode}' is '${bloodUnit.bloodGroup}' (incompatible for ${bloodUnit.componentType || 'WHOLE_BLOOD'}).`,
+          message: allowCompatibleBloodGroup
+            ? evaluation.reason
+            : `Blood group mismatch: Request requires '${expectedBloodGroup}', unit '${bloodUnit.unitCode}' is '${bloodUnit.bloodGroup}' (incompatible for ${bloodUnit.componentType || 'WHOLE_BLOOD'}).`,
           code: 'BLOOD_GROUP_MISMATCH',
           expectedBloodGroup,
           unitBloodGroup: bloodUnit.bloodGroup,

@@ -796,6 +796,36 @@ export default function AdminBloodRequestsPage() {
               )}
             </div>
 
+            {/* Crossmatching Workstation Action */}
+            {['REQUESTED', 'VERIFIED', 'APPROVED'].includes(selectedRequest.status) && (
+              <div style={{ marginBottom: '1.25rem', padding: '0.85rem', background: '#fff1f2', border: '1px solid #fecdd3', borderRadius: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
+                  <div>
+                    <strong style={{ color: '#9f1239', fontSize: '0.85rem', display: 'block' }}>Laboratory Crossmatching</strong>
+                    <span style={{ color: '#be123c', fontSize: '0.75rem' }}>
+                      Verify patient tube, select compatible donor RBCs, and perform serological crossmatch.
+                    </span>
+                  </div>
+                  <Link
+                    href={`/admin/crossmatching?search=${selectedRequest.requestCode}`}
+                    style={{
+                      background: '#e11d48',
+                      color: '#ffffff',
+                      padding: '0.45rem 0.85rem',
+                      borderRadius: '6px',
+                      fontSize: '0.75rem',
+                      fontWeight: 700,
+                      textDecoration: 'none',
+                      whiteSpace: 'nowrap',
+                      display: 'inline-block',
+                    }}
+                  >
+                    Open Crossmatch &rarr;
+                  </Link>
+                </div>
+              </div>
+            )}
+
             {/* WhatsApp Notification Hub (Direct Click-to-Chat) */}
             <div
               style={{

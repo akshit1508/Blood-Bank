@@ -39,7 +39,10 @@ import {
   AuditActionType,
   AuditEntityType,
 } from '../audit-logs/constants/audit-log.constants';
-import { UnitIssueValidationService } from '../inventory/services/unit-issue-validation.service';
+import {
+  UnitIssueValidationService,
+  isBloodGroupCompatible,
+} from '../inventory/services/unit-issue-validation.service';
 
 @Injectable()
 export class ReservationsService {
@@ -157,6 +160,7 @@ export class ReservationsService {
           inventoryId: invId,
           expectedBloodGroup: request.bloodGroup,
           expectedComponentType: request.componentType,
+          allowCompatibleBloodGroup: createDto.allowCompatibleBloodGroup ?? false,
           isReservation: true,
         });
       } else {
@@ -241,10 +245,14 @@ export class ReservationsService {
           });
         }
 
-        // Blood group exact match
-        if (unit.bloodGroup !== request.bloodGroup) {
+        // Blood group compatibility
+        const isMatch = createDto.allowCompatibleBloodGroup
+          ? isBloodGroupCompatible(unit.bloodGroup, request.bloodGroup, unit.componentType)
+          : unit.bloodGroup === request.bloodGroup;
+
+        if (!isMatch) {
           throw new BadRequestException({
-            message: `Blood group mismatch: Request requires '${request.bloodGroup}', unit '${unit.unitCode}' is '${unit.bloodGroup}'.`,
+            message: `Blood group mismatch: Request requires '${request.bloodGroup}', unit '${unit.unitCode}' is '${unit.bloodGroup}' (incompatible for ${unit.componentType || 'WHOLE_BLOOD'}).`,
             code: 'BLOOD_GROUP_MISMATCH',
           });
         }

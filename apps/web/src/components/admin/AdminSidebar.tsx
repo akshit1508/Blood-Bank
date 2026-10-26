@@ -277,6 +277,13 @@ export default function AdminSidebar({
         <line x1="3" y1="18" x2="3.01" y2="18" />
       </svg>
     ),
+    crossmatch: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <circle cx="8" cy="8" r="5" />
+        <circle cx="16" cy="16" r="5" />
+        <line x1="11.5" y1="11.5" x2="12.5" y2="12.5" />
+      </svg>
+    ),
   };
 
   // Group definitions strictly role-segregated
@@ -310,6 +317,7 @@ export default function AdminSidebar({
         items: [
           { name: 'Blood Requests', href: '/admin/blood-requests', icon: icons.requests },
           { name: 'Laboratory Testing', href: '/admin/testing', icon: icons.testing },
+          { name: 'Crossmatching', href: '/admin/crossmatching', icon: icons.crossmatch },
           { name: 'Inventory Management', href: '/admin/inventory', icon: icons.inventory },
           { name: 'Unit Expiry Rules', href: '/super-admin/inventory/expiry-rules', icon: icons.settings },
         ],
@@ -370,6 +378,7 @@ export default function AdminSidebar({
         label: 'LABORATORY',
         items: [
           { name: 'Testing Queue', href: '/lab/testing', icon: icons.queue },
+          { name: 'Crossmatching', href: '/lab/crossmatching', icon: icons.crossmatch },
           { name: 'Pending Tests', href: '/lab/testing?filter=in_progress', icon: icons.testing },
           { name: 'Testing History', href: '/lab/testing?filter=completed', icon: icons.history },
         ],
@@ -442,6 +451,7 @@ export default function AdminSidebar({
         items: [
           { name: 'Blood Requests', href: '/admin/blood-requests', icon: icons.requests },
           { name: 'Laboratory Testing', href: '/admin/testing', icon: icons.testing },
+          { name: 'Crossmatching', href: '/admin/crossmatching', icon: icons.crossmatch },
           { name: 'Inventory Management', href: '/admin/inventory', icon: icons.inventory },
         ],
       },

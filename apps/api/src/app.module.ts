@@ -22,6 +22,7 @@ import { CampaignsModule } from './modules/campaigns/campaigns.module';
 import { FinancialControlCenterModule } from './modules/financial-control-center/financial-control-center.module';
 import { VolunteersModule } from './modules/volunteers/volunteers.module';
 import { ReceptionistModule } from './modules/receptionist/receptionist.module';
+import { CrossmatchingModule } from './modules/crossmatching/crossmatching.module';
 import { AuditLogsModule } from './modules/audit-logs/audit-logs.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { AdminAuthGuard } from './modules/auth/guards/admin-auth.guard';
@@ -95,6 +96,7 @@ async function resolveMongoUri(configService: ConfigService): Promise<string> {
     FinancialControlCenterModule,
     VolunteersModule,
     ReceptionistModule,
+    CrossmatchingModule,
   ],
   controllers: [AppController],
   providers: [
