@@ -27,73 +27,46 @@ import { AuthModule } from './modules/auth/auth.module';
 import { AdminAuthGuard } from './modules/auth/guards/admin-auth.guard';
 import { RolesGuard } from './modules/auth/guards/roles.guard';
 
-let memoryServerInstance: any = null;
-
 async function resolveMongoUri(configService: ConfigService): Promise<string> {
   const configuredUri = configService.get<string>('MONGODB_URI');
-  const isProd = configService.get<string>('NODE_ENV') === 'production';
 
-  if (configuredUri) {
-    try {
-      const mongoose = await import('mongoose');
-      const testConn = await mongoose.createConnection(configuredUri, {
-        serverSelectionTimeoutMS: 3000,
-        connectTimeoutMS: 3000,
-      }).asPromise();
-      await testConn.close();
-      return configuredUri;
-    } catch (err: any) {
-      if (isProd) {
-        throw new Error(
-          `[Database] Fatal: Unable to connect to persistent production database at ${configuredUri}: ${err.message}`,
-        );
-      }
-      console.warn(
-        `[Database] Warning: Primary MongoDB connection failed (${err.message.slice(0, 100)}...). Starting local MongoMemoryServer fallback so platform services remain online in development...`,
-      );
-    }
+  if (!configuredUri || !configuredUri.trim()) {
+    const message =
+      `[Database] Fatal: MONGODB_URI environment variable is missing or empty. ` +
+      `Please configure MONGODB_URI in your environment or .env file with your persistent MongoDB Atlas connection string. ` +
+      `The application will not switch to temporary or in-memory storage.`;
+    console.error(message);
+    throw new Error(message);
   }
 
-  if (isProd) {
-    throw new Error('[Database] Fatal: MONGODB_URI is required and must be persistent in production.');
-  }
+  const sanitizedUri = configuredUri.replace(/:[^:]*@/, ':****@');
 
-  const path = await import('path');
-  const fs = await import('fs');
-  let baseDir = process.cwd();
-  if (baseDir.endsWith('apps\\api') || baseDir.endsWith('apps/api')) {
-    baseDir = path.resolve(baseDir, '../../');
+  try {
+    const mongoose = await import('mongoose');
+    const testConn = await mongoose.createConnection(configuredUri, {
+      serverSelectionTimeoutMS: 5000,
+      connectTimeoutMS: 5000,
+    }).asPromise();
+    await testConn.close();
+    console.log(
+      `[Database] Successfully verified persistent MongoDB Atlas database connection to: ${sanitizedUri}`,
+    );
+    return configuredUri;
+  } catch (err: any) {
+    const message =
+      `[Database] Fatal: Unable to connect to persistent database at ${sanitizedUri}: ${err.message}. ` +
+      `Please verify your network connection, Atlas IP Access List / Network Access whitelist, and credentials. ` +
+      `The application will not switch to temporary or in-memory storage to prevent data loss.`;
+    console.error(message);
+    throw new Error(message);
   }
-  const dbPath = path.resolve(baseDir, '.mongodb_dev_data');
-  if (!fs.existsSync(dbPath)) {
-    fs.mkdirSync(dbPath, { recursive: true });
-  }
-
-  const { MongoMemoryServer } = await import('mongodb-memory-server');
-  if (!memoryServerInstance) {
-    try {
-      memoryServerInstance = await MongoMemoryServer.create({
-        instance: {
-          dbPath,
-          storageEngine: 'wiredTiger',
-        },
-      });
-      console.log(`[Database] Persistent local MongoDB active at disk path: ${dbPath}`);
-    } catch (persistentErr: any) {
-      console.warn(`[Database] Persistent db startup warning: ${persistentErr.message}. Starting in-memory fallback.`);
-      memoryServerInstance = await MongoMemoryServer.create();
-    }
-  }
-  const fallbackUri = memoryServerInstance.getUri();
-  console.log(`[Database] Resilient local MongoDB active at: ${fallbackUri}`);
-  return fallbackUri;
 }
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: ['apps/api/.env', '.env', '../../.env', '.env.local'],
+      envFilePath: ['.env', 'apps/api/.env', '../../.env', '.env.local'],
     }),
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
