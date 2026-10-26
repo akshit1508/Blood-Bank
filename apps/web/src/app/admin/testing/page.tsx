@@ -713,7 +713,7 @@ export default function AdminTestingPage() {
               boxShadow: '0 1px 2px rgba(220, 38, 38, 0.2)',
             }}
           >
-            + Start Testing
+            + Enroll Unit in Testing
           </button>
         </div>
       </div>
@@ -1012,7 +1012,7 @@ export default function AdminTestingPage() {
                   cursor: 'pointer',
                 }}
               >
-                + Start Testing on a Blood Unit
+                + Enroll Unit in Testing
               </button>
             </div>
           ) : (
@@ -1370,19 +1370,23 @@ export default function AdminTestingPage() {
                                   backgroundColor: '#dc2626',
                                   border: 'none',
                                   color: '#ffffff',
-                                  padding: '0.35rem 0.65rem',
+                                  padding: '0.35rem 0.75rem',
                                   borderRadius: '4px',
                                   fontSize: '0.75rem',
-                                  fontWeight: 600,
+                                  fontWeight: 700,
                                   cursor: 'pointer',
                                   display: 'flex',
                                   alignItems: 'center',
                                   gap: '4px',
+                                  boxShadow: '0 1px 2px rgba(220, 38, 38, 0.2)',
                                 }}
+                                title="Open Testing Workspace to enter results or authorize release"
                               >
-                                🔬 Lab Tests
+                                🔬 Open Testing
                               </button>
-                              {item.bloodUnitId?.componentType === 'WHOLE_BLOOD' && (
+                              {item.bloodUnitId?.componentType === 'WHOLE_BLOOD' &&
+                                item.bloodUnitId?.status !== 'PROCESSED_INTO_COMPONENTS' &&
+                                item.bloodUnitId?.status !== 'REJECTED' && (
                                 <button
                                   type="button"
                                   onClick={() => handleOpenSeparation(item.bloodUnitId)}
@@ -1399,8 +1403,9 @@ export default function AdminTestingPage() {
                                     alignItems: 'center',
                                     gap: '4px',
                                   }}
+                                  title="Prepare whole blood into derived child components"
                                 >
-                                  🧪 Separate
+                                  🧪 Prepare Components
                                 </button>
                               )}
                               <button
@@ -1418,8 +1423,9 @@ export default function AdminTestingPage() {
                                   fontWeight: 600,
                                   cursor: 'pointer',
                                 }}
+                                title="View read-only testing record and traceability history"
                               >
-                                {isSelected ? 'Inspecting' : 'Details'}
+                                {isSelected ? '👁️ Viewing' : '👁️ View Record'}
                               </button>
                             </div>
                           </td>
@@ -1515,7 +1521,7 @@ export default function AdminTestingPage() {
                     textTransform: 'uppercase',
                   }}
                 >
-                  Testing Record
+                  Testing Record (Read-Only Overview)
                 </div>
                 <h2
                   style={{
@@ -1526,7 +1532,7 @@ export default function AdminTestingPage() {
                 >
                   {selectedTesting.testingCode}
                 </h2>
-                <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.35rem' }}>
+                <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.35rem', flexWrap: 'wrap' }}>
                   <span
                     style={{
                       padding: '0.15rem 0.5rem',
@@ -1540,7 +1546,7 @@ export default function AdminTestingPage() {
                       border: `1px solid ${STATUS_BADGES[selectedTesting.status]?.border || '#cbd5e1'}`,
                     }}
                   >
-                    {selectedTesting.status}
+                    Progress: {selectedTesting.status}
                   </span>
                   <span
                     style={{
@@ -1555,7 +1561,34 @@ export default function AdminTestingPage() {
                       border: `1px solid ${DECISION_BADGES[selectedTesting.decision]?.border || '#bfdbfe'}`,
                     }}
                   >
-                    DECISION: {selectedTesting.decision}
+                    Decision: {selectedTesting.decision}
+                  </span>
+                  <span
+                    style={{
+                      padding: '0.15rem 0.5rem',
+                      borderRadius: '9999px',
+                      fontSize: '0.725rem',
+                      fontWeight: 700,
+                      backgroundColor: selectedTesting.authorizedBy
+                        ? '#dcfce7'
+                        : selectedTesting.decision === TestingDecision.APPROVED
+                        ? '#fef3c7'
+                        : '#fee2e2',
+                      color: selectedTesting.authorizedBy
+                        ? '#166534'
+                        : selectedTesting.decision === TestingDecision.APPROVED
+                        ? '#92400e'
+                        : '#991b1b',
+                      border: `1px solid ${
+                        selectedTesting.authorizedBy
+                          ? '#bbf7d0'
+                          : selectedTesting.decision === TestingDecision.APPROVED
+                          ? '#fde68a'
+                          : '#fecaca'
+                      }`,
+                    }}
+                  >
+                    Release: {selectedTesting.authorizedBy ? '✓ Released' : selectedTesting.decision === TestingDecision.APPROVED ? '⏳ Awaiting Supervisor Gate' : '⛔ Unreleased'}
                   </span>
                 </div>
               </div>
@@ -1656,7 +1689,7 @@ export default function AdminTestingPage() {
                   </div>
                 )}
 
-                {/* Phase 3 Action Buttons & Supervisor Clearance */}
+                {/* Primary Action Buttons */}
                 <div style={{ display: 'flex', gap: '8px', marginBottom: '1rem', flexWrap: 'wrap' }}>
                   <button
                     type="button"
@@ -1675,7 +1708,7 @@ export default function AdminTestingPage() {
                       gap: '6px',
                     }}
                   >
-                    🔬 Open Full Lab Workstation & Grouping
+                    🔬 Open Testing Workspace
                   </button>
                   {selectedTesting.bloodUnitId?.componentType === 'WHOLE_BLOOD' && (
                     <button
@@ -2455,7 +2488,7 @@ export default function AdminTestingPage() {
                   </div>
                 </div>
 
-                {/* Individual Test Results List */}
+                {/* Read-Only Laboratory Findings */}
                 <div style={{ marginBottom: '1.25rem' }}>
                   <div
                     style={{
@@ -2473,528 +2506,252 @@ export default function AdminTestingPage() {
                         color: '#0f172a',
                       }}
                     >
-                      Screening Test Results ({selectedTesting.testResults?.length || 0})
+                      Laboratory Diagnostic Findings ({selectedTesting.testResults?.length || 0})
                     </h3>
                     <span style={{ fontSize: '0.75rem', color: '#64748b' }}>
-                      Authorized laboratory outcomes
+                      Read-only record view
                     </span>
                   </div>
 
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                    {selectedTesting.testResults.map((test) => {
-                      const currentForm = testFormValues[test.testCode] || {
-                        status: test.status,
-                        result: test.result || '',
-                        testedAt: '',
-                        remarks: test.remarks || '',
-                      };
-                      const isCompletedRecord =
-                        selectedTesting.status === TestingStatus.COMPLETED;
-                      const isSavingThis = testSavingCode === test.testCode;
-                      const feedback =
-                        testSaveFeedback?.code === test.testCode
-                          ? testSaveFeedback
-                          : null;
+                  {selectedTesting.status === TestingStatus.IN_PROGRESS && (
+                    <div
+                      style={{
+                        marginBottom: '0.75rem',
+                        padding: '0.65rem 0.85rem',
+                        borderRadius: '6px',
+                        backgroundColor: '#eff6ff',
+                        border: '1px solid #bfdbfe',
+                        color: '#1e40af',
+                        fontSize: '0.785rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: '0.5rem',
+                      }}
+                    >
+                      <div>
+                        ℹ️ <strong>Testing is in progress.</strong> Use the testing workspace to record or modify results.
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleOpenLabEntry(selectedTesting)}
+                        style={{
+                          backgroundColor: '#2563eb',
+                          color: '#ffffff',
+                          border: 'none',
+                          padding: '0.3rem 0.65rem',
+                          borderRadius: '4px',
+                          fontSize: '0.75rem',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        Open Workspace &rarr;
+                      </button>
+                    </div>
+                  )}
 
-                      return (
-                        <div
-                          key={test.testCode}
-                          style={{
-                            border: '1px solid #e2e8f0',
-                            borderRadius: '6px',
-                            padding: '0.75rem',
-                            backgroundColor: '#ffffff',
-                          }}
-                        >
-                          {/* Test Title & Status Badge */}
-                          <div
-                            style={{
-                              display: 'flex',
-                              justifyContent: 'space-between',
-                              alignItems: 'center',
-                              marginBottom: '0.5rem',
-                            }}
-                          >
-                            <div>
-                              <strong
-                                style={{
-                                  fontSize: '0.85rem',
-                                  color: '#0f172a',
-                                  marginRight: '0.4rem',
-                                }}
-                              >
-                                {test.testName}
-                              </strong>
-                              <span
-                                style={{
-                                  backgroundColor: '#f1f5f9',
-                                  color: '#475569',
-                                  padding: '0.1rem 0.35rem',
-                                  borderRadius: '3px',
-                                  fontSize: '0.7rem',
-                                  fontWeight: 600,
-                                }}
-                              >
-                                {test.testCode}
-                              </span>
-                            </div>
-
-                            <span
-                              style={{
-                                padding: '0.15rem 0.45rem',
-                                borderRadius: '4px',
-                                fontSize: '0.75rem',
-                                fontWeight: 700,
-                                backgroundColor:
-                                  RESULT_STATUS_BADGES[test.status]?.bg ||
-                                  '#f8fafc',
-                                color:
-                                  RESULT_STATUS_BADGES[test.status]?.text ||
-                                  '#64748b',
-                                border: `1px solid ${RESULT_STATUS_BADGES[test.status]?.border || '#e2e8f0'}`,
-                              }}
-                            >
-                              {RESULT_STATUS_BADGES[test.status]?.label ||
-                                test.status}
-                            </span>
-                          </div>
-
-                          {/* Editable / Read-only Fields */}
-                          {isCompletedRecord ? (
-                            <div
-                              style={{
-                                fontSize: '0.8rem',
-                                color: '#475569',
-                                backgroundColor: '#f8fafc',
-                                padding: '0.5rem',
-                                borderRadius: '4px',
-                              }}
-                            >
-                              <div>
-                                <strong>Outcome:</strong>{' '}
-                                <span
-                                  style={{
-                                    fontWeight: 600,
-                                    color:
-                                      test.status === TestResultStatus.PASS
-                                        ? '#166534'
-                                        : test.status === TestResultStatus.FAIL
-                                          ? '#991b1b'
-                                          : '#64748b',
-                                  }}
-                                >
-                                  {test.status}
-                                </span>{' '}
-                                {test.result && `(${test.result})`}
-                              </div>
-                              <div style={{ marginTop: '0.35rem' }}>
-                                <StaffAttributionBadge
-                                  label="Tested by"
-                                  name={test.performedByName}
-                                  role={test.performedByRole || 'LAB_TECHNICIAN'}
-                                  timestamp={test.testedAt}
-                                />
-                              </div>
-                              {test.remarks && (
-                                <div style={{ marginTop: '0.2rem' }}>
-                                  Remarks: {test.remarks}
-                                </div>
-                              )}
-                            </div>
-                          ) : (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                              {test.performedByName && (
-                                <div style={{ marginBottom: '0.25rem' }}>
-                                  <StaffAttributionBadge
-                                    label="Recorded by"
-                                    name={test.performedByName}
-                                    role={test.performedByRole || 'LAB_TECHNICIAN'}
-                                    timestamp={test.testedAt}
-                                    size="xs"
-                                  />
-                                </div>
-                              )}
-                              {/* Status Buttons */}
-                              <div>
-                                <label
-                                  style={{
-                                    fontSize: '0.75rem',
-                                    fontWeight: 600,
-                                    color: '#475569',
-                                    display: 'block',
-                                    marginBottom: '0.25rem',
-                                  }}
-                                >
-                                  Outcome:
-                                </label>
-                                <div style={{ display: 'flex', gap: '0.35rem' }}>
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      setTestFormValues((prev) => ({
-                                        ...prev,
-                                        [test.testCode]: {
-                                          ...currentForm,
-                                          status: TestResultStatus.PASS,
-                                        },
-                                      }))
-                                    }
-                                    style={{
-                                      flex: 1,
-                                      padding: '0.35rem',
-                                      fontSize: '0.75rem',
-                                      fontWeight: 600,
-                                      borderRadius: '4px',
-                                      border:
-                                        currentForm.status ===
-                                        TestResultStatus.PASS
-                                          ? '2px solid #16a34a'
-                                          : '1px solid #cbd5e1',
-                                      backgroundColor:
-                                        currentForm.status ===
-                                        TestResultStatus.PASS
-                                          ? '#dcfce7'
-                                          : '#ffffff',
-                                      color:
-                                        currentForm.status ===
-                                        TestResultStatus.PASS
-                                          ? '#15803d'
-                                          : '#475569',
-                                      cursor: 'pointer',
-                                    }}
-                                  >
-                                    PASS ✓
-                                  </button>
-
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      setTestFormValues((prev) => ({
-                                        ...prev,
-                                        [test.testCode]: {
-                                          ...currentForm,
-                                          status: TestResultStatus.FAIL,
-                                        },
-                                      }))
-                                    }
-                                    style={{
-                                      flex: 1,
-                                      padding: '0.35rem',
-                                      fontSize: '0.75rem',
-                                      fontWeight: 600,
-                                      borderRadius: '4px',
-                                      border:
-                                        currentForm.status ===
-                                        TestResultStatus.FAIL
-                                          ? '2px solid #dc2626'
-                                          : '1px solid #cbd5e1',
-                                      backgroundColor:
-                                        currentForm.status ===
-                                        TestResultStatus.FAIL
-                                          ? '#fee2e2'
-                                          : '#ffffff',
-                                      color:
-                                        currentForm.status ===
-                                        TestResultStatus.FAIL
-                                          ? '#b91c1c'
-                                          : '#475569',
-                                      cursor: 'pointer',
-                                    }}
-                                  >
-                                    FAIL ✕
-                                  </button>
-
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      setTestFormValues((prev) => ({
-                                        ...prev,
-                                        [test.testCode]: {
-                                          ...currentForm,
-                                          status: TestResultStatus.PENDING,
-                                        },
-                                      }))
-                                    }
-                                    style={{
-                                      flex: 1,
-                                      padding: '0.35rem',
-                                      fontSize: '0.75rem',
-                                      fontWeight: 600,
-                                      borderRadius: '4px',
-                                      border:
-                                        currentForm.status ===
-                                        TestResultStatus.PENDING
-                                          ? '2px solid #64748b'
-                                          : '1px solid #cbd5e1',
-                                      backgroundColor:
-                                        currentForm.status ===
-                                        TestResultStatus.PENDING
-                                          ? '#f1f5f9'
-                                          : '#ffffff',
-                                      color:
-                                        currentForm.status ===
-                                        TestResultStatus.PENDING
-                                          ? '#334155'
-                                          : '#475569',
-                                      cursor: 'pointer',
-                                    }}
-                                  >
-                                    PENDING
-                                  </button>
-                                </div>
-                              </div>
-
-                              {/* Result & Date Inputs */}
-                              <div
-                                style={{
-                                  display: 'grid',
-                                  gridTemplateColumns: '1fr 1fr',
-                                  gap: '0.5rem',
-                                }}
-                              >
-                                <div>
-                                  <label
-                                    style={{
-                                      fontSize: '0.7rem',
-                                      color: '#64748b',
-                                      display: 'block',
-                                    }}
-                                  >
-                                    Lab Value / Result:
-                                  </label>
-                                  <input
-                                    type="text"
-                                    value={currentForm.result}
-                                    onChange={(e) =>
-                                      setTestFormValues((prev) => ({
-                                        ...prev,
-                                        [test.testCode]: {
-                                          ...currentForm,
-                                          result: e.target.value,
-                                        },
-                                      }))
-                                    }
-                                    placeholder="e.g. NON_REACTIVE"
-                                    style={{
-                                      width: '100%',
-                                      padding: '0.3rem 0.5rem',
-                                      border: '1px solid #cbd5e1',
-                                      borderRadius: '4px',
-                                      fontSize: '0.775rem',
-                                      boxSizing: 'border-box',
-                                    }}
-                                  />
-                                </div>
-
-                                <div>
-                                  <label
-                                    style={{
-                                      fontSize: '0.7rem',
-                                      color: '#64748b',
-                                      display: 'block',
-                                    }}
-                                  >
-                                    Tested At:
-                                  </label>
-                                  <input
-                                    type="datetime-local"
-                                    value={currentForm.testedAt}
-                                    onChange={(e) =>
-                                      setTestFormValues((prev) => ({
-                                        ...prev,
-                                        [test.testCode]: {
-                                          ...currentForm,
-                                          testedAt: e.target.value,
-                                        },
-                                      }))
-                                    }
-                                    style={{
-                                      width: '100%',
-                                      padding: '0.3rem 0.5rem',
-                                      border: '1px solid #cbd5e1',
-                                      borderRadius: '4px',
-                                      fontSize: '0.775rem',
-                                      boxSizing: 'border-box',
-                                    }}
-                                  />
-                                </div>
-                              </div>
-
-                              {/* Remarks */}
-                              <div>
-                                <label
-                                  style={{
-                                    fontSize: '0.7rem',
-                                    color: '#64748b',
-                                    display: 'block',
-                                  }}
-                                >
-                                  Remarks (optional):
-                                </label>
-                                <input
-                                  type="text"
-                                  value={currentForm.remarks}
-                                  onChange={(e) =>
-                                    setTestFormValues((prev) => ({
-                                      ...prev,
-                                      [test.testCode]: {
-                                        ...currentForm,
-                                        remarks: e.target.value,
-                                      },
-                                    }))
-                                  }
-                                  placeholder="Technician observation"
-                                  style={{
-                                    width: '100%',
-                                    padding: '0.3rem 0.5rem',
-                                    border: '1px solid #cbd5e1',
-                                    borderRadius: '4px',
-                                    fontSize: '0.775rem',
-                                    boxSizing: 'border-box',
-                                  }}
-                                />
-                              </div>
-
-                              {/* Feedback banner */}
-                              {feedback && (
-                                <div
-                                  style={{
-                                    fontSize: '0.75rem',
-                                    padding: '0.35rem 0.5rem',
-                                    borderRadius: '4px',
-                                    backgroundColor:
-                                      feedback.type === 'success'
-                                        ? '#dcfce7'
-                                        : '#fee2e2',
-                                    color:
-                                      feedback.type === 'success'
-                                        ? '#166534'
-                                        : '#991b1b',
-                                  }}
-                                >
-                                  {feedback.message}
-                                </div>
-                              )}
-
-                              {/* Save Result Button */}
-                              <div style={{ textAlign: 'right' }}>
-                                <button
-                                  type="button"
-                                  disabled={isSavingThis}
-                                  onClick={() =>
-                                    handleSaveIndividualTest(test.testCode)
-                                  }
-                                  style={{
-                                    backgroundColor: '#0f172a',
-                                    color: '#ffffff',
-                                    border: 'none',
-                                    padding: '0.35rem 0.75rem',
-                                    borderRadius: '4px',
-                                    fontSize: '0.775rem',
-                                    fontWeight: 600,
-                                    cursor: isSavingThis ? 'not-allowed' : 'pointer',
-                                  }}
-                                >
-                                  {isSavingThis
-                                    ? 'Saving...'
-                                    : 'Save Test Result'}
-                                </button>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Finalize / Complete Testing Section */}
-                {selectedTesting.status === TestingStatus.IN_PROGRESS && (
-                  <div
-                    style={{
-                      borderTop: '1px solid #e2e8f0',
-                      paddingTop: '1rem',
-                      marginTop: '1rem',
-                    }}
-                  >
-                    {pendingTestsList.length > 0 ? (
+                  {/* Confirmed ABO/Rh Blood Grouping */}
+                  {selectedTesting.bloodGrouping && (
+                    <div
+                      style={{
+                        border: '1px solid #e2e8f0',
+                        borderRadius: '6px',
+                        padding: '0.75rem',
+                        backgroundColor: '#ffffff',
+                        marginBottom: '0.75rem',
+                      }}
+                    >
                       <div
                         style={{
-                          backgroundColor: '#f8fafc',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          marginBottom: '0.4rem',
+                        }}
+                      >
+                        <div>
+                          <strong style={{ fontSize: '0.85rem', color: '#0f172a', marginRight: '0.4rem' }}>
+                            ABO &amp; Rh Confirmatory Typing
+                          </strong>
+                          <span
+                            style={{
+                              backgroundColor: '#f1f5f9',
+                              color: '#475569',
+                              padding: '0.1rem 0.35rem',
+                              borderRadius: '3px',
+                              fontSize: '0.7rem',
+                              fontWeight: 600,
+                            }}
+                          >
+                            GROUPING
+                          </span>
+                        </div>
+                        <span
+                          style={{
+                            padding: '0.15rem 0.45rem',
+                            borderRadius: '4px',
+                            fontSize: '0.75rem',
+                            fontWeight: 700,
+                            backgroundColor: selectedTesting.bloodGrouping.confirmedBloodGroup ? '#dcfce7' : '#fef3c7',
+                            color: selectedTesting.bloodGrouping.confirmedBloodGroup ? '#166534' : '#92400e',
+                            border: `1px solid ${selectedTesting.bloodGrouping.confirmedBloodGroup ? '#bbf7d0' : '#fde68a'}`,
+                          }}
+                        >
+                          {selectedTesting.bloodGrouping.confirmedBloodGroup || 'PENDING'}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: '0.785rem', color: '#475569', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.4rem' }}>
+                        <div>Method: <strong>{selectedTesting.bloodGrouping.groupingMethod || 'GEL_CARD'}</strong></div>
+                        <div>Anti-D Agglutination: <strong>{selectedTesting.bloodGrouping.cellGroupingAntiD || '4+'}</strong></div>
+                        {selectedTesting.bloodGrouping.testedByName && (
+                          <div>Tested by: <strong>{selectedTesting.bloodGrouping.testedByName}</strong></div>
+                        )}
+                        {selectedTesting.bloodGrouping.testedAt && (
+                          <div>Tested at: <strong>{new Date(selectedTesting.bloodGrouping.testedAt).toLocaleDateString()}</strong></div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Individual TTI Test Cards (Read-only) */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+                    {selectedTesting.testResults.map((test) => (
+                      <div
+                        key={test.testCode}
+                        style={{
                           border: '1px solid #e2e8f0',
                           borderRadius: '6px',
                           padding: '0.75rem',
-                          fontSize: '0.8rem',
-                          color: '#64748b',
+                          backgroundColor: '#ffffff',
                         }}
                       >
-                        <strong style={{ color: '#0f172a', display: 'block' }}>
-                          Completion Gate:
-                        </strong>
-                        All required tests must be completed before finalizing testing.
-                        <div style={{ marginTop: '0.25rem', color: '#b45309' }}>
-                          Pending ({pendingTestsList.length}):{' '}
-                          {pendingTestsList.map((t) => t.testCode).join(', ')}
+                        <div
+                          style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            marginBottom: '0.4rem',
+                          }}
+                        >
+                          <div>
+                            <strong
+                              style={{
+                                fontSize: '0.85rem',
+                                color: '#0f172a',
+                                marginRight: '0.4rem',
+                              }}
+                            >
+                              {test.testName}
+                            </strong>
+                            <span
+                              style={{
+                                backgroundColor: '#f1f5f9',
+                                color: '#475569',
+                                padding: '0.1rem 0.35rem',
+                                borderRadius: '3px',
+                                fontSize: '0.7rem',
+                                fontWeight: 600,
+                              }}
+                            >
+                              {test.testCode}
+                            </span>
+                          </div>
+
+                          <span
+                            style={{
+                              padding: '0.15rem 0.45rem',
+                              borderRadius: '4px',
+                              fontSize: '0.75rem',
+                              fontWeight: 700,
+                              backgroundColor:
+                                RESULT_STATUS_BADGES[test.status]?.bg || '#f8fafc',
+                              color:
+                                RESULT_STATUS_BADGES[test.status]?.text || '#64748b',
+                              border: `1px solid ${RESULT_STATUS_BADGES[test.status]?.border || '#e2e8f0'}`,
+                            }}
+                          >
+                            {RESULT_STATUS_BADGES[test.status]?.label || test.status}
+                          </span>
+                        </div>
+
+                        <div
+                          style={{
+                            fontSize: '0.8rem',
+                            color: '#475569',
+                            backgroundColor: '#f8fafc',
+                            padding: '0.5rem',
+                            borderRadius: '4px',
+                          }}
+                        >
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div>
+                              <strong>Result:</strong>{' '}
+                              <span
+                                style={{
+                                  fontWeight: 600,
+                                  color:
+                                    test.status === TestResultStatus.PASS
+                                      ? '#166534'
+                                      : test.status === TestResultStatus.FAIL
+                                        ? '#991b1b'
+                                        : '#64748b',
+                                }}
+                              >
+                                {test.result || (test.status === TestResultStatus.PASS ? 'NON_REACTIVE' : test.status)}
+                              </span>
+                              {test.method && (
+                                <span style={{ marginLeft: '0.5rem', color: '#64748b', fontSize: '0.75rem' }}>
+                                  ({test.method})
+                                </span>
+                              )}
+                            </div>
+                            {test.isRepeatOrConfirmatory && (
+                              <span
+                                style={{
+                                  fontSize: '0.7rem',
+                                  backgroundColor: '#fef3c7',
+                                  color: '#92400e',
+                                  padding: '0.1rem 0.35rem',
+                                  borderRadius: '3px',
+                                  fontWeight: 600,
+                                }}
+                              >
+                                CONFIRMATORY RE-TEST
+                              </span>
+                            )}
+                          </div>
+
+                          {(test.kitLotNumber || test.kitExpiryDate) && (
+                            <div style={{ fontSize: '0.725rem', color: '#64748b', marginTop: '0.25rem' }}>
+                              {test.kitLotNumber && <span>Lot: {test.kitLotNumber} </span>}
+                              {test.kitExpiryDate && <span>• Exp: {new Date(test.kitExpiryDate).toLocaleDateString()}</span>}
+                            </div>
+                          )}
+
+                          {test.performedByName && (
+                            <div style={{ marginTop: '0.35rem' }}>
+                              <StaffAttributionBadge
+                                label="Tested by"
+                                name={test.performedByName}
+                                role={test.performedByRole || 'LAB_TECHNICIAN'}
+                                timestamp={test.testedAt}
+                                size="xs"
+                              />
+                            </div>
+                          )}
+
+                          {test.remarks && (
+                            <div style={{ marginTop: '0.25rem', fontSize: '0.75rem', color: '#475569' }}>
+                              <strong>Remarks:</strong> {test.remarks}
+                            </div>
+                          )}
                         </div>
                       </div>
-                    ) : (
-                      <div
-                        style={{
-                          backgroundColor: hasFailedTests ? '#fff1f2' : '#f0fdf4',
-                          border: hasFailedTests
-                            ? '1px solid #fecdd3'
-                            : '1px solid #bbf7d0',
-                          borderRadius: '6px',
-                          padding: '0.75rem',
-                          marginBottom: '0.75rem',
-                          fontSize: '0.8rem',
-                        }}
-                      >
-                        {hasFailedTests ? (
-                          <div style={{ color: '#9f1239' }}>
-                            <strong>Outcome Preview: REJECTED</strong>
-                            <div>
-                              At least one test has failed. Completing testing will mark this record REJECTED and synchronize the Blood Unit status to REJECTED.
-                            </div>
-                          </div>
-                        ) : (
-                          <div style={{ color: '#166534' }}>
-                            <strong>Outcome Preview: APPROVED</strong>
-                            <div>
-                              All required tests passed. Completing testing will mark this record APPROVED and synchronize the Blood Unit status to APPROVED.
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    <div style={{ marginTop: '0.75rem' }}>
-                      <button
-                        type="button"
-                        disabled={pendingTestsList.length > 0}
-                        onClick={() => {
-                          setCompleteError(null);
-                          setShowCompleteConfirmModal(true);
-                        }}
-                        style={{
-                          width: '100%',
-                          backgroundColor:
-                            pendingTestsList.length > 0 ? '#94a3b8' : '#0f172a',
-                          color: '#ffffff',
-                          border: 'none',
-                          padding: '0.65rem',
-                          borderRadius: '6px',
-                          fontSize: '0.875rem',
-                          fontWeight: 600,
-                          cursor:
-                            pendingTestsList.length > 0 ? 'not-allowed' : 'pointer',
-                        }}
-                      >
-                        Complete Testing &rarr;
-                      </button>
-                    </div>
+                    ))}
                   </div>
-                )}
+                </div>
               </>
             )}
           </div>

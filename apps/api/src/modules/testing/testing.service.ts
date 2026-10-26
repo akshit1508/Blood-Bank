@@ -499,27 +499,6 @@ export class TestingService {
 
     const saved = await testing.save();
 
-    // If all tests pass and unit is APPROVED, automatically add to central Inventory with its unit code
-    if (finalDecision === TestingDecision.APPROVED && this.inventoryModel) {
-      try {
-        const existingInv = await this.inventoryModel
-          .findOne({ bloodUnitId: testing.bloodUnitId })
-          .exec();
-        if (!existingInv) {
-          await this.inventoryModel.create({
-            bloodUnitId: testing.bloodUnitId,
-            status: InventoryStatus.AVAILABLE,
-            receivedBy: actor?._id || actor?.id ? new Types.ObjectId(actor._id || actor.id) : undefined,
-            receivedByName: actor?.fullName || actor?.name || undefined,
-            receivedByRole: actor?.role || undefined,
-            receivedAt: new Date(),
-          });
-        }
-      } catch {
-        // Silently catch to avoid blocking testing completion
-      }
-    }
-
     if (this.auditLogsService) {
       await this.auditLogsService.logEvent({
         actorId: actor?._id || actor?.id,

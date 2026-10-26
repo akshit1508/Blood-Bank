@@ -88,12 +88,19 @@ export class AuthService implements OnModuleInit {
    */
   async seedDefaultAdminIfEmpty() {
     try {
+      const totalCount = await this.adminModel.countDocuments();
+      if (totalCount > 0) {
+        return;
+      }
+
       const isProd = this.configService.get<string>('NODE_ENV') === 'production';
+      const initialAdminEmail =
+        this.configService.get<string>('INITIAL_ADMIN_EMAIL') || 'admin@bloodbank.org';
 
       // 1. Initial Super Admin Provisioning
       const defaultAccounts = [
         {
-          email: 'admin@bloodbank.org',
+          email: initialAdminEmail,
           password: this.configService.get<string>('INITIAL_ADMIN_PASSWORD') || 'Admin@123',
           fullName: 'Super Administrator',
           designation: 'Director of Blood Bank & Operations',

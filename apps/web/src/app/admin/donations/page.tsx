@@ -444,6 +444,10 @@ export default function AdminDonationsPage() {
   };
 
   const handleOpenDonationCertificate = (donation: Donation) => {
+    if (donation.status !== DonationStatus.COMPLETED) {
+      alert('Certificate cannot be generated for cancelled, pending, or incomplete donations.');
+      return;
+    }
     const donor = donation.donorId;
     const certNum = `CERT-${donation.donationCode || donation._id.slice(-6).toUpperCase()}`;
     setCertificateData({
@@ -456,7 +460,7 @@ export default function AdminDonationsPage() {
       campaignName: donation.campaignCode ? `Campaign ${donation.campaignCode}` : undefined,
       venue: 'Central Blood Transfusion Center',
       unitCode: donation.donationCode,
-      volume: 450,
+      volume: donation.collectedVolumeMl || 450,
       componentType: donation.donationType || 'Whole Blood',
     });
     setIsCertificateModalOpen(true);
@@ -941,7 +945,7 @@ export default function AdminDonationsPage() {
                           )}
                         </td>
                         <td style={{ padding: '0.65rem 0.9rem', textAlign: 'right' }}>
-                          <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '0.35rem' }}>
+                          <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '0.4rem' }}>
                             <button
                               type="button"
                               onClick={() => setScreeningModalDonor(donor)}
@@ -957,7 +961,7 @@ export default function AdminDonationsPage() {
                               }}
                               title="Perform Medical Screening (Vitals, Hb, Deferrals)"
                             >
-                              📋 Screen
+                              📋 Screen Donor
                             </button>
                             <button
                               type="button"
@@ -974,29 +978,11 @@ export default function AdminDonationsPage() {
                                 display: 'inline-flex',
                                 alignItems: 'center',
                                 gap: '0.25rem',
+                                boxShadow: '0 1px 2px rgba(136, 19, 55, 0.2)',
                               }}
                               title="Record Phlebotomy Collection (Bag Barcode, Tube, Volume)"
                             >
-                              🩸 Phlebotomy
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleSelectDonorForDonation(donor)}
-                              style={{
-                                backgroundColor: '#dc2626',
-                                color: '#ffffff',
-                                border: 'none',
-                                padding: '0.35rem 0.75rem',
-                                borderRadius: '4px',
-                                fontSize: '0.78rem',
-                                fontWeight: 600,
-                                cursor: 'pointer',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '0.25rem',
-                              }}
-                            >
-                              + Standard Entry
+                              🩸 Collect Blood
                             </button>
                           </div>
                         </td>
@@ -1430,26 +1416,39 @@ export default function AdminDonationsPage() {
                                 <span>🏷️</span> Bag Label
                               </button>
                             )}
-                            <button
-                              type="button"
-                              onClick={() => handleOpenDonationCertificate(item)}
-                              style={{
-                                background: '#fffdf5',
-                                color: '#92400e',
-                                border: '1px solid #fde68a',
-                                padding: '0.35rem 0.65rem',
-                                borderRadius: '4px',
-                                cursor: 'pointer',
-                                fontSize: '0.75rem',
-                                fontWeight: 600,
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '0.25rem',
-                              }}
-                              title="Generate & View Blood Donation Certificate"
-                            >
-                              <span>📜</span> Certificate
-                            </button>
+                            {item.status === DonationStatus.COMPLETED ? (
+                              <button
+                                type="button"
+                                onClick={() => handleOpenDonationCertificate(item)}
+                                style={{
+                                  background: '#fffdf5',
+                                  color: '#92400e',
+                                  border: '1px solid #fde68a',
+                                  padding: '0.35rem 0.65rem',
+                                  borderRadius: '4px',
+                                  cursor: 'pointer',
+                                  fontSize: '0.75rem',
+                                  fontWeight: 600,
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '0.25rem',
+                                }}
+                                title="Generate & View Blood Donation Certificate"
+                              >
+                                <span>📜</span> Certificate
+                              </button>
+                            ) : (
+                              <span
+                                style={{
+                                  fontSize: '0.72rem',
+                                  color: '#94a3b8',
+                                  padding: '0.35rem 0.4rem',
+                                }}
+                                title="Certificate unavailable for non-completed donations"
+                              >
+                                —
+                              </span>
+                            )}
                             <button
                               onClick={() => setSelectedDonation(item)}
                               style={{
@@ -2901,9 +2900,30 @@ export default function AdminDonationsPage() {
         donor={collectionModalDonor}
         onSuccess={async (result) => {
           await Promise.all([loadDonations(), loadActiveDonors()]);
+          const currentDonor = collectionModalDonor;
           setCollectionModalDonor(null);
           if (result.donation) {
             setSelectedDonation(result.donation);
+            // Prepare certificate data for successful collection
+            if (
+              result.donation.status === DonationStatus.COMPLETED &&
+              result.donation.collectionOutcome === 'SUCCESSFUL'
+            ) {
+              const certNum = `CERT-${result.donation.donationCode || result.donation._id.slice(-6).toUpperCase()}`;
+              setCertificateData({
+                certificateNumber: certNum,
+                donorName: currentDonor?.fullName || 'Valued Donor',
+                donorCode: currentDonor?.donorCode,
+                donorPhone: currentDonor?.phone || '',
+                bloodGroup: currentDonor?.bloodGroup || 'O+',
+                donationDate: result.donation.donationDate || new Date().toISOString(),
+                campaignName: result.donation.campaignCode ? `Campaign ${result.donation.campaignCode}` : undefined,
+                venue: 'Central Blood Transfusion Center',
+                unitCode: result.donation.donationCode,
+                volume: result.donation.collectedVolumeMl || 450,
+                componentType: result.donation.donationType || 'Whole Blood',
+              });
+            }
           }
           if (result.label) {
             setLabelModalData(result.label);
@@ -2920,6 +2940,11 @@ export default function AdminDonationsPage() {
         isOpen={!!labelModalData}
         onClose={() => setLabelModalData(null)}
         labelData={labelModalData}
+        onOpenCertificate={() => {
+          if (certificateData) {
+            setIsCertificateModalOpen(true);
+          }
+        }}
       />
     </div>
   );

@@ -24,12 +24,14 @@ interface PrintableBagLabelModalProps {
   isOpen: boolean;
   onClose: () => void;
   labelData: BagLabelData | null;
+  onOpenCertificate?: () => void;
 }
 
 export default function PrintableBagLabelModal({
   isOpen,
   onClose,
   labelData,
+  onOpenCertificate,
 }: PrintableBagLabelModalProps) {
   const printAreaRef = useRef<HTMLDivElement>(null);
 
@@ -361,6 +363,30 @@ export default function PrintableBagLabelModal({
             >
               Close
             </button>
+            {onOpenCertificate && (
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onOpenCertificate();
+                }}
+                style={{
+                  padding: '0.45rem 1rem',
+                  borderRadius: '6px',
+                  border: '1px solid #fde68a',
+                  background: '#fffbeb',
+                  color: '#92400e',
+                  fontSize: '0.85rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.35rem',
+                }}
+              >
+                📜 View Donation Certificate
+              </button>
+            )}
             <button
               onClick={handlePrint}
               style={{

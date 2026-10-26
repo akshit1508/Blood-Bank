@@ -3,6 +3,7 @@ import {
   NotFoundException,
   ConflictException,
   BadRequestException,
+  OnModuleInit,
   Optional,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
@@ -13,6 +14,7 @@ import { UpdateDonorStatusDto } from './dto/update-donor-status.dto';
 import {
   BloodGroup,
   DonorStatus,
+  Gender,
   ALLOWED_DONOR_STATUS_TRANSITIONS,
 } from './constants/donor.constants';
 import {
@@ -30,7 +32,7 @@ import {
 import { DonorScreeningDecision } from './constants/screening.constants';
 
 @Injectable()
-export class DonorsService {
+export class DonorsService implements OnModuleInit {
   constructor(
     @InjectModel(Donor.name)
     private readonly donorModel: Model<DonorDocument>,
@@ -40,6 +42,96 @@ export class DonorsService {
     @Optional()
     private readonly auditLogsService?: AuditLogsService,
   ) {}
+
+  async onModuleInit() {
+    // Only provision development fixture donors in non-production environments when DB is empty
+    if (process.env.NODE_ENV !== 'production') {
+      await this.seedDefaultDonorsIfEmpty();
+    }
+  }
+
+  /**
+   * Seeds realistic registered donors on startup if database is completely empty.
+   * Ensures that administrative rosters are immediately populated and operational.
+   */
+  async seedDefaultDonorsIfEmpty(): Promise<void> {
+    try {
+      const count = await this.donorModel.countDocuments().exec();
+      if (count > 0) return;
+
+      const seedDonors = [
+        {
+          donorCode: 'DON-20261020-A101',
+          fullName: 'Aarav Patel',
+          dateOfBirth: new Date('1994-04-12'),
+          gender: Gender.MALE,
+          bloodGroup: BloodGroup.O_POSITIVE,
+          phone: '9820011223',
+          email: 'aarav.patel@example.com',
+          address: '42 Marine Drive',
+          city: 'Mumbai',
+          status: DonorStatus.ACTIVE,
+          deferralStatus: 'NONE',
+        },
+        {
+          donorCode: 'DON-20261021-B202',
+          fullName: 'Priya Sharma',
+          dateOfBirth: new Date('1998-08-25'),
+          gender: Gender.FEMALE,
+          bloodGroup: BloodGroup.A_POSITIVE,
+          phone: '9811022334',
+          email: 'priya.sharma@example.com',
+          address: '15 Connaught Place',
+          city: 'New Delhi',
+          status: DonorStatus.ACTIVE,
+          deferralStatus: 'NONE',
+        },
+        {
+          donorCode: 'DON-20261022-C303',
+          fullName: 'Rohan Verma',
+          dateOfBirth: new Date('1991-11-03'),
+          gender: Gender.MALE,
+          bloodGroup: BloodGroup.B_POSITIVE,
+          phone: '9845033445',
+          email: 'rohan.verma@example.com',
+          address: '77 Indiranagar',
+          city: 'Bengaluru',
+          status: DonorStatus.PENDING_REVIEW,
+          deferralStatus: 'NONE',
+        },
+        {
+          donorCode: 'DON-20261023-D404',
+          fullName: 'Ananya Iyer',
+          dateOfBirth: new Date('2000-02-18'),
+          gender: Gender.FEMALE,
+          bloodGroup: BloodGroup.AB_POSITIVE,
+          phone: '9833044556',
+          email: 'ananya.iyer@example.com',
+          address: '108 T. Nagar',
+          city: 'Chennai',
+          status: DonorStatus.PENDING_REVIEW,
+          deferralStatus: 'NONE',
+        },
+        {
+          donorCode: 'DON-20261024-E505',
+          fullName: 'Vikram Singh',
+          dateOfBirth: new Date('1988-06-30'),
+          gender: Gender.MALE,
+          bloodGroup: BloodGroup.O_NEGATIVE,
+          phone: '9871055667',
+          email: 'vikram.singh@example.com',
+          address: '22 Park Street',
+          city: 'Kolkata',
+          status: DonorStatus.ACTIVE,
+          deferralStatus: 'NONE',
+        },
+      ];
+
+      await this.donorModel.insertMany(seedDonors);
+    } catch {
+      // ignore
+    }
+  }
 
   /**
    * Generates a unique, server-side human-readable donor code.

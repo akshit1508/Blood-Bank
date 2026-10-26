@@ -31,6 +31,7 @@ let memoryServerInstance: any = null;
 
 async function resolveMongoUri(configService: ConfigService): Promise<string> {
   const configuredUri = configService.get<string>('MONGODB_URI');
+  const isProd = configService.get<string>('NODE_ENV') === 'production';
 
   if (configuredUri) {
     try {
@@ -42,10 +43,19 @@ async function resolveMongoUri(configService: ConfigService): Promise<string> {
       await testConn.close();
       return configuredUri;
     } catch (err: any) {
+      if (isProd) {
+        throw new Error(
+          `[Database] Fatal: Unable to connect to persistent production database at ${configuredUri}: ${err.message}`,
+        );
+      }
       console.warn(
-        `[Database] Warning: Primary MongoDB connection failed (${err.message.slice(0, 100)}...). Starting local MongoMemoryServer fallback so platform services remain online...`,
+        `[Database] Warning: Primary MongoDB connection failed (${err.message.slice(0, 100)}...). Starting local MongoMemoryServer fallback so platform services remain online in development...`,
       );
     }
+  }
+
+  if (isProd) {
+    throw new Error('[Database] Fatal: MONGODB_URI is required and must be persistent in production.');
   }
 
   const { MongoMemoryServer } = await import('mongodb-memory-server');

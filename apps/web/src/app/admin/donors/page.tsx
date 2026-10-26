@@ -29,6 +29,7 @@ import StaffAttributionBadge from '@/components/admin/StaffAttributionBadge';
 import DonorScreeningModal from '@/components/admin/DonorScreeningModal';
 import BloodCollectionModal from '@/components/admin/BloodCollectionModal';
 import PrintableBagLabelModal, { BagLabelData } from '@/components/admin/PrintableBagLabelModal';
+import AdminRegisterDonorModal from '@/components/admin/AdminRegisterDonorModal';
 
 const WhatsAppIcon = ({ size = 15 }: { size?: number }) => (
   <svg
@@ -130,6 +131,9 @@ export default function AdminDonorsPage() {
   const [collectionModalDonor, setCollectionModalDonor] = useState<Donor | null>(null);
   const [labelModalData, setLabelModalData] = useState<BagLabelData | null>(null);
 
+  // Direct Registration Modal state
+  const [showRegisterModal, setShowRegisterModal] = useState(false);
+
   // Evaluate donation interval status for selected donor
   const intervalStatus: IntervalEligibilityResult | null = React.useMemo(() => {
     if (!selectedDonor) return null;
@@ -152,7 +156,7 @@ export default function AdminDonorsPage() {
   }, [selectedDonor, donationHistory]);
 
   // Load donors list
-  const loadDonors = useCallback(async () => {
+  const loadDonors = useCallback(async (highlightCode?: string) => {
     setLoading(true);
     setErrorMessage(null);
     try {
@@ -162,10 +166,15 @@ export default function AdminDonorsPage() {
         status: filterStatus || undefined,
       });
       setDonors(data);
-      setSelectedDonor((prev) => {
-        if (!prev) return null;
-        return data.find((d) => d._id === prev._id) || null;
-      });
+      if (highlightCode) {
+        const found = data.find((d) => d.donorCode === highlightCode);
+        if (found) setSelectedDonor(found);
+      } else {
+        setSelectedDonor((prev) => {
+          if (!prev) return null;
+          return data.find((d) => d._id === prev._id) || null;
+        });
+      }
     } catch (err: any) {
       setErrorMessage(err.message || 'Failed to fetch donors');
     } finally {
@@ -175,6 +184,30 @@ export default function AdminDonorsPage() {
 
   useEffect(() => {
     loadDonors();
+
+    // Auto-refresh roster when returning to this browser tab
+    const handleFocus = () => {
+      loadDonors();
+    };
+    const handleVisibilityChange = () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        loadDonors();
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    // Continuous synchronization polling every 12 seconds
+    const interval = setInterval(() => {
+      loadDonors();
+    }, 12000);
+
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      clearInterval(interval);
+    };
   }, [loadDonors]);
 
   // Load donation history whenever selectedDonor changes
@@ -402,7 +435,8 @@ export default function AdminDonorsPage() {
 
         <div className="donor-header-actions">
           <button
-            onClick={loadDonors}
+            type="button"
+            onClick={() => loadDonors()}
             disabled={loading}
             style={{
               backgroundColor: '#ffffff',
@@ -421,17 +455,18 @@ export default function AdminDonorsPage() {
           >
             ↻ Refresh Roster
           </button>
-          <Link
-            href="/donate-blood"
-            target="_blank"
+          <button
+            type="button"
+            onClick={() => setShowRegisterModal(true)}
             style={{
               backgroundColor: '#dc2626',
               color: '#ffffff',
+              border: 'none',
               padding: '0.5rem 1rem',
               borderRadius: '6px',
-              textDecoration: 'none',
               fontSize: '0.825rem',
               fontWeight: 600,
+              cursor: 'pointer',
               display: 'inline-flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -440,7 +475,7 @@ export default function AdminDonorsPage() {
             }}
           >
             + Register New Donor
-          </Link>
+          </button>
         </div>
       </div>
 
@@ -577,14 +612,37 @@ export default function AdminDonorsPage() {
               Loading registered donors from database...
             </div>
           ) : donors.length === 0 ? (
-            <div style={{ padding: '3rem', textAlign: 'center', color: '#64748b' }}>
-              No registered donors found matching the current filters.
-              <div style={{ marginTop: '0.5rem' }}>
+            <div style={{ padding: '3rem 1.5rem', textAlign: 'center', color: '#64748b' }}>
+              <div style={{ fontSize: '1.75rem', marginBottom: '0.5rem' }}>👥</div>
+              <strong style={{ display: 'block', color: '#0f172a', marginBottom: '0.25rem' }}>
+                No registered donors found matching the current filters.
+              </strong>
+              <p style={{ margin: '0 0 1rem 0', fontSize: '0.85rem' }}>
+                Register a new voluntary donor directly into the roster or refresh using the buttons below.
+              </p>
+              <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', alignItems: 'center', flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowRegisterModal(true)}
+                  style={{
+                    backgroundColor: '#dc2626',
+                    color: '#ffffff',
+                    border: 'none',
+                    padding: '0.45rem 1rem',
+                    borderRadius: '6px',
+                    fontSize: '0.825rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  + Register New Donor Now
+                </button>
                 <Link
                   href="/donate-blood"
-                  style={{ color: '#dc2626', fontWeight: 500 }}
+                  target="_blank"
+                  style={{ color: '#475569', fontSize: '0.825rem', textDecoration: 'underline' }}
                 >
-                  Register a donor via the public form &rarr;
+                  Open Public Voluntary Form &rarr;
                 </Link>
               </div>
             </div>
@@ -2072,6 +2130,17 @@ export default function AdminDonorsPage() {
         onClose={() => setLabelModalData(null)}
         labelData={labelModalData}
       />
+
+      {/* Direct Administrative Donor Registration Modal */}
+      {showRegisterModal && (
+        <AdminRegisterDonorModal
+          isOpen={showRegisterModal}
+          onClose={() => setShowRegisterModal(false)}
+          onSuccess={(donorCode) => {
+            loadDonors(donorCode);
+          }}
+        />
+      )}
     </div>
   );
 }

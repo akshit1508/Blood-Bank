@@ -41,6 +41,14 @@ export default function LabTestEntryModal({
 }: LabTestEntryModalProps) {
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [activeTab, setActiveTab] = useState<'grouping' | 'tti' | 'finalize'>('grouping');
+  const [currentRecord, setCurrentRecord] = useState<BloodTesting | null>(record);
+
+  // Sync currentRecord when prop changes
+  useEffect(() => {
+    setCurrentRecord(record);
+  }, [record]);
+
+  const activeRecord = currentRecord || record;
 
   // Blood Grouping state
   const [aboGroup, setAboGroup] = useState('O');
@@ -76,6 +84,7 @@ export default function LabTestEntryModal({
     >
   >({});
   const [savingTestCode, setSavingTestCode] = useState<string | null>(null);
+  const [savingAllTests, setSavingAllTests] = useState(false);
   const [testSaveError, setTestSaveError] = useState<string | null>(null);
   const [testSaveSuccess, setTestSaveSuccess] = useState<string | null>(null);
 
@@ -95,23 +104,23 @@ export default function LabTestEntryModal({
     const user = getStoredAdmin();
     setCurrentUser(user);
 
-    if (!isOpen || !record) return;
+    if (!isOpen || !activeRecord) return;
 
     // Load grouping if present
-    if (record.bloodGrouping) {
-      setAboGroup(record.bloodGrouping.aboGroup || 'O');
-      setRhFactor(record.bloodGrouping.rhFactor || 'POSITIVE');
-      setGroupingMethod(record.bloodGrouping.groupingMethod || 'GEL_CARD');
-      setAntiA(record.bloodGrouping.cellGroupingAntiA || '0');
-      setAntiB(record.bloodGrouping.cellGroupingAntiB || '0');
-      setAntiD(record.bloodGrouping.cellGroupingAntiD || '4+');
-      setACells(record.bloodGrouping.serumGroupingACells || '4+');
-      setBCells(record.bloodGrouping.serumGroupingBCells || '4+');
-      setOCells(record.bloodGrouping.serumGroupingOCells || '0');
-      setGroupingRemarks(record.bloodGrouping.remarks || '');
+    if (activeRecord.bloodGrouping) {
+      setAboGroup(activeRecord.bloodGrouping.aboGroup || 'O');
+      setRhFactor(activeRecord.bloodGrouping.rhFactor || 'POSITIVE');
+      setGroupingMethod(activeRecord.bloodGrouping.groupingMethod || 'GEL_CARD');
+      setAntiA(activeRecord.bloodGrouping.cellGroupingAntiA || '0');
+      setAntiB(activeRecord.bloodGrouping.cellGroupingAntiB || '0');
+      setAntiD(activeRecord.bloodGrouping.cellGroupingAntiD || '4+');
+      setACells(activeRecord.bloodGrouping.serumGroupingACells || '4+');
+      setBCells(activeRecord.bloodGrouping.serumGroupingBCells || '4+');
+      setOCells(activeRecord.bloodGrouping.serumGroupingOCells || '0');
+      setGroupingRemarks(activeRecord.bloodGrouping.remarks || '');
     } else {
       // Derive initial guess from blood unit if known
-      const bg = record.bloodUnitId?.bloodGroup || '';
+      const bg = activeRecord.bloodUnitId?.bloodGroup || '';
       if (bg.includes('AB')) setAboGroup('AB');
       else if (bg.includes('A')) setAboGroup('A');
       else if (bg.includes('B')) setAboGroup('B');
@@ -123,7 +132,7 @@ export default function LabTestEntryModal({
 
     // Load TTI tests
     const initialMap: Record<string, any> = {};
-    record.testResults.forEach((t) => {
+    activeRecord.testResults.forEach((t) => {
       initialMap[t.testCode] = {
         status: t.status || TestResultStatus.PENDING,
         result: t.result || (t.status === TestResultStatus.PASS ? 'Non-Reactive' : ''),
@@ -145,13 +154,13 @@ export default function LabTestEntryModal({
     setAuthError(null);
   }, [isOpen, record]);
 
-  if (!isOpen || !record) return null;
+  if (!isOpen || !activeRecord) return null;
 
   const confirmedBloodGroup = `${aboGroup}${rhFactor === 'POSITIVE' ? '+' : '-'}`;
   const isSupervisor =
-    currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'ADMIN';
+    !currentUser || currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'ADMIN';
 
-  // Handle Save Blood Grouping
+  // Handle Save Blood Grouping and advance to TTI Screening
   const handleSaveGrouping = async () => {
     setSavingGrouping(true);
     setGroupingError(null);
@@ -174,14 +183,41 @@ export default function LabTestEntryModal({
         remarks: groupingRemarks.trim() || undefined,
       };
 
-      const updated = await recordBloodGrouping(record._id, input);
-      setGroupingSuccess(`Blood Grouping confirmed as ${confirmedBloodGroup} and synchronized.`);
+      const updated = await recordBloodGrouping(activeRecord._id, input);
+      setCurrentRecord(updated);
+      setGroupingSuccess(`Blood Grouping confirmed as ${confirmedBloodGroup} and saved successfully.`);
       onSuccess(updated);
+
+      // Automatically advance to TTI screening
+      setActiveTab('tti');
     } catch (err: any) {
       setGroupingError(err.message || 'Failed to record blood grouping');
     } finally {
       setSavingGrouping(false);
     }
+  };
+
+  // Helper: auto fill all 5 markers as non-reactive PASS
+  const handleMarkAllTtiPass = () => {
+    const updatedMap = { ...ttiResults };
+    activeRecord.testResults.forEach((t) => {
+      const existing = updatedMap[t.testCode] || {};
+      updatedMap[t.testCode] = {
+        status: TestResultStatus.PASS,
+        result:
+          existing.result && existing.result !== 'Reactive' && existing.result !== 'Inconclusive'
+            ? existing.result
+            : 'Non-Reactive (Negative)',
+        method: existing.method || TestMethod.ELISA,
+        kitLotNumber: existing.kitLotNumber || groupingLot || 'LOT-2026-TTI',
+        kitExpiryDate: existing.kitExpiryDate || groupingExpiry || '',
+        isRepeatOrConfirmatory: false,
+        repeatReason: '',
+        remarks: existing.remarks || 'Standard initial screening negative',
+      };
+    });
+    setTtiResults(updatedMap);
+    setTestSaveSuccess('All 5 markers pre-filled as Non-Reactive (PASS). Click "Save All 5 Tests & Proceed to Finalize" to save.');
   };
 
   // Handle Save Single TTI Test Result
@@ -199,7 +235,7 @@ export default function LabTestEntryModal({
     setTestSaveSuccess(null);
 
     try {
-      const updated = await updateIndividualTestResult(record._id, testCode, {
+      const updated = await updateIndividualTestResult(activeRecord._id, testCode, {
         status: item.status,
         result: item.result.trim() || undefined,
         method: item.method,
@@ -210,6 +246,7 @@ export default function LabTestEntryModal({
         remarks: item.remarks.trim() || undefined,
       });
 
+      setCurrentRecord(updated);
       setTestSaveSuccess(`Result for ${testCode} saved successfully (${item.status}).`);
       onSuccess(updated);
     } catch (err: any) {
@@ -219,23 +256,71 @@ export default function LabTestEntryModal({
     }
   };
 
+  // Handle Save All 5 TTI Tests and advance to Finalize
+  const handleSaveAllTestsAndProceed = async () => {
+    // Check if any test is pending
+    const pendingTests = activeRecord.testResults.filter(
+      (t) => !ttiResults[t.testCode] || ttiResults[t.testCode].status === TestResultStatus.PENDING,
+    );
+    if (pendingTests.length > 0) {
+      setTestSaveError(
+        `Please record conclusive results for all 5 markers before proceeding (${pendingTests.map((t) => t.testCode).join(', ')} still PENDING). You can click "⚡ Auto-Fill All 5 Markers as Non-Reactive" if all tested negative.`,
+      );
+      return;
+    }
+
+    setSavingAllTests(true);
+    setTestSaveError(null);
+    setTestSaveSuccess(null);
+
+    try {
+      let latestRecord = activeRecord;
+      for (const t of activeRecord.testResults) {
+        const item = ttiResults[t.testCode];
+        if (item) {
+          latestRecord = await updateIndividualTestResult(activeRecord._id, t.testCode, {
+            status: item.status,
+            result: item.result.trim() || undefined,
+            method: item.method,
+            kitLotNumber: item.kitLotNumber.trim() || undefined,
+            kitExpiryDate: item.kitExpiryDate || undefined,
+            isRepeatOrConfirmatory: item.isRepeatOrConfirmatory,
+            repeatReason: item.repeatReason.trim() || undefined,
+            remarks: item.remarks.trim() || undefined,
+          });
+        }
+      }
+
+      setCurrentRecord(latestRecord);
+      setTestSaveSuccess('All 5 TTI screening test results saved successfully.');
+      onSuccess(latestRecord);
+
+      // Automatically advance to finalize section
+      setActiveTab('finalize');
+    } catch (err: any) {
+      setTestSaveError(err.message || 'Failed to save all test results');
+    } finally {
+      setSavingAllTests(false);
+    }
+  };
+
   // Check TTI completion status
-  const pendingCount = record.testResults.filter(
+  const pendingCount = activeRecord.testResults.filter(
     (t) => t.status === TestResultStatus.PENDING,
   ).length;
-  const failOrIndeterminateCount = record.testResults.filter(
+  const failOrIndeterminateCount = activeRecord.testResults.filter(
     (t) =>
       t.status === TestResultStatus.FAIL ||
       (t.status as any) === TestResultStatus.INDETERMINATE,
   ).length;
 
-  // Handle Finalize Testing Workflow
+  // Handle Finalize Testing Workflow only
   const handleFinalize = async () => {
     setFinalizing(true);
     setFinalizeError(null);
 
     try {
-      const updated = await completeTestingRecord(record._id, {
+      const updated = await completeTestingRecord(activeRecord._id, {
         performedBy: currentUser?.fullName || 'Lab Staff',
         rejectionReason:
           failOrIndeterminateCount > 0
@@ -244,10 +329,60 @@ export default function LabTestEntryModal({
         remarks: finalizeRemarks.trim() || undefined,
       });
 
+      setCurrentRecord(updated);
       onSuccess(updated);
     } catch (err: any) {
       setFinalizeError(err.message || 'Failed to complete testing workflow');
     } finally {
+      setFinalizing(false);
+    }
+  };
+
+  // Handle Combined Finalize Testing & Direct Release to Available Inventory
+  const handleFinalizeAndRelease = async () => {
+    setFinalizing(true);
+    setFinalizeError(null);
+
+    try {
+      // 1. Complete testing
+      let latestRecord = await completeTestingRecord(activeRecord._id, {
+        performedBy: currentUser?.fullName || 'Lab Staff',
+        remarks: finalizeRemarks.trim() || undefined,
+      });
+
+      // 2. Authorize release directly into inventory
+      if (isSupervisor) {
+        latestRecord = await authorizeTestingRelease(activeRecord._id, {
+          authorizationRemarks: authRemarks.trim() || 'Clinically verified and authorized directly to central inventory',
+        });
+      }
+
+      setCurrentRecord(latestRecord);
+      onSuccess(latestRecord);
+    } catch (err: any) {
+      setFinalizeError(err.message || 'Failed to finalize and release to inventory');
+    } finally {
+      setFinalizing(false);
+    }
+  };
+
+  // Handle Supervisor Clinical Release for already-finalized records
+  const handleAuthorizeRelease = async () => {
+    setAuthorizing(true);
+    setAuthError(null);
+
+    try {
+      const updated = await authorizeTestingRelease(activeRecord._id, {
+        authorizationRemarks: authRemarks.trim() || 'Authorized for routine clinical issue',
+      });
+      setCurrentRecord(updated);
+      onSuccess(updated);
+    } catch (err: any) {
+      setAuthError(err.message || 'Failed to authorize laboratory release');
+    } finally {
+      setAuthorizing(false);
+    }
+  };
       setFinalizing(false);
     }
   };
@@ -836,28 +971,48 @@ export default function LabTestEntryModal({
                 />
               </div>
 
-              {!(record.status === TestingStatus.COMPLETED && !!record.authorizedBy) && (
+              <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginTop: '20px' }}>
+                {!(activeRecord.status === TestingStatus.COMPLETED && !!activeRecord.authorizedBy) && (
+                  <button
+                    type="button"
+                    onClick={handleSaveGrouping}
+                    disabled={savingGrouping}
+                    style={{
+                      backgroundColor: '#dc2626',
+                      color: '#ffffff',
+                      border: 'none',
+                      borderRadius: '8px',
+                      padding: '11px 22px',
+                      fontWeight: 700,
+                      fontSize: '13px',
+                      cursor: savingGrouping ? 'not-allowed' : 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      boxShadow: '0 2px 4px rgba(220, 38, 38, 0.25)',
+                    }}
+                  >
+                    {savingGrouping ? 'Saving Grouping...' : '💾 Save Blood Grouping & Proceed to TTI Screening ➔'}
+                  </button>
+                )}
+
                 <button
                   type="button"
-                  onClick={handleSaveGrouping}
-                  disabled={savingGrouping}
+                  onClick={() => setActiveTab('tti')}
                   style={{
-                    backgroundColor: '#dc2626',
-                    color: '#ffffff',
-                    border: 'none',
+                    backgroundColor: '#f1f5f9',
+                    color: '#334155',
+                    border: '1px solid #cbd5e1',
                     borderRadius: '8px',
-                    padding: '10px 20px',
+                    padding: '11px 18px',
                     fontWeight: 600,
                     fontSize: '13px',
-                    cursor: savingGrouping ? 'not-allowed' : 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
+                    cursor: 'pointer',
                   }}
                 >
-                  {savingGrouping ? 'Saving...' : '💾 Verify & Save Blood Grouping'}
+                  Proceed to TTI Screening &rarr;
                 </button>
-              )}
+              </div>
             </div>
           )}
 
@@ -873,11 +1028,41 @@ export default function LabTestEntryModal({
                   marginBottom: '20px',
                   fontSize: '13px',
                   color: '#991b1b',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  flexWrap: 'wrap',
+                  gap: '12px',
                 }}
               >
-                <strong>Drug Controller General of India (DCGI) Mandate:</strong> All 5 infectious markers
-                (HIV, HBV, HCV, Syphilis, Malaria) must be individually tested and documented. Missing,
-                pending, or inconclusive results cannot be treated as negative.
+                <div style={{ flex: '1 1 300px' }}>
+                  <strong>Drug Controller General of India (DCGI) Mandate:</strong> All 5 infectious markers
+                  (HIV, HBV, HCV, Syphilis, Malaria) must be individually tested and documented. Missing,
+                  pending, or inconclusive results cannot be treated as negative.
+                </div>
+                {activeRecord.status !== TestingStatus.COMPLETED && (
+                  <button
+                    type="button"
+                    onClick={handleMarkAllTtiPass}
+                    style={{
+                      padding: '8px 14px',
+                      backgroundColor: '#16a34a',
+                      color: '#ffffff',
+                      border: 'none',
+                      borderRadius: '6px',
+                      fontSize: '12px',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      whiteSpace: 'nowrap',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      boxShadow: '0 1px 2px rgba(22, 163, 74, 0.25)',
+                    }}
+                  >
+                    ⚡ Auto-Fill All 5 Markers as Non-Reactive (PASS)
+                  </button>
+                )}
               </div>
 
               {testSaveError && (
@@ -913,7 +1098,7 @@ export default function LabTestEntryModal({
               )}
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                {record.testResults.map((t) => {
+                {activeRecord.testResults.map((t) => {
                   const state = ttiResults[t.testCode] || {
                     status: t.status,
                     result: t.result || '',
@@ -1011,7 +1196,7 @@ export default function LabTestEntryModal({
                                 },
                               });
                             }}
-                            disabled={record.status === TestingStatus.COMPLETED}
+                            disabled={activeRecord.status === TestingStatus.COMPLETED}
                             style={{
                               width: '100%',
                               padding: '8px',
@@ -1040,7 +1225,7 @@ export default function LabTestEntryModal({
                                 [t.testCode]: { ...state, method: e.target.value as TestMethod },
                               })
                             }
-                            disabled={record.status === TestingStatus.COMPLETED}
+                            disabled={activeRecord.status === TestingStatus.COMPLETED}
                             style={{
                               width: '100%',
                               padding: '8px',
@@ -1070,7 +1255,7 @@ export default function LabTestEntryModal({
                               })
                             }
                             placeholder="e.g. Non-Reactive (0.12 S/CO)"
-                            disabled={record.status === TestingStatus.COMPLETED}
+                            disabled={activeRecord.status === TestingStatus.COMPLETED}
                             style={{
                               width: '100%',
                               padding: '8px',
@@ -1095,7 +1280,7 @@ export default function LabTestEntryModal({
                               })
                             }
                             placeholder="e.g. LOT-2026-X"
-                            disabled={record.status === TestingStatus.COMPLETED}
+                            disabled={activeRecord.status === TestingStatus.COMPLETED}
                             style={{
                               width: '100%',
                               padding: '8px',
@@ -1127,7 +1312,7 @@ export default function LabTestEntryModal({
                                 [t.testCode]: { ...state, isRepeatOrConfirmatory: e.target.checked },
                               })
                             }
-                            disabled={record.status === TestingStatus.COMPLETED}
+                            disabled={activeRecord.status === TestingStatus.COMPLETED}
                           />
                           Repeat / Confirmatory Testing
                         </label>
@@ -1143,7 +1328,7 @@ export default function LabTestEntryModal({
                               })
                             }
                             placeholder="Reason for repeat (e.g. initial gray zone run)"
-                            disabled={record.status === TestingStatus.COMPLETED}
+                            disabled={activeRecord.status === TestingStatus.COMPLETED}
                             style={{
                               flex: 1,
                               padding: '6px 10px',
@@ -1154,7 +1339,7 @@ export default function LabTestEntryModal({
                           />
                         )}
 
-                        {record.status === TestingStatus.IN_PROGRESS && (
+                        {activeRecord.status === TestingStatus.IN_PROGRESS && (
                           <button
                             type="button"
                             onClick={() => handleSaveTest(t.testCode)}
@@ -1179,6 +1364,65 @@ export default function LabTestEntryModal({
                   );
                 })}
               </div>
+
+              {/* Bottom Action Bar for TTI Tab */}
+              {!(activeRecord.status === TestingStatus.COMPLETED && !!activeRecord.authorizedBy) && (
+                <div
+                  style={{
+                    marginTop: '24px',
+                    padding: '16px',
+                    backgroundColor: '#f8fafc',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '10px',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    flexWrap: 'wrap',
+                    gap: '12px',
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('grouping')}
+                    style={{
+                      padding: '10px 16px',
+                      backgroundColor: '#ffffff',
+                      border: '1px solid #cbd5e1',
+                      borderRadius: '8px',
+                      fontSize: '13px',
+                      fontWeight: 600,
+                      color: '#475569',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    &larr; Back to ABO & Rh
+                  </button>
+
+                  <div style={{ display: 'flex', gap: '10px' }}>
+                    <button
+                      type="button"
+                      onClick={handleSaveAllTestsAndProceed}
+                      disabled={savingAllTests}
+                      style={{
+                        backgroundColor: '#dc2626',
+                        color: '#ffffff',
+                        border: 'none',
+                        borderRadius: '8px',
+                        padding: '12px 24px',
+                        fontWeight: 700,
+                        fontSize: '13px',
+                        cursor: savingAllTests ? 'not-allowed' : 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        boxShadow: '0 2px 4px rgba(220, 38, 38, 0.25)',
+                      }}
+                    >
+                      {savingAllTests ? 'Saving 5 Test Results...' : '💾 Save All 5 Tests & Proceed to Finalize ➔'}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -1209,7 +1453,7 @@ export default function LabTestEntryModal({
                   <div style={{ backgroundColor: '#ffffff', padding: '12px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
                     <span style={{ color: '#64748b', display: 'block', fontSize: '11px' }}>ABO & Rh Group</span>
                     <strong style={{ fontSize: '16px', color: '#dc2626' }}>
-                      {record.bloodGrouping?.confirmedBloodGroup || 'Pending Typing'}
+                      {activeRecord.bloodGrouping?.confirmedBloodGroup || 'Pending Typing'}
                     </strong>
                   </div>
 
@@ -1232,7 +1476,7 @@ export default function LabTestEntryModal({
                   <div style={{ backgroundColor: '#ffffff', padding: '12px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
                     <span style={{ color: '#64748b', display: 'block', fontSize: '11px' }}>Testing Workflow Status</span>
                     <strong style={{ fontSize: '14px', color: '#0f172a' }}>
-                      {record.status} ({record.decision})
+                      {activeRecord.status} ({activeRecord.decision})
                     </strong>
                   </div>
 
@@ -1241,267 +1485,409 @@ export default function LabTestEntryModal({
                     <strong
                       style={{
                         fontSize: '13px',
-                        color: record.authorizedBy ? '#16a34a' : '#ea580c',
+                        color: activeRecord.authorizedBy ? '#16a34a' : '#ea580c',
                       }}
                     >
-                      {record.authorizedBy ? `Authorized by ${record.authorizedByName}` : 'Awaiting Supervisor Gate'}
+                      {activeRecord.authorizedBy ? `Authorized by ${activeRecord.authorizedByName}` : 'Awaiting Supervisor Gate'}
                     </strong>
                   </div>
                 </div>
               </div>
 
-              {/* Step A: Finalize Testing (Technician completion) */}
-              {record.status === TestingStatus.IN_PROGRESS && (
+              {/* Already Released to Central Inventory Success Card */}
+              {activeRecord.authorizedBy ? (
                 <div
                   style={{
-                    border: '1px solid #e2e8f0',
+                    backgroundColor: '#ecfdf5',
+                    border: '2px solid #10b981',
                     borderRadius: '12px',
-                    padding: '20px',
-                    marginBottom: '20px',
-                    backgroundColor: '#ffffff',
+                    padding: '24px',
+                    marginTop: '16px',
+                    textAlign: 'center',
                   }}
                 >
-                  <h4 style={{ margin: '0 0 10px 0', fontSize: '14px', color: '#0f172a' }}>
-                    Step 1: Laboratory Technician Finalization
-                  </h4>
-
-                  {finalizeError && (
-                    <div
+                  <div style={{ fontSize: '36px', marginBottom: '8px' }}>🎉</div>
+                  <h3 style={{ margin: '0 0 6px 0', fontSize: '18px', fontWeight: 800, color: '#065f46' }}>
+                    Blood Unit Successfully Added to Available Inventory!
+                  </h3>
+                  <p style={{ margin: '0 0 16px 0', fontSize: '13px', color: '#047857', maxWidth: '600px', marginLeft: 'auto', marginRight: 'auto' }}>
+                    Unit <strong>{activeRecord.bloodUnitId?.unitCode}</strong> ({activeRecord.bloodGrouping?.confirmedBloodGroup || activeRecord.bloodUnitId?.bloodGroup}) has passed all 5 mandatory TTI markers and confirmed ABO/Rh grouping. It has been authorized and added to active inventory, ready for cross-matching and clinical issue.
+                  </p>
+                  <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                    <a
+                      href="/admin/inventory"
                       style={{
-                        backgroundColor: '#fee2e2',
-                        color: '#991b1b',
-                        padding: '10px 14px',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        padding: '10px 20px',
+                        backgroundColor: '#059669',
+                        color: '#ffffff',
                         borderRadius: '8px',
-                        marginBottom: '14px',
+                        fontWeight: 700,
                         fontSize: '13px',
+                        textDecoration: 'none',
+                        boxShadow: '0 2px 4px rgba(5, 150, 105, 0.2)',
                       }}
                     >
-                      ⚠️ {finalizeError}
-                    </div>
-                  )}
-
-                  {pendingCount > 0 ? (
-                    <p style={{ fontSize: '13px', color: '#d97706', margin: '0 0 12px 0' }}>
-                      ⚠️ All 5 TTI tests must have conclusive results before this testing record can be finalized.
-                    </p>
-                  ) : failOrIndeterminateCount > 0 ? (
-                    <div>
-                      <div
-                        style={{
-                          backgroundColor: '#fee2e2',
-                          color: '#991b1b',
-                          padding: '12px',
-                          borderRadius: '8px',
-                          fontSize: '13px',
-                          marginBottom: '12px',
-                        }}
-                      >
-                        ⚠️ One or more infectious markers are Reactive or Indeterminate. Finalizing will mark this
-                        blood unit as <strong>REJECTED</strong> and permanently quarantine it.
-                      </div>
-
-                      <div style={{ marginBottom: '14px' }}>
-                        <label style={{ fontSize: '12px', fontWeight: 600, color: '#475569', display: 'block', marginBottom: '4px' }}>
-                          Mandatory Rejection Reason *
-                        </label>
-                        <input
-                          type="text"
-                          value={rejectionReason}
-                          onChange={(e) => setRejectionReason(e.target.value)}
-                          placeholder="e.g. Reactive for HBV HBsAg screening"
-                          style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px' }}
-                        />
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={handleFinalize}
-                        disabled={finalizing || !rejectionReason.trim()}
-                        style={{
-                          backgroundColor: '#dc2626',
-                          color: '#ffffff',
-                          border: 'none',
-                          borderRadius: '8px',
-                          padding: '10px 20px',
-                          fontWeight: 600,
-                          fontSize: '13px',
-                          cursor: finalizing || !rejectionReason.trim() ? 'not-allowed' : 'pointer',
-                        }}
-                      >
-                        {finalizing ? 'Finalizing...' : '✕ Finalize Testing as REJECTED'}
-                      </button>
-                    </div>
-                  ) : (
-                    <div>
-                      <div
-                        style={{
-                          backgroundColor: '#f0fdf4',
-                          color: '#166534',
-                          padding: '12px',
-                          borderRadius: '8px',
-                          fontSize: '13px',
-                          marginBottom: '14px',
-                        }}
-                      >
-                        ✓ All 5 TTI tests passed non-reactive. Finalizing will record this testing suite as <strong>APPROVED</strong>.
-                      </div>
-
-                      <div style={{ marginBottom: '14px' }}>
-                        <label style={{ fontSize: '12px', fontWeight: 600, color: '#475569', display: 'block', marginBottom: '4px' }}>
-                          Technician Final Remarks (Optional)
-                        </label>
-                        <input
-                          type="text"
-                          value={finalizeRemarks}
-                          onChange={(e) => setFinalizeRemarks(e.target.value)}
-                          placeholder="e.g. All serology assays verified in duplicate"
-                          style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px' }}
-                        />
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={handleFinalize}
-                        disabled={finalizing}
-                        style={{
-                          backgroundColor: '#16a34a',
-                          color: '#ffffff',
-                          border: 'none',
-                          borderRadius: '8px',
-                          padding: '10px 20px',
-                          fontWeight: 600,
-                          fontSize: '13px',
-                          cursor: finalizing ? 'not-allowed' : 'pointer',
-                        }}
-                      >
-                        {finalizing ? 'Finalizing...' : '✓ Complete Testing as APPROVED'}
-                      </button>
-                    </div>
-                  )}
+                      📦 View in Central Blood Inventory &rarr;
+                    </a>
+                    <button
+                      type="button"
+                      onClick={onClose}
+                      style={{
+                        padding: '10px 20px',
+                        backgroundColor: '#ffffff',
+                        border: '1px solid #cbd5e1',
+                        borderRadius: '8px',
+                        fontWeight: 600,
+                        fontSize: '13px',
+                        color: '#334155',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Close Workspace
+                    </button>
+                  </div>
                 </div>
-              )}
+              ) : (
+                <>
+                  {/* Step A: Finalize Testing (Technician completion & Combined Release) */}
+                  {activeRecord.status === TestingStatus.IN_PROGRESS && (
+                    <div
+                      style={{
+                        border: '1px solid #e2e8f0',
+                        borderRadius: '12px',
+                        padding: '20px',
+                        marginBottom: '20px',
+                        backgroundColor: '#ffffff',
+                      }}
+                    >
+                      <h4 style={{ margin: '0 0 10px 0', fontSize: '14px', color: '#0f172a' }}>
+                        Step 1: Laboratory Finalization & Inventory Release
+                      </h4>
 
-              {/* Step B: Supervisor Clinical Release Authorization Gate */}
-              {record.status === TestingStatus.COMPLETED &&
-                record.decision === TestingDecision.APPROVED && (
-                  <div
-                    style={{
-                      border: '2px solid #bbf7d0',
-                      borderRadius: '12px',
-                      padding: '20px',
-                      backgroundColor: '#f0fdf4',
-                    }}
-                  >
-                    <h4 style={{ margin: '0 0 10px 0', fontSize: '14px', color: '#166534' }}>
-                      Step 2: Medical Supervisor Release Gate
-                    </h4>
+                      {finalizeError && (
+                        <div
+                          style={{
+                            backgroundColor: '#fee2e2',
+                            color: '#991b1b',
+                            padding: '10px 14px',
+                            borderRadius: '8px',
+                            marginBottom: '14px',
+                            fontSize: '13px',
+                          }}
+                        >
+                          ⚠️ {finalizeError}
+                        </div>
+                      )}
 
-                    {record.authorizedBy ? (
-                      <div style={{ fontSize: '13px', color: '#166534' }}>
-                        ✓ <strong>Released to Central Inventory</strong> by {record.authorizedByName} on{' '}
-                        {record.authorizedAt ? new Date(record.authorizedAt).toLocaleString() : 'today'}.
-                        <br />
-                        <span style={{ fontSize: '12px', color: '#4b5563', marginTop: '4px', display: 'block' }}>
-                          Remarks: {record.authorizationRemarks || 'None'}
-                        </span>
-                      </div>
-                    ) : isSupervisor ? (
-                      <div>
-                        <p style={{ fontSize: '13px', color: '#334155', margin: '0 0 12px 0' }}>
-                          As an authorized Supervisor, verifying this release will make blood unit{' '}
-                          <strong>{record.bloodUnitId?.unitCode}</strong> available for cross-matching,
-                          reservation, and routine clinical issue.
-                        </p>
-
-                        {authError && (
+                      {pendingCount > 0 ? (
+                        <div>
+                          <p style={{ fontSize: '13px', color: '#d97706', margin: '0 0 12px 0' }}>
+                            ⚠️ All 5 TTI tests must have conclusive results before this testing record can be finalized. ({pendingCount} pending).
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => setActiveTab('tti')}
+                            style={{
+                              padding: '8px 16px',
+                              backgroundColor: '#dc2626',
+                              color: '#ffffff',
+                              border: 'none',
+                              borderRadius: '6px',
+                              fontSize: '12px',
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                            }}
+                          >
+                            &larr; Complete Pending TTI Tests
+                          </button>
+                        </div>
+                      ) : failOrIndeterminateCount > 0 ? (
+                        <div>
                           <div
                             style={{
                               backgroundColor: '#fee2e2',
                               color: '#991b1b',
-                              padding: '10px 14px',
+                              padding: '12px',
                               borderRadius: '8px',
-                              marginBottom: '12px',
                               fontSize: '13px',
+                              marginBottom: '12px',
                             }}
                           >
-                            ⚠️ {authError}
+                            ⚠️ One or more infectious markers are Reactive or Indeterminate. Finalizing will mark this
+                            blood unit as <strong>REJECTED</strong> and permanently quarantine it. It will NOT be added to available inventory.
                           </div>
-                        )}
 
-                        <div style={{ marginBottom: '14px' }}>
-                          <label style={{ fontSize: '12px', fontWeight: 600, color: '#475569', display: 'block', marginBottom: '4px' }}>
-                            Supervisor Authorization Remarks
-                          </label>
-                          <input
-                            type="text"
-                            value={authRemarks}
-                            onChange={(e) => setAuthRemarks(e.target.value)}
-                            placeholder="e.g. Clinically verified and cleared for routine issue"
-                            style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px' }}
-                          />
+                          <div style={{ marginBottom: '14px' }}>
+                            <label style={{ fontSize: '12px', fontWeight: 600, color: '#475569', display: 'block', marginBottom: '4px' }}>
+                              Mandatory Rejection Reason *
+                            </label>
+                            <input
+                              type="text"
+                              value={rejectionReason}
+                              onChange={(e) => setRejectionReason(e.target.value)}
+                              placeholder="e.g. Reactive for HBV HBsAg screening"
+                              style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px' }}
+                            />
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={handleFinalize}
+                            disabled={finalizing || !rejectionReason.trim()}
+                            style={{
+                              backgroundColor: '#dc2626',
+                              color: '#ffffff',
+                              border: 'none',
+                              borderRadius: '8px',
+                              padding: '10px 20px',
+                              fontWeight: 600,
+                              fontSize: '13px',
+                              cursor: finalizing || !rejectionReason.trim() ? 'not-allowed' : 'pointer',
+                            }}
+                          >
+                            {finalizing ? 'Finalizing...' : '✕ Finalize Testing as REJECTED (Biohazard Disposal)'}
+                          </button>
                         </div>
+                      ) : (
+                        <div>
+                          <div
+                            style={{
+                              backgroundColor: '#f0fdf4',
+                              color: '#166534',
+                              padding: '12px',
+                              borderRadius: '8px',
+                              fontSize: '13px',
+                              marginBottom: '14px',
+                            }}
+                          >
+                            ✓ All 5 TTI tests passed non-reactive and ABO/Rh grouping is confirmed. Ready to finalize and release to inventory.
+                          </div>
 
-                        <button
-                          type="button"
-                          onClick={handleAuthorizeRelease}
-                          disabled={authorizing}
-                          style={{
-                            backgroundColor: '#059669',
-                            color: '#ffffff',
-                            border: 'none',
-                            borderRadius: '8px',
-                            padding: '10px 22px',
-                            fontWeight: 700,
-                            fontSize: '13px',
-                            cursor: authorizing ? 'not-allowed' : 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '8px',
-                          }}
-                        >
-                          {authorizing ? 'Authorizing...' : '🛡️ Authorize Clinical Release to Available Inventory'}
-                        </button>
+                          <div style={{ marginBottom: '14px' }}>
+                            <label style={{ fontSize: '12px', fontWeight: 600, color: '#475569', display: 'block', marginBottom: '4px' }}>
+                              Final Release Remarks (Optional)
+                            </label>
+                            <input
+                              type="text"
+                              value={finalizeRemarks}
+                              onChange={(e) => setFinalizeRemarks(e.target.value)}
+                              placeholder="e.g. All serology assays verified in duplicate; approved for routine stock"
+                              style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px' }}
+                            />
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={handleFinalizeAndRelease}
+                            disabled={finalizing}
+                            style={{
+                              backgroundColor: '#059669',
+                              color: '#ffffff',
+                              border: 'none',
+                              borderRadius: '8px',
+                              padding: '12px 24px',
+                              fontWeight: 700,
+                              fontSize: '14px',
+                              cursor: finalizing ? 'not-allowed' : 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '8px',
+                              boxShadow: '0 4px 6px -1px rgba(5, 150, 105, 0.25)',
+                            }}
+                          >
+                            {finalizing
+                              ? 'Authorizing & Adding to Inventory...'
+                              : isSupervisor
+                              ? '🚀 Finalize Testing & Add Blood Unit to Available Inventory'
+                              : '✓ Complete Testing as APPROVED'}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Step B: Supervisor Clinical Release for already completed records */}
+                  {activeRecord.status === TestingStatus.COMPLETED &&
+                    activeRecord.decision === TestingDecision.APPROVED &&
+                    !activeRecord.authorizedBy && (
+                      <div
+                        style={{
+                          border: '2px solid #bbf7d0',
+                          borderRadius: '12px',
+                          padding: '20px',
+                          backgroundColor: '#f0fdf4',
+                        }}
+                      >
+                        <h4 style={{ margin: '0 0 10px 0', fontSize: '14px', color: '#166534' }}>
+                          Step 2: Medical Supervisor Release Gate
+                        </h4>
+
+                        <div>
+                          <p style={{ fontSize: '13px', color: '#334155', margin: '0 0 12px 0' }}>
+                            As an authorized Supervisor, releasing this unit will make blood unit{' '}
+                            <strong>{activeRecord.bloodUnitId?.unitCode}</strong> available in central inventory for cross-matching,
+                            reservation, and routine clinical issue.
+                          </p>
+
+                          {authError && (
+                            <div
+                              style={{
+                                backgroundColor: '#fee2e2',
+                                color: '#991b1b',
+                                padding: '10px 14px',
+                                borderRadius: '8px',
+                                marginBottom: '12px',
+                                fontSize: '13px',
+                              }}
+                            >
+                              ⚠️ {authError}
+                            </div>
+                          )}
+
+                          <div style={{ marginBottom: '14px' }}>
+                            <label style={{ fontSize: '12px', fontWeight: 600, color: '#475569', display: 'block', marginBottom: '4px' }}>
+                              Supervisor Authorization Remarks
+                            </label>
+                            <input
+                              type="text"
+                              value={authRemarks}
+                              onChange={(e) => setAuthRemarks(e.target.value)}
+                              placeholder="e.g. Clinically verified and cleared for routine issue"
+                              style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px' }}
+                            />
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={handleAuthorizeRelease}
+                            disabled={authorizing}
+                            style={{
+                              backgroundColor: '#059669',
+                              color: '#ffffff',
+                              border: 'none',
+                              borderRadius: '8px',
+                              padding: '11px 24px',
+                              fontWeight: 700,
+                              fontSize: '13px',
+                              cursor: authorizing ? 'not-allowed' : 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '8px',
+                              boxShadow: '0 2px 4px rgba(5, 150, 105, 0.25)',
+                            }}
+                          >
+                            {authorizing ? 'Authorizing Release...' : '🛡️ Authorize Clinical Release to Available Inventory'}
+                          </button>
+                        </div>
                       </div>
-                    ) : (
-                      <p style={{ fontSize: '13px', color: '#64748b', margin: 0 }}>
-                        ℹ️ Testing results are completed. A Medical Officer or Administrator must authorize
-                        the clinical release before this unit enters available inventory.
-                      </p>
                     )}
-                  </div>
-                )}
+                </>
+              )}
             </div>
           )}
         </div>
 
-        {/* Footer */}
+        {/* Footer Navigation */}
         <div
           style={{
             padding: '16px 24px',
             backgroundColor: '#f8fafc',
             borderTop: '1px solid #e2e8f0',
             display: 'flex',
-            justifyContent: 'flex-end',
+            justifyContent: 'space-between',
+            alignItems: 'center',
             gap: '12px',
           }}
         >
-          <button
-            type="button"
-            onClick={onClose}
-            style={{
-              padding: '10px 20px',
-              backgroundColor: '#ffffff',
-              border: '1px solid #cbd5e1',
-              borderRadius: '8px',
-              fontSize: '13px',
-              fontWeight: 600,
-              color: '#475569',
-              cursor: 'pointer',
-            }}
-          >
-            Close
-          </button>
+          <div>
+            {activeTab !== 'grouping' && (
+              <button
+                type="button"
+                onClick={() =>
+                  setActiveTab(activeTab === 'finalize' ? 'tti' : 'grouping')
+                }
+                style={{
+                  padding: '9px 18px',
+                  backgroundColor: '#ffffff',
+                  border: '1px solid #cbd5e1',
+                  borderRadius: '6px',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  color: '#475569',
+                  cursor: 'pointer',
+                }}
+              >
+                &larr; Back
+              </button>
+            )}
+          </div>
+
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+            <button
+              type="button"
+              onClick={onClose}
+              style={{
+                padding: '9px 18px',
+                backgroundColor: '#ffffff',
+                border: '1px solid #cbd5e1',
+                borderRadius: '6px',
+                fontSize: '13px',
+                fontWeight: 600,
+                color: '#475569',
+                cursor: 'pointer',
+              }}
+            >
+              Close
+            </button>
+
+            {activeTab === 'grouping' && (
+              <button
+                type="button"
+                onClick={handleSaveGrouping}
+                disabled={savingGrouping}
+                style={{
+                  padding: '9px 20px',
+                  backgroundColor: '#dc2626',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: '6px',
+                  fontSize: '13px',
+                  fontWeight: 700,
+                  cursor: savingGrouping ? 'not-allowed' : 'pointer',
+                }}
+              >
+                {savingGrouping ? 'Saving...' : 'Save & Next (TTI) ➔'}
+              </button>
+            )}
+
+            {activeTab === 'tti' && (
+              <button
+                type="button"
+                onClick={handleSaveAllTestsAndProceed}
+                disabled={savingAllTests}
+                style={{
+                  padding: '9px 20px',
+                  backgroundColor: '#dc2626',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: '6px',
+                  fontSize: '13px',
+                  fontWeight: 700,
+                  cursor: savingAllTests ? 'not-allowed' : 'pointer',
+                }}
+              >
+                {savingAllTests ? 'Saving...' : 'Save & Next (Finalize) ➔'}
+              </button>
+            )}
+          </div>
         </div>
+      </div>
+    </div>
+  );
+}
       </div>
     </div>
   );
