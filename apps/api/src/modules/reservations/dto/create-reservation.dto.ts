@@ -1,4 +1,4 @@
-import { IsArray, ArrayMinSize, IsMongoId, IsOptional, IsBoolean } from 'class-validator';
+import { IsArray, ArrayMinSize, IsMongoId, IsOptional, IsBoolean, IsString } from 'class-validator';
 
 export class CreateReservationDto {
   @IsArray({ message: 'inventoryIds must be an array of inventory IDs' })
@@ -9,4 +9,8 @@ export class CreateReservationDto {
   @IsOptional()
   @IsBoolean()
   allowCompatibleBloodGroup?: boolean;
+
+  @IsOptional()
+  @IsString()
+  crossmatchId?: string;
 }

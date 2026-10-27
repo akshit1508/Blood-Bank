@@ -13,6 +13,7 @@ import {
   orderRepeatCrossmatch,
   evaluateComponentCompatibility,
 } from '@/lib/crossmatching-api';
+import { generateInvoice } from '@/lib/billing-api';
 import { useAdminAuth } from '@/context/AdminAuthContext';
 import RbcCompatibilityReferencePanel from '@/components/crossmatching/RbcCompatibilityReferencePanel';
 import SampleVerificationModal from '@/components/crossmatching/SampleVerificationModal';
@@ -186,8 +187,23 @@ export default function CrossmatchDetailsPage({
         recipientName: recipientName.trim() || crossmatch?.patient.name,
       });
       setCrossmatch(updated);
+
+      // Automatically generate billing invoice if not already generated
+      const issueIdentifier =
+        (updated.bloodIssueId as any)?._id?.toString() ||
+        updated.bloodIssueId?.toString() ||
+        updated.issueCode;
+
+      if (issueIdentifier) {
+        try {
+          await generateInvoice(issueIdentifier);
+        } catch {
+          // Non-blocking: bill can also be generated on-demand at Billing Desk
+        }
+      }
+
       setActionSuccess(
-        `Blood Unit ${updated.selectedUnit?.unitCode} issued successfully under Issue Code #${updated.issueCode}`,
+        `Blood Unit ${updated.selectedUnit?.unitCode} issued successfully under Issue Code #${updated.issueCode}. Invoice is generated and available at the Billing Desk.`,
       );
     } catch (err: any) {
       setError(err.message || 'Failed to issue crossmatched unit');
@@ -1085,7 +1101,7 @@ export default function CrossmatchDetailsPage({
                 <div style={stepNumberStyle('#ede9fe', '#6d28d9')}>3</div>
                 <div>
                   <h3 style={{ margin: 0, fontSize: '14px', fontWeight: 700, color: '#0f172a' }}>
-                    Selected Donor Blood Unit
+                    Selected Donor Blood Unit{crossmatch.selectedUnits && crossmatch.selectedUnits.length > 1 ? `s (${crossmatch.selectedUnits.length} assigned)` : ''}
                   </h3>
                   <p style={{ margin: '2px 0 0 0', fontSize: '11px', color: '#64748b' }}>
                     Section 5 & 6 • Inventory traceability, quarantine release, and ABO/RhD match
@@ -1114,7 +1130,7 @@ export default function CrossmatchDetailsPage({
                       : 1,
                   }}
                 >
-                  Change Unit
+                  Change Unit(s)
                 </button>
               ) : (
                 <button
@@ -1133,125 +1149,197 @@ export default function CrossmatchDetailsPage({
                     opacity: !crossmatch.sample?.isSampleValid ? 0.4 : 1,
                   }}
                 >
-                  Select Unit
+                  Select Unit(s)
                 </button>
               )}
             </div>
 
             {crossmatch.selectedUnit?.unitCode ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                <div
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
-                    gap: '14px',
-                    fontSize: '12px',
-                  }}
-                >
-                  <div>
-                    <span style={{ color: '#64748b', display: 'block', marginBottom: '2px' }}>
-                      Unit Code / Barcode:
-                    </span>
-                    <strong style={{ fontFamily: 'monospace', fontSize: '13px', color: '#0f172a' }}>
-                      {crossmatch.selectedUnit.unitCode}
-                    </strong>
+                {crossmatch.selectedUnits && crossmatch.selectedUnits.length > 1 ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    <div style={{ fontSize: '12px', fontWeight: 600, color: '#475569' }}>
+                      Assigned Units ({crossmatch.selectedUnits.length} of {crossmatch.unitsRequested} requested):
+                    </div>
+                    <div style={{ overflowX: 'auto', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                        <thead>
+                          <tr style={{ backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0', textAlign: 'left' }}>
+                            <th style={{ padding: '8px 12px', color: '#475569' }}>#</th>
+                            <th style={{ padding: '8px 12px', color: '#475569' }}>Unit Code</th>
+                            <th style={{ padding: '8px 12px', color: '#475569' }}>Blood Group</th>
+                            <th style={{ padding: '8px 12px', color: '#475569' }}>Component</th>
+                            <th style={{ padding: '8px 12px', color: '#475569' }}>Expiry</th>
+                            <th style={{ padding: '8px 12px', color: '#475569' }}>Location</th>
+                            <th style={{ padding: '8px 12px', color: '#475569' }}>ABO/Rh Match</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {crossmatch.selectedUnits.map((u, idx) => (
+                            <tr key={u.inventoryId?.toString() || idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                              <td style={{ padding: '8px 12px', color: '#64748b' }}>{idx + 1}</td>
+                              <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontWeight: 700, color: '#0f172a' }}>
+                                {u.unitCode}
+                              </td>
+                              <td style={{ padding: '8px 12px' }}>
+                                <span
+                                  style={{
+                                    display: 'inline-block',
+                                    padding: '2px 8px',
+                                    borderRadius: '4px',
+                                    fontWeight: 800,
+                                    fontSize: '12px',
+                                    backgroundColor: '#fee2e2',
+                                    color: '#b91c1c',
+                                    border: '1px solid #fecaca',
+                                  }}
+                                >
+                                  {u.donorBloodGroup}
+                                </span>
+                              </td>
+                              <td style={{ padding: '8px 12px', color: '#334155' }}>
+                                {u.componentType || crossmatch.requestedComponent}
+                              </td>
+                              <td style={{ padding: '8px 12px', color: '#334155' }}>
+                                {u.expiryDate ? u.expiryDate.slice(0, 10) : 'N/A'}
+                              </td>
+                              <td style={{ padding: '8px 12px', color: '#64748b' }}>
+                                {u.storageLocation || 'Main Blood Bank'}
+                              </td>
+                              <td style={{ padding: '8px 12px' }}>
+                                <span
+                                  style={{
+                                    padding: '2px 8px',
+                                    borderRadius: '4px',
+                                    fontWeight: 700,
+                                    fontSize: '11px',
+                                    backgroundColor: u.isAboRhCompatible ? '#dcfce7' : '#fee2e2',
+                                    color: u.isAboRhCompatible ? '#15803d' : '#b91c1c',
+                                  }}
+                                >
+                                  {u.isAboRhCompatible ? 'COMPATIBLE' : 'INCOMPATIBLE'}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
-                  <div>
-                    <span style={{ color: '#64748b', display: 'block', marginBottom: '2px' }}>
-                      Donor Blood Group:
-                    </span>
-                    <span
-                      style={{
-                        display: 'inline-block',
-                        padding: '2px 8px',
-                        borderRadius: '4px',
-                        fontWeight: 800,
-                        fontSize: '13px',
-                        backgroundColor: '#fee2e2',
-                        color: '#b91c1c',
-                        border: '1px solid #fecaca',
-                      }}
-                    >
-                      {crossmatch.selectedUnit.donorBloodGroup}
-                    </span>
-                  </div>
-                  <div>
-                    <span style={{ color: '#64748b', display: 'block', marginBottom: '2px' }}>
-                      Component Type:
-                    </span>
-                    <span style={{ fontWeight: 600, color: '#334155' }}>
-                      {crossmatch.selectedUnit.componentType}
-                    </span>
-                  </div>
-                  <div>
-                    <span style={{ color: '#64748b', display: 'block', marginBottom: '2px' }}>
-                      ABO/RhD Compatibility:
-                    </span>
-                    <span
-                      style={{
-                        display: 'inline-block',
-                        padding: '2px 8px',
-                        borderRadius: '4px',
-                        fontWeight: 700,
-                        backgroundColor: isComponentIncompatible
-                          ? '#fee2e2'
+                ) : (
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
+                      gap: '14px',
+                      fontSize: '12px',
+                    }}
+                  >
+                    <div>
+                      <span style={{ color: '#64748b', display: 'block', marginBottom: '2px' }}>
+                        Unit Code / Barcode:
+                      </span>
+                      <strong style={{ fontFamily: 'monospace', fontSize: '13px', color: '#0f172a' }}>
+                        {crossmatch.selectedUnit.unitCode}
+                      </strong>
+                    </div>
+                    <div>
+                      <span style={{ color: '#64748b', display: 'block', marginBottom: '2px' }}>
+                        Donor Blood Group:
+                      </span>
+                      <span
+                        style={{
+                          display: 'inline-block',
+                          padding: '2px 8px',
+                          borderRadius: '4px',
+                          fontWeight: 800,
+                          fontSize: '13px',
+                          backgroundColor: '#fee2e2',
+                          color: '#b91c1c',
+                          border: '1px solid #fecaca',
+                        }}
+                      >
+                        {crossmatch.selectedUnit.donorBloodGroup}
+                      </span>
+                    </div>
+                    <div>
+                      <span style={{ color: '#64748b', display: 'block', marginBottom: '2px' }}>
+                        Component Type:
+                      </span>
+                      <span style={{ fontWeight: 600, color: '#334155' }}>
+                        {crossmatch.selectedUnit.componentType}
+                      </span>
+                    </div>
+                    <div>
+                      <span style={{ color: '#64748b', display: 'block', marginBottom: '2px' }}>
+                        ABO/RhD Compatibility:
+                      </span>
+                      <span
+                        style={{
+                          display: 'inline-block',
+                          padding: '2px 8px',
+                          borderRadius: '4px',
+                          fontWeight: 700,
+                          backgroundColor: isComponentIncompatible
+                            ? '#fee2e2'
+                            : crossmatch.selectedUnit.isAboRhCompatible
+                            ? '#dcfce7'
+                            : '#fee2e2',
+                          color: isComponentIncompatible
+                            ? '#b91c1c'
+                            : crossmatch.selectedUnit.isAboRhCompatible
+                            ? '#15803d'
+                            : '#b91c1c',
+                          border: isComponentIncompatible
+                            ? '1px solid #fca5a5'
+                            : 'none',
+                        }}
+                      >
+                        {isComponentIncompatible
+                          ? `INCOMPATIBLE FOR ${crossmatch.requestedComponent}`
                           : crossmatch.selectedUnit.isAboRhCompatible
-                          ? '#dcfce7'
-                          : '#fee2e2',
-                        color: isComponentIncompatible
-                          ? '#b91c1c'
-                          : crossmatch.selectedUnit.isAboRhCompatible
-                          ? '#15803d'
-                          : '#b91c1c',
-                        border: isComponentIncompatible
-                          ? '1px solid #fca5a5'
-                          : 'none',
-                      }}
-                    >
-                      {isComponentIncompatible
-                        ? `INCOMPATIBLE FOR ${crossmatch.requestedComponent}`
-                        : crossmatch.selectedUnit.isAboRhCompatible
-                        ? 'COMPATIBLE GROUP'
-                        : 'INCOMPATIBLE GROUP'}
-                    </span>
+                          ? 'COMPATIBLE GROUP'
+                          : 'INCOMPATIBLE GROUP'}
+                      </span>
+                    </div>
+                    <div>
+                      <span style={{ color: '#64748b', display: 'block', marginBottom: '2px' }}>
+                        Expiry Date:
+                      </span>
+                      <span style={{ color: '#334155' }}>
+                        {crossmatch.selectedUnit.expiryDate
+                          ? crossmatch.selectedUnit.expiryDate.slice(0, 10)
+                          : 'N/A'}
+                      </span>
+                    </div>
+                    <div>
+                      <span style={{ color: '#64748b', display: 'block', marginBottom: '2px' }}>
+                        Storage Location:
+                      </span>
+                      <span style={{ color: '#334155' }}>
+                        {crossmatch.selectedUnit.storageLocation || 'Main Blood Bank'}
+                      </span>
+                    </div>
+                    <div>
+                      <span style={{ color: '#64748b', display: 'block', marginBottom: '2px' }}>
+                        Assigned Timestamp:
+                      </span>
+                      <span style={{ color: '#334155' }}>
+                        {crossmatch.selectedUnit.unitSelectedAt
+                          ? new Date(crossmatch.selectedUnit.unitSelectedAt).toLocaleString()
+                          : 'N/A'}
+                      </span>
+                    </div>
+                    <div>
+                      <span style={{ color: '#64748b', display: 'block', marginBottom: '2px' }}>
+                        Assigned By:
+                      </span>
+                      <span style={{ color: '#334155' }}>
+                        {crossmatch.selectedUnit.unitSelectedByName || 'Staff'}
+                      </span>
+                    </div>
                   </div>
-                  <div>
-                    <span style={{ color: '#64748b', display: 'block', marginBottom: '2px' }}>
-                      Expiry Date:
-                    </span>
-                    <span style={{ color: '#334155' }}>
-                      {crossmatch.selectedUnit.expiryDate
-                        ? crossmatch.selectedUnit.expiryDate.slice(0, 10)
-                        : 'N/A'}
-                    </span>
-                  </div>
-                  <div>
-                    <span style={{ color: '#64748b', display: 'block', marginBottom: '2px' }}>
-                      Storage Location:
-                    </span>
-                    <span style={{ color: '#334155' }}>
-                      {crossmatch.selectedUnit.storageLocation || 'Main Blood Bank'}
-                    </span>
-                  </div>
-                  <div>
-                    <span style={{ color: '#64748b', display: 'block', marginBottom: '2px' }}>
-                      Assigned Timestamp:
-                    </span>
-                    <span style={{ color: '#334155' }}>
-                      {crossmatch.selectedUnit.unitSelectedAt
-                        ? new Date(crossmatch.selectedUnit.unitSelectedAt).toLocaleString()
-                        : 'N/A'}
-                    </span>
-                  </div>
-                  <div>
-                    <span style={{ color: '#64748b', display: 'block', marginBottom: '2px' }}>
-                      Assigned By:
-                    </span>
-                    <span style={{ color: '#334155' }}>
-                      {crossmatch.selectedUnit.unitSelectedByName || 'Staff'}
-                    </span>
-                  </div>
-                </div>
+                )}
 
                 {isComponentIncompatible && compatibilityEval && (
                   <div
@@ -1714,6 +1802,25 @@ export default function CrossmatchDetailsPage({
                         ? new Date(crossmatch.issuedAt).toLocaleString()
                         : 'N/A'}
                     </div>
+                    <div style={{ marginTop: '10px' }}>
+                      <Link
+                        href={admin?.role === 'SUPER_ADMIN' ? '/super-admin/finance/billing' : '/admin/finance/billing'}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          padding: '6px 12px',
+                          backgroundColor: '#0f172a',
+                          color: '#ffffff',
+                          borderRadius: '6px',
+                          textDecoration: 'none',
+                          fontSize: '11px',
+                          fontWeight: 700,
+                        }}
+                      >
+                        💳 Open Billing Desk →
+                      </Link>
+                    </div>
                   </div>
                 ) : (
                   <p style={{ margin: 0, color: '#94a3b8' }}>
@@ -1838,11 +1945,12 @@ export default function CrossmatchDetailsPage({
           crossmatchCode={crossmatch.crossmatchCode}
           patientBloodGroup={crossmatch.patientBloodGroup}
           requestedComponent={crossmatch.requestedComponent}
+          unitsRequested={crossmatch.unitsRequested}
           isOpen={showUnitModal}
           onClose={() => setShowUnitModal(false)}
           onSuccess={() => {
             loadRecord();
-            setActionSuccess('Donor unit selected for crossmatch.');
+            setActionSuccess('Donor unit(s) selected for crossmatch.');
           }}
         />
       )}
@@ -1872,6 +1980,7 @@ export default function CrossmatchDetailsPage({
           patientBloodGroup={crossmatch.patientBloodGroup}
           unitCode={crossmatch.selectedUnit?.unitCode || ''}
           unitBloodGroup={crossmatch.selectedUnit?.donorBloodGroup || ''}
+          selectedUnits={crossmatch.selectedUnits}
           testMethod={crossmatch.laboratoryTest?.testMethod}
           recordedResult={crossmatch.laboratoryTest?.crossmatchResult}
           performedById={crossmatch.laboratoryTest?.testedBy}

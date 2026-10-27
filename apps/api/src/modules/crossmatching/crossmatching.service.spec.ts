@@ -482,7 +482,11 @@ describe('CrossmatchingService Unit & Clinical Safety Suite', () => {
 
       expect(mockReservationsService.createReservation).toHaveBeenCalledWith(
         'req-123',
-        { inventoryIds: ['inv-123'], allowCompatibleBloodGroup: true },
+        {
+          inventoryIds: ['inv-123'],
+          allowCompatibleBloodGroup: true,
+          crossmatchId: '607f191e810c19729de86001',
+        },
         mockAdminActor,
       );
       expect(result.status).toBe(CrossmatchStatus.RESERVED);
@@ -563,7 +567,11 @@ describe('CrossmatchingService Unit & Clinical Safety Suite', () => {
 
       expect(mockReservationsService.createReservation).toHaveBeenCalledWith(
         'req-101',
-        { inventoryIds: ['inv-prbc-o-minus'], allowCompatibleBloodGroup: true },
+        {
+          inventoryIds: ['inv-prbc-o-minus'],
+          allowCompatibleBloodGroup: true,
+          crossmatchId: '607f191e810c19729de86001',
+        },
         mockAdminActor,
       );
       expect(result.status).toBe(CrossmatchStatus.RESERVED);

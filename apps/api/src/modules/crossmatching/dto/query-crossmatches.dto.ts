@@ -19,6 +19,10 @@ export class QueryCrossmatchesDto {
 
   @IsOptional()
   @IsString()
+  bloodRequestId?: string;
+
+  @IsOptional()
+  @IsString()
   search?: string;
 
   @IsOptional()

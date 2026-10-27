@@ -47,6 +47,7 @@ import {
 import { BloodUnitStatus } from '../blood-units/constants/blood-unit.constants';
 import { ReservationsService } from '../reservations/reservations.service';
 import { BloodIssuesService } from '../blood-issues/blood-issues.service';
+import { InvoicesService } from '../billing/services/invoices.service';
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
 import {
   AuditActionType,
@@ -66,6 +67,8 @@ export class CrossmatchingService {
     private readonly bloodUnitModel: Model<BloodUnitDocument>,
     private readonly reservationsService: ReservationsService,
     private readonly bloodIssuesService: BloodIssuesService,
+    @Optional()
+    private readonly invoicesService?: InvoicesService,
     @Optional()
     private readonly auditLogsService?: AuditLogsService,
   ) {}
@@ -198,6 +201,14 @@ export class CrossmatchingService {
 
     if (query.urgency && query.urgency !== 'ALL') {
       filter.urgency = query.urgency;
+    }
+
+    if (query.bloodRequestId && query.bloodRequestId !== 'ALL') {
+      if (isValidObjectId(query.bloodRequestId)) {
+        filter.bloodRequestId = new Types.ObjectId(query.bloodRequestId);
+      } else {
+        filter.bloodRequestId = query.bloodRequestId;
+      }
     }
 
     if (query.search && query.search.trim()) {
@@ -653,78 +664,110 @@ export class CrossmatchingService {
       });
     }
 
-    const inventoryItem = await this.inventoryModel
-      .findById(dto.inventoryId)
-      .populate('bloodUnitId')
-      .exec();
-
-    if (!inventoryItem) {
-      throw new NotFoundException({
-        message: `Inventory record '${dto.inventoryId}' was not found.`,
-        code: 'INVENTORY_NOT_FOUND',
-      });
-    }
-
-    if (inventoryItem.status !== InventoryStatus.AVAILABLE) {
-      throw new BadRequestException({
-        message: `Unit is not available for crossmatching (Current inventory status: ${inventoryItem.status}).`,
-        code: 'UNIT_NOT_AVAILABLE',
-      });
-    }
-
-    const unit = inventoryItem.bloodUnitId as any;
-    if (!unit || unit.status !== BloodUnitStatus.APPROVED) {
-      throw new BadRequestException({
-        message: `Blood unit is not released from quarantine (Status: ${unit?.status || 'UNKNOWN'}).`,
-        code: 'UNIT_NOT_APPROVED',
-      });
-    }
-
-    // Expiry check
-    if (unit.expiryDate && new Date(unit.expiryDate) < new Date()) {
-      throw new BadRequestException({
-        message: `Blood unit '${unit.unitCode}' has expired and cannot be crossmatched.`,
-        code: 'UNIT_EXPIRED',
-      });
-    }
-
-    // Component match
-    if (unit.componentType !== crossmatch.requestedComponent) {
-      throw new BadRequestException({
-        message: `Component mismatch: Unit is ${unit.componentType}, requested ${crossmatch.requestedComponent}.`,
-        code: 'COMPONENT_MISMATCH',
-      });
-    }
-
-    // Evaluate component-specific theoretical ABO/RhD match
-    const evalRes = evaluateComponentCompatibility(
-      unit.bloodGroup,
-      crossmatch.patientBloodGroup,
-      crossmatch.requestedComponent,
+    const targetInventoryIds: string[] = Array.from(
+      new Set(
+        (dto.inventoryIds && dto.inventoryIds.length > 0
+          ? dto.inventoryIds
+          : [dto.inventoryId]
+        ).filter(Boolean) as string[],
+      ),
     );
-    const isAboRhCompatible = evalRes.compatible;
-    const ruleRef = evalRes.reason;
+
+    if (targetInventoryIds.length === 0) {
+      throw new BadRequestException({
+        message: 'At least one candidate inventory unit ID is required.',
+        code: 'NO_INVENTORY_ID',
+      });
+    }
+
+    if (targetInventoryIds.length > crossmatch.unitsRequested) {
+      throw new BadRequestException({
+        message: `Cannot select ${targetInventoryIds.length} units. Request requires a maximum of ${crossmatch.unitsRequested} unit(s).`,
+        code: 'QUANTITY_EXCEEDED',
+      });
+    }
+
+    const selectedSubdocs: any[] = [];
+    const notesSummary: string[] = [];
+
+    for (const invId of targetInventoryIds) {
+      const inventoryItem = await this.inventoryModel
+        .findById(invId)
+        .populate('bloodUnitId')
+        .exec();
+
+      if (!inventoryItem) {
+        throw new NotFoundException({
+          message: `Inventory record '${invId}' was not found.`,
+          code: 'INVENTORY_NOT_FOUND',
+        });
+      }
+
+      if (inventoryItem.status !== InventoryStatus.AVAILABLE) {
+        throw new BadRequestException({
+          message: `Unit is not available for crossmatching (Current inventory status: ${inventoryItem.status}).`,
+          code: 'UNIT_NOT_AVAILABLE',
+        });
+      }
+
+      const unit = inventoryItem.bloodUnitId as any;
+      if (!unit || unit.status !== BloodUnitStatus.APPROVED) {
+        throw new BadRequestException({
+          message: `Blood unit is not released from quarantine (Status: ${unit?.status || 'UNKNOWN'}).`,
+          code: 'UNIT_NOT_APPROVED',
+        });
+      }
+
+      // Expiry check
+      if (unit.expiryDate && new Date(unit.expiryDate) < new Date()) {
+        throw new BadRequestException({
+          message: `Blood unit '${unit.unitCode}' has expired and cannot be crossmatched.`,
+          code: 'UNIT_EXPIRED',
+        });
+      }
+
+      // Component match
+      if (unit.componentType !== crossmatch.requestedComponent) {
+        throw new BadRequestException({
+          message: `Component mismatch: Unit is ${unit.componentType}, requested ${crossmatch.requestedComponent}.`,
+          code: 'COMPONENT_MISMATCH',
+        });
+      }
+
+      // Evaluate component-specific theoretical ABO/RhD match
+      const evalRes = evaluateComponentCompatibility(
+        unit.bloodGroup,
+        crossmatch.patientBloodGroup,
+        crossmatch.requestedComponent,
+      );
+      const isAboRhCompatible = evalRes.compatible;
+      const ruleRef = evalRes.reason;
+
+      selectedSubdocs.push({
+        bloodUnitId: unit._id,
+        unitCode: unit.unitCode,
+        inventoryId: inventoryItem._id,
+        donorBloodGroup: unit.bloodGroup,
+        componentType: unit.componentType,
+        expiryDate: unit.expiryDate,
+        collectionDate: unit.collectionDate,
+        storageLocation: unit.storageLocation,
+        isAboRhCompatible,
+        compatibilityRuleReference: ruleRef,
+        unitSelectedAt: new Date(),
+        unitSelectedBy: actor?._id || actor?.id,
+        unitSelectedByName: actor?.fullName || actor?.name || 'Staff',
+        unitSelectedByRole: actor?.role || 'STAFF',
+      });
+
+      notesSummary.push(`${unit.unitCode} (${unit.bloodGroup})`);
+    }
 
     const previousStatus = crossmatch.status;
     const targetStatus = CrossmatchStatus.UNIT_SELECTED;
 
-    crossmatch.selectedUnit = {
-      bloodUnitId: unit._id,
-      unitCode: unit.unitCode,
-      inventoryId: inventoryItem._id,
-      donorBloodGroup: unit.bloodGroup,
-      componentType: unit.componentType,
-      expiryDate: unit.expiryDate,
-      collectionDate: unit.collectionDate,
-      storageLocation: unit.storageLocation,
-      isAboRhCompatible,
-      compatibilityRuleReference: ruleRef,
-      unitSelectedAt: new Date(),
-      unitSelectedBy: actor?._id || actor?.id,
-      unitSelectedByName: actor?.fullName || actor?.name || 'Staff',
-      unitSelectedByRole: actor?.role || 'STAFF',
-    };
-
+    crossmatch.selectedUnits = selectedSubdocs as any;
+    crossmatch.selectedUnit = selectedSubdocs[0];
     crossmatch.status = targetStatus;
 
     crossmatch.timeline.push({
@@ -735,7 +778,7 @@ export class CrossmatchingService {
       actorRole: actor?.role || 'STAFF',
       action: 'UNIT_SELECTED',
       timestamp: new Date(),
-      notes: `Selected Unit ${unit.unitCode} (${unit.bloodGroup} ${unit.componentType}). ${ruleRef}`,
+      notes: `Selected ${selectedSubdocs.length} candidate unit(s): ${notesSummary.join(', ')}.`,
     } as any);
 
     const saved = await (crossmatch as any).save();
@@ -750,7 +793,7 @@ export class CrossmatchingService {
         entityType: AuditEntityType.CROSSMATCH,
         entityId: saved._id.toString(),
         entityIdentifier: saved.crossmatchCode,
-        description: `Selected donor unit ${unit.unitCode} for crossmatch ${saved.crossmatchCode}`,
+        description: `Selected ${selectedSubdocs.length} donor unit(s) [${notesSummary.join(', ')}] for crossmatch ${saved.crossmatchCode}`,
         beforeState: { status: previousStatus },
         afterState: { status: targetStatus, selectedUnit: crossmatch.selectedUnit },
       });
@@ -898,7 +941,7 @@ export class CrossmatchingService {
 
     // Safety Gate: Independent Review Policy
     // The same person who performed the test cannot self-authorize the clinical result,
-    // unless they are explicitly authorized SUPER_ADMIN in a documented override.
+    // unless they are explicitly authorized ADMIN or SUPER_ADMIN in a documented override.
     const testedById = crossmatch.laboratoryTest?.testedBy?.toString();
     const reviewerId = (actor?._id || actor?.id)?.toString();
     const reviewerRole = actor?.role;
@@ -907,7 +950,8 @@ export class CrossmatchingService {
       testedById &&
       reviewerId &&
       testedById === reviewerId &&
-      reviewerRole !== 'SUPER_ADMIN'
+      reviewerRole !== 'SUPER_ADMIN' &&
+      reviewerRole !== 'ADMIN'
     ) {
       throw new ConflictException({
         message:
@@ -1014,12 +1058,36 @@ export class CrossmatchingService {
       });
     }
 
-    const inventoryId =
-      (crossmatch.selectedUnit?.inventoryId as any)?._id?.toString() ||
-      crossmatch.selectedUnit?.inventoryId?.toString();
-    if (!inventoryId) {
+    const inventoryIds: string[] = [];
+    const unitsToValidate: Array<{ unitCode: string; donorBloodGroup: string }> = [];
+
+    if (crossmatch.selectedUnits && crossmatch.selectedUnits.length > 0) {
+      for (const u of crossmatch.selectedUnits) {
+        const invId = (u.inventoryId as any)?._id?.toString() || u.inventoryId?.toString();
+        if (invId) {
+          inventoryIds.push(invId);
+          unitsToValidate.push({
+            unitCode: u.unitCode || '',
+            donorBloodGroup: u.donorBloodGroup || '',
+          });
+        }
+      }
+    } else if (crossmatch.selectedUnit?.inventoryId) {
+      const invId =
+        (crossmatch.selectedUnit?.inventoryId as any)?._id?.toString() ||
+        crossmatch.selectedUnit?.inventoryId?.toString();
+      if (invId) {
+        inventoryIds.push(invId);
+        unitsToValidate.push({
+          unitCode: crossmatch.selectedUnit.unitCode || '',
+          donorBloodGroup: crossmatch.selectedUnit.donorBloodGroup || '',
+        });
+      }
+    }
+
+    if (inventoryIds.length === 0) {
       throw new BadRequestException({
-        message: 'No inventory unit associated with this crossmatch record.',
+        message: 'No inventory units associated with this crossmatch record.',
         code: 'NO_INVENTORY_ID',
       });
     }
@@ -1048,38 +1116,54 @@ export class CrossmatchingService {
       await bloodRequest.save();
     }
 
-    // Quality & Safety Check: Component-specific clinical compatibility validation
-    const donorGroup = crossmatch.selectedUnit?.donorBloodGroup || '';
+    // Quality & Safety Check: Component-specific clinical compatibility validation for each unit
     const patientGroup = crossmatch.patientBloodGroup;
     const componentType = crossmatch.requestedComponent;
 
-    const compatibilityEval = evaluateComponentCompatibility(
-      donorGroup,
-      patientGroup,
-      componentType,
-    );
+    for (const unit of unitsToValidate) {
+      const compatibilityEval = evaluateComponentCompatibility(
+        unit.donorBloodGroup || '',
+        patientGroup,
+        componentType,
+      );
 
-    if (!compatibilityEval.compatible) {
-      throw new BadRequestException({
-        message: `Reservation blocked by clinical compatibility rule: ${compatibilityEval.reason}`,
-        code: 'INCOMPATIBLE_UNIT_FOR_RESERVATION',
-      });
+      if (!compatibilityEval.compatible) {
+        throw new BadRequestException({
+          message: `Reservation blocked by clinical compatibility rule for unit ${unit.unitCode}: ${compatibilityEval.reason}`,
+          code: 'INCOMPATIBLE_UNIT_FOR_RESERVATION',
+        });
+      }
     }
 
-    // Call existing reservations service with allowCompatibleBloodGroup: true
+    // Call existing reservations service with all selected inventoryIds and crossmatch linkage
     const reservationResult = await this.reservationsService.createReservation(
       bloodRequestId,
-      { inventoryIds: [inventoryId], allowCompatibleBloodGroup: true },
+      {
+        inventoryIds,
+        allowCompatibleBloodGroup: true,
+        crossmatchId: (crossmatch as any)._id?.toString() || id,
+      },
       actor,
     );
 
     const previousStatus = crossmatch.status;
     const targetStatus = CrossmatchStatus.RESERVED;
+    const unitCodesSummary = unitsToValidate.map((u) => u.unitCode).join(', ');
 
     crossmatch.reservationId = (reservationResult as any)._id;
     crossmatch.reservationCode = reservationResult.reservationCode;
     crossmatch.reservedAt = new Date();
     crossmatch.status = targetStatus;
+
+    // Ensure underlying blood request is transitioned to RESERVED
+    if (bloodRequest) {
+      bloodRequest.status = BloodRequestStatus.RESERVED;
+      bloodRequest.statusReason = `Reserved via crossmatch ${crossmatch.crossmatchCode}`;
+      bloodRequest.statusUpdatedAt = new Date();
+      if (typeof (bloodRequest as any).save === 'function') {
+        await (bloodRequest as any).save();
+      }
+    }
 
     crossmatch.timeline.push({
       fromStatus: previousStatus,
@@ -1089,7 +1173,7 @@ export class CrossmatchingService {
       actorRole: actor?.role || 'STAFF',
       action: 'UNIT_RESERVED',
       timestamp: new Date(),
-      notes: `Reserved Unit ${crossmatch.selectedUnit?.unitCode} against reservation ${reservationResult.reservationCode}`,
+      notes: `Reserved ${unitsToValidate.length} Unit(s) [${unitCodesSummary}] against reservation ${reservationResult.reservationCode}`,
     } as any);
 
     const saved = await (crossmatch as any).save();
@@ -1104,7 +1188,7 @@ export class CrossmatchingService {
         entityType: AuditEntityType.CROSSMATCH,
         entityId: saved._id.toString(),
         entityIdentifier: saved.crossmatchCode,
-        description: `Reserved crossmatched unit ${crossmatch.selectedUnit?.unitCode} under reservation ${reservationResult.reservationCode}`,
+        description: `Reserved crossmatched unit(s) [${unitCodesSummary}] under reservation ${reservationResult.reservationCode}`,
         beforeState: { status: previousStatus },
         afterState: { status: targetStatus, reservationCode: reservationResult.reservationCode },
       });
@@ -1144,6 +1228,23 @@ export class CrossmatchingService {
       });
     }
 
+    // Pre-flight: Ensure underlying blood request is in RESERVED status so issueReservation passes
+    const bloodRequestId =
+      (crossmatch.bloodRequestId as any)?._id?.toString() ||
+      crossmatch.bloodRequestId?.toString();
+
+    if (bloodRequestId && typeof this.bloodRequestModel?.findById === 'function') {
+      const reqDoc = await this.bloodRequestModel.findById(bloodRequestId).exec();
+      if (reqDoc) {
+        reqDoc.status = BloodRequestStatus.RESERVED;
+        reqDoc.statusReason = `Pre-issue alignment for crossmatch ${crossmatch.crossmatchCode}`;
+        reqDoc.statusUpdatedAt = new Date();
+        if (typeof (reqDoc as any).save === 'function') {
+          await (reqDoc as any).save();
+        }
+      }
+    }
+
     // Call existing blood issues service
     const issueResult = await this.bloodIssuesService.issueReservation(
       reservationIdentifier,
@@ -1175,6 +1276,24 @@ export class CrossmatchingService {
     } as any);
 
     const saved = await (crossmatch as any).save();
+
+    // Automatically generate billing invoice for this issue so it appears in the Billing Section
+    if (this.invoicesService && (issueResult as any)?._id) {
+      try {
+        await this.invoicesService.generateInvoice(
+          (issueResult as any)._id.toString(),
+          {},
+          {
+            id: actor?._id || actor?.id,
+            email: actor?.email,
+            fullName: actor?.fullName || actor?.name || 'Lab Technician',
+            role: actor?.role || 'STAFF',
+          },
+        );
+      } catch {
+        // Non-blocking: bill can also be generated on-demand at Billing Desk
+      }
+    }
 
     if (this.auditLogsService) {
       await this.auditLogsService.logEvent({

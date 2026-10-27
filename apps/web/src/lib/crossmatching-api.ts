@@ -300,6 +300,7 @@ export interface CrossmatchRecord {
   unitsRequested: number;
   sample: SampleVerification;
   selectedUnit: SelectedUnit;
+  selectedUnits?: SelectedUnit[];
   laboratoryTest: LaboratoryTest;
   review: ReviewAuthorization;
   reservationId?: any;
@@ -366,6 +367,7 @@ export async function fetchCrossmatches(filters?: {
   patientBloodGroup?: string;
   component?: string;
   urgency?: string;
+  bloodRequestId?: string;
   search?: string;
   page?: number;
   limit?: number;
@@ -382,6 +384,7 @@ export async function fetchCrossmatches(filters?: {
     params.append('patientBloodGroup', filters.patientBloodGroup);
   if (filters?.component) params.append('component', filters.component);
   if (filters?.urgency) params.append('urgency', filters.urgency);
+  if (filters?.bloodRequestId) params.append('bloodRequestId', filters.bloodRequestId);
   if (filters?.search) params.append('search', filters.search);
   if (filters?.page) params.append('page', String(filters.page));
   if (filters?.limit) params.append('limit', String(filters.limit));
@@ -532,9 +535,22 @@ export async function verifyCrossmatchSample(
 
 export async function selectCrossmatchUnit(
   id: string,
-  inventoryId: string,
+  inventoryIdOrIds: string | string[],
   notes?: string,
 ): Promise<CrossmatchRecord> {
+  const isMultiple = Array.isArray(inventoryIdOrIds);
+  const payload = isMultiple
+    ? {
+        inventoryIds: inventoryIdOrIds,
+        inventoryId: inventoryIdOrIds[0],
+        notes,
+      }
+    : {
+        inventoryId: inventoryIdOrIds,
+        inventoryIds: [inventoryIdOrIds],
+        notes,
+      };
+
   const res = await fetch(`${API_BASE_URL}/crossmatches/${id}/select-unit`, {
     method: 'POST',
     headers: {
@@ -542,7 +558,7 @@ export async function selectCrossmatchUnit(
       Accept: 'application/json',
       ...getAuthHeaders(),
     },
-    body: JSON.stringify({ inventoryId, notes }),
+    body: JSON.stringify(payload),
   });
 
   const body = await res.json();

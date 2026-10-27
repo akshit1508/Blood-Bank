@@ -316,6 +316,33 @@ export class InvoicesService {
     return this.mapInvoiceToDto(invoice);
   }
 
+  /**
+   * Retrieves all completed blood issues that have not yet had a billing invoice generated.
+   */
+  async findUnbilledIssues() {
+    const completedIssues = await this.bloodIssueModel
+      .find({ status: BloodIssueStatus.COMPLETED })
+      .sort({ issuedAt: -1, createdAt: -1 })
+      .limit(100)
+      .exec();
+
+    if (completedIssues.length === 0) return [];
+
+    const issueIds = completedIssues.map((i) => i._id);
+    const existingInvoices = await this.invoiceModel
+      .find({ issueId: { $in: issueIds } }, { issueId: 1 })
+      .exec();
+    const billedIssueIdSet = new Set(
+      existingInvoices.map((inv) => inv.issueId?.toString()),
+    );
+
+    const unbilled = completedIssues.filter(
+      (iss) => !billedIssueIdSet.has(iss._id.toString()),
+    );
+
+    return unbilled;
+  }
+
   async findByIssueId(issueIdentifier: string) {
     let invoice: BloodIssueInvoiceDocument | null = null;
     if (isValidObjectId(issueIdentifier)) {

@@ -13,6 +13,7 @@ interface UnitSelectionModalProps {
   crossmatchCode: string;
   patientBloodGroup: string;
   requestedComponent: string;
+  unitsRequested?: number;
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
@@ -23,6 +24,7 @@ export default function UnitSelectionModal({
   crossmatchCode,
   patientBloodGroup,
   requestedComponent,
+  unitsRequested = 1,
   isOpen,
   onClose,
   onSuccess,
@@ -31,7 +33,9 @@ export default function UnitSelectionModal({
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [selectedInventoryId, setSelectedInventoryId] = useState<string | null>(null);
+  const [selectedInventoryIds, setSelectedInventoryIds] = useState<string[]>([]);
+
+  const maxAllowed = Math.max(1, unitsRequested || 1);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -44,10 +48,10 @@ export default function UnitSelectionModal({
       .then((res) => {
         if (isMounted) {
           setData(res);
-          const firstEligible = res.candidateUnits.find((u) => u.isEligible);
-          if (firstEligible) {
-            setSelectedInventoryId(firstEligible.inventoryId);
-          }
+          const eligibleOnes = res.candidateUnits.filter((u) => u.isEligible);
+          setSelectedInventoryIds(
+            eligibleOnes.slice(0, maxAllowed).map((u) => u.inventoryId),
+          );
         }
       })
       .catch((err) => {
@@ -62,22 +66,39 @@ export default function UnitSelectionModal({
     return () => {
       isMounted = false;
     };
-  }, [crossmatchId, isOpen]);
+  }, [crossmatchId, isOpen, maxAllowed]);
 
   if (!isOpen) return null;
 
+  const toggleSelection = (invId: string) => {
+    if (selectedInventoryIds.includes(invId)) {
+      setSelectedInventoryIds((prev) => prev.filter((id) => id !== invId));
+    } else {
+      if (selectedInventoryIds.length >= maxAllowed) {
+        if (maxAllowed === 1) {
+          setSelectedInventoryIds([invId]);
+        } else {
+          setError(`You can select at most ${maxAllowed} unit(s) requested for this crossmatch.`);
+        }
+      } else {
+        setError(null);
+        setSelectedInventoryIds((prev) => [...prev, invId]);
+      }
+    }
+  };
+
   const handleSelect = async () => {
-    if (!selectedInventoryId) return;
+    if (selectedInventoryIds.length === 0) return;
 
     setError(null);
     setSubmitting(true);
 
     try {
-      await selectCrossmatchUnit(crossmatchId, selectedInventoryId);
+      await selectCrossmatchUnit(crossmatchId, selectedInventoryIds);
       onSuccess();
       onClose();
     } catch (err: any) {
-      setError(err.message || 'Failed to select donor unit');
+      setError(err.message || 'Failed to select donor unit(s)');
     } finally {
       setSubmitting(false);
     }
@@ -128,13 +149,14 @@ export default function UnitSelectionModal({
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <span style={{ fontSize: '18px' }}>🩸</span>
               <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, letterSpacing: '-0.01em' }}>
-                Select Candidate Donor Blood Unit
+                Select Candidate Donor Blood Unit{maxAllowed > 1 ? 's' : ''} ({selectedInventoryIds.length} / {maxAllowed})
               </h3>
             </div>
             <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#94a3b8' }}>
               Crossmatch <span style={{ fontFamily: 'monospace', color: '#f87171' }}>{crossmatchCode}</span> • Patient Group:{' '}
               <strong style={{ color: '#ffffff' }}>{patientBloodGroup}</strong> • Component:{' '}
-              <strong style={{ color: '#ffffff' }}>{requestedComponent}</strong>
+              <strong style={{ color: '#ffffff' }}>{requestedComponent}</strong> • Units Requested:{' '}
+              <strong style={{ color: '#ffffff' }}>{maxAllowed}</strong>
             </p>
           </div>
           <button
@@ -251,13 +273,13 @@ export default function UnitSelectionModal({
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 {data.candidateUnits.map((u: CandidateUnit) => {
-                  const isSelected = selectedInventoryId === u.inventoryId;
+                  const isSelected = selectedInventoryIds.includes(u.inventoryId);
                   return (
                     <div
                       key={u.inventoryId}
                       onClick={() => {
                         if (u.isEligible) {
-                          setSelectedInventoryId(u.inventoryId);
+                          toggleSelection(u.inventoryId);
                         }
                       }}
                       style={{
@@ -283,14 +305,15 @@ export default function UnitSelectionModal({
                     >
                       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                         <input
-                          type="radio"
+                          type="checkbox"
                           name="candidateUnit"
                           disabled={!u.isEligible}
                           checked={isSelected}
-                          onChange={() => setSelectedInventoryId(u.inventoryId)}
+                          onChange={() => toggleSelection(u.inventoryId)}
+                          onClick={(e) => e.stopPropagation()}
                           style={{
-                            width: '16px',
-                            height: '16px',
+                            width: '18px',
+                            height: '18px',
                             accentColor: '#dc2626',
                             cursor: u.isEligible ? 'pointer' : 'not-allowed',
                           }}
@@ -429,7 +452,7 @@ export default function UnitSelectionModal({
           <button
             type="button"
             onClick={handleSelect}
-            disabled={!selectedInventoryId || submitting}
+            disabled={selectedInventoryIds.length === 0 || submitting}
             style={{
               padding: '9px 20px',
               fontSize: '13px',
@@ -438,12 +461,16 @@ export default function UnitSelectionModal({
               backgroundColor: '#dc2626',
               border: 'none',
               borderRadius: '8px',
-              cursor: !selectedInventoryId || submitting ? 'not-allowed' : 'pointer',
-              opacity: !selectedInventoryId || submitting ? 0.6 : 1,
+              cursor: selectedInventoryIds.length === 0 || submitting ? 'not-allowed' : 'pointer',
+              opacity: selectedInventoryIds.length === 0 || submitting ? 0.6 : 1,
               boxShadow: '0 2px 4px rgba(220, 38, 38, 0.2)',
             }}
           >
-            {submitting ? 'Assigning...' : 'Assign Selected Unit to Crossmatch'}
+            {submitting
+              ? 'Assigning...'
+              : maxAllowed > 1
+              ? `Assign Selected Units (${selectedInventoryIds.length} / ${maxAllowed})`
+              : 'Assign Selected Unit to Crossmatch'}
           </button>
         </div>
       </div>

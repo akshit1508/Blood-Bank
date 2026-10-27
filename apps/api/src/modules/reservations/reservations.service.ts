@@ -43,6 +43,14 @@ import {
   UnitIssueValidationService,
   isBloodGroupCompatible,
 } from '../inventory/services/unit-issue-validation.service';
+import {
+  CrossmatchRecord,
+  CrossmatchRecordDocument,
+} from '../crossmatching/schemas/crossmatch-record.schema';
+import {
+  CrossmatchStatus,
+  CrossmatchResult,
+} from '../crossmatching/constants/crossmatching.constants';
 
 @Injectable()
 export class ReservationsService {
@@ -63,6 +71,9 @@ export class ReservationsService {
     private readonly auditLogsService?: AuditLogsService,
     @Optional()
     private readonly unitIssueValidationService?: UnitIssueValidationService,
+    @Optional()
+    @InjectModel(CrossmatchRecord.name)
+    private readonly crossmatchModel?: Model<CrossmatchRecordDocument>,
   ) {}
 
   /**
@@ -150,6 +161,78 @@ export class ReservationsService {
         message: `Cannot reserve ${uniqueIds.length} units. Request requires ${request.unitsRequested} units (${alreadyReservedUnitsCount} already reserved, ${remainingUnitsNeeded} remaining needed).`,
         code: 'RESERVATION_QUANTITY_EXCEEDED',
       });
+    }
+
+    // Step 3.5: Pre-Transfusion Clinical Safety Gate: Crossmatching Authorization Enforcement
+    // Units cannot be reserved for transfusion without an authorized compatible crossmatch report
+    if (this.crossmatchModel) {
+      let isCrossmatchAuthorized = false;
+
+      // Direct linkage verification if crossmatchId is supplied by caller
+      if (createDto.crossmatchId) {
+        const directCrossmatch = await this.crossmatchModel
+          .findById(createDto.crossmatchId)
+          .exec();
+
+        if (
+          directCrossmatch &&
+          [
+            CrossmatchStatus.AUTHORIZED_COMPATIBLE,
+            CrossmatchStatus.RESERVED,
+          ].includes(directCrossmatch.status) &&
+          directCrossmatch.laboratoryTest?.crossmatchResult !==
+            CrossmatchResult.INCOMPATIBLE
+        ) {
+          isCrossmatchAuthorized = true;
+        }
+      }
+
+      // Query-based verification fallback across both string and ObjectId formats
+      if (!isCrossmatchAuthorized) {
+        const searchInventoryIds: any[] = [
+          ...uniqueIds,
+          ...uniqueIds
+            .filter((id) => isValidObjectId(id))
+            .map((id) => new Types.ObjectId(id)),
+        ];
+
+        const reqId = request._id;
+        const searchRequestIds: any[] = [
+          reqId,
+          reqId.toString(),
+          ...(isValidObjectId(reqId) ? [new Types.ObjectId(reqId)] : []),
+        ];
+
+        const authorizedCrossmatches = await this.crossmatchModel
+          .find({
+            bloodRequestId: { $in: searchRequestIds },
+            status: {
+              $in: [
+                CrossmatchStatus.AUTHORIZED_COMPATIBLE,
+                CrossmatchStatus.RESERVED,
+              ],
+            },
+            'laboratoryTest.crossmatchResult': {
+              $ne: CrossmatchResult.INCOMPATIBLE,
+            },
+            $or: [
+              { 'selectedUnit.inventoryId': { $in: searchInventoryIds } },
+              { 'selectedUnits.inventoryId': { $in: searchInventoryIds } },
+            ],
+          })
+          .exec();
+
+        if (authorizedCrossmatches && authorizedCrossmatches.length > 0) {
+          isCrossmatchAuthorized = true;
+        }
+      }
+
+      if (!isCrossmatchAuthorized) {
+        throw new BadRequestException({
+          message: `Blood units cannot be reserved for request '${request.requestCode}' without an authorized compatible crossmatch report. Please complete crossmatch testing and clinical authorization in the Laboratory Crossmatching Workstation first.`,
+          code: 'CROSSMATCH_REQUIRED_FOR_RESERVATION',
+        });
+      }
     }
 
     // Step 4: Pre-validate each inventory item against eligibility rules

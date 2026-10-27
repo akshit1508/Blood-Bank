@@ -14,6 +14,7 @@ interface ReviewAuthorizationModalProps {
   patientBloodGroup: string;
   unitCode: string;
   unitBloodGroup: string;
+  selectedUnits?: Array<{ unitCode?: string; donorBloodGroup?: string }>;
   testMethod?: string;
   recordedResult: CrossmatchResult;
   performedById?: string;
@@ -32,6 +33,7 @@ export default function ReviewAuthorizationModal({
   patientBloodGroup,
   unitCode,
   unitBloodGroup,
+  selectedUnits,
   testMethod,
   recordedResult,
   performedById,
@@ -60,12 +62,13 @@ export default function ReviewAuthorizationModal({
 
   if (!isOpen) return null;
 
-  // Independent review policy check
+  // Independent review policy check: ADMIN and SUPER_ADMIN have authorization override authority
   const isSameTechnician =
     performedById &&
     currentUserId &&
     performedById === currentUserId &&
-    currentUserRole !== 'SUPER_ADMIN';
+    currentUserRole !== 'SUPER_ADMIN' &&
+    currentUserRole !== 'ADMIN';
 
   const allChecksConfirmed =
     checklist.patientIdentityConfirmed &&
@@ -269,8 +272,16 @@ export default function ReviewAuthorizationModal({
               <strong style={{ color: '#0f172a' }}>{patientName} ({patientBloodGroup})</strong>
             </div>
             <div>
-              <span style={{ color: '#64748b', display: 'block', marginBottom: '2px' }}>Donor Blood Unit:</span>
-              <strong style={{ color: '#0f172a' }}>{unitCode} ({unitBloodGroup})</strong>
+              <span style={{ color: '#64748b', display: 'block', marginBottom: '2px' }}>
+                {selectedUnits && selectedUnits.length > 1
+                  ? `Donor Blood Units (${selectedUnits.length}):`
+                  : 'Donor Blood Unit:'}
+              </span>
+              <strong style={{ color: '#0f172a' }}>
+                {selectedUnits && selectedUnits.length > 1
+                  ? selectedUnits.map((u) => `${u.unitCode} (${u.donorBloodGroup})`).join(', ')
+                  : `${unitCode} (${unitBloodGroup})`}
+              </strong>
             </div>
             <div>
               <span style={{ color: '#64748b', display: 'block', marginBottom: '2px' }}>Testing Technique:</span>

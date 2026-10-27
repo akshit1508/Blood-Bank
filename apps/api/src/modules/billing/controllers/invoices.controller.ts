@@ -85,6 +85,19 @@ export class InvoicesController {
   }
 
   /**
+   * Retrieves all completed blood issues that have not yet been billed.
+   * GET /api/billing/invoices/unbilled-issues
+   */
+  @Get('unbilled-issues')
+  async findUnbilledIssues() {
+    const data = await this.invoicesService.findUnbilledIssues();
+    return {
+      statusCode: HttpStatus.OK,
+      data,
+    };
+  }
+
+  /**
    * Retrieves a single invoice by ID or invoiceNumber.
    * GET /api/billing/invoices/:id
    */

@@ -23,6 +23,13 @@ import {
 import { generateInvoice } from '@/lib/billing-api';
 import StaffAttributionBadge from '@/components/admin/StaffAttributionBadge';
 import { getUnitExpiryInfo } from '@/lib/expiry-rules-api';
+import {
+  fetchCrossmatches,
+  CrossmatchRecord,
+  CrossmatchStatus,
+  CrossmatchResult,
+} from '@/lib/crossmatching-api';
+import StartCrossmatchModal from '@/components/crossmatching/StartCrossmatchModal';
 
 const WhatsAppIcon = ({ size = 15 }: { size?: number }) => (
   <svg
@@ -103,6 +110,11 @@ export default function AdminBloodRequestsPage() {
   const [isIssuing, setIsIssuing] = useState(false);
   const [issueError, setIssueError] = useState<string | null>(null);
   const [issueSuccess, setIssueSuccess] = useState<string | null>(null);
+
+  // Crossmatching state
+  const [crossmatches, setCrossmatches] = useState<CrossmatchRecord[]>([]);
+  const [crossmatchesLoading, setCrossmatchesLoading] = useState(false);
+  const [startCrossmatchModalOpen, setStartCrossmatchModalOpen] = useState(false);
 
   // Cancellation state
   const [cancelModalOpen, setCancelModalOpen] = useState(false);
@@ -186,11 +198,29 @@ export default function AdminBloodRequestsPage() {
     }
   }, []);
 
+  const loadCrossmatches = useCallback(async (requestId: string, requestCode?: string) => {
+    setCrossmatchesLoading(true);
+    try {
+      const res = await fetchCrossmatches({ bloodRequestId: requestId, limit: 10 });
+      if ((!res.crossmatches || res.crossmatches.length === 0) && requestCode) {
+        const fallbackRes = await fetchCrossmatches({ search: requestCode, limit: 10 });
+        setCrossmatches(fallbackRes.crossmatches || []);
+      } else {
+        setCrossmatches(res.crossmatches || []);
+      }
+    } catch {
+      setCrossmatches([]);
+    } finally {
+      setCrossmatchesLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (selectedRequest) {
       loadMatches(selectedRequest._id);
       loadReservations(selectedRequest._id);
       loadIssues(selectedRequest._id);
+      loadCrossmatches(selectedRequest._id, selectedRequest.requestCode);
       setSelectedUnitIds([]);
       setReserveError(null);
       setReserveSuccess(null);
@@ -203,6 +233,7 @@ export default function AdminBloodRequestsPage() {
       setMatchError(null);
       setReservations([]);
       setBloodIssues([]);
+      setCrossmatches([]);
       setSelectedUnitIds([]);
       setCompleteError(null);
       setCompleteSuccess(null);
@@ -223,6 +254,18 @@ export default function AdminBloodRequestsPage() {
 
   const handleExecuteReservation = async () => {
     if (!selectedRequest || selectedUnitIds.length === 0) return;
+
+    const activeCrossmatches = crossmatches.filter((c) => c.status !== CrossmatchStatus.CANCELLED);
+    const activeCrossmatch = activeCrossmatches[0] || crossmatches[0];
+    const isCrossmatchAuthorized = activeCrossmatch &&
+      (activeCrossmatch.status === CrossmatchStatus.AUTHORIZED_COMPATIBLE || activeCrossmatch.status === CrossmatchStatus.RESERVED) &&
+      activeCrossmatch.laboratoryTest?.crossmatchResult !== CrossmatchResult.INCOMPATIBLE;
+
+    if (!isCrossmatchAuthorized) {
+      setReserveError('Blood units cannot be reserved without an authorized compatible crossmatch report. Please initiate crossmatching in the Laboratory Workstation first.');
+      return;
+    }
+
     setIsReserving(true);
     setReserveError(null);
     setReserveSuccess(null);
@@ -234,10 +277,11 @@ export default function AdminBloodRequestsPage() {
       setReserveSuccess(
         `Successfully reserved ${res.reservedUnits.length} blood unit(s). Reservation Code: ${res.reservationCode}`,
       );
-      // Refresh requests list, matches and reservations
+      // Refresh requests list, matches, reservations, and crossmatches
       await loadRequests();
       await loadMatches(selectedRequest._id);
       await loadReservations(selectedRequest._id);
+      await loadCrossmatches(selectedRequest._id, selectedRequest.requestCode);
     } catch (err: any) {
       setReserveError(
         err.message || 'Failed to reserve blood units. The unit may have been reserved concurrently.',
@@ -289,6 +333,18 @@ export default function AdminBloodRequestsPage() {
 
   const handleExecuteIssue = async () => {
     if (!targetReservationForIssue || !selectedRequest) return;
+
+    const activeCrossmatches = crossmatches.filter((c) => c.status !== CrossmatchStatus.CANCELLED);
+    const activeCrossmatch = activeCrossmatches[0] || crossmatches[0];
+    const isCrossmatchReady = activeCrossmatch &&
+      (activeCrossmatch.status === CrossmatchStatus.RESERVED || activeCrossmatch.status === CrossmatchStatus.AUTHORIZED_COMPATIBLE) &&
+      activeCrossmatch.laboratoryTest?.crossmatchResult !== CrossmatchResult.INCOMPATIBLE;
+
+    if (!isCrossmatchReady) {
+      setIssueError('Blood units cannot be issued without successful laboratory crossmatching and clinical authorization.');
+      return;
+    }
+
     setIsIssuing(true);
     setIssueError(null);
 
@@ -315,6 +371,7 @@ export default function AdminBloodRequestsPage() {
       await loadMatches(selectedRequest._id);
       await loadReservations(selectedRequest._id);
       await loadIssues(selectedRequest._id);
+      await loadCrossmatches(selectedRequest._id, selectedRequest.requestCode);
     } catch (err: any) {
       setIssueError(err.message || 'Failed to issue blood units');
     } finally {
@@ -352,6 +409,7 @@ export default function AdminBloodRequestsPage() {
       await loadMatches(selectedRequest._id);
       await loadReservations(selectedRequest._id);
       await loadIssues(selectedRequest._id);
+      await loadCrossmatches(selectedRequest._id, selectedRequest.requestCode);
     } catch (err: any) {
       setCompleteError(err.message || 'Failed to complete blood request');
     } finally {
@@ -796,35 +854,216 @@ export default function AdminBloodRequestsPage() {
               )}
             </div>
 
-            {/* Crossmatching Workstation Action */}
-            {['REQUESTED', 'VERIFIED', 'APPROVED'].includes(selectedRequest.status) && (
-              <div style={{ marginBottom: '1.25rem', padding: '0.85rem', background: '#fff1f2', border: '1px solid #fecdd3', borderRadius: '8px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
-                  <div>
-                    <strong style={{ color: '#9f1239', fontSize: '0.85rem', display: 'block' }}>Laboratory Crossmatching</strong>
-                    <span style={{ color: '#be123c', fontSize: '0.75rem' }}>
-                      Verify patient tube, select compatible donor RBCs, and perform serological crossmatch.
-                    </span>
+            {/* Laboratory Crossmatching & Pre-Transfusion Safety Section */}
+            {(() => {
+              const activeCrossmatches = crossmatches.filter((c) => c.status !== CrossmatchStatus.CANCELLED);
+              const activeCrossmatch = activeCrossmatches[0] || crossmatches[0];
+              const isCompatibleAndReserved = activeCrossmatch && 
+                activeCrossmatch.status === CrossmatchStatus.RESERVED &&
+                activeCrossmatch.laboratoryTest?.crossmatchResult !== CrossmatchResult.INCOMPATIBLE;
+              const isAuthorizedCompatible = activeCrossmatch && 
+                activeCrossmatch.status === CrossmatchStatus.AUTHORIZED_COMPATIBLE &&
+                activeCrossmatch.laboratoryTest?.crossmatchResult !== CrossmatchResult.INCOMPATIBLE;
+              const isIncompatible = activeCrossmatch && 
+                (activeCrossmatch.status === CrossmatchStatus.INCOMPATIBLE || activeCrossmatch.laboratoryTest?.crossmatchResult === CrossmatchResult.INCOMPATIBLE);
+              const isIssued = activeCrossmatch && activeCrossmatch.status === CrossmatchStatus.ISSUED;
+
+              return (
+                <div
+                  style={{
+                    marginBottom: '1.25rem',
+                    border: isCompatibleAndReserved
+                      ? '1px solid #86efac'
+                      : isAuthorizedCompatible
+                      ? '1px solid #93c5fd'
+                      : isIncompatible
+                      ? '1px solid #fca5a5'
+                      : isIssued
+                      ? '1px solid #cbd5e1'
+                      : '1px solid #fecdd3',
+                    borderRadius: '8px',
+                    background: isCompatibleAndReserved
+                      ? '#f0fdf4'
+                      : isAuthorizedCompatible
+                      ? '#eff6ff'
+                      : isIncompatible
+                      ? '#fef2f2'
+                      : isIssued
+                      ? '#f8fafc'
+                      : '#fff1f2',
+                    padding: '0.85rem',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                      <span style={{ fontSize: '1rem' }}>🧪</span>
+                      <div>
+                        <strong style={{ fontSize: '0.85rem', color: '#0f172a', display: 'block' }}>
+                          Laboratory Crossmatch & Clinical Safety
+                        </strong>
+                        <span style={{ fontSize: '0.7rem', color: '#64748b' }}>
+                          Serological pre-transfusion compatibility testing
+                        </span>
+                      </div>
+                    </div>
+
+                    {crossmatchesLoading ? (
+                      <span style={{ fontSize: '0.7rem', color: '#64748b' }}>Checking crossmatch...</span>
+                    ) : isCompatibleAndReserved ? (
+                      <span style={{ padding: '0.15rem 0.5rem', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 700, background: '#dcfce7', color: '#15803d', border: '1px solid #86efac' }}>
+                        ✓ COMPATIBLE & RESERVED
+                      </span>
+                    ) : isAuthorizedCompatible ? (
+                      <span style={{ padding: '0.15rem 0.5rem', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 700, background: '#dbeafe', color: '#1e40af', border: '1px solid #93c5fd' }}>
+                        AUTHORIZED COMPATIBLE
+                      </span>
+                    ) : isIncompatible ? (
+                      <span style={{ padding: '0.15rem 0.5rem', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 700, background: '#fee2e2', color: '#b91c1c', border: '1px solid #fca5a5' }}>
+                        ❌ INCOMPATIBLE RESULT
+                      </span>
+                    ) : isIssued ? (
+                      <span style={{ padding: '0.15rem 0.5rem', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 700, background: '#f1f5f9', color: '#475569', border: '1px solid #cbd5e1' }}>
+                        ISSUED / COMPLETED
+                      </span>
+                    ) : activeCrossmatch ? (
+                      <span style={{ padding: '0.15rem 0.5rem', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 700, background: '#fef3c7', color: '#92400e', border: '1px solid #fde68a' }}>
+                        {activeCrossmatch.status.replace(/_/g, ' ')}
+                      </span>
+                    ) : (
+                      <span style={{ padding: '0.15rem 0.5rem', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 700, background: '#fee2e2', color: '#b91c1c', border: '1px solid #fca5a5' }}>
+                        CROSSMATCH REQUIRED
+                      </span>
+                    )}
                   </div>
-                  <Link
-                    href={`/admin/crossmatching?search=${selectedRequest.requestCode}`}
-                    style={{
-                      background: '#e11d48',
-                      color: '#ffffff',
-                      padding: '0.45rem 0.85rem',
-                      borderRadius: '6px',
-                      fontSize: '0.75rem',
-                      fontWeight: 700,
-                      textDecoration: 'none',
-                      whiteSpace: 'nowrap',
-                      display: 'inline-block',
-                    }}
-                  >
-                    Open Crossmatch &rarr;
-                  </Link>
+
+                  {/* Body description */}
+                  {!activeCrossmatch ? (
+                    <div>
+                      <p style={{ margin: '0 0 0.65rem 0', fontSize: '0.75rem', color: '#991b1b', lineHeight: 1.4 }}>
+                        <strong>⚠️ Issuance Blocked:</strong> Blood units cannot be sent or issued to recipient without successful serological crossmatching. Verify patient sample tube, select candidate unit, and authorize compatibility before proceeding.
+                      </p>
+                      <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                        <button
+                          type="button"
+                          onClick={() => setStartCrossmatchModalOpen(true)}
+                          style={{
+                            background: '#dc2626',
+                            color: '#ffffff',
+                            border: 'none',
+                            padding: '0.35rem 0.75rem',
+                            borderRadius: '5px',
+                            fontSize: '0.75rem',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                          }}
+                        >
+                          + Start Crossmatch Requisition
+                        </button>
+                        <Link
+                          href={`/admin/crossmatching?search=${selectedRequest.requestCode}`}
+                          style={{
+                            background: '#ffffff',
+                            color: '#0f172a',
+                            border: '1px solid #cbd5e1',
+                            padding: '0.35rem 0.75rem',
+                            borderRadius: '5px',
+                            fontSize: '0.75rem',
+                            fontWeight: 600,
+                            textDecoration: 'none',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                          }}
+                        >
+                          Open Workstation Queue &rarr;
+                        </Link>
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      {/* Active crossmatch record details */}
+                      <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '0.6rem 0.75rem', marginBottom: '0.5rem', fontSize: '0.75rem' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.3rem' }}>
+                          <span style={{ fontFamily: 'monospace', fontWeight: 700, color: '#dc2626', fontSize: '0.8rem' }}>
+                            {activeCrossmatch.crossmatchCode}
+                          </span>
+                          <Link
+                            href={`/admin/crossmatching/${activeCrossmatch._id}`}
+                            style={{ color: '#2563eb', fontWeight: 600, textDecoration: 'none', fontSize: '0.725rem' }}
+                          >
+                            Open Workstation &rarr;
+                          </Link>
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.35rem', color: '#475569' }}>
+                          <div>
+                            <strong>Candidate Unit:</strong>{' '}
+                            <span style={{ fontFamily: 'monospace', fontWeight: 600, color: '#0f172a' }}>
+                              {activeCrossmatch.selectedUnit?.unitCode || 'Pending Assignment'}
+                            </span>
+                          </div>
+                          <div>
+                            <strong>Observed Result:</strong>{' '}
+                            {activeCrossmatch.laboratoryTest?.crossmatchResult === CrossmatchResult.COMPATIBLE ? (
+                              <span style={{ color: '#15803d', fontWeight: 700 }}>COMPATIBLE (Grade {activeCrossmatch.laboratoryTest.reactionGrade || '0'})</span>
+                            ) : activeCrossmatch.laboratoryTest?.crossmatchResult === CrossmatchResult.INCOMPATIBLE ? (
+                              <span style={{ color: '#b91c1c', fontWeight: 700 }}>INCOMPATIBLE (Grade {activeCrossmatch.laboratoryTest.reactionGrade || '4'})</span>
+                            ) : (
+                              <span style={{ color: '#64748b' }}>Pending Testing</span>
+                            )}
+                          </div>
+                          {activeCrossmatch.reservationCode && (
+                            <div style={{ gridColumn: 'span 2' }}>
+                              <strong>Reservation Lock:</strong>{' '}
+                              <span style={{ fontFamily: 'monospace', fontWeight: 600, color: '#0f172a' }}>
+                                {activeCrossmatch.reservationCode}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {isCompatibleAndReserved ? (
+                        <div style={{ fontSize: '0.75rem', color: '#166534', lineHeight: 1.4 }}>
+                          ✓ <strong>Authorized & Reserved:</strong> Serological testing confirmed negative agglutination. Unit {activeCrossmatch.selectedUnit?.unitCode} is locked under reservation {activeCrossmatch.reservationCode}. You can now safely issue this unit below.
+                        </div>
+                      ) : isAuthorizedCompatible ? (
+                        <div style={{ fontSize: '0.75rem', color: '#1e40af', lineHeight: 1.4 }}>
+                          <strong>Next Step:</strong> Crossmatch is authorized compatible! Click below to open the workstation and reserve the unit to enable official blood issue.
+                          <div style={{ marginTop: '0.35rem' }}>
+                            <Link
+                              href={`/admin/crossmatching/${activeCrossmatch._id}`}
+                              style={{
+                                display: 'inline-block',
+                                background: '#2563eb',
+                                color: '#ffffff',
+                                padding: '0.35rem 0.75rem',
+                                borderRadius: '4px',
+                                textDecoration: 'none',
+                                fontWeight: 600,
+                                fontSize: '0.725rem',
+                              }}
+                            >
+                              Go to Workstation to Reserve Unit &rarr;
+                            </Link>
+                          </div>
+                        </div>
+                      ) : isIncompatible ? (
+                        <div style={{ fontSize: '0.75rem', color: '#991b1b', lineHeight: 1.4 }}>
+                          ❌ <strong>Incompatible Blood Blocked:</strong> Agglutination observed during testing. This donor unit cannot be issued. Please open workstation to select and test an alternate unit.
+                        </div>
+                      ) : isIssued ? (
+                        <div style={{ fontSize: '0.75rem', color: '#475569', lineHeight: 1.4 }}>
+                          ✓ This crossmatched unit was officially issued under issue record {activeCrossmatch.issueCode || ''}.
+                        </div>
+                      ) : (
+                        <div style={{ fontSize: '0.75rem', color: '#92400e', lineHeight: 1.4 }}>
+                          Testing is currently in progress. Blood units cannot be issued until crossmatch test results are entered and authorized.
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
-              </div>
-            )}
+              );
+            })()}
 
             {/* WhatsApp Notification Hub (Direct Click-to-Chat) */}
             <div
@@ -1462,59 +1701,125 @@ export default function AdminBloodRequestsPage() {
                           0,
                           selectedRequest.unitsRequested - totalReservedUnits,
                         );
+                        const activeCrossmatches = crossmatches.filter((c) => c.status !== CrossmatchStatus.CANCELLED);
+                        const activeCrossmatch = activeCrossmatches[0] || crossmatches[0];
+                        const isCrossmatchAuthorized = activeCrossmatch &&
+                          (activeCrossmatch.status === CrossmatchStatus.AUTHORIZED_COMPATIBLE || activeCrossmatch.status === CrossmatchStatus.RESERVED) &&
+                          activeCrossmatch.laboratoryTest?.crossmatchResult !== CrossmatchResult.INCOMPATIBLE;
+
                         const isEligibleToReserve =
-                          selectedRequest.status === BloodRequestStatus.APPROVED ||
-                          (selectedRequest.status === BloodRequestStatus.RESERVED &&
-                            remainingNeeded > 0);
+                          isCrossmatchAuthorized &&
+                          (selectedRequest.status === BloodRequestStatus.APPROVED ||
+                            (selectedRequest.status === BloodRequestStatus.RESERVED &&
+                              remainingNeeded > 0));
 
                         return (
                           <div style={{ marginTop: '0.75rem' }}>
                             {remainingNeeded > 0 ? (
-                              <div
-                                style={{
-                                  display: 'flex',
-                                  justifyContent: 'space-between',
-                                  alignItems: 'center',
-                                  padding: '0.6rem 0.75rem',
-                                  background: '#f8fafc',
-                                  borderRadius: '6px',
-                                  border: '1px solid #e2e8f0',
-                                }}
-                              >
-                                <div>
-                                  <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#1e293b' }}>
-                                    Selected: {selectedUnitIds.length} / {remainingNeeded} unit(s)
-                                  </span>
-                                  {!isEligibleToReserve && (
-                                    <span style={{ display: 'block', fontSize: '0.7rem', color: '#b45309' }}>
-                                      Request must be APPROVED to reserve units (Current: {selectedRequest.status}).
-                                    </span>
-                                  )}
-                                </div>
-                                <button
-                                  type="button"
-                                  disabled={selectedUnitIds.length === 0 || !isEligibleToReserve || isReserving}
-                                  onClick={() => setConfirmModalOpen(true)}
+                              !isCrossmatchAuthorized ? (
+                                <div
                                   style={{
-                                    background:
-                                      selectedUnitIds.length > 0 && isEligibleToReserve
-                                        ? '#2563eb'
-                                        : '#94a3b8',
-                                    color: '#ffffff',
-                                    border: 'none',
-                                    padding: '0.45rem 0.9rem',
-                                    borderRadius: '4px',
-                                    cursor:
-                                      selectedUnitIds.length > 0 && isEligibleToReserve
-                                        ? 'pointer'
-                                        : 'not-allowed',
-                                    fontSize: '0.8rem',
-                                    fontWeight: 600,
+                                    padding: '0.65rem 0.75rem',
+                                    background: '#fff1f2',
+                                    border: '1px solid #fecdd3',
+                                    borderRadius: '6px',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    gap: '0.4rem',
                                   }}
                                 >
-                                  Reserve Selected Units ({selectedUnitIds.length})
-                                </button>
-                              </div>
+                                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                    <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#991b1b', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                                      🔒 Crossmatch Confirmation Required
+                                    </span>
+                                    <span style={{ fontSize: '0.675rem', color: '#b91c1c', fontWeight: 600, background: '#fee2e2', padding: '0.1rem 0.35rem', borderRadius: '3px' }}>
+                                      Safety Protocol
+                                    </span>
+                                  </div>
+                                  <p style={{ margin: 0, fontSize: '0.725rem', color: '#7f1d1d', lineHeight: 1.4 }}>
+                                    Units cannot be reserved directly without an authorized crossmatch report. Candidate donor units must first be tested against recipient serum in the Laboratory Crossmatching Workstation.
+                                  </p>
+                                  <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.2rem', flexWrap: 'wrap' }}>
+                                    <button
+                                      type="button"
+                                      onClick={() => setStartCrossmatchModalOpen(true)}
+                                      style={{
+                                        background: '#dc2626',
+                                        color: '#ffffff',
+                                        border: 'none',
+                                        padding: '0.4rem 0.85rem',
+                                        borderRadius: '4px',
+                                        fontSize: '0.75rem',
+                                        fontWeight: 700,
+                                        cursor: 'pointer',
+                                      }}
+                                    >
+                                      🧪 Start Crossmatch Requisition
+                                    </button>
+                                    <Link
+                                      href={`/admin/crossmatching?search=${selectedRequest.requestCode}`}
+                                      style={{
+                                        background: '#ffffff',
+                                        border: '1px solid #cbd5e1',
+                                        color: '#0f172a',
+                                        padding: '0.4rem 0.75rem',
+                                        borderRadius: '4px',
+                                        fontSize: '0.75rem',
+                                        fontWeight: 600,
+                                        textDecoration: 'none',
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                      }}
+                                    >
+                                      Open Workstation &rarr;
+                                    </Link>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div
+                                  style={{
+                                    display: 'flex',
+                                    justifyContent: 'space-between',
+                                    alignItems: 'center',
+                                    padding: '0.6rem 0.75rem',
+                                    background: '#f0fdf4',
+                                    borderRadius: '6px',
+                                    border: '1px solid #86efac',
+                                  }}
+                                >
+                                  <div>
+                                    <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#166534', display: 'block' }}>
+                                      ✓ Crossmatch Report Authorized (Compatible)
+                                    </span>
+                                    <span style={{ fontSize: '0.7rem', color: '#15803d' }}>
+                                      Selected: {selectedUnitIds.length} / {remainingNeeded} unit(s)
+                                    </span>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    disabled={selectedUnitIds.length === 0 || !isEligibleToReserve || isReserving}
+                                    onClick={() => setConfirmModalOpen(true)}
+                                    style={{
+                                      background:
+                                        selectedUnitIds.length > 0 && isEligibleToReserve
+                                          ? '#15803d'
+                                          : '#94a3b8',
+                                      color: '#ffffff',
+                                      border: 'none',
+                                      padding: '0.45rem 0.9rem',
+                                      borderRadius: '4px',
+                                      cursor:
+                                        selectedUnitIds.length > 0 && isEligibleToReserve
+                                          ? 'pointer'
+                                          : 'not-allowed',
+                                      fontSize: '0.8rem',
+                                      fontWeight: 600,
+                                    }}
+                                  >
+                                    Reserve Crossmatched Units ({selectedUnitIds.length})
+                                  </button>
+                                </div>
+                              )
                             ) : (
                               <div
                                 style={{
@@ -1682,24 +1987,63 @@ export default function AdminBloodRequestsPage() {
                           >
                             Cancel Reservation
                           </button>
-                          {selectedRequest.status === BloodRequestStatus.RESERVED && (
-                            <button
-                              type="button"
-                              onClick={() => handleOpenIssueModal(res)}
-                              style={{
-                                background: '#ea580c',
-                                border: '1px solid #c2410c',
-                                color: '#ffffff',
-                                padding: '0.25rem 0.65rem',
-                                borderRadius: '4px',
-                                cursor: 'pointer',
-                                fontSize: '0.725rem',
-                                fontWeight: 600,
-                              }}
-                            >
-                              Issue Reserved Blood
-                            </button>
-                          )}
+                          {selectedRequest.status === BloodRequestStatus.RESERVED &&
+                            (() => {
+                              const activeCrossmatches = crossmatches.filter((c) => c.status !== CrossmatchStatus.CANCELLED);
+                              const activeCrossmatch = activeCrossmatches[0] || crossmatches[0];
+                              const isCrossmatchReady = activeCrossmatch &&
+                                (activeCrossmatch.status === CrossmatchStatus.RESERVED || activeCrossmatch.status === CrossmatchStatus.AUTHORIZED_COMPATIBLE) &&
+                                activeCrossmatch.laboratoryTest?.crossmatchResult !== CrossmatchResult.INCOMPATIBLE;
+
+                              if (!isCrossmatchReady) {
+                                return (
+                                  <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.2rem' }}>
+                                    <button
+                                      type="button"
+                                      disabled
+                                      title="Blood units cannot be issued without successful laboratory crossmatching. Open the Crossmatch Workstation to verify and authorize compatibility."
+                                      style={{
+                                        background: '#f1f5f9',
+                                        border: '1px solid #cbd5e1',
+                                        color: '#94a3b8',
+                                        padding: '0.25rem 0.65rem',
+                                        borderRadius: '4px',
+                                        cursor: 'not-allowed',
+                                        fontSize: '0.725rem',
+                                        fontWeight: 600,
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '0.25rem',
+                                      }}
+                                    >
+                                      🔒 Crossmatch Required to Issue
+                                    </button>
+                                    <span style={{ fontSize: '0.65rem', color: '#dc2626', fontWeight: 500 }}>
+                                      Requires COMPATIBLE &amp; RESERVED crossmatch
+                                    </span>
+                                  </div>
+                                );
+                              }
+
+                              return (
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenIssueModal(res)}
+                                  style={{
+                                    background: '#ea580c',
+                                    border: '1px solid #c2410c',
+                                    color: '#ffffff',
+                                    padding: '0.25rem 0.65rem',
+                                    borderRadius: '4px',
+                                    cursor: 'pointer',
+                                    fontSize: '0.725rem',
+                                    fontWeight: 600,
+                                  }}
+                                >
+                                  ⚡ Issue Reserved Blood
+                                </button>
+                              );
+                            })()}
                         </div>
                       )}
                     </div>
@@ -2521,6 +2865,19 @@ export default function AdminBloodRequestsPage() {
               </div>
             </div>
           </div>
+        )}
+        {/* Start Crossmatch Modal */}
+        {startCrossmatchModalOpen && selectedRequest && (
+          <StartCrossmatchModal
+            isOpen={startCrossmatchModalOpen}
+            onClose={() => setStartCrossmatchModalOpen(false)}
+            preselectedRequestId={selectedRequest._id}
+            onSuccess={() => {
+              setStartCrossmatchModalOpen(false);
+              loadCrossmatches(selectedRequest._id, selectedRequest.requestCode);
+              loadRequests();
+            }}
+          />
         )}
       </div>
     </div>

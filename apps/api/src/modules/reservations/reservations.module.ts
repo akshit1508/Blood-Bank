@@ -22,6 +22,10 @@ import {
   BloodUnit,
   BloodUnitSchema,
 } from '../blood-units/schemas/blood-unit.schema';
+import {
+  CrossmatchRecord,
+  CrossmatchRecordSchema,
+} from '../crossmatching/schemas/crossmatch-record.schema';
 import { BloodIssuesModule } from '../blood-issues/blood-issues.module';
 import { InventoryModule } from '../inventory/inventory.module';
 
@@ -33,6 +37,7 @@ import { InventoryModule } from '../inventory/inventory.module';
       { name: Inventory.name, schema: InventorySchema },
       { name: InventoryHistory.name, schema: InventoryHistorySchema },
       { name: BloodUnit.name, schema: BloodUnitSchema },
+      { name: CrossmatchRecord.name, schema: CrossmatchRecordSchema },
     ]),
     BloodIssuesModule,
     InventoryModule,

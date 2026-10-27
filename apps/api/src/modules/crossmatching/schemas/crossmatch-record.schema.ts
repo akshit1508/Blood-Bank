@@ -294,6 +294,9 @@ export class CrossmatchRecord {
   @Prop({ type: SelectedUnitSubdocSchema, default: () => ({}) })
   selectedUnit: SelectedUnitSubdoc;
 
+  @Prop({ type: [SelectedUnitSubdocSchema], default: () => [] })
+  selectedUnits: SelectedUnitSubdoc[];
+
   @Prop({ type: LaboratoryTestSubdocSchema, default: () => ({}) })
   laboratoryTest: LaboratoryTestSubdoc;
 
@@ -354,4 +357,5 @@ CrossmatchRecordSchema.index({ createdAt: -1 });
 CrossmatchRecordSchema.index({ status: 1, urgency: 1 });
 CrossmatchRecordSchema.index({ 'selectedUnit.bloodUnitId': 1 }, { sparse: true });
 CrossmatchRecordSchema.index({ 'selectedUnit.inventoryId': 1 }, { sparse: true });
+CrossmatchRecordSchema.index({ 'selectedUnits.inventoryId': 1 }, { sparse: true });
 CrossmatchRecordSchema.index({ 'sample.sampleId': 1 }, { sparse: true });

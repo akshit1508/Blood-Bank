@@ -41,6 +41,14 @@ import {
   AuditEntityType,
 } from '../audit-logs/constants/audit-log.constants';
 import { UnitIssueValidationService } from '../inventory/services/unit-issue-validation.service';
+import {
+  CrossmatchRecord,
+  CrossmatchRecordDocument,
+} from '../crossmatching/schemas/crossmatch-record.schema';
+import {
+  CrossmatchStatus,
+  CrossmatchResult,
+} from '../crossmatching/constants/crossmatching.constants';
 
 @Injectable()
 export class BloodIssuesService {
@@ -63,6 +71,9 @@ export class BloodIssuesService {
     private readonly auditLogsService?: AuditLogsService,
     @Optional()
     private readonly unitIssueValidationService?: UnitIssueValidationService,
+    @Optional()
+    @InjectModel(CrossmatchRecord.name)
+    private readonly crossmatchModel?: Model<CrossmatchRecordDocument>,
   ) {}
 
   /**
@@ -157,11 +168,74 @@ export class BloodIssuesService {
       });
     }
 
+    // Clinical alignment: If blood request is APPROVED but has an authorized crossmatch linked to this reservation,
+    // auto-align request status to RESERVED so the reserved blood can be issued to ward
+    if (bloodRequest.status === BloodRequestStatus.APPROVED && this.crossmatchModel) {
+      const linkedCrossmatch = await this.crossmatchModel
+        .findOne({
+          $or: [
+            { reservationId: reservation._id },
+            { reservationCode: reservation.reservationCode },
+          ],
+        })
+        .exec();
+
+      if (linkedCrossmatch) {
+        bloodRequest.status = BloodRequestStatus.RESERVED;
+        bloodRequest.statusUpdatedAt = new Date();
+        await bloodRequest.save();
+      }
+    }
+
     if (bloodRequest.status !== BloodRequestStatus.RESERVED) {
       throw new BadRequestException({
         message: `Blood request '${bloodRequest.requestCode}' must be in RESERVED status to issue blood. Current status is '${bloodRequest.status}'.`,
         code: 'REQUEST_NOT_IN_RESERVED_STATUS',
       });
+    }
+
+    // 3.5. Clinical Safety & Crossmatch Enforcement:
+    // Blood units cannot be sent/issued to a patient without completed, authorized compatible crossmatch and reservation
+    if (this.crossmatchModel) {
+      const crossmatch = await this.crossmatchModel
+        .findOne({
+          $or: [
+            { reservationId: reservation._id },
+            { reservationCode: reservation.reservationCode },
+            {
+              bloodRequestId: bloodRequest._id,
+              'selectedUnit.inventoryId': { $in: reservation.inventoryIds },
+            },
+          ],
+        })
+        .exec();
+
+      if (!crossmatch) {
+        throw new BadRequestException({
+          message: `Blood unit(s) cannot be issued for request '${bloodRequest.requestCode}' without laboratory crossmatching. Please complete crossmatch testing and authorization first.`,
+          code: 'CROSSMATCH_REQUIRED_FOR_ISSUE',
+        });
+      }
+
+      const validCrossmatchStatuses = [
+        CrossmatchStatus.RESERVED,
+        CrossmatchStatus.AUTHORIZED_COMPATIBLE,
+        CrossmatchStatus.ISSUED,
+      ];
+
+      if (!validCrossmatchStatuses.includes(crossmatch.status)) {
+        throw new BadRequestException({
+          message: `Crossmatch record '${crossmatch.crossmatchCode}' is currently in status '${crossmatch.status}'. Blood units can only be issued after crossmatching is clinically authorized as COMPATIBLE and RESERVED.`,
+          code: 'CROSSMATCH_NOT_AUTHORIZED_OR_RESERVED',
+        });
+      }
+
+      if (crossmatch.laboratoryTest?.crossmatchResult === CrossmatchResult.INCOMPATIBLE) {
+        throw new BadRequestException({
+          message: `Crossmatch record '${crossmatch.crossmatchCode}' has an INCOMPATIBLE result. Incompatible blood units cannot be issued under any circumstances.`,
+          code: 'CROSSMATCH_INCOMPATIBLE_ISSUE_BLOCKED',
+        });
+      }
     }
 
     // 4. Validate all inventory units and physical blood units
@@ -371,6 +445,44 @@ export class BloodIssuesService {
 
       if (session) {
         await session.commitTransaction();
+      }
+
+      // Synchronize crossmatch record status to ISSUED
+      if (this.crossmatchModel) {
+        try {
+          const crossmatchToUpdate = await this.crossmatchModel
+            .findOne({
+              $or: [
+                { reservationId: reservation._id },
+                { reservationCode: reservation.reservationCode },
+                {
+                  bloodRequestId: bloodRequest._id,
+                  'selectedUnit.inventoryId': { $in: reservation.inventoryIds },
+                },
+              ],
+            })
+            .exec();
+
+          if (crossmatchToUpdate && crossmatchToUpdate.status !== CrossmatchStatus.ISSUED) {
+            const prevStatus = crossmatchToUpdate.status;
+            crossmatchToUpdate.status = CrossmatchStatus.ISSUED;
+            crossmatchToUpdate.issuedAt = new Date();
+            crossmatchToUpdate.issueCode = bloodIssue.issueCode;
+            crossmatchToUpdate.timeline.push({
+              fromStatus: prevStatus,
+              toStatus: CrossmatchStatus.ISSUED,
+              actorId: actor?._id || actor?.id,
+              actorName: actor?.fullName || actor?.name || 'Staff',
+              actorRole: actor?.role || 'STAFF',
+              action: 'UNIT_ISSUED',
+              timestamp: new Date(),
+              notes: `Issued under ${bloodIssue.issueCode} against reservation ${reservation.reservationCode}`,
+            } as any);
+            await crossmatchToUpdate.save();
+          }
+        } catch {
+          // Non-blocking sync
+        }
       }
 
       if (this.auditLogsService) {

@@ -1,9 +1,14 @@
-import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsArray, IsOptional, IsString } from 'class-validator';
 
 export class SelectUnitDto {
-  @IsNotEmpty({ message: 'inventoryId is required to select candidate unit' })
+  @IsOptional()
   @IsString()
-  inventoryId: string;
+  inventoryId?: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  inventoryIds?: string[];
 
   @IsOptional()
   @IsString()

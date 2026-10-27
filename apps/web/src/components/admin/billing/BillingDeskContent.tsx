@@ -21,6 +21,8 @@ import {
   applyWaiver,
   cancelInvoice,
   formatINR,
+  fetchUnbilledIssues,
+  generateInvoice,
 } from '@/lib/billing-api';
 import StatCard from '@/components/admin/StatCard';
 import StatusBadge from '@/components/admin/StatusBadge';
@@ -36,7 +38,13 @@ export default function BillingDeskContent({ portalRole }: BillingDeskContentPro
   const isSuperAdmin = portalRole === 'SUPER_ADMIN';
   const basePath = isSuperAdmin ? '/super-admin/finance' : '/admin/finance';
 
-  const [activeTab, setActiveTab] = useState<'invoices' | 'collections' | 'daily_register'>('invoices');
+  const [activeTab, setActiveTab] = useState<'invoices' | 'unbilled' | 'collections' | 'daily_register'>('invoices');
+
+  // Unbilled Issues state
+  const [unbilledIssues, setUnbilledIssues] = useState<any[]>([]);
+  const [unbilledLoading, setUnbilledLoading] = useState(false);
+  const [billingIssueId, setBillingIssueId] = useState<string | null>(null);
+  const [billingSuccess, setBillingSuccess] = useState<string | null>(null);
 
   // Revenue Summary
   const [summary, setSummary] = useState<RevenueSummaryData | null>(null);
@@ -157,19 +165,52 @@ export default function BillingDeskContent({ portalRole }: BillingDeskContentPro
     }
   }, [registerDate]);
 
+  // Load unbilled completed issues
+  const loadUnbilled = useCallback(async () => {
+    try {
+      setUnbilledLoading(true);
+      const data = await fetchUnbilledIssues();
+      setUnbilledIssues(data);
+    } catch {
+      // Non-blocking
+    } finally {
+      setUnbilledLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     loadSummary();
-  }, [loadSummary]);
+    loadUnbilled();
+  }, [loadSummary, loadUnbilled]);
 
   useEffect(() => {
     if (activeTab === 'invoices') {
       loadInvoices();
+      loadUnbilled();
+    } else if (activeTab === 'unbilled') {
+      loadUnbilled();
     } else if (activeTab === 'collections') {
       loadCollections();
     } else if (activeTab === 'daily_register') {
       loadDailyRegister();
     }
-  }, [activeTab, loadInvoices, loadCollections, loadDailyRegister]);
+  }, [activeTab, loadInvoices, loadUnbilled, loadCollections, loadDailyRegister]);
+
+  // Handle Generate Invoice for unbilled issue
+  const handleGenerateInvoice = async (issueId: string) => {
+    setBillingIssueId(issueId);
+    setBillingSuccess(null);
+    try {
+      const inv = await generateInvoice(issueId);
+      setBillingSuccess(`Invoice ${inv.invoiceNumber} generated successfully for issue ${inv.issueCode}!`);
+      await Promise.all([loadInvoices(), loadSummary(), loadUnbilled()]);
+      setActiveTab('invoices');
+    } catch (err: any) {
+      alert(err.message || 'Failed to generate invoice');
+    } finally {
+      setBillingIssueId(null);
+    }
+  };
 
   // Open Collect Payment Modal
   const handleOpenCollect = (invoice: BloodIssueInvoice) => {
@@ -400,6 +441,38 @@ export default function BillingDeskContent({ portalRole }: BillingDeskContentPro
           Blood Invoices Queue ({totalCount})
         </button>
         <button
+          onClick={() => setActiveTab('unbilled')}
+          style={{
+            padding: '0.75rem 1.25rem',
+            background: 'none',
+            border: 'none',
+            borderBottom: activeTab === 'unbilled' ? '2px solid #dc2626' : '2px solid transparent',
+            color: activeTab === 'unbilled' ? '#dc2626' : '#64748b',
+            fontWeight: activeTab === 'unbilled' ? 600 : 500,
+            fontSize: '0.9rem',
+            cursor: 'pointer',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '6px',
+          }}
+        >
+          <span>Pending Billing</span>
+          {unbilledIssues.length > 0 && (
+            <span
+              style={{
+                padding: '2px 7px',
+                borderRadius: '10px',
+                backgroundColor: '#dc2626',
+                color: '#ffffff',
+                fontSize: '11px',
+                fontWeight: 700,
+              }}
+            >
+              {unbilledIssues.length}
+            </span>
+          )}
+        </button>
+        <button
           onClick={() => setActiveTab('collections')}
           style={{
             padding: '0.75rem 1.25rem',
@@ -431,9 +504,75 @@ export default function BillingDeskContent({ portalRole }: BillingDeskContentPro
         </button>
       </div>
 
+      {billingSuccess && (
+        <div
+          style={{
+            padding: '12px 16px',
+            backgroundColor: '#dcfce7',
+            border: '1px solid #86efac',
+            borderRadius: '8px',
+            marginBottom: '1.25rem',
+            color: '#15803d',
+            fontSize: '13px',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+          }}
+        >
+          <span>{billingSuccess}</span>
+          <button
+            type="button"
+            onClick={() => setBillingSuccess(null)}
+            style={{ background: 'none', border: 'none', color: '#15803d', cursor: 'pointer', fontWeight: 700 }}
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
       {/* TAB 1: INVOICES QUEUE */}
       {activeTab === 'invoices' && (
         <div style={{ background: '#ffffff', borderRadius: '0.75rem', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+          {unbilledIssues.length > 0 && (
+            <div
+              style={{
+                margin: '1rem',
+                padding: '12px 16px',
+                backgroundColor: '#eff6ff',
+                border: '1px solid #bfdbfe',
+                borderRadius: '8px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '12px',
+                fontSize: '13px',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#1e40af' }}>
+                <span style={{ fontSize: '18px' }}>🩸</span>
+                <span>
+                  <strong>{unbilledIssues.length} completed blood issue(s)</strong> have been dispatched to patients and are ready to be billed.
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setActiveTab('unbilled')}
+                style={{
+                  padding: '6px 14px',
+                  backgroundColor: '#2563eb',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: '6px',
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                }}
+              >
+                View & Bill Dispatched Units →
+              </button>
+            </div>
+          )}
+
           {/* Filters Bar */}
           <div
             style={{
@@ -697,6 +836,128 @@ export default function BillingDeskContent({ portalRole }: BillingDeskContentPro
                   Next
                 </button>
               </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* TAB: PENDING BILLING / UNBILLED ISSUES */}
+      {activeTab === 'unbilled' && (
+        <div style={{ background: '#ffffff', borderRadius: '0.75rem', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+          <div
+            style={{
+              padding: '1.25rem 1rem',
+              borderBottom: '1px solid #e2e8f0',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              background: '#f8fafc',
+            }}
+          >
+            <div>
+              <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: '#0f172a' }}>
+                Dispatched Blood Issues Awaiting Invoicing
+              </h3>
+              <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#64748b' }}>
+                Completed clinical blood issues awaiting bill generation and cashier payment collection.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={loadUnbilled}
+              style={{
+                padding: '0.5rem 0.85rem',
+                border: '1px solid #cbd5e1',
+                borderRadius: '0.375rem',
+                background: '#ffffff',
+                fontSize: '0.875rem',
+                cursor: 'pointer',
+              }}
+            >
+              Refresh List
+            </button>
+          </div>
+
+          {unbilledLoading ? (
+            <TableSkeleton rows={4} />
+          ) : unbilledIssues.length === 0 ? (
+            <EmptyState
+              title="All Blood Issues Invoiced"
+              description="There are currently no unbilled blood issues. All dispatched units have been invoiced and recorded."
+            />
+          ) : (
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
+                <thead>
+                  <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', textAlign: 'left' }}>
+                    <th style={{ padding: '0.75rem 1rem', fontWeight: 600, color: '#475569' }}>Issue Code</th>
+                    <th style={{ padding: '0.75rem 1rem', fontWeight: 600, color: '#475569' }}>Requisition #</th>
+                    <th style={{ padding: '0.75rem 1rem', fontWeight: 600, color: '#475569' }}>Recipient / Ward</th>
+                    <th style={{ padding: '0.75rem 1rem', fontWeight: 600, color: '#475569' }}>Issued Blood Units</th>
+                    <th style={{ padding: '0.75rem 1rem', fontWeight: 600, color: '#475569' }}>Dispatched At</th>
+                    <th style={{ padding: '0.75rem 1rem', fontWeight: 600, color: '#475569', textAlign: 'right' }}>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {unbilledIssues.map((issue) => (
+                    <tr key={issue._id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                      <td style={{ padding: '0.85rem 1rem', fontWeight: 700, fontFamily: 'monospace', color: '#0f172a' }}>
+                        {issue.issueCode}
+                      </td>
+                      <td style={{ padding: '0.85rem 1rem', fontFamily: 'monospace', color: '#475569' }}>
+                        {issue.requestCode}
+                      </td>
+                      <td style={{ padding: '0.85rem 1rem', fontWeight: 500, color: '#1e293b' }}>
+                        {issue.recipientName || 'Ward Patient'}
+                      </td>
+                      <td style={{ padding: '0.85rem 1rem' }}>
+                        <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
+                          {(issue.issuedUnits || []).map((u: any, idx: number) => (
+                            <span
+                              key={idx}
+                              style={{
+                                fontSize: '0.75rem',
+                                padding: '0.2rem 0.5rem',
+                                borderRadius: '0.25rem',
+                                background: '#fee2e2',
+                                color: '#991c1c',
+                                border: '1px solid #fecaca',
+                                fontWeight: 600,
+                              }}
+                            >
+                              {u.unitCode} ({u.bloodGroup} {u.componentType})
+                            </span>
+                          ))}
+                        </div>
+                      </td>
+                      <td style={{ padding: '0.85rem 1rem', color: '#64748b', fontSize: '0.8rem' }}>
+                        {issue.issuedAt ? new Date(issue.issuedAt).toLocaleString('en-IN') : 'N/A'}
+                      </td>
+                      <td style={{ padding: '0.85rem 1rem', textAlign: 'right' }}>
+                        <button
+                          type="button"
+                          disabled={billingIssueId === issue._id}
+                          onClick={() => handleGenerateInvoice(issue._id)}
+                          style={{
+                            padding: '6px 14px',
+                            backgroundColor: '#dc2626',
+                            color: '#ffffff',
+                            border: 'none',
+                            borderRadius: '6px',
+                            fontSize: '0.8rem',
+                            fontWeight: 700,
+                            cursor: billingIssueId === issue._id ? 'not-allowed' : 'pointer',
+                            opacity: billingIssueId === issue._id ? 0.6 : 1,
+                            boxShadow: '0 2px 4px rgba(220, 38, 38, 0.25)',
+                          }}
+                        >
+                          {billingIssueId === issue._id ? 'Generating...' : '💳 Generate Bill & Invoice'}
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
         </div>

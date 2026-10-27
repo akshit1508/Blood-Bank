@@ -20,6 +20,7 @@ import { CrossmatchingService } from './crossmatching.service';
 import { CrossmatchingController } from './crossmatching.controller';
 import { ReservationsModule } from '../reservations/reservations.module';
 import { BloodIssuesModule } from '../blood-issues/blood-issues.module';
+import { BillingModule } from '../billing/billing.module';
 import { AuditLogsModule } from '../audit-logs/audit-logs.module';
 
 @Module({
@@ -32,6 +33,7 @@ import { AuditLogsModule } from '../audit-logs/audit-logs.module';
     ]),
     ReservationsModule,
     BloodIssuesModule,
+    BillingModule,
     AuditLogsModule,
   ],
   controllers: [CrossmatchingController],

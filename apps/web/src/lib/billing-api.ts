@@ -270,6 +270,18 @@ export async function generateInvoice(
   return json.data;
 }
 
+export async function fetchUnbilledIssues(): Promise<any[]> {
+  const res = await fetch(`${API_BASE_URL}/billing/invoices/unbilled-issues`, {
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.message || 'Failed to fetch unbilled issues');
+  }
+  const json = await res.json();
+  return json.data || [];
+}
+
 export async function fetchInvoices(params?: {
   status?: string;
   hospitalName?: string;
