@@ -301,6 +301,7 @@ export default function AdminSidebar({
         label: 'DONOR & COLLECTION',
         items: [
           { name: 'Donor Management', href: '/admin/donors', icon: icons.donors },
+          { name: 'Replacement Tracking', href: '/admin/replacement-donations', icon: icons.donors },
           { name: 'Blood Acquisition', href: '/admin/blood-acquisition', icon: icons.acquisition },
           { name: 'Donations Collection', href: '/admin/donations', icon: icons.donations },
           {
@@ -428,6 +429,7 @@ export default function AdminSidebar({
         label: 'DONOR & COLLECTION',
         items: [
           { name: 'Donor Management', href: '/admin/donors', icon: icons.donors },
+          { name: 'Replacement Tracking', href: '/admin/replacement-donations', icon: icons.donors },
           { name: 'Blood Acquisition', href: '/admin/blood-acquisition', icon: icons.acquisition },
           { name: 'Donations Collection', href: '/admin/donations', icon: icons.donations },
           {

@@ -29,6 +29,10 @@ import {
   CrossmatchStatus,
   CrossmatchResult,
 } from '@/lib/crossmatching-api';
+import {
+  fetchReplacementDonationsByRequest,
+  ReplacementDonation,
+} from '@/lib/replacement-donations-api';
 import StartCrossmatchModal from '@/components/crossmatching/StartCrossmatchModal';
 
 const WhatsAppIcon = ({ size = 15 }: { size?: number }) => (
@@ -130,6 +134,10 @@ export default function AdminBloodRequestsPage() {
   const [completeError, setCompleteError] = useState<string | null>(null);
   const [completeSuccess, setCompleteSuccess] = useState<string | null>(null);
 
+  // Replacement Tracking state
+  const [requestReplacements, setRequestReplacements] = useState<ReplacementDonation[]>([]);
+  const [replacementsLoading, setReplacementsLoading] = useState(false);
+
   // Status update state in drawer/modal
   const [newStatus, setNewStatus] = useState<BloodRequestStatus | ''>('');
   const [statusReason, setStatusReason] = useState('');
@@ -215,12 +223,25 @@ export default function AdminBloodRequestsPage() {
     }
   }, []);
 
+  const loadReplacements = useCallback(async (requestId: string) => {
+    setReplacementsLoading(true);
+    try {
+      const items = await fetchReplacementDonationsByRequest(requestId);
+      setRequestReplacements(items || []);
+    } catch {
+      setRequestReplacements([]);
+    } finally {
+      setReplacementsLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (selectedRequest) {
       loadMatches(selectedRequest._id);
       loadReservations(selectedRequest._id);
       loadIssues(selectedRequest._id);
       loadCrossmatches(selectedRequest._id, selectedRequest.requestCode);
+      loadReplacements(selectedRequest._id);
       setSelectedUnitIds([]);
       setReserveError(null);
       setReserveSuccess(null);
@@ -234,11 +255,12 @@ export default function AdminBloodRequestsPage() {
       setReservations([]);
       setBloodIssues([]);
       setCrossmatches([]);
+      setRequestReplacements([]);
       setSelectedUnitIds([]);
       setCompleteError(null);
       setCompleteSuccess(null);
     }
-  }, [selectedRequest, loadMatches, loadReservations, loadIssues]);
+  }, [selectedRequest, loadMatches, loadReservations, loadIssues, loadCrossmatches, loadReplacements]);
 
   const toggleUnitSelection = (inventoryId: string, maxAllowed: number) => {
     setSelectedUnitIds((prev) => {
@@ -2280,6 +2302,129 @@ export default function AdminBloodRequestsPage() {
                 {issueSuccess}
               </div>
             )}
+
+            {/* Replacement Donation Tracking Section */}
+            <div
+              style={{
+                marginBottom: '1.25rem',
+                border: '1px solid #cbd5e1',
+                borderRadius: '8px',
+                padding: '0.85rem',
+                background: '#f8fafc',
+              }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginBottom: '0.5rem',
+                }}
+              >
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '0.925rem', color: '#0f172a' }}>
+                    Replacement Donors Tracking ({requestReplacements.length})
+                  </h3>
+                  <span style={{ fontSize: '0.75rem', color: '#64748b' }}>
+                    Tracking relative/donor contributions for record keeping. Does not condition blood issue.
+                  </span>
+                </div>
+                <Link
+                  href="/admin/replacement-donations"
+                  style={{
+                    fontSize: '0.75rem',
+                    color: '#dc2626',
+                    fontWeight: 600,
+                    textDecoration: 'none',
+                    padding: '3px 8px',
+                    border: '1px solid #fca5a5',
+                    borderRadius: '4px',
+                    background: '#ffffff',
+                  }}
+                >
+                  + Track Donor
+                </Link>
+              </div>
+
+              {replacementsLoading ? (
+                <div style={{ fontSize: '0.775rem', color: '#64748b' }}>Loading replacement cases...</div>
+              ) : requestReplacements.length === 0 ? (
+                <div
+                  style={{
+                    padding: '0.6rem',
+                    background: '#ffffff',
+                    border: '1px dashed #cbd5e1',
+                    borderRadius: '6px',
+                    fontSize: '0.775rem',
+                    color: '#64748b',
+                    textAlign: 'center',
+                  }}
+                >
+                  No replacement donors associated with this request yet.{' '}
+                  <Link href="/admin/replacement-donations" style={{ color: '#2563eb', fontWeight: 600 }}>
+                    Associate donor in Replacement Tracking Desk &rarr;
+                  </Link>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                  {requestReplacements.map((r) => (
+                    <div
+                      key={r._id}
+                      style={{
+                        padding: '0.5rem 0.65rem',
+                        background: '#ffffff',
+                        border: '1px solid #e2e8f0',
+                        borderRadius: '6px',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        fontSize: '0.8rem',
+                      }}
+                    >
+                      <div>
+                        <Link
+                          href={`/admin/replacement-donations/${r._id}`}
+                          style={{
+                            fontWeight: 600,
+                            color: '#dc2626',
+                            textDecoration: 'none',
+                            fontFamily: 'monospace',
+                            marginRight: '0.5rem',
+                          }}
+                        >
+                          {r.trackingCode}
+                        </Link>
+                        <span style={{ fontWeight: 600, color: '#1e293b' }}>{r.donorName}</span>
+                        <span style={{ color: '#64748b', fontSize: '0.75rem', marginLeft: '0.4rem' }}>
+                          ({r.relationshipToPatient} • {r.donorBloodGroup.replace('_', ' ')})
+                        </span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <span
+                          style={{
+                            fontSize: '0.725rem',
+                            fontWeight: 600,
+                            padding: '2px 6px',
+                            borderRadius: '4px',
+                            background: '#eff6ff',
+                            color: '#1d4ed8',
+                            border: '1px solid #bfdbfe',
+                          }}
+                        >
+                          {r.status.replace(/_/g, ' ')}
+                        </span>
+                        <Link
+                          href={`/admin/replacement-donations/${r._id}`}
+                          style={{ fontSize: '0.75rem', color: '#2563eb', textDecoration: 'none', fontWeight: 600 }}
+                        >
+                          View &rarr;
+                        </Link>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
 
             {/* Lifecycle Status Transition Form */}
             <form onSubmit={handleUpdateStatus} style={{ borderTop: '1px solid #e2e8f0', paddingTop: '1rem' }}>
