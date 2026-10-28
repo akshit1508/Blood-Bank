@@ -168,6 +168,20 @@ export default function AdminBloodRequestsPage() {
     loadRequests();
   }, [loadRequests]);
 
+  // Read URL search parameters (requestId or requestCode) to auto-select request
+  useEffect(() => {
+    if (typeof window === 'undefined' || !requests.length) return;
+    const params = new URLSearchParams(window.location.search);
+    const reqId = params.get('requestId');
+    const reqCode = params.get('requestCode') || params.get('search');
+    if (reqId || reqCode) {
+      const found = requests.find((r) => (reqId && r._id === reqId) || (reqCode && r.requestCode === reqCode));
+      if (found) {
+        setSelectedRequest(found);
+      }
+    }
+  }, [requests]);
+
   const loadMatches = useCallback(async (requestId: string) => {
     setMatchLoading(true);
     setMatchError(null);

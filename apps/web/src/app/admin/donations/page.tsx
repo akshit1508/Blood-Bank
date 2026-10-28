@@ -280,6 +280,16 @@ export default function AdminDonationsPage() {
     loadDonations();
   }, [loadDonations]);
 
+  // Read URL search parameter if present
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const q = params.get('search');
+    if (q) {
+      setSearchTerm(q);
+    }
+  }, []);
+
   // Load Active Donors automatically (Task ID 62481)
   const loadActiveDonors = useCallback(async () => {
     setActiveDonorsLoading(true);

@@ -18,6 +18,18 @@ import {
   Inventory,
   InventorySchema,
 } from '../inventory/schemas/inventory.schema';
+import {
+  CrossmatchRecord,
+  CrossmatchRecordSchema,
+} from '../crossmatching/schemas/crossmatch-record.schema';
+import {
+  BloodIssue,
+  BloodIssueSchema,
+} from '../blood-issues/schemas/blood-issue.schema';
+import {
+  BloodIssueInvoice,
+  BloodIssueInvoiceSchema,
+} from '../billing/schemas/blood-issue-invoice.schema';
 import { DonorsModule } from '../donors/donors.module';
 import { AuditLogsModule } from '../audit-logs/audit-logs.module';
 import { ReplacementDonationsService } from './replacement-donations.service';
@@ -32,6 +44,9 @@ import { ReplacementDonationsController } from './replacement-donations.controll
       { name: Donation.name, schema: DonationSchema },
       { name: BloodUnit.name, schema: BloodUnitSchema },
       { name: Inventory.name, schema: InventorySchema },
+      { name: CrossmatchRecord.name, schema: CrossmatchRecordSchema },
+      { name: BloodIssue.name, schema: BloodIssueSchema },
+      { name: BloodIssueInvoice.name, schema: BloodIssueInvoiceSchema },
     ]),
     DonorsModule,
     AuditLogsModule,

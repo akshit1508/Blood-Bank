@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAdminAuth } from '@/context/AdminAuthContext';
 
@@ -13,24 +13,36 @@ export default function AdminNavbar({
   const { admin } = useAdminAuth();
   const isSuperAdmin = admin?.role === 'SUPER_ADMIN';
 
+  const [returnToUrl, setReturnToUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const r = params.get('returnTo');
+    if (r && r.startsWith('/admin/replacement-donations')) {
+      setReturnToUrl(r);
+    }
+  }, []);
+
   return (
-    <header
-      style={{
-        position: 'sticky',
-        top: 0,
-        zIndex: 100,
-        backgroundColor: '#ffffff',
-        borderBottom: isSuperAdmin ? '1px solid #fde68a' : '1px solid #e2e8f0',
-        height: '64px',
-        width: '100%',
-        boxSizing: 'border-box',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: '0 1rem',
-        boxShadow: isSuperAdmin ? '0 1px 3px rgba(217, 119, 6, 0.08)' : '0 1px 2px 0 rgba(0, 0, 0, 0.02)',
-      }}
-    >
+    <>
+      <header
+        style={{
+          position: 'sticky',
+          top: 0,
+          zIndex: 100,
+          backgroundColor: '#ffffff',
+          borderBottom: isSuperAdmin ? '1px solid #fde68a' : '1px solid #e2e8f0',
+          height: '64px',
+          width: '100%',
+          boxSizing: 'border-box',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '0 1rem',
+          boxShadow: isSuperAdmin ? '0 1px 3px rgba(217, 119, 6, 0.08)' : '0 1px 2px 0 rgba(0, 0, 0, 0.02)',
+        }}
+      >
       {/* Left: Brand & Mobile Toggle */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
         {/* Mobile Hamburger Button */}
@@ -201,5 +213,79 @@ export default function AdminNavbar({
         </div>
       </div>
     </header>
+    {returnToUrl && (
+      <div
+        style={{
+          position: 'sticky',
+          top: '64px',
+          zIndex: 99,
+          backgroundColor: '#eff6ff',
+          borderBottom: '1px solid #bfdbfe',
+          padding: '8px 20px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '12px',
+          fontSize: '12px',
+          color: '#1e40af',
+          boxShadow: '0 1px 3px rgba(30, 64, 175, 0.08)',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+          <span
+            style={{
+              backgroundColor: '#2563eb',
+              color: '#ffffff',
+              padding: '2px 8px',
+              borderRadius: '4px',
+              fontWeight: '800',
+              fontSize: '11px',
+              letterSpacing: '0.04em',
+            }}
+          >
+            GUIDED REPLACEMENT FLOW
+          </span>
+          <span style={{ fontWeight: '500' }}>
+            You opened this module from Replacement Tracking. When finished, return to the case to continue the workflow.
+          </span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+          <Link
+            href={returnToUrl}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '5px 12px',
+              backgroundColor: '#2563eb',
+              color: '#ffffff',
+              borderRadius: '6px',
+              fontWeight: '700',
+              textDecoration: 'none',
+              fontSize: '12px',
+              boxShadow: '0 1px 2px rgba(37, 99, 235, 0.2)',
+            }}
+          >
+            &larr; Return to Replacement Case
+          </Link>
+          <button
+            onClick={() => setReturnToUrl(null)}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: '#64748b',
+              cursor: 'pointer',
+              fontSize: '16px',
+              padding: '2px 6px',
+              lineHeight: 1,
+            }}
+            title="Dismiss banner"
+          >
+            &times;
+          </button>
+        </div>
+      </div>
+    )}
+  </>
   );
 }

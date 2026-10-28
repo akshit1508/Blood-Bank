@@ -27,6 +27,10 @@ import {
   CrossmatchRecord,
   CrossmatchRecordSchema,
 } from '../crossmatching/schemas/crossmatch-record.schema';
+import {
+  ReplacementDonation,
+  ReplacementDonationSchema,
+} from '../replacement-donations/schemas/replacement-donation.schema';
 import { InventoryModule } from '../inventory/inventory.module';
 
 @Module({
@@ -39,6 +43,7 @@ import { InventoryModule } from '../inventory/inventory.module';
       { name: InventoryHistory.name, schema: InventoryHistorySchema },
       { name: BloodUnit.name, schema: BloodUnitSchema },
       { name: CrossmatchRecord.name, schema: CrossmatchRecordSchema },
+      { name: ReplacementDonation.name, schema: ReplacementDonationSchema },
     ]),
     InventoryModule,
   ],

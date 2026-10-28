@@ -49,6 +49,10 @@ import {
   CrossmatchStatus,
   CrossmatchResult,
 } from '../crossmatching/constants/crossmatching.constants';
+import {
+  ReplacementDonation,
+  ReplacementDonationDocument,
+} from '../replacement-donations/schemas/replacement-donation.schema';
 
 @Injectable()
 export class BloodIssuesService {
@@ -74,6 +78,9 @@ export class BloodIssuesService {
     @Optional()
     @InjectModel(CrossmatchRecord.name)
     private readonly crossmatchModel?: Model<CrossmatchRecordDocument>,
+    @Optional()
+    @InjectModel(ReplacementDonation.name)
+    private readonly replacementModel?: Model<ReplacementDonationDocument>,
   ) {}
 
   /**
@@ -482,6 +489,51 @@ export class BloodIssuesService {
           }
         } catch {
           // Non-blocking sync
+        }
+      }
+
+      // Synchronize associated replacement donation tracking cases
+      // Multi-case safety: Link each issued unit 1-to-1 to unlinked active replacement cases.
+      // Do not indiscriminately link the same issued unit to multiple replacement cases.
+      if (this.replacementModel) {
+        try {
+          const activeReplacements = await this.replacementModel
+            .find({
+              bloodRequestId: bloodRequest._id,
+              status: { $ne: 'CANCELLED' as any },
+            })
+            .sort({ createdAt: 1 })
+            .exec();
+
+          const unlinkedReplacements = activeReplacements.filter(
+            (rep) => !rep.issuedBloodUnitId,
+          );
+
+          let unitIdx = 0;
+          for (const rep of unlinkedReplacements) {
+            if (unitIdx >= issuedUnits.length) {
+              break;
+            }
+            const unitToLink = issuedUnits[unitIdx];
+
+            rep.bloodIssueId = bloodIssue._id;
+            rep.issueCode = bloodIssue.issueCode;
+            rep.issuedBloodUnitId = unitToLink.bloodUnitId;
+            rep.issuedUnitCode = unitToLink.unitCode;
+            rep.timeline.push({
+              event: 'PATIENT_UNIT_ISSUED',
+              status: rep.status,
+              description: `Patient received unit ${unitToLink.unitCode} (${unitToLink.bloodGroup} ${unitToLink.componentType}) under issue record ${bloodIssue.issueCode}. (Independent of relative donation ${rep.donorCode})`,
+              actorId: actor?._id || actor?.id ? String(actor._id || actor.id) : undefined,
+              actorName: actor?.fullName || actor?.name || 'Staff',
+              actorRole: actor?.role || 'STAFF',
+              timestamp: new Date(),
+            } as any);
+            await rep.save();
+            unitIdx++;
+          }
+        } catch {
+          // Non-blocking sync for replacement records
         }
       }
 

@@ -42,6 +42,18 @@ import {
   InventoryDocument,
 } from '../inventory/schemas/inventory.schema';
 import { InventoryStatus } from '../inventory/constants/inventory.constants';
+import {
+  CrossmatchRecord,
+  CrossmatchRecordDocument,
+} from '../crossmatching/schemas/crossmatch-record.schema';
+import {
+  BloodIssue,
+  BloodIssueDocument,
+} from '../blood-issues/schemas/blood-issue.schema';
+import {
+  BloodIssueInvoice,
+  BloodIssueInvoiceDocument,
+} from '../billing/schemas/blood-issue-invoice.schema';
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
 import {
   AuditActionType,
@@ -72,6 +84,12 @@ export class ReplacementDonationsService {
     private readonly bloodUnitModel: Model<BloodUnitDocument>,
     @InjectModel(Inventory.name)
     private readonly inventoryModel: Model<InventoryDocument>,
+    @InjectModel(CrossmatchRecord.name)
+    private readonly crossmatchModel: Model<CrossmatchRecordDocument>,
+    @InjectModel(BloodIssue.name)
+    private readonly bloodIssueModel: Model<BloodIssueDocument>,
+    @InjectModel(BloodIssueInvoice.name)
+    private readonly invoiceModel: Model<BloodIssueInvoiceDocument>,
     private readonly donorsService: DonorsService,
     private readonly auditLogsService: AuditLogsService,
   ) {}
@@ -476,6 +494,97 @@ export class ReplacementDonationsService {
       tracking.patientPhone = bloodRequest.patient?.phone || tracking.patientPhone;
     }
 
+    // Synchronize patient crossmatch record
+    const crossmatch = await this.crossmatchModel
+      .findOne({ bloodRequestId: tracking.bloodRequestId })
+      .sort({ createdAt: -1 })
+      .exec();
+
+    if (crossmatch) {
+      tracking.crossmatchId = crossmatch._id as Types.ObjectId;
+      tracking.crossmatchStatus = crossmatch.status;
+    }
+
+    // Synchronize patient blood issue record (1-to-1 matching for multi-donor cases)
+    if (!tracking.issuedBloodUnitId) {
+      const bloodIssues = await this.bloodIssueModel
+        .find({ bloodRequestId: tracking.bloodRequestId })
+        .sort({ createdAt: 1 })
+        .exec();
+
+      if (bloodIssues.length > 0) {
+        const allIssuedUnits: Array<{
+          bloodIssueId: Types.ObjectId;
+          issueCode: string;
+          bloodUnitId: Types.ObjectId;
+          unitCode: string;
+        }> = [];
+
+        for (const issue of bloodIssues) {
+          for (const u of issue.issuedUnits || []) {
+            allIssuedUnits.push({
+              bloodIssueId: issue._id as Types.ObjectId,
+              issueCode: issue.issueCode,
+              bloodUnitId: u.bloodUnitId as Types.ObjectId,
+              unitCode: u.unitCode,
+            });
+          }
+        }
+
+        const allReplacements = await this.replacementModel
+          .find({
+            bloodRequestId: tracking.bloodRequestId,
+            status: { $ne: ReplacementTrackingStatus.CANCELLED },
+          })
+          .sort({ createdAt: 1 })
+          .exec();
+
+        const claimedUnitIds = new Set<string>();
+        for (const rep of allReplacements) {
+          if (
+            rep._id &&
+            tracking._id &&
+            rep._id.toString() !== tracking._id.toString() &&
+            rep.issuedBloodUnitId
+          ) {
+            claimedUnitIds.add(rep.issuedBloodUnitId.toString());
+          }
+        }
+
+        const availableUnit = allIssuedUnits.find(
+          (u) => !claimedUnitIds.has(u.bloodUnitId.toString()),
+        );
+
+        if (availableUnit) {
+          tracking.bloodIssueId = availableUnit.bloodIssueId;
+          tracking.issueCode = availableUnit.issueCode;
+          tracking.issuedBloodUnitId = availableUnit.bloodUnitId;
+          tracking.issuedUnitCode = availableUnit.unitCode;
+        }
+      }
+    } else {
+      const linkedIssue = await this.bloodIssueModel.findById(tracking.bloodIssueId);
+      if (linkedIssue) {
+        tracking.issueCode = linkedIssue.issueCode;
+      }
+    }
+
+    // Synchronize patient billing / invoice record
+    const invoice = await this.invoiceModel
+      .findOne({ bloodRequestId: tracking.bloodRequestId })
+      .sort({ createdAt: -1 })
+      .exec();
+
+    if (invoice) {
+      tracking.invoiceId = invoice._id as Types.ObjectId;
+      tracking.invoiceNumber = invoice.invoiceNumber;
+      tracking.paymentStatus = invoice.status;
+      tracking.invoiceTotalAmount = invoice.subtotal || 0;
+      tracking.invoiceWaiverAmount = invoice.waiverAmount || 0;
+      tracking.invoicePaidAmount = invoice.collectedAmount || 0;
+      tracking.invoiceBalanceDue = invoice.outstandingAmount || 0;
+    }
+
     if (!tracking.donationId) {
       if (newStatus !== previousStatus) {
         tracking.status = newStatus;
@@ -490,7 +599,7 @@ export class ReplacementDonationsService {
         });
         return await tracking.save();
       }
-      return tracking;
+      return await tracking.save();
     }
 
     const donation = await this.donationModel.findById(tracking.donationId);
@@ -710,10 +819,22 @@ export class ReplacementDonationsService {
       throw new NotFoundException(`Replacement tracking record ${id} not found`);
     }
 
-    // Refresh display fields from source records to prevent stale data
-    const [donor, bloodRequest] = await Promise.all([
+    // Refresh display fields and fulfillment linkages from source records to prevent stale data
+    const [donor, bloodRequest, crossmatch, bloodIssue, invoice] = await Promise.all([
       this.donorModel.findById(tracking.donorId),
       this.bloodRequestModel.findById(tracking.bloodRequestId),
+      this.crossmatchModel
+        .findOne({ bloodRequestId: tracking.bloodRequestId })
+        .sort({ createdAt: -1 })
+        .exec(),
+      this.bloodIssueModel
+        .findOne({ bloodRequestId: tracking.bloodRequestId })
+        .sort({ createdAt: -1 })
+        .exec(),
+      this.invoiceModel
+        .findOne({ bloodRequestId: tracking.bloodRequestId })
+        .sort({ createdAt: -1 })
+        .exec(),
     ]);
 
     if (donor) {
@@ -726,8 +847,128 @@ export class ReplacementDonationsService {
       tracking.patientBloodGroup = bloodRequest.bloodGroup || tracking.patientBloodGroup;
       tracking.patientPhone = bloodRequest.patient?.phone || tracking.patientPhone;
     }
+    if (crossmatch) {
+      tracking.crossmatchId = crossmatch._id as Types.ObjectId;
+      tracking.crossmatchStatus = crossmatch.status;
+    }
+    if (bloodIssue) {
+      tracking.bloodIssueId = bloodIssue._id as Types.ObjectId;
+      tracking.issueCode = bloodIssue.issueCode;
+      if (bloodIssue.issuedUnits && bloodIssue.issuedUnits.length > 0) {
+        tracking.issuedBloodUnitId = bloodIssue.issuedUnits[0].bloodUnitId as Types.ObjectId;
+        tracking.issuedUnitCode = bloodIssue.issuedUnits[0].unitCode;
+      }
+    }
+    if (invoice) {
+      tracking.invoiceId = invoice._id as Types.ObjectId;
+      tracking.invoiceNumber = invoice.invoiceNumber;
+      tracking.paymentStatus = invoice.status;
+      tracking.invoiceTotalAmount = invoice.subtotal || 0;
+      tracking.invoiceWaiverAmount = invoice.waiverAmount || 0;
+      tracking.invoicePaidAmount = invoice.collectedAmount || 0;
+      tracking.invoiceBalanceDue = invoice.outstandingAmount || 0;
+    }
 
     return tracking;
+  }
+
+  /**
+   * Retrieves the comprehensive end-to-end traced workflow graph
+   * separating Relative Donation vs Patient Issue vs Billing.
+   */
+  async getWorkflowTrace(id: string) {
+    const tracking = await this.findOne(id);
+
+    const [bloodRequest, donor, donation, bloodUnit, inventory, crossmatch, bloodIssue, invoice] =
+      await Promise.all([
+        this.bloodRequestModel.findById(tracking.bloodRequestId),
+        this.donorModel.findById(tracking.donorId),
+        tracking.donationId ? this.donationModel.findById(tracking.donationId) : null,
+        tracking.bloodUnitId ? this.bloodUnitModel.findById(tracking.bloodUnitId) : null,
+        tracking.bloodUnitId
+          ? this.inventoryModel.findOne({ bloodUnitId: tracking.bloodUnitId })
+          : null,
+        this.crossmatchModel
+          .findOne({ bloodRequestId: tracking.bloodRequestId })
+          .sort({ createdAt: -1 })
+          .exec(),
+        this.bloodIssueModel
+          .findOne({ bloodRequestId: tracking.bloodRequestId })
+          .sort({ createdAt: -1 })
+          .exec(),
+        this.invoiceModel
+          .findOne({ bloodRequestId: tracking.bloodRequestId })
+          .sort({ createdAt: -1 })
+          .exec(),
+      ]);
+
+    return {
+      trackingCode: tracking.trackingCode,
+      createdAt: tracking.createdAt,
+      status: tracking.status,
+      // 1. Relative's Donation
+      relativeDonation: {
+        donorId: tracking.donorId,
+        donorCode: tracking.donorCode,
+        donorName: tracking.donorName,
+        donorBloodGroup: tracking.donorBloodGroup,
+        relationshipToPatient: tracking.relationshipToPatient,
+        deferralStatus: donor?.deferralStatus || 'NONE',
+        donationId: tracking.donationId,
+        donationCode: tracking.donationCode,
+        donationStatus: donation?.status || 'NOT_DONATED',
+        bloodUnitId: tracking.bloodUnitId,
+        unitCode: tracking.unitCode,
+        unitStatus: bloodUnit?.status || 'N/A',
+        isReleasedToInventory:
+          bloodUnit?.status === BloodUnitStatus.APPROVED &&
+          inventory?.status === InventoryStatus.AVAILABLE,
+      },
+      // 2. Patient & Request
+      patientRequest: {
+        bloodRequestId: tracking.bloodRequestId,
+        requestCode: tracking.requestCode,
+        patientName: tracking.patientName,
+        patientBloodGroup: tracking.patientBloodGroup,
+        requestedComponent: (bloodRequest as any)?.componentType || 'WHOLE_BLOOD',
+        unitsRequested: bloodRequest?.unitsRequested || 1,
+        requestStatus: bloodRequest?.status || 'UNKNOWN',
+      },
+      // 3. Clinical Crossmatching
+      crossmatching: {
+        crossmatchId: crossmatch?._id || null,
+        crossmatchCode: crossmatch?.crossmatchCode || null,
+        status: crossmatch?.status || 'NOT_STARTED',
+        compatibilityResult: crossmatch?.laboratoryTest?.crossmatchResult || 'PENDING',
+        selectedInventoryUnit: crossmatch?.selectedUnit?.unitCode || null,
+        selectedUnitBloodGroup: crossmatch?.selectedUnit?.donorBloodGroup || null,
+        isAuthorized:
+          crossmatch?.status === 'RESERVED' ||
+          crossmatch?.status === 'AUTHORIZED_COMPATIBLE' ||
+          crossmatch?.status === 'ISSUED',
+      },
+      // 4. Patient Blood Issue
+      bloodIssue: {
+        bloodIssueId: bloodIssue?._id || null,
+        issueCode: bloodIssue?.issueCode || null,
+        status: bloodIssue?.status || 'NOT_ISSUED',
+        issuedAt: bloodIssue?.issuedAt || null,
+        issuedUnits: bloodIssue?.issuedUnits || [],
+      },
+      // 5. Applicable Charges / Payment
+      payment: {
+        invoiceId: invoice?._id || null,
+        invoiceNumber: invoice?.invoiceNumber || null,
+        status: invoice?.status || 'NOT_INVOICED',
+        subtotal: invoice?.subtotal || 0,
+        waiverTotal: invoice?.waiverAmount || 0,
+        paidAmount: invoice?.collectedAmount || 0,
+        balanceDue: invoice?.outstandingAmount || 0,
+      },
+      separationNotice:
+        'CLINICAL SEPARATION: The relative donation is independently collected, tested, and released to inventory. Patient blood issue is strictly fulfilled from compatible inventory after verified crossmatching and supervisor authorization.',
+      timeline: tracking.timeline,
+    };
   }
 
   /**

@@ -118,6 +118,19 @@ export class ReplacementDonationsController {
   }
 
   /**
+   * Get complete 5-stage traced workflow summary for replacement case.
+   * GET /api/replacement-donations/:id/workflow
+   */
+  @Get(':id/workflow')
+  async getWorkflowTrace(@Param('id') id: string) {
+    const trace = await this.replacementService.getWorkflowTrace(id);
+    return {
+      statusCode: HttpStatus.OK,
+      data: trace,
+    };
+  }
+
+  /**
    * Associate or change donor on an existing tracking case.
    * PATCH /api/replacement-donations/:id/donor
    */

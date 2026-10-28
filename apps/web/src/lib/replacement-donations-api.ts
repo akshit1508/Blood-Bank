@@ -47,6 +47,19 @@ export interface ReplacementDonation {
   donationCode?: string;
   bloodUnitId?: string;
   unitCode?: string;
+  crossmatchId?: string;
+  crossmatchStatus?: string;
+  issuedBloodUnitId?: string;
+  issuedUnitCode?: string;
+  bloodIssueId?: string;
+  issueCode?: string;
+  invoiceId?: string;
+  invoiceNumber?: string;
+  paymentStatus?: string;
+  invoiceTotalAmount?: number;
+  invoiceWaiverAmount?: number;
+  invoicePaidAmount?: number;
+  invoiceBalanceDue?: number;
   status: ReplacementTrackingStatus;
   notes?: string;
   cancellationReason?: string;
@@ -365,6 +378,89 @@ export async function updateReplacementNotes(
   const body = await res.json();
   if (!res.ok) {
     throw new Error(body.message || 'Failed to update notes');
+  }
+  return body.data;
+}
+
+export interface ReplacementWorkflowTrace {
+  trackingCode: string;
+  createdAt?: string;
+  status: ReplacementTrackingStatus;
+  relativeDonation: {
+    donorId?: string;
+    donorCode?: string;
+    donorName?: string;
+    donorBloodGroup?: string;
+    relationshipToPatient?: ReplacementDonorRelationship;
+    donationId?: string;
+    donationCode?: string;
+    donationStatus: string;
+    bloodUnitId?: string;
+    unitCode?: string;
+    unitStatus: string;
+    isReleasedToInventory: boolean;
+  };
+  patientRequest: {
+    bloodRequestId?: string;
+    requestCode?: string;
+    patientName?: string;
+    patientBloodGroup?: string;
+    requestedComponent: string;
+    unitsRequested: number;
+    requestStatus: string;
+  };
+  crossmatching: {
+    crossmatchId?: string;
+    crossmatchCode?: string;
+    status: string;
+    compatibilityResult: string;
+    selectedInventoryUnit?: string;
+    selectedUnitBloodGroup?: string;
+    isAuthorized: boolean;
+  };
+  bloodIssue: {
+    bloodIssueId?: string;
+    issueCode?: string;
+    status: string;
+    issuedAt?: string;
+    issuedUnits: Array<{
+      bloodUnitId?: string;
+      unitCode?: string;
+      bloodGroup?: string;
+      componentType?: string;
+      volume?: number;
+      status?: string;
+    }>;
+  };
+  payment: {
+    invoiceId?: string;
+    invoiceNumber?: string;
+    status: string;
+    subtotal: number;
+    waiverTotal: number;
+    paidAmount: number;
+    balanceDue: number;
+  };
+  separationNotice: string;
+  timeline: ReplacementTimelineEvent[];
+}
+
+/**
+ * Fetch 5-stage complete replacement-to-blood-issue workflow trace.
+ */
+export async function fetchReplacementWorkflowTrace(
+  id: string,
+): Promise<ReplacementWorkflowTrace> {
+  const res = await fetch(`${API_BASE_URL}/replacement-donations/${id}/workflow`, {
+    headers: {
+      Accept: 'application/json',
+      ...getAuthHeaders(),
+    },
+  });
+
+  const body = await res.json();
+  if (!res.ok) {
+    throw new Error(body.message || 'Failed to fetch replacement workflow trace');
   }
   return body.data;
 }

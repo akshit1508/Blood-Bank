@@ -438,6 +438,8 @@ export default function ReplacementDonationsPage() {
                   <th style={{ padding: '12px 16px', fontWeight: '600' }}>Associated Donor</th>
                   <th style={{ padding: '12px 16px', fontWeight: '600' }}>Donation & Unit</th>
                   <th style={{ padding: '12px 16px', fontWeight: '600' }}>Tracking Status</th>
+                  <th style={{ padding: '12px 16px', fontWeight: '600' }}>Patient Blood Issue</th>
+                  <th style={{ padding: '12px 16px', fontWeight: '600' }}>Billing / Invoice</th>
                   <th style={{ padding: '12px 16px', fontWeight: '600' }}>Created</th>
                   <th style={{ padding: '12px 16px', fontWeight: '600', textAlign: 'right' }}>Actions</th>
                 </tr>
@@ -565,6 +567,44 @@ export default function ReplacementDonationsPage() {
                         >
                           {statusInfo.label}
                         </span>
+                      </td>
+                      <td style={{ padding: '14px 16px' }}>
+                        {c.issueCode ? (
+                          <div>
+                            <div style={{ fontFamily: 'monospace', color: '#166534', fontWeight: '600' }}>
+                              {c.issueCode}
+                            </div>
+                            <div style={{ fontSize: '11px', color: '#475569' }}>
+                              Unit: <span style={{ fontFamily: 'monospace', fontWeight: '600' }}>{c.issuedUnitCode || 'N/A'}</span>
+                            </div>
+                          </div>
+                        ) : c.crossmatchStatus ? (
+                          <span style={{ fontSize: '12px', color: '#d97706', fontWeight: '500' }}>
+                            Crossmatch: {c.crossmatchStatus}
+                          </span>
+                        ) : (
+                          <span style={{ fontSize: '12px', color: '#94a3b8' }}>Awaiting Issue</span>
+                        )}
+                      </td>
+                      <td style={{ padding: '14px 16px' }}>
+                        {c.invoiceNumber ? (
+                          <div>
+                            <div style={{ fontFamily: 'monospace', color: '#0f172a', fontWeight: '600' }}>
+                              {c.invoiceNumber}
+                            </div>
+                            <span
+                              style={{
+                                fontSize: '11px',
+                                fontWeight: '600',
+                                color: c.paymentStatus === 'PAID' ? '#166534' : '#b45309',
+                              }}
+                            >
+                              {c.paymentStatus}
+                            </span>
+                          </div>
+                        ) : (
+                          <span style={{ fontSize: '12px', color: '#94a3b8' }}>Not Invoiced</span>
+                        )}
                       </td>
                       <td style={{ padding: '14px 16px', color: '#64748b', fontSize: '12px' }}>
                         {new Date(c.createdAt).toLocaleDateString()}

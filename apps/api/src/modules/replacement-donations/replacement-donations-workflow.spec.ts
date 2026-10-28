@@ -20,6 +20,9 @@ describe('Replacement Donation Tracking End-to-End Workflow & Integrity Suite', 
   let donationsStore: any[] = [];
   let bloodUnitsStore: any[] = [];
   let inventoryStore: any[] = [];
+  let crossmatchStore: any[] = [];
+  let bloodIssuesStore: any[] = [];
+  let invoicesStore: any[] = [];
   let auditLogsStore: any[] = [];
 
   const staffAdmin = {
@@ -48,7 +51,7 @@ describe('Replacement Donation Tracking End-to-End Workflow & Integrity Suite', 
     };
 
     ModelClass.findById = jest.fn().mockImplementation(async (id: any) => {
-      const item = store.find((x) => x._id.toString() === id.toString());
+      const item = store.find((x) => x._id?.toString() === id?.toString());
       if (!item) return null;
       return {
         ...item,
@@ -60,48 +63,79 @@ describe('Replacement Donation Tracking End-to-End Workflow & Integrity Suite', 
       };
     });
 
-    ModelClass.findOne = jest.fn().mockImplementation(async (query: any) => {
-      const item = store.find((x) => {
-        for (const k of Object.keys(query)) {
-          if (k === 'status' && query.status?.$in) {
-            if (!query.status.$in.includes(x.status)) return false;
-          } else if (k === 'bloodRequestId') {
-            if (x.bloodRequestId?.toString() !== query[k]?.toString()) return false;
-          } else if (k === 'donorId') {
-            if (x.donorId?.toString() !== query[k]?.toString()) return false;
-          } else if (k === 'bloodUnitId') {
-            if (x.bloodUnitId?.toString() !== query[k]?.toString()) return false;
-          } else if (k === 'donationId') {
-            if (x.donationId?.toString() !== query[k]?.toString()) return false;
-          } else if (k === 'donorCode') {
-            if (x.donorCode !== query[k]) return false;
-          } else if (x[k] !== query[k]) {
-            return false;
+    ModelClass.findOne = jest.fn().mockImplementation((query: any) => {
+      const execFn = async () => {
+        const item = store.find((x) => {
+          for (const k of Object.keys(query)) {
+            if (k === 'status' && query.status?.$in) {
+              if (!query.status.$in.includes(x.status)) return false;
+            } else if (k === 'bloodRequestId') {
+              if (x.bloodRequestId?.toString() !== query[k]?.toString()) return false;
+            } else if (k === 'donorId') {
+              if (x.donorId?.toString() !== query[k]?.toString()) return false;
+            } else if (k === 'bloodUnitId') {
+              if (x.bloodUnitId?.toString() !== query[k]?.toString()) return false;
+            } else if (k === 'donationId') {
+              if (x.donationId?.toString() !== query[k]?.toString()) return false;
+            } else if (k === 'donorCode') {
+              if (x.donorCode !== query[k]) return false;
+            } else if (x[k] !== query[k]) {
+              return false;
+            }
           }
-        }
-        return true;
-      });
-      if (!item) return null;
+          return true;
+        });
+        if (!item) return null;
+        return {
+          ...item,
+          save: jest.fn().mockImplementation(async function () {
+            const idx = store.findIndex((x) => x._id.toString() === this._id.toString());
+            if (idx >= 0) store[idx] = { ...this };
+            return this;
+          }),
+        };
+      };
+
       return {
-        ...item,
-        save: jest.fn().mockImplementation(async function () {
-          const idx = store.findIndex((x) => x._id.toString() === this._id.toString());
-          if (idx >= 0) store[idx] = { ...this };
-          return this;
-        }),
+        sort: jest.fn().mockReturnThis(),
+        limit: jest.fn().mockReturnThis(),
+        exec: jest.fn().mockImplementation(execFn),
+        then: (resolve: any, reject: any) => execFn().then(resolve, reject),
       };
     });
 
-    ModelClass.find = jest.fn().mockImplementation(() => ({
-      sort: jest.fn().mockReturnValue({
-        skip: jest.fn().mockReturnValue({
-          limit: jest.fn().mockReturnValue({
-            exec: jest.fn().mockImplementation(async () => store),
+    ModelClass.find = jest.fn().mockImplementation((query?: any) => {
+      const execFn = async () => {
+        if (!query) return store;
+        return store.filter((x) => {
+          for (const k of Object.keys(query)) {
+            if (k === 'status' && query.status?.$ne) {
+              if (x.status === query.status.$ne) return false;
+            } else if (k === 'status' && query.status?.$in) {
+              if (!query.status.$in.includes(x.status)) return false;
+            } else if (k === 'bloodRequestId') {
+              if (x.bloodRequestId?.toString() !== query[k]?.toString()) return false;
+            } else if (k === 'donorId') {
+              if (x.donorId?.toString() !== query[k]?.toString()) return false;
+            } else if (x[k] !== query[k]) {
+              return false;
+            }
+          }
+          return true;
+        });
+      };
+      return {
+        sort: jest.fn().mockReturnValue({
+          skip: jest.fn().mockReturnValue({
+            limit: jest.fn().mockReturnValue({
+              exec: jest.fn().mockImplementation(execFn),
+            }),
           }),
+          exec: jest.fn().mockImplementation(execFn),
         }),
-        exec: jest.fn().mockImplementation(async () => store),
-      }),
-    }));
+        exec: jest.fn().mockImplementation(execFn),
+      };
+    });
 
     ModelClass.countDocuments = jest.fn().mockImplementation((query?: any) => ({
       exec: jest.fn().mockImplementation(async () => {
@@ -132,6 +166,9 @@ describe('Replacement Donation Tracking End-to-End Workflow & Integrity Suite', 
   const mockDonationModel = createMockModel(donationsStore);
   const mockBloodUnitModel = createMockModel(bloodUnitsStore);
   const mockInventoryModel = createMockModel(inventoryStore);
+  const mockCrossmatchModel = createMockModel(crossmatchStore);
+  const mockBloodIssueModel = createMockModel(bloodIssuesStore);
+  const mockInvoiceModel = createMockModel(invoicesStore);
 
   const mockDonorsService = {
     create: jest.fn().mockImplementation(async (dto: any) => {
@@ -163,6 +200,9 @@ describe('Replacement Donation Tracking End-to-End Workflow & Integrity Suite', 
     donationsStore.length = 0;
     bloodUnitsStore.length = 0;
     inventoryStore.length = 0;
+    crossmatchStore.length = 0;
+    bloodIssuesStore.length = 0;
+    invoicesStore.length = 0;
     auditLogsStore.length = 0;
 
     service = new ReplacementDonationsService(
@@ -172,6 +212,9 @@ describe('Replacement Donation Tracking End-to-End Workflow & Integrity Suite', 
       mockDonationModel as any,
       mockBloodUnitModel as any,
       mockInventoryModel as any,
+      mockCrossmatchModel as any,
+      mockBloodIssueModel as any,
+      mockInvoiceModel as any,
       mockDonorsService as any,
       mockAuditLogsService as any,
     );
@@ -325,5 +368,355 @@ describe('Replacement Donation Tracking End-to-End Workflow & Integrity Suite', 
     expect(freshRequest.bloodGroup).toBe('O_POSITIVE');
     expect((freshRequest as any).reservationId).toBeUndefined();
     expect((freshRequest as any).issuedUnits).toBeUndefined();
+  });
+
+  it('completes the 5-stage replacement-to-blood-issue workflow with clinical separation (relative B+ donor, patient A+ recipient)', async () => {
+    // Stage 1 & 2: Patient requires A+ PRBC, Relative donates B+ blood
+    const patientRequest = {
+      _id: new Types.ObjectId(),
+      requestCode: 'REQ-20261028-APOS',
+      patient: { name: 'Kavita Verma', age: 29, gender: 'FEMALE', phone: '9899001122' },
+      bloodGroup: 'A_POSITIVE',
+      unitsRequested: 1,
+      status: BloodRequestStatus.APPROVED,
+    };
+    bloodRequestsStore.push(patientRequest);
+
+    const relativeDonor = {
+      _id: new Types.ObjectId(),
+      donorCode: 'DON-20261028-RELB',
+      fullName: 'Ramesh Verma',
+      bloodGroup: 'B_POSITIVE',
+      phone: '9899001133',
+      deferralStatus: 'NONE',
+    };
+    donorsStore.push(relativeDonor);
+
+    // 1. Create tracking case
+    const tracking = await service.createTrackingCase(
+      {
+        bloodRequestId: patientRequest._id.toString(),
+        donorId: relativeDonor._id.toString(),
+        relationshipToPatient: ReplacementDonorRelationship.FAMILY,
+        notes: 'Husband Ramesh donating replacement blood (B+)',
+      },
+      staffAdmin,
+    );
+    expect(tracking.status).toBe(ReplacementTrackingStatus.DONOR_ASSOCIATED);
+    expect(tracking.donorBloodGroup).toBe('B_POSITIVE');
+    expect(tracking.patientBloodGroup).toBe('A_POSITIVE');
+
+    // 2. Relative completes donation
+    const relativeDonation = {
+      _id: new Types.ObjectId(),
+      donationCode: 'DONATION-REL-B01',
+      donorId: relativeDonor._id,
+      donationDate: new Date(),
+      status: 'COMPLETED',
+      quantity: 1,
+    };
+    donationsStore.push(relativeDonation);
+
+    const relativeUnit = {
+      _id: new Types.ObjectId(),
+      unitCode: 'UNIT-B-POS-888',
+      donationId: relativeDonation._id,
+      donorId: relativeDonor._id,
+      bloodGroup: 'B_POSITIVE',
+      status: BloodUnitStatus.APPROVED,
+    };
+    bloodUnitsStore.push(relativeUnit);
+
+    // Link donation to tracking case
+    await service.linkDonation(
+      (tracking as any)._id.toString(),
+      { donationId: relativeDonation._id.toString() },
+      staffAdmin,
+    );
+
+    // 3. Inventory release of relative's B+ unit
+    inventoryStore.push({
+      _id: new Types.ObjectId(),
+      bloodUnitId: relativeUnit._id,
+      unitCode: relativeUnit.unitCode,
+      bloodGroup: 'B_POSITIVE',
+      status: InventoryStatus.AVAILABLE,
+    });
+
+    // 4. Patient clinical crossmatch for an A+ unit from inventory
+    const patientCrossmatchedUnit = {
+      _id: new Types.ObjectId(),
+      unitCode: 'UNIT-A-POS-999',
+      bloodGroup: 'A_POSITIVE',
+      status: BloodUnitStatus.APPROVED,
+    };
+    bloodUnitsStore.push(patientCrossmatchedUnit);
+
+    const crossmatchRecord = {
+      _id: new Types.ObjectId(),
+      bloodRequestId: patientRequest._id,
+      patientBloodGroup: 'A_POSITIVE',
+      selectedUnit: {
+        bloodUnitId: patientCrossmatchedUnit._id,
+        unitCode: patientCrossmatchedUnit.unitCode,
+        donorBloodGroup: 'A_POSITIVE',
+      },
+      status: 'COMPATIBLE',
+      createdAt: new Date(),
+    };
+    crossmatchStore.push(crossmatchRecord);
+
+    // 5. Patient Blood Issue from inventory
+    const bloodIssueRecord = {
+      _id: new Types.ObjectId(),
+      bloodRequestId: patientRequest._id,
+      issueCode: 'ISSUE-20261028-001',
+      issuedUnits: [
+        {
+          bloodUnitId: patientCrossmatchedUnit._id,
+          unitCode: patientCrossmatchedUnit.unitCode,
+          bloodGroup: 'A_POSITIVE',
+          status: 'ISSUED',
+        },
+      ],
+      createdAt: new Date(),
+    };
+    bloodIssuesStore.push(bloodIssueRecord);
+
+    // 6. Patient Billing Invoice
+    const invoiceRecord = {
+      _id: new Types.ObjectId(),
+      bloodRequestId: patientRequest._id,
+      invoiceNumber: 'INV-20261028-001',
+      status: 'PAID',
+      subtotal: 1500,
+      waiverAmount: 300,
+      collectedAmount: 1200,
+      outstandingAmount: 0,
+      createdAt: new Date(),
+    };
+    invoicesStore.push(invoiceRecord);
+
+    // 7. Synchronize tracking and fetch 5-stage trace
+    await service.syncStatus((tracking as any)._id.toString(), staffAdmin);
+    const trace = await service.getWorkflowTrace((tracking as any)._id.toString());
+
+    // Verify Stage 1: Relative Donation
+    expect(trace.relativeDonation.donorBloodGroup).toBe('B_POSITIVE');
+    expect(trace.relativeDonation.unitCode).toBe('UNIT-B-POS-888');
+    expect(trace.relativeDonation.isReleasedToInventory).toBe(true);
+
+    // Verify Stage 2: Patient & Request
+    expect(trace.patientRequest.patientBloodGroup).toBe('A_POSITIVE');
+    expect(trace.patientRequest.requestCode).toBe('REQ-20261028-APOS');
+
+    // Verify Stage 3: Crossmatching
+    expect(trace.crossmatching.status).toBe('COMPATIBLE');
+    expect(trace.crossmatching.selectedInventoryUnit).toBe('UNIT-A-POS-999');
+
+    // Verify Stage 4: Blood Issue
+    expect(trace.bloodIssue.issueCode).toBe('ISSUE-20261028-001');
+    expect(trace.bloodIssue.issuedUnits.length).toBe(1);
+    expect(trace.bloodIssue.issuedUnits[0].unitCode).toBe('UNIT-A-POS-999');
+
+    // Verify Stage 5: Billing & Payments
+    expect(trace.payment.invoiceNumber).toBe('INV-20261028-001');
+    expect(trace.payment.status).toBe('PAID');
+    expect(trace.payment.subtotal).toBe(1500);
+    expect(trace.payment.waiverTotal).toBe(300);
+    expect(trace.payment.paidAmount).toBe(1200);
+    expect(trace.payment.balanceDue).toBe(0);
+
+    // Verify Clinical Separation Guarantee
+    expect(trace.separationNotice).toContain('CLINICAL SEPARATION');
+    expect(trace.relativeDonation.unitCode).not.toBe(trace.bloodIssue.issuedUnits[0].unitCode);
+    expect(trace.relativeDonation.donorBloodGroup).toBe('B_POSITIVE');
+    expect(trace.patientRequest.patientBloodGroup).toBe('A_POSITIVE');
+  });
+
+  it('guarantees 1-to-1 explicit linkage for multiple replacement cases and prevents indiscriminate unit assignment', async () => {
+    // Patient request needing 2 units
+    const requestDoc = {
+      _id: new Types.ObjectId(),
+      requestCode: 'REQ-MULTI-2026',
+      patient: { name: 'Deepak Patel', age: 50, gender: 'MALE', phone: '9822334455' },
+      bloodGroup: 'B_POSITIVE',
+      unitsRequested: 2,
+      status: BloodRequestStatus.APPROVED,
+    };
+    bloodRequestsStore.push(requestDoc);
+
+    // Donor 1 (Relative 1)
+    const donor1 = {
+      _id: new Types.ObjectId(),
+      donorCode: 'DON-REL-1',
+      fullName: 'Sanjay Patel',
+      bloodGroup: 'O_POSITIVE',
+      phone: '9822334466',
+      deferralStatus: 'NONE',
+    };
+    donorsStore.push(donor1);
+
+    // Donor 2 (Relative 2)
+    const donor2 = {
+      _id: new Types.ObjectId(),
+      donorCode: 'DON-REL-2',
+      fullName: 'Anita Patel',
+      bloodGroup: 'AB_POSITIVE',
+      phone: '9822334477',
+      deferralStatus: 'NONE',
+    };
+    donorsStore.push(donor2);
+
+    // Create 2 replacement cases for the same Blood Request
+    const case1 = await service.createTrackingCase(
+      {
+        bloodRequestId: requestDoc._id.toString(),
+        donorId: donor1._id.toString(),
+        relationshipToPatient: ReplacementDonorRelationship.FAMILY,
+        notes: 'First relative donating',
+      },
+      staffAdmin,
+    );
+
+    const case2 = await service.createTrackingCase(
+      {
+        bloodRequestId: requestDoc._id.toString(),
+        donorId: donor2._id.toString(),
+        relationshipToPatient: ReplacementDonorRelationship.FAMILY,
+        notes: 'Second relative donating',
+      },
+      staffAdmin,
+    );
+
+    expect(case1.issuedBloodUnitId).toBeUndefined();
+    expect(case2.issuedBloodUnitId).toBeUndefined();
+
+    // 1. First blood unit issued for the patient (Unit #1)
+    const issuedUnit1 = {
+      bloodUnitId: new Types.ObjectId(),
+      unitCode: 'PATIENT-UNIT-01',
+      bloodGroup: 'B_POSITIVE',
+      componentType: 'WHOLE_BLOOD',
+      status: 'ISSUED',
+    };
+
+    const firstIssueRecord = {
+      _id: new Types.ObjectId(),
+      bloodRequestId: requestDoc._id,
+      issueCode: 'ISSUE-MULTI-01',
+      issuedUnits: [issuedUnit1],
+      createdAt: new Date('2026-10-28T10:00:00Z'),
+    };
+    bloodIssuesStore.push(firstIssueRecord);
+
+    // Sync Case 1 and Case 2
+    const syncedCase1 = await service.syncStatus((case1 as any)._id.toString(), staffAdmin);
+    const syncedCase2 = await service.syncStatus((case2 as any)._id.toString(), staffAdmin);
+
+    // Case 1 gets linked to Unit 1
+    expect(syncedCase1.issuedUnitCode).toBe('PATIENT-UNIT-01');
+    expect(syncedCase1.bloodIssueId?.toString()).toBe(firstIssueRecord._id.toString());
+
+    // Case 2 MUST NOT be linked to Unit 1 (prevents indiscriminate assignment)
+    expect(syncedCase2.issuedUnitCode).toBeUndefined();
+    expect(syncedCase2.issuedBloodUnitId).toBeUndefined();
+
+    // 2. Second blood unit issued for the patient (Unit #2)
+    const issuedUnit2 = {
+      bloodUnitId: new Types.ObjectId(),
+      unitCode: 'PATIENT-UNIT-02',
+      bloodGroup: 'B_POSITIVE',
+      componentType: 'WHOLE_BLOOD',
+      status: 'ISSUED',
+    };
+
+    const secondIssueRecord = {
+      _id: new Types.ObjectId(),
+      bloodRequestId: requestDoc._id,
+      issueCode: 'ISSUE-MULTI-02',
+      issuedUnits: [issuedUnit2],
+      createdAt: new Date('2026-10-28T11:00:00Z'),
+    };
+    bloodIssuesStore.push(secondIssueRecord);
+
+    // Re-sync both cases
+    const reSyncedCase1 = await service.syncStatus((case1 as any)._id.toString(), staffAdmin);
+    const reSyncedCase2 = await service.syncStatus((case2 as any)._id.toString(), staffAdmin);
+
+    // Case 1 retains its original Unit 1
+    expect(reSyncedCase1.issuedUnitCode).toBe('PATIENT-UNIT-01');
+    expect(reSyncedCase1.issueCode).toBe('ISSUE-MULTI-01');
+
+    // Case 2 now receives the second unclaimed Unit 2
+    expect(reSyncedCase2.issuedUnitCode).toBe('PATIENT-UNIT-02');
+    expect(reSyncedCase2.issueCode).toBe('ISSUE-MULTI-02');
+
+    // STRICT MULTI-CASE GUARANTEE: The two cases have distinct issued units!
+    expect(reSyncedCase1.issuedUnitCode).not.toBe(reSyncedCase2.issuedUnitCode);
+  });
+
+  it('strictly isolates replacement tracking cases from issues of other blood requests', async () => {
+    // Request A & Request B
+    const reqA = {
+      _id: new Types.ObjectId(),
+      requestCode: 'REQ-ISOLATION-A',
+      patient: { name: 'Patient A', age: 30, gender: 'MALE', phone: '9811000001' },
+      bloodGroup: 'A_POSITIVE',
+      status: BloodRequestStatus.APPROVED,
+    };
+    const reqB = {
+      _id: new Types.ObjectId(),
+      requestCode: 'REQ-ISOLATION-B',
+      patient: { name: 'Patient B', age: 35, gender: 'FEMALE', phone: '9811000002' },
+      bloodGroup: 'B_POSITIVE',
+      status: BloodRequestStatus.APPROVED,
+    };
+    bloodRequestsStore.push(reqA, reqB);
+
+    const donorA = {
+      _id: new Types.ObjectId(),
+      donorCode: 'DON-A',
+      fullName: 'Donor For A',
+      bloodGroup: 'O_POSITIVE',
+      deferralStatus: 'NONE',
+    };
+    donorsStore.push(donorA);
+
+    const trackingCaseA = await service.createTrackingCase(
+      {
+        bloodRequestId: reqA._id.toString(),
+        donorId: donorA._id.toString(),
+        relationshipToPatient: ReplacementDonorRelationship.FAMILY,
+      },
+      staffAdmin,
+    );
+
+    // An issue occurs ONLY for Request B
+    const issueForB = {
+      _id: new Types.ObjectId(),
+      bloodRequestId: reqB._id,
+      issueCode: 'ISSUE-FOR-B-ONLY',
+      issuedUnits: [
+        {
+          bloodUnitId: new Types.ObjectId(),
+          unitCode: 'UNIT-B-ONLY',
+          bloodGroup: 'B_POSITIVE',
+          componentType: 'WHOLE_BLOOD',
+          status: 'ISSUED',
+        },
+      ],
+      createdAt: new Date(),
+    };
+    bloodIssuesStore.push(issueForB);
+
+    // Sync tracking for Request A
+    const syncedA = await service.syncStatus((trackingCaseA as any)._id.toString(), staffAdmin);
+
+    // Request A's tracking case MUST NOT associate with Request B's issue
+    expect(syncedA.bloodIssueId).toBeUndefined();
+    expect(syncedA.issueCode).toBeUndefined();
+    expect(syncedA.issuedBloodUnitId).toBeUndefined();
+    expect(syncedA.issuedUnitCode).toBeUndefined();
   });
 });

@@ -183,6 +183,17 @@ export default function BillingDeskContent({ portalRole }: BillingDeskContentPro
     loadUnbilled();
   }, [loadSummary, loadUnbilled]);
 
+  // Read URL search parameter if present
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const q = params.get('search');
+    if (q) {
+      setSearchTerm(q);
+      setActiveTab('invoices');
+    }
+  }, []);
+
   useEffect(() => {
     if (activeTab === 'invoices') {
       loadInvoices();

@@ -21,6 +21,9 @@ import { BloodUnit } from '../blood-units/schemas/blood-unit.schema';
 import { BloodUnitStatus } from '../blood-units/constants/blood-unit.constants';
 import { Inventory } from '../inventory/schemas/inventory.schema';
 import { InventoryStatus } from '../inventory/constants/inventory.constants';
+import { CrossmatchRecord } from '../crossmatching/schemas/crossmatch-record.schema';
+import { BloodIssue } from '../blood-issues/schemas/blood-issue.schema';
+import { BloodIssueInvoice } from '../billing/schemas/blood-issue-invoice.schema';
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
 
 describe('ReplacementDonationsService', () => {
@@ -101,6 +104,36 @@ describe('ReplacementDonationsService', () => {
     findOne: jest.fn(),
   };
 
+  const mockCrossmatchModel = {
+    findOne: jest.fn().mockReturnValue({
+      sort: jest.fn().mockReturnValue({
+        exec: jest.fn().mockResolvedValue(null),
+      }),
+    }),
+  };
+
+  const mockBloodIssueModel = {
+    find: jest.fn().mockReturnValue({
+      sort: jest.fn().mockReturnValue({
+        exec: jest.fn().mockResolvedValue([]),
+      }),
+    }),
+    findOne: jest.fn().mockReturnValue({
+      sort: jest.fn().mockReturnValue({
+        exec: jest.fn().mockResolvedValue(null),
+      }),
+    }),
+    findById: jest.fn().mockResolvedValue(null),
+  };
+
+  const mockInvoiceModel = {
+    findOne: jest.fn().mockReturnValue({
+      sort: jest.fn().mockReturnValue({
+        exec: jest.fn().mockResolvedValue(null),
+      }),
+    }),
+  };
+
   const mockDonorsService = {
     create: jest.fn(),
   };
@@ -138,6 +171,18 @@ describe('ReplacementDonationsService', () => {
         {
           provide: getModelToken(Inventory.name),
           useValue: mockInventoryModel,
+        },
+        {
+          provide: getModelToken(CrossmatchRecord.name),
+          useValue: mockCrossmatchModel,
+        },
+        {
+          provide: getModelToken(BloodIssue.name),
+          useValue: mockBloodIssueModel,
+        },
+        {
+          provide: getModelToken(BloodIssueInvoice.name),
+          useValue: mockInvoiceModel,
         },
         {
           provide: DonorsService,

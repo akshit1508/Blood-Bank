@@ -114,6 +114,68 @@ export class ReplacementDonation {
   @Prop({ type: String, default: null, index: true })
   unitCode?: string;
 
+  // --- Patient Blood Issue & Fulfillment Linkage ---
+  @Prop({
+    type: Types.ObjectId,
+    ref: 'BloodUnit',
+    default: null,
+    index: true,
+  })
+  issuedBloodUnitId?: Types.ObjectId;
+
+  @Prop({ type: String, default: null, index: true })
+  issuedUnitCode?: string;
+
+  @Prop({
+    type: Types.ObjectId,
+    ref: 'BloodIssue',
+    default: null,
+    index: true,
+  })
+  bloodIssueId?: Types.ObjectId;
+
+  @Prop({ type: String, default: null, index: true })
+  issueCode?: string;
+
+  // --- Patient Crossmatching Status Linkage ---
+  @Prop({
+    type: Types.ObjectId,
+    ref: 'CrossmatchRecord',
+    default: null,
+    index: true,
+  })
+  crossmatchId?: Types.ObjectId;
+
+  @Prop({ type: String, default: null })
+  crossmatchStatus?: string;
+
+  // --- Applicable Patient Billing & Payment Linkage ---
+  @Prop({
+    type: Types.ObjectId,
+    ref: 'BloodIssueInvoice',
+    default: null,
+    index: true,
+  })
+  invoiceId?: Types.ObjectId;
+
+  @Prop({ type: String, default: null, index: true })
+  invoiceNumber?: string;
+
+  @Prop({ type: String, default: null })
+  paymentStatus?: string;
+
+  @Prop({ type: Number, default: 0 })
+  invoiceTotalAmount?: number;
+
+  @Prop({ type: Number, default: 0 })
+  invoiceWaiverAmount?: number;
+
+  @Prop({ type: Number, default: 0 })
+  invoicePaidAmount?: number;
+
+  @Prop({ type: Number, default: 0 })
+  invoiceBalanceDue?: number;
+
   @Prop({
     type: String,
     enum: Object.values(ReplacementTrackingStatus),

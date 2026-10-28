@@ -164,6 +164,16 @@ export default function CrossmatchingQueuePage() {
     loadMetrics();
   }, [loadMetrics]);
 
+  // Read URL search parameter if present
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const q = params.get('search');
+    if (q) {
+      setSearch(q);
+    }
+  }, []);
+
   return (
     <div style={{ padding: '0.5rem 0 3rem 0', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
       {/* Page Header */}
