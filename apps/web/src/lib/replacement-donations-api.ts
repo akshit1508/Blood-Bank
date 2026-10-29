@@ -398,6 +398,8 @@ export interface ReplacementWorkflowTrace {
     bloodUnitId?: string;
     unitCode?: string;
     unitStatus: string;
+    testingStatus?: string;
+    testingDecision?: string;
     isReleasedToInventory: boolean;
   };
   patientRequest: {

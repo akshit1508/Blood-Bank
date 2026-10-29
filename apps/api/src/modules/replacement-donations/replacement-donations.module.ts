@@ -30,6 +30,10 @@ import {
   BloodIssueInvoice,
   BloodIssueInvoiceSchema,
 } from '../billing/schemas/blood-issue-invoice.schema';
+import {
+  BloodTesting,
+  BloodTestingSchema,
+} from '../testing/schemas/blood-testing.schema';
 import { DonorsModule } from '../donors/donors.module';
 import { AuditLogsModule } from '../audit-logs/audit-logs.module';
 import { ReplacementDonationsService } from './replacement-donations.service';
@@ -47,6 +51,7 @@ import { ReplacementDonationsController } from './replacement-donations.controll
       { name: CrossmatchRecord.name, schema: CrossmatchRecordSchema },
       { name: BloodIssue.name, schema: BloodIssueSchema },
       { name: BloodIssueInvoice.name, schema: BloodIssueInvoiceSchema },
+      { name: BloodTesting.name, schema: BloodTestingSchema },
     ]),
     DonorsModule,
     AuditLogsModule,

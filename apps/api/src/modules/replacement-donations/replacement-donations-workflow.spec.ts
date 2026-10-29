@@ -23,6 +23,7 @@ describe('Replacement Donation Tracking End-to-End Workflow & Integrity Suite', 
   let crossmatchStore: any[] = [];
   let bloodIssuesStore: any[] = [];
   let invoicesStore: any[] = [];
+  let bloodTestingStore: any[] = [];
   let auditLogsStore: any[] = [];
 
   const staffAdmin = {
@@ -169,6 +170,7 @@ describe('Replacement Donation Tracking End-to-End Workflow & Integrity Suite', 
   const mockCrossmatchModel = createMockModel(crossmatchStore);
   const mockBloodIssueModel = createMockModel(bloodIssuesStore);
   const mockInvoiceModel = createMockModel(invoicesStore);
+  const mockBloodTestingModel = createMockModel(bloodTestingStore);
 
   const mockDonorsService = {
     create: jest.fn().mockImplementation(async (dto: any) => {
@@ -203,6 +205,7 @@ describe('Replacement Donation Tracking End-to-End Workflow & Integrity Suite', 
     crossmatchStore.length = 0;
     bloodIssuesStore.length = 0;
     invoicesStore.length = 0;
+    bloodTestingStore.length = 0;
     auditLogsStore.length = 0;
 
     service = new ReplacementDonationsService(
@@ -215,6 +218,7 @@ describe('Replacement Donation Tracking End-to-End Workflow & Integrity Suite', 
       mockCrossmatchModel as any,
       mockBloodIssueModel as any,
       mockInvoiceModel as any,
+      mockBloodTestingModel as any,
       mockDonorsService as any,
       mockAuditLogsService as any,
     );

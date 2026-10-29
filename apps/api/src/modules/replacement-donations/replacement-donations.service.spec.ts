@@ -24,6 +24,7 @@ import { InventoryStatus } from '../inventory/constants/inventory.constants';
 import { CrossmatchRecord } from '../crossmatching/schemas/crossmatch-record.schema';
 import { BloodIssue } from '../blood-issues/schemas/blood-issue.schema';
 import { BloodIssueInvoice } from '../billing/schemas/blood-issue-invoice.schema';
+import { BloodTesting } from '../testing/schemas/blood-testing.schema';
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
 
 describe('ReplacementDonationsService', () => {
@@ -134,6 +135,10 @@ describe('ReplacementDonationsService', () => {
     }),
   };
 
+  const mockBloodTestingModel = {
+    findOne: jest.fn().mockResolvedValue(null),
+  };
+
   const mockDonorsService = {
     create: jest.fn(),
   };
@@ -185,6 +190,10 @@ describe('ReplacementDonationsService', () => {
           useValue: mockInvoiceModel,
         },
         {
+          provide: getModelToken(BloodTesting.name),
+          useValue: mockBloodTestingModel,
+        },
+        {
           provide: DonorsService,
           useValue: mockDonorsService,
         },
@@ -198,6 +207,7 @@ describe('ReplacementDonationsService', () => {
     service = module.get<ReplacementDonationsService>(
       ReplacementDonationsService,
     );
+    MockReplacementModel.findOne.mockResolvedValue(null);
   });
 
   describe('1. Link tracking to an existing Blood Request', () => {
@@ -324,6 +334,32 @@ describe('ReplacementDonationsService', () => {
           donationId: mockDonationId.toString(),
         }),
       ).rejects.toThrow(BadRequestException);
+    });
+
+    it('rejects linking if donation is already linked to another active case', async () => {
+      const mockTracking = {
+        _id: new Types.ObjectId(),
+        donorId: mockDonorId,
+        donorCode: 'DON-1',
+        status: ReplacementTrackingStatus.DONOR_ASSOCIATED,
+        save: jest.fn(),
+      };
+      MockReplacementModel.findById.mockResolvedValue(mockTracking);
+      mockDonationModel.findById.mockResolvedValue({
+        _id: mockDonationId,
+        donationCode: 'DONATION-1',
+        donorId: mockDonorId,
+      });
+      MockReplacementModel.findOne.mockResolvedValue({
+        _id: new Types.ObjectId(),
+        trackingCode: 'REP-EXISTING-99',
+      });
+
+      await expect(
+        service.linkDonation(mockTracking._id.toString(), {
+          donationId: mockDonationId.toString(),
+        }),
+      ).rejects.toThrow('already linked to active replacement case REP-EXISTING-99');
     });
 
     it('sets RELEASED_TO_INVENTORY when donation is COMPLETED, unit is APPROVED, and present in inventory', async () => {

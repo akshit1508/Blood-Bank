@@ -54,6 +54,14 @@ import {
   BloodIssueInvoice,
   BloodIssueInvoiceDocument,
 } from '../billing/schemas/blood-issue-invoice.schema';
+import {
+  BloodTesting,
+  BloodTestingDocument,
+} from '../testing/schemas/blood-testing.schema';
+import {
+  TestingDecision,
+  TestingStatus,
+} from '../testing/constants/testing.constants';
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
 import {
   AuditActionType,
@@ -90,6 +98,8 @@ export class ReplacementDonationsService {
     private readonly bloodIssueModel: Model<BloodIssueDocument>,
     @InjectModel(BloodIssueInvoice.name)
     private readonly invoiceModel: Model<BloodIssueInvoiceDocument>,
+    @InjectModel(BloodTesting.name)
+    private readonly bloodTestingModel: Model<BloodTestingDocument>,
     private readonly donorsService: DonorsService,
     private readonly auditLogsService: AuditLogsService,
   ) {}
@@ -357,6 +367,18 @@ export class ReplacementDonationsService {
       );
     }
 
+    // Prevent duplicate linking across active replacement cases
+    const alreadyLinked = await this.replacementModel.findOne({
+      _id: { $ne: tracking._id },
+      donationId: donation._id,
+      status: { $ne: ReplacementTrackingStatus.CANCELLED },
+    });
+    if (alreadyLinked) {
+      throw new BadRequestException(
+        `Donation ${donation.donationCode} is already linked to active replacement case ${alreadyLinked.trackingCode}`,
+      );
+    }
+
     tracking.donationId = donation._id as Types.ObjectId;
     tracking.donationCode = donation.donationCode;
     if (dto.notes) {
@@ -380,7 +402,15 @@ export class ReplacementDonationsService {
         tracking.bloodUnitId = bloodUnit._id as Types.ObjectId;
         tracking.unitCode = bloodUnit.unitCode;
 
-        if (bloodUnit.status === BloodUnitStatus.APPROVED) {
+        const bloodTesting = await this.bloodTestingModel.findOne({
+          bloodUnitId: bloodUnit._id,
+        });
+
+        const isTestingApproved =
+          bloodUnit.status === BloodUnitStatus.APPROVED ||
+          bloodTesting?.decision === TestingDecision.APPROVED;
+
+        if (isTestingApproved) {
           const inventoryItem = await this.inventoryModel.findOne({
             bloodUnitId: bloodUnit._id,
             status: {
@@ -391,14 +421,17 @@ export class ReplacementDonationsService {
               ],
             },
           });
-          if (inventoryItem) {
+          if (inventoryItem || bloodTesting?.authorizedBy) {
             derivedStatus = ReplacementTrackingStatus.RELEASED_TO_INVENTORY;
             description = `Donation ${donation.donationCode} completed; Unit ${bloodUnit.unitCode} passed testing and released to inventory.`;
           } else {
             derivedStatus = ReplacementTrackingStatus.TESTING_PENDING;
             description = `Donation ${donation.donationCode} completed; Unit ${bloodUnit.unitCode} approved in testing, awaiting formal supervisor release authorization to inventory.`;
           }
-        } else if (bloodUnit.status === BloodUnitStatus.REJECTED) {
+        } else if (
+          bloodUnit.status === BloodUnitStatus.REJECTED ||
+          bloodTesting?.decision === TestingDecision.REJECTED
+        ) {
           derivedStatus = ReplacementTrackingStatus.DONATION_DEFERRED_OR_REJECTED;
           description = `Donation ${donation.donationCode} completed; Unit ${bloodUnit.unitCode} was rejected during testing.`;
         } else {
@@ -619,7 +652,15 @@ export class ReplacementDonationsService {
         tracking.bloodUnitId = bloodUnit._id as Types.ObjectId;
         tracking.unitCode = bloodUnit.unitCode;
 
-        if (bloodUnit.status === BloodUnitStatus.APPROVED) {
+        const bloodTesting = await this.bloodTestingModel.findOne({
+          bloodUnitId: bloodUnit._id,
+        });
+
+        const isTestingApproved =
+          bloodUnit.status === BloodUnitStatus.APPROVED ||
+          bloodTesting?.decision === TestingDecision.APPROVED;
+
+        if (isTestingApproved) {
           const inventoryItem = await this.inventoryModel.findOne({
             bloodUnitId: bloodUnit._id,
             status: {
@@ -630,16 +671,23 @@ export class ReplacementDonationsService {
               ],
             },
           });
-          if (inventoryItem) {
+          if (
+            inventoryItem ||
+            bloodTesting?.authorizedBy ||
+            tracking.status === ReplacementTrackingStatus.RELEASED_TO_INVENTORY
+          ) {
             newStatus = ReplacementTrackingStatus.RELEASED_TO_INVENTORY;
             desc = `Synced: Unit ${bloodUnit.unitCode} passed laboratory testing and is released to inventory.`;
           } else {
             newStatus = ReplacementTrackingStatus.TESTING_PENDING;
             desc = `Synced: Unit ${bloodUnit.unitCode} approved in testing, awaiting formal supervisor release authorization to inventory.`;
           }
-        } else if (bloodUnit.status === BloodUnitStatus.REJECTED) {
+        } else if (
+          bloodUnit.status === BloodUnitStatus.REJECTED ||
+          bloodTesting?.decision === TestingDecision.REJECTED
+        ) {
           newStatus = ReplacementTrackingStatus.DONATION_DEFERRED_OR_REJECTED;
-          desc = `Synced: Unit ${bloodUnit.unitCode} was rejected during testing.`;
+          desc = `Synced: Unit ${bloodUnit.unitCode} was rejected during laboratory testing.`;
         } else {
           newStatus = ReplacementTrackingStatus.TESTING_PENDING;
           desc = `Synced: Unit ${bloodUnit.unitCode} laboratory testing in progress (${bloodUnit.status}).`;
@@ -902,6 +950,41 @@ export class ReplacementDonationsService {
           .exec(),
       ]);
 
+    const resolvedUnit =
+      bloodUnit ||
+      (tracking.donationId
+        ? await this.bloodUnitModel.findOne({ donationId: tracking.donationId })
+        : null);
+
+    const resolvedUnitId = tracking.bloodUnitId || resolvedUnit?._id;
+
+    const [resolvedInventory, bloodTesting] = await Promise.all([
+      inventory ||
+        (resolvedUnitId
+          ? this.inventoryModel.findOne({ bloodUnitId: resolvedUnitId })
+          : null),
+      resolvedUnitId
+        ? this.bloodTestingModel.findOne({ bloodUnitId: resolvedUnitId })
+        : tracking.donationId
+        ? this.bloodTestingModel.findOne({ donationId: tracking.donationId })
+        : null,
+    ]);
+
+    const isTestingApproved =
+      resolvedUnit?.status === BloodUnitStatus.APPROVED ||
+      bloodTesting?.decision === TestingDecision.APPROVED;
+
+    const isReleased =
+      tracking.status === ReplacementTrackingStatus.RELEASED_TO_INVENTORY ||
+      (isTestingApproved &&
+        resolvedInventory &&
+        [
+          InventoryStatus.AVAILABLE,
+          InventoryStatus.RESERVED,
+          InventoryStatus.ISSUED,
+        ].includes(resolvedInventory.status as any)) ||
+      Boolean(bloodTesting?.authorizedBy);
+
     return {
       trackingCode: tracking.trackingCode,
       createdAt: tracking.createdAt,
@@ -917,12 +1000,12 @@ export class ReplacementDonationsService {
         donationId: tracking.donationId,
         donationCode: tracking.donationCode,
         donationStatus: donation?.status || 'NOT_DONATED',
-        bloodUnitId: tracking.bloodUnitId,
-        unitCode: tracking.unitCode,
-        unitStatus: bloodUnit?.status || 'N/A',
-        isReleasedToInventory:
-          bloodUnit?.status === BloodUnitStatus.APPROVED &&
-          inventory?.status === InventoryStatus.AVAILABLE,
+        bloodUnitId: resolvedUnitId || null,
+        unitCode: tracking.unitCode || resolvedUnit?.unitCode || null,
+        unitStatus: resolvedUnit?.status || (isTestingApproved ? 'APPROVED' : 'N/A'),
+        testingStatus: bloodTesting?.status || (isTestingApproved ? 'COMPLETED' : 'PENDING'),
+        testingDecision: bloodTesting?.decision || (isTestingApproved ? 'APPROVED' : 'PENDING'),
+        isReleasedToInventory: isReleased,
       },
       // 2. Patient & Request
       patientRequest: {
