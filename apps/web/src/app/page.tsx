@@ -137,7 +137,6 @@ export default function PublicDashboardPage() {
             </div>
           </div>
         </section> */}
-
         {/* SECTION B — BLOOD AVAILABILITY SUMMARY */}
         <section>
           <div
